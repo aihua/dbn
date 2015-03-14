@@ -1,13 +1,13 @@
 package com.dci.intellij.dbn.debugger.frame;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import com.dci.intellij.dbn.database.common.debug.DebuggerRuntimeInfo;
 import com.dci.intellij.dbn.database.common.debug.ExecutionBacktraceInfo;
 import com.dci.intellij.dbn.debugger.DBProgramDebugProcess;
 import com.intellij.xdebugger.frame.XExecutionStack;
 import com.intellij.xdebugger.frame.XStackFrame;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class DBProgramDebugExecutionStack extends XExecutionStack {
     private DBProgramDebugStackFrame topStackFrame;
@@ -36,8 +36,10 @@ public class DBProgramDebugExecutionStack extends XExecutionStack {
         if (backtraceInfo != null) {
             int frameNumber = backtraceInfo.getFrames().size() + 1;
             for (DebuggerRuntimeInfo runtimeInfo : backtraceInfo.getFrames()) {
-                DBProgramDebugStackFrame frame = new DBProgramDebugStackFrame(debugProcess, runtimeInfo, frameNumber);
-                frames.add(frame);
+                if (!runtimeInfo.equals(debugProcess.getRuntimeInfo())) {
+                    DBProgramDebugStackFrame frame = new DBProgramDebugStackFrame(debugProcess, runtimeInfo, frameNumber);
+                    frames.add(frame);
+                }
                 frameNumber--;
             }
             container.addStackFrames(frames, true) ;

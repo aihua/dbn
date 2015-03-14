@@ -1,11 +1,5 @@
 package com.dci.intellij.dbn.vfs;
 
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
 import com.dci.intellij.dbn.common.thread.SimpleTask;
@@ -40,6 +34,13 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.vfs.VirtualFile;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.io.IOException;
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.List;
 
 public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObject> implements FileConnectionMappingProvider {
     public ThreadLocal<Document> FAKE_DOCUMENT = new ThreadLocal<Document>();
@@ -218,18 +219,18 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
 
     @Override
     public <T> T getUserData(@NotNull Key<T> key) {
-        if (key == FileDocumentManagerImpl.HARD_REF_TO_DOCUMENT_KEY) {
+        if (key == FileDocumentManagerImpl.DOCUMENT_KEY) {
             DBContentType mainContentType = getMainContentType();
             boolean isCode = mainContentType == DBContentType.CODE || mainContentType == DBContentType.CODE_BODY;
             if (isCode) {
                 if (FAKE_DOCUMENT.get() != null) {
-                    return (T) FAKE_DOCUMENT.get();
+                    return (T) new WeakReference<Document>(FAKE_DOCUMENT.get());
                 }
 
                 DBContentVirtualFile mainContentFile = getMainContentFile();
                 if (mainContentFile != null) {
                     Document document = DocumentUtil.getDocument(mainContentFile);
-                    return (T) document;
+                    return (T) new WeakReference<Document>(document);
                 }
             }
         }

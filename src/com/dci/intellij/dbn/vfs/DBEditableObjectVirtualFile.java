@@ -40,6 +40,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -234,13 +235,13 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
                 boolean isCode = mainContentType == DBContentType.CODE || mainContentType == DBContentType.CODE_BODY;
                 if (isCode) {
                     if (FAKE_DOCUMENT.get() != null) {
-                        return (T) FAKE_DOCUMENT.get();
+                        return (T) new WeakReference<Document>(FAKE_DOCUMENT.get());
                     }
 
                     DBContentVirtualFile mainContentFile = getMainContentFile();
                     if (mainContentFile != null) {
                         Document document = DocumentUtil.getDocument(mainContentFile);
-                        return (T) document;
+                        return (T) new WeakReference<Document>(document);
                     }
                 }
             } catch (AlreadyDisposedException e) {

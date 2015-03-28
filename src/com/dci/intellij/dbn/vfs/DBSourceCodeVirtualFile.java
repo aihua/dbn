@@ -7,6 +7,7 @@ import com.dci.intellij.dbn.common.thread.SimpleTask;
 import com.dci.intellij.dbn.common.thread.WriteActionRunner;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
+import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionProvider;
 import com.dci.intellij.dbn.editor.DBContentType;
@@ -31,7 +32,6 @@ import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.impl.FileDocumentManagerImpl;
 import com.intellij.openapi.progress.ProgressIndicator;
-import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.impl.PsiDocumentManagerImpl;
@@ -167,7 +167,6 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
                 file.setUnderlyingObject(underlyingObject);
                 fileViewProvider.forceCachedPsi(file);
                 Document document = DocumentUtil.getDocument(fileViewProvider.getVirtualFile());
-                document.putUserData(FILE_KEY, getMainDatabaseFile());
                 PsiDocumentManagerImpl.cachePsi(document, file);
                 return file;
             }
@@ -219,7 +218,6 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
     }
 
     public boolean reloadFromDatabase() {
-        Project project = getProject();
         try {
             updateChangeTimestamp();
             originalContent = null;
@@ -237,12 +235,10 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
         } catch (SQLException e) {
             sourceLoadError = e.getMessage();
             DBSchemaObject object = mainDatabaseFile.getObject();
-            MessageUtil.showErrorDialog(project, "Could not reload sourcecode for " + object.getQualifiedNameWithType() + " from database.", e);
+            MessageUtil.showErrorDialog(getProject(), "Could not reload sourcecode for " + object.getQualifiedNameWithType() + " from database.", e);
             return false;
         } finally {
-            if (project != null && !project.isDisposed()) {
-                EventManager.notify(project, SourceCodeLoadListener.TOPIC).sourceCodeLoaded(mainDatabaseFile);
-            }
+            EventManager.notify(getProject(), SourceCodeLoadListener.TOPIC).sourceCodeLoaded(mainDatabaseFile);
         }
     }
 
@@ -299,15 +295,18 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
     }
 
     public void documentChanged(DocumentEvent event) {
-        setModified(true);
+        CharSequence newContent = event.getDocument().getCharsSequence();
+        if (!StringUtil.equals(newContent, content)){
+            setModified(true);
+        }
     }
 
     @Override
     public void dispose() {
+        super.dispose();
         EventManager.unsubscribe(dataDefinitionChangeListener);
         originalContent = null;
         lastSavedContent = null;
         content = "";
-        super.dispose();
     }
 }

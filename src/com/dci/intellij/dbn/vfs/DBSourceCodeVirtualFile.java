@@ -39,7 +39,7 @@ import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.lang.ref.WeakReference;
+import java.lang.ref.Reference;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 
@@ -280,7 +280,7 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
     @Override
     public <T> void putUserData(@NotNull Key<T> key, T value) {
         if (key == FileDocumentManagerImpl.DOCUMENT_KEY && contentType.isOneOf(DBContentType.CODE, DBContentType.CODE_BODY) ) {
-            mainDatabaseFile.putUserData(FileDocumentManagerImpl.DOCUMENT_KEY, new WeakReference<Document>((Document) value));
+            mainDatabaseFile.putUserData(FileDocumentManagerImpl.DOCUMENT_KEY, (Reference<Document>) value);
         }
         super.putUserData(key, value);
     }

@@ -1,12 +1,9 @@
 package com.dci.intellij.dbn.vfs;
 
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.intellij.openapi.editor.Document;
-import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.impl.FileDocumentManagerImpl;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.impl.PsiDocumentManagerBase;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.Icon;
@@ -98,8 +95,10 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
     @Override
     public void dispose() {
         disposed = true;
+/*
         Document cachedDocument = FileDocumentManager.getInstance().getCachedDocument(this);
         if (cachedDocument != null) PsiDocumentManagerBase.cachePsi(cachedDocument, null);
+*/
         putUserData(FileDocumentManagerImpl.DOCUMENT_KEY, null);
     }
 

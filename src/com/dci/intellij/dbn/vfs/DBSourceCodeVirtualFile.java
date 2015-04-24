@@ -47,10 +47,11 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 
 public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBParseableVirtualFile, DocumentListener, ConnectionProvider {
+    private static final String EMPTY_CONTENT = "";
 
-    private String originalContent;
-    private String lastSavedContent;
-    private String content;
+    private CharSequence originalContent = EMPTY_CONTENT;
+    private CharSequence lastSavedContent = EMPTY_CONTENT;
+    private CharSequence content = EMPTY_CONTENT;
     private Timestamp changeTimestamp;
     private String sourceLoadError;
     public int documentHashCode;
@@ -210,22 +211,25 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
         return changeTimestamp;
     }
 
-    public String getOriginalContent() {
+    @NotNull
+    public CharSequence getOriginalContent() {
         return originalContent;
     }
 
-    public String getLastSavedContent() {
-        return lastSavedContent == null ? originalContent : lastSavedContent;
+    @NotNull
+    public CharSequence getLastSavedContent() {
+        return lastSavedContent == EMPTY_CONTENT ? originalContent : lastSavedContent;
     }
 
     public void setContent(String content) {
-        if (originalContent == null) {
+        if (originalContent == EMPTY_CONTENT) {
             originalContent = this.content;
         }
         this.content = content;
     }
 
-    public String getContent() {
+    @NotNull
+    public CharSequence getContent() {
         return content;
     }
 
@@ -234,7 +238,7 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
         if (project != null) {
             try {
                 updateChangeTimestamp();
-                originalContent = null;
+                originalContent = EMPTY_CONTENT;
 
                 DBSchemaObject object = getObject();
                 SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
@@ -260,11 +264,12 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
 
     public void updateToDatabase() throws SQLException {
         DBSchemaObject object = getObject();
-        object.executeUpdateDDL(getContentType(), getLastSavedContent(), content);
+        CharSequence lastSavedContent = getLastSavedContent();
+        object.executeUpdateDDL(getContentType(), lastSavedContent.toString(), content.toString());
         updateChangeTimestamp();
         getMainDatabaseFile().updateDDLFiles(getContentType());
         setModified(false);
-        lastSavedContent = content;
+        this.lastSavedContent = content;
     }
 
     @NotNull
@@ -274,7 +279,7 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
 
     @NotNull
     public byte[] contentsToByteArray() {
-        return content.getBytes(getCharset());
+        return content.toString().getBytes(getCharset());
     }
 
     public long getLength() {
@@ -314,14 +319,15 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
         CharSequence newContent = event.getDocument().getCharsSequence();
         if (!StringUtil.equals(newContent, content)){
             setModified(true);
+            setContent(newContent.toString());
         }
     }
 
     @Override
     public void dispose() {
         super.dispose();
-        originalContent = null;
-        lastSavedContent = null;
-        content = "";
+        originalContent = EMPTY_CONTENT;
+        lastSavedContent = EMPTY_CONTENT;
+        content = EMPTY_CONTENT;
     }
 }

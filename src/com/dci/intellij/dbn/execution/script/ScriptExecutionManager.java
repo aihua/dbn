@@ -170,10 +170,8 @@ public class ScriptExecutionManager extends AbstractProjectComponent implements 
         FileChooserDescriptor fileChooserDescriptor = new FileChooserDescriptor(true, false, false, false, false, false);
         CmdLineInterface defaultCli = CmdLineInterface.getDefault(databaseType);
         String extension = OS.isWindows() ? ".exe" : "";
-        fileChooserDescriptor.
-                withTitle("Select Command-Line Client").
-                withDescription("Select Command-Line Interface executable (" + defaultCli.getExecutablePath() + extension + ")").
-                withShowHiddenFiles(true);
+        fileChooserDescriptor.setTitle("Select Command-Line Client");
+        fileChooserDescriptor.setDescription("Select Command-Line Interface executable (" + defaultCli.getExecutablePath() + extension + ")");
         VirtualFile selectedFile = StringUtil.isEmpty(selectedExecutable) ? null : LocalFileSystem.getInstance().findFileByPath(selectedExecutable);
         VirtualFile[] virtualFiles = FileChooser.chooseFiles(fileChooserDescriptor, getProject(), selectedFile);
         return virtualFiles.length == 1 ? virtualFiles[0] : null;

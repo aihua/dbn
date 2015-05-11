@@ -42,9 +42,11 @@ import java.util.List;
                 @Storage(file = StoragePathMacros.PROJECT_FILE)}
 )
 public class ProjectSettingsManager implements ProjectComponent, PersistentStateComponent<Element> {
+    private Project project;
     private ProjectSettings projectSettings;
 
     private ProjectSettingsManager(Project project) {
+        this.project = project;
         projectSettings = new ProjectSettings(project);
     }
 
@@ -56,7 +58,7 @@ public class ProjectSettingsManager implements ProjectComponent, PersistentState
         if (project.isDefault()) {
             return DefaultProjectSettingsManager.getInstance().getDefaultProjectSettings();
         } else {
-            return getInstance(project).projectSettings;
+            return ProjectSettingsManager.getInstance(project).getProjectSettings();
         }
     }
 
@@ -65,47 +67,47 @@ public class ProjectSettingsManager implements ProjectComponent, PersistentState
     }
 
     public GeneralProjectSettings getGeneralSettings() {
-        return projectSettings.getGeneralSettings();
+        return getProjectSettings().getGeneralSettings();
     }
 
     public DatabaseBrowserSettings getBrowserSettings() {
-        return projectSettings.getBrowserSettings();
+        return getProjectSettings().getBrowserSettings();
     }
 
     public NavigationSettings getNavigationSettings() {
-        return projectSettings.getNavigationSettings();
+        return getProjectSettings().getNavigationSettings();
     }
 
     public ConnectionBundleSettings getConnectionSettings() {
-        return projectSettings.getConnectionSettings();
+        return getProjectSettings().getConnectionSettings();
     }
 
     public DataGridSettings getDataGridSettings() {
-        return projectSettings.getDataGridSettings();
+        return getProjectSettings().getDataGridSettings();
     }
 
     public DataEditorSettings getDataEditorSettings() {
-        return projectSettings.getDataEditorSettings();
+        return getProjectSettings().getDataEditorSettings();
     }
 
     public CodeCompletionSettings getCodeCompletionSettings() {
-        return projectSettings.getCodeCompletionSettings();
+        return getProjectSettings().getCodeCompletionSettings();
     }
 
     public ProjectCodeStyleSettings getCodeStyleSettings() {
-        return projectSettings.getCodeStyleSettings();
+        return getProjectSettings().getCodeStyleSettings();
     }
 
     public OperationSettings getOperationSettings() {
-        return projectSettings.getOperationSettings();
+        return getProjectSettings().getOperationSettings();
     }
 
     public ExecutionEngineSettings getExecutionEngineSettings() {
-        return projectSettings.getExecutionEngineSettings();
+        return getProjectSettings().getExecutionEngineSettings();
     }
 
     public DDLFileSettings getDdlFileSettings() {
-        return projectSettings.getDdlFileSettings();
+        return getProjectSettings().getDdlFileSettings();
     }
 
     public void openDefaultProjectSettings() {
@@ -150,9 +152,25 @@ public class ProjectSettingsManager implements ProjectComponent, PersistentState
         }
     }
 
+    /****************************************
+     *       PersistentStateComponent       *
+     *****************************************/
+    @Nullable
+    @Override
+    public Element getState() {
+        Element element = new Element("state");
+        projectSettings.writeConfiguration(element);
+        return element;
+    }
+
+    @Override
+    public void loadState(Element element) {
+        projectSettings.readConfiguration(element);
+        getProject().putUserData(DBNDataKeys.PROJECT_SETTINGS_LOADED_KEY, true);
+    }
 
     private Project getProject() {
-        return projectSettings.getProject();
+        return project;
     }
 
     @Override
@@ -168,7 +186,6 @@ public class ProjectSettingsManager implements ProjectComponent, PersistentState
     }
 
     public void exportToDefaultSettings() {
-        final Project project = getProject();
         MessageUtil.showQuestionDialog(
                 project, "Default Project Settings",
                 "This will overwrite your default settings with the ones from the current project (including database connections configuration). \nAre you sure you want to continue?",
@@ -183,7 +200,7 @@ public class ProjectSettingsManager implements ProjectComponent, PersistentState
                     protected void execute() {
                         try {
                             Element element = new Element("state");
-                            projectSettings.writeConfiguration(element);
+                            getProjectSettings().writeConfiguration(element);
 
                             ConnectionBundleSettings.IS_IMPORT_EXPORT_ACTION.set(true);
                             ProjectSettings defaultProjectSettings = DefaultProjectSettingsManager.getInstance().getDefaultProjectSettings();
@@ -197,7 +214,6 @@ public class ProjectSettingsManager implements ProjectComponent, PersistentState
     }
 
     public void importDefaultSettings(final boolean isNewProject) {
-        final Project project = getProject();
         Boolean settingsLoaded = project.getUserData(DBNDataKeys.PROJECT_SETTINGS_LOADED_KEY);
         if (settingsLoaded == null || !settingsLoaded || !isNewProject) {
             String message = isNewProject ?
@@ -221,7 +237,7 @@ public class ProjectSettingsManager implements ProjectComponent, PersistentState
                                 defaultProjectSettings.writeConfiguration(element);
 
                                 ConnectionBundleSettings.IS_IMPORT_EXPORT_ACTION.set(true);
-                                projectSettings.readConfiguration(element);
+                                getProjectSettings().readConfiguration(element);
 
                                 EventUtil.notify(project, ConnectionSetupListener.TOPIC).setupChanged();
 
@@ -244,22 +260,5 @@ public class ProjectSettingsManager implements ProjectComponent, PersistentState
     @Override
     public String getComponentName() {
         return "DBNavigator.Project.Settings";
-    }
-
-    /****************************************
-     *       PersistentStateComponent       *
-     *****************************************/
-    @Nullable
-    @Override
-    public Element getState() {
-        Element element = new Element("state");
-        projectSettings.writeConfiguration(element);
-        return element;
-    }
-
-    @Override
-    public void loadState(Element element) {
-        projectSettings.readConfiguration(element);
-        getProject().putUserData(DBNDataKeys.PROJECT_SETTINGS_LOADED_KEY, true);
     }
 }

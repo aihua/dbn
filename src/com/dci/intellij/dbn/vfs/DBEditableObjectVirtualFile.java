@@ -96,7 +96,7 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
                         MessageUtil.showQuestionDialog(
                                 project, "No DDL file found",
                                 "Could not find any DDL file for " + object.getQualifiedNameWithType() + ". Do you want to create one? \n" +
-                                        "(You can disable this check in \"DDL File\" options)", MessageUtil.OPTIONS_YES_NO, 0,
+                                "(You can disable this check in \"DDL File\" options)", MessageUtil.OPTIONS_YES_NO, 0,
                                 new SimpleTask() {
                                     @Override
                                     protected boolean canExecute() {
@@ -180,6 +180,7 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
         }
     }
 
+    @Nullable
     public DBContentVirtualFile getContentFile(DBContentType contentType) {
         for (DBContentVirtualFile contentFile : getContentFiles()) {
             if (contentFile.getContentType() == contentType) {
@@ -258,8 +259,8 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
         DBSchemaObject object = getObject();
         DBContentType contentType = object.getContentType();
         return
-                contentType == DBContentType.CODE ? DBContentType.CODE :
-                        contentType == DBContentType.CODE_SPEC_AND_BODY ? DBContentType.CODE_BODY : null;
+            contentType == DBContentType.CODE ? DBContentType.CODE :
+            contentType == DBContentType.CODE_SPEC_AND_BODY ? DBContentType.CODE_BODY : null;
     }
 
     public DBContentVirtualFile getMainContentFile() {
@@ -281,9 +282,9 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
 
     public boolean isModified() {
         for (DBContentVirtualFile contentVirtualFile : getContentFiles()) {
-            if (contentVirtualFile.isModified()) {
-                return true;
-            }
+           if (contentVirtualFile.isModified()) {
+               return true;
+           }
         }
         return false;
     }

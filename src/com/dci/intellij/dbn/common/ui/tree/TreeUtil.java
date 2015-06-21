@@ -1,7 +1,8 @@
 package com.dci.intellij.dbn.common.ui.tree;
 
 import com.dci.intellij.dbn.common.LoggerFactory;
-import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
+import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.ui.SimpleColoredComponent;
@@ -32,7 +33,7 @@ public class TreeUtil {
         try {
             SpeedSearchUtil.applySpeedSearchHighlighting(tree, coloredComponent, true, selected);
         } catch (Throwable e) {
-            LOGGER.error("Error applying speed search highlighting");
+            LOGGER.warn("Error applying speed search highlighting");
         }
     }
 
@@ -80,18 +81,19 @@ public class TreeUtil {
     }
 
     private static void notifyTreeModelListeners(final Set<TreeModelListener> treeModelListeners, final TreeEventType eventType, final TreeModelEvent event) {
-        new ConditionalLaterInvocator() {
+        new SimpleLaterInvocator() {
             @Override
             protected void execute() {
                 try {
-                    if (event.getTreePath().getLastPathComponent() != null) {
-                        for (TreeModelListener treeModelListener : treeModelListeners) {
-                            switch (eventType) {
-                                case NODES_ADDED:       treeModelListener.treeNodesInserted(event);    break;
-                                case NODES_REMOVED:     treeModelListener.treeNodesRemoved(event);     break;
-                                case NODES_CHANGED:     treeModelListener.treeNodesChanged(event);     break;
-                                case STRUCTURE_CHANGED: treeModelListener.treeStructureChanged(event); break;
-                            }
+
+                    Object lastPathComponent = event.getTreePath().getLastPathComponent();
+                    FailsafeUtil.check(lastPathComponent);
+                    for (TreeModelListener treeModelListener : treeModelListeners) {
+                        switch (eventType) {
+                            case NODES_ADDED:       treeModelListener.treeNodesInserted(event);    break;
+                            case NODES_REMOVED:     treeModelListener.treeNodesRemoved(event);     break;
+                            case NODES_CHANGED:     treeModelListener.treeNodesChanged(event);     break;
+                            case STRUCTURE_CHANGED: treeModelListener.treeStructureChanged(event); break;
                         }
                     }
                 } catch (ProcessCanceledException e) {

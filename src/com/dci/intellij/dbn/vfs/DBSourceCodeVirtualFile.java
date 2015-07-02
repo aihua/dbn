@@ -54,7 +54,6 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
     private CharSequence content = EMPTY_CONTENT;
     private Timestamp changeTimestamp;
     private String sourceLoadError;
-    public int documentHashCode;
     private SourceCodeOffsets offsets;
 
     public DBSourceCodeVirtualFile(final DBEditableObjectVirtualFile databaseFile, DBContentType contentType) {
@@ -66,7 +65,7 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
         try {
             SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
             SourceCodeContent sourceCodeContent = sourceCodeManager.loadSourceFromDatabase(object, contentType);
-            content = sourceCodeContent.getSourceCode();
+            content = sourceCodeContent.getText();
             offsets = sourceCodeContent.getOffsets();
             sourceLoadError = null;
         } catch (SQLException e) {
@@ -175,7 +174,9 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
                 file.setUnderlyingObject(underlyingObject);
                 fileViewProvider.forceCachedPsi(file);
                 Document document = DocumentUtil.getDocument(fileViewProvider.getVirtualFile());
-                PsiDocumentManagerImpl.cachePsi(document, file);
+                if (document != null) {
+                    PsiDocumentManagerImpl.cachePsi(document, file);
+                }
                 return file;
             }
         }
@@ -243,7 +244,7 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
                 DBSchemaObject object = getObject();
                 SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
                 SourceCodeContent sourceCodeContent = sourceCodeManager.loadSourceFromDatabase(object, contentType);
-                content = sourceCodeContent.getSourceCode();
+                content = sourceCodeContent.getText();
                 offsets = sourceCodeContent.getOffsets();
 
                 getMainDatabaseFile().updateDDLFiles(getContentType());
@@ -284,14 +285,6 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
 
     public long getLength() {
         return content.length();
-    }
-
-    public int getDocumentHashCode() {
-        return documentHashCode;
-    }
-
-    public void setDocumentHashCode(int documentHashCode) {
-        this.documentHashCode = documentHashCode;
     }
 
     public String getSourceLoadError() {

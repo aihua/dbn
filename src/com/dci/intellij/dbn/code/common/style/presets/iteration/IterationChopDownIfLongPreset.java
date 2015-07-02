@@ -1,13 +1,12 @@
 package com.dci.intellij.dbn.code.common.style.presets.iteration;
 
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.IterationElementType;
 import com.dci.intellij.dbn.language.common.psi.BasePsiElement;
 import com.intellij.formatting.Spacing;
 import com.intellij.formatting.Wrap;
 import com.intellij.psi.codeStyle.CodeStyleSettings;
+import org.jetbrains.annotations.Nullable;
 
 public class IterationChopDownIfLongPreset extends IterationAbstractPreset {
     public IterationChopDownIfLongPreset() {
@@ -20,7 +19,7 @@ public class IterationChopDownIfLongPreset extends IterationAbstractPreset {
         IterationElementType iterationElementType = (IterationElementType) parentPsiElement.getElementType();
         ElementType elementType = psiElement.getElementType();
 
-        boolean shouldWrap = parentPsiElement.approximateLength() > settings.getRightMargin(psiElement.getLanguage());
+        boolean shouldWrap = parentPsiElement.approximateLength() > settings.RIGHT_MARGIN;
         return getWrap(elementType, iterationElementType, shouldWrap);
     }
 
@@ -30,7 +29,7 @@ public class IterationChopDownIfLongPreset extends IterationAbstractPreset {
         IterationElementType iterationElementType = (IterationElementType) parentPsiElement.getElementType();
         ElementType elementType = psiElement.getElementType();
 
-        boolean shouldWrap = parentPsiElement.approximateLength() > settings.getRightMargin(psiElement.getLanguage());
+        boolean shouldWrap = parentPsiElement.approximateLength() > settings.RIGHT_MARGIN;
         return getSpacing(iterationElementType, elementType, shouldWrap);
     }
 

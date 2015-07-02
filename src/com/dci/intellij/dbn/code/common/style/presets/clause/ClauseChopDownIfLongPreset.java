@@ -1,11 +1,10 @@
 package com.dci.intellij.dbn.code.common.style.presets.clause;
 
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.language.common.psi.BasePsiElement;
 import com.intellij.formatting.Spacing;
 import com.intellij.formatting.Wrap;
 import com.intellij.psi.codeStyle.CodeStyleSettings;
+import org.jetbrains.annotations.Nullable;
 
 public class ClauseChopDownIfLongPreset extends ClauseAbstractPreset {
     public ClauseChopDownIfLongPreset() {
@@ -14,14 +13,14 @@ public class ClauseChopDownIfLongPreset extends ClauseAbstractPreset {
 
     @Nullable
     public Wrap getWrap(BasePsiElement psiElement, CodeStyleSettings settings) {
-        boolean shouldWrap = psiElement.approximateLength() > settings.getRightMargin(psiElement.getLanguage());
+        boolean shouldWrap = psiElement.approximateLength() > settings.RIGHT_MARGIN;;
         return shouldWrap ? WRAP_ALWAYS : WRAP_NONE;
 
     }
 
     @Nullable
     public Spacing getSpacing(BasePsiElement psiElement, CodeStyleSettings settings) {
-        boolean shouldChopDown = psiElement.approximateLength() > settings.getRightMargin(psiElement.getLanguage());
+        boolean shouldChopDown = psiElement.approximateLength() > settings.RIGHT_MARGIN;;
         return getSpacing(psiElement, shouldChopDown);
     }
 }

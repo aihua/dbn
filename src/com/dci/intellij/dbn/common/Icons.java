@@ -59,11 +59,15 @@ public class Icons {
     public static final Icon ACTION_RERUN = load("/img/action/Rerun.png");
     public static final Icon ACTION_PIN = load("/img/action/Pin.png");
     public static final Icon ACTION_REVERT_CHANGES = load("/img/action/RevertChanges.png");
+    public static final Icon ACTION_SAVE_CHANGES = load("/img/action/Save.png");
     public static final Icon ACTION_SELECT_ALL = load("/img/action/SelectAll.png");
     public static final Icon ACTION_OPTIONS = load("/img/action/Options.png");
     public static final Icon ACTION_NAVIGATE = load("/img/action/Navigate.png");
     public static final Icon ACTION_DISCONNECT_SESSION = load("/img/action/DisconnectSession.png");
     public static final Icon ACTION_KILL_SESSION = load("/img/action/KillSession.png");
+
+    public static final Icon ACTION_SAVE_TO_SETTINGS = load("/img/action/SaveToSettings.png");
+    public static final Icon ACTION_REVERT_FROM_SETTINGS = load("/img/action/RevertFromSettings.png");
 
 
     public static final Icon DATABASE_NAVIGATOR = load("/img/project/DatabaseNavigator.png");
@@ -377,9 +381,11 @@ public class Icons {
     public static final Icon DBO_VIEW_SYNONYM                    = load("/img/object/ViewSynonym.png");
     public static final Icon DBO_VIEWS                           = load("/img/object/Views.png");
     public static final Icon DBO_VARIABLE                        = load("/img/object/Variable.png");
+    public static final Icon DBO_CURSOR                          = load("/img/object/Cursor.png");
     public static final Icon DBO_LABEL_PK_FK                     = load("/img/object/PrimaryKeyForeignKey.png");
     public static final Icon DBO_LABEL_PK                        = load("/img/object/PrimaryKey.png");
     public static final Icon DBO_LABEL_FK                        = load("/img/object/ForeignKey.png");
+
 
     public static final Icon DBO_OUTGOING_REF                    = load("/img/object/OutgoingReference.png");
     public static final Icon DBO_INCOMING_REF                    = load("/img/object/IncomingReference.png");

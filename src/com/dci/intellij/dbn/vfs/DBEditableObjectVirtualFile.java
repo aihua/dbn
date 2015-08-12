@@ -102,7 +102,7 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
                                 new SimpleTask() {
                                     @Override
                                     protected boolean canExecute() {
-                                        return getOption() == DialogWrapper.OK_EXIT_CODE;
+                                        return getHandle() == DialogWrapper.OK_EXIT_CODE;
                                     }
 
                                     @Override

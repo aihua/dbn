@@ -1,12 +1,19 @@
 package com.dci.intellij.dbn.execution.script.options.ui;
 
 import javax.swing.JPanel;
+import javax.swing.JTextField;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
+import org.jetbrains.annotations.Nullable;
 
+import com.dci.intellij.dbn.common.options.SettingsChangeNotifier;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
+import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorUtil;
 import com.dci.intellij.dbn.common.thread.SimpleCallback;
+import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.connection.DatabaseType;
+import com.dci.intellij.dbn.execution.ExecutionTarget;
+import com.dci.intellij.dbn.execution.common.options.TimeoutSettingsListener;
 import com.dci.intellij.dbn.execution.script.CmdLineInterface;
 import com.dci.intellij.dbn.execution.script.CmdLineInterfaceBundle;
 import com.dci.intellij.dbn.execution.script.ScriptExecutionManager;
@@ -27,6 +34,7 @@ import com.intellij.ui.awt.RelativePoint;
 public class ScriptExecutionSettingsForm extends ConfigurationEditorForm<ScriptExecutionSettings> {
     private JPanel mainPanel;
     private JPanel cmdLineInterfacesTablePanel;
+    private JTextField executionTimeoutTextField;
     private CmdLineInterfacesTable cmdLineInterfacesTable;
 
     public ScriptExecutionSettingsForm(ScriptExecutionSettings settings) {
@@ -65,6 +73,7 @@ public class ScriptExecutionSettingsForm extends ConfigurationEditorForm<ScriptE
         JPanel panel = decorator.createPanel();
         cmdLineInterfacesTablePanel.add(panel, BorderLayout.CENTER);
         cmdLineInterfacesTable.getParent().setBackground(cmdLineInterfacesTable.getBackground());
+        executionTimeoutTextField.setText(String.valueOf(settings.getExecutionTimeout()));
         registerComponents(mainPanel);
         updateBorderTitleForeground(mainPanel);
     }
@@ -102,8 +111,8 @@ public class ScriptExecutionSettingsForm extends ConfigurationEditorForm<ScriptE
                 ScriptExecutionManager scriptExecutionManager = ScriptExecutionManager.getInstance(project);
                 scriptExecutionManager.createCmdLineInterface(databaseType, cmdLineInterfacesTable.getNames(), new SimpleCallback<CmdLineInterface>() {
                     @Override
-                    public void start(CmdLineInterface value) {
-                        cmdLineInterfacesTable.addInterface(value);
+                    public void start(@Nullable CmdLineInterface inputValue) {
+                        cmdLineInterfacesTable.addInterface(inputValue);
                     }
                 });
             }
@@ -116,14 +125,26 @@ public class ScriptExecutionSettingsForm extends ConfigurationEditorForm<ScriptE
     
     public void applyFormChanges() throws ConfigurationException {
         ScriptExecutionSettings settings = getConfiguration();
+        int executionTimeout = ConfigurationEditorUtil.validateIntegerInputValue(executionTimeoutTextField, "Execution timeout", true, 0, 6000, "\nUse value 0 for no timeout");
         CmdLineInterfacesTableModel model = cmdLineInterfacesTable.getModel();
         model.validate();
         CmdLineInterfaceBundle executorBundle = model.getBundle();
         settings.setCommandLineInterfaces(executorBundle);
+
+        boolean timeoutSettingsChanged = settings.setExecutionTimeout(executionTimeout);
+        if (timeoutSettingsChanged) {
+            new SettingsChangeNotifier() {
+                @Override
+                public void notifyChanges() {
+                    EventUtil.notify(getProject(), TimeoutSettingsListener.TOPIC).settingsChanged(ExecutionTarget.SCRIPT);
+                }
+            };
+        }
     }
 
     public void resetFormChanges() {
         ScriptExecutionSettings settings = getConfiguration();
+        executionTimeoutTextField.setText(Integer.toString(settings.getExecutionTimeout()));
         cmdLineInterfacesTable.getModel().setBundle(settings.getCommandLineInterfaces());
     }
 }

@@ -24,7 +24,7 @@ public class DatabaseLogOutputCloseAction extends AbstractDatabaseLogOutputActio
                 SimpleTask closeConsoleTask = new SimpleTask() {
                     @Override
                     protected void execute() {
-                        if (getOption() == 0) {
+                        if (getHandle() == 0) {
                             closeConsole(loggingResult, project);
                         }
                     }
@@ -32,7 +32,7 @@ public class DatabaseLogOutputCloseAction extends AbstractDatabaseLogOutputActio
                 MessageUtil.showQuestionDialog(
                         project,
                         "Process Active",
-                        "The process is still active. Closing the log output will forcibly interrupt the process. \nAre you sure you want to close the console?",
+                        "The process is still active. Closing the log output will interrupt the process. \nAre you sure you want to close the console?",
                         MessageUtil.OPTIONS_YES_NO, 0, closeConsoleTask);
             } else {
                 closeConsole(loggingResult, project);

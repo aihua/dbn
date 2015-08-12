@@ -16,6 +16,7 @@ import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.data.model.resultSet.ResultSetDataModel;
+import com.dci.intellij.dbn.debugger.DBDebuggerType;
 import com.dci.intellij.dbn.execution.ExecutionContext;
 import com.dci.intellij.dbn.execution.ExecutionResult;
 import com.dci.intellij.dbn.execution.common.options.ExecutionEngineSettings;
@@ -38,14 +39,14 @@ public class MethodExecutionResult implements ExecutionResult, Disposable {
     private MethodExecutionResultForm resultPanel;
     private List<ArgumentValue> argumentValues = new ArrayList<ArgumentValue>();
     private Map<DBObjectRef<DBArgument>, ResultSetDataModel> cursorModels;
-    private boolean debug;
+    private DBDebuggerType debuggerType;
     private String logOutput;
     private int executionDuration;
 
-    public MethodExecutionResult(MethodExecutionInput executionInput, MethodExecutionResultForm resultPanel, boolean debug) {
+    public MethodExecutionResult(MethodExecutionInput executionInput, MethodExecutionResultForm resultPanel, DBDebuggerType debuggerType) {
         this.executionInput = executionInput;
         executionInput.setExecutionResult(this);
-        this.debug = debug;
+        this.debuggerType = debuggerType;
         this.resultPanel = resultPanel;
     }
 
@@ -171,8 +172,8 @@ public class MethodExecutionResult implements ExecutionResult, Disposable {
         this.resultPanel = resultPanel;
     }
 
-    public boolean isDebug() {
-        return debug;
+    public DBDebuggerType getDebuggerType() {
+        return debuggerType;
     }
 
     public ResultSetDataModel getTableModel(DBArgument argument) {

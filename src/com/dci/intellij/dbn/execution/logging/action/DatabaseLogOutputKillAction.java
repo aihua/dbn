@@ -26,7 +26,7 @@ public class DatabaseLogOutputKillAction extends AbstractDatabaseLogOutputAction
                 SimpleTask killConsoleTask = new SimpleTask() {
                     @Override
                     protected void execute() {
-                        if (getOption() == 0) {
+                        if (getHandle() == 0) {
                             context.stop();
                         }
                     }
@@ -34,7 +34,7 @@ public class DatabaseLogOutputKillAction extends AbstractDatabaseLogOutputAction
                 MessageUtil.showQuestionDialog(
                         project,
                         "Kill Process",
-                        "This will forcibly interrupt the process. \nAre you sure you want to continue?",
+                        "This will interrupt the script execution process. \nAre you sure you want to continue?",
                         MessageUtil.OPTIONS_YES_NO, 0, killConsoleTask);
             } else {
                 context.stop();

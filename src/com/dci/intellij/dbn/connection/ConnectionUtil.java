@@ -52,28 +52,52 @@ public class ConnectionUtil {
     }
 
     public static void closeStatement(final Statement statement) {
-        try {
-            if (statement != null) {
-                statement.close();
+        if (statement != null) {
+            if (ApplicationManager.getApplication().isDispatchThread()) {
+                new SimpleBackgroundTask("close statement") {
+                    @Override
+                    protected void execute() {
+                        closeStatement(statement);
+                    }
+                }.start();
+            } else {
+                try {
+                    statement.close();
+                } catch (Throwable e) {
+                    LOGGER.warn("Error closing statement: " + e.getMessage());
+                }
             }
-        } catch (Throwable e) {
-            LOGGER.warn("Error closing statement: " + e.getMessage());
         }
+    }
 
+    public static void cancelStatement(final Statement statement) {
+        if (statement != null) {
+            try {
+                statement.cancel();
+            } catch (Throwable e) {
+                LOGGER.warn("Error cancelling statement: " + e.getMessage());
+            } finally {
+                closeStatement(statement);
+            }
+        }
     }
 
     public static void closeConnection(final Connection connection) {
         if (connection != null) {
-            new SimpleBackgroundTask("close connection") {
-                @Override
-                protected void execute() {
-                    try {
-                        connection.close();
-                    } catch (Throwable e) {
-                        LOGGER.warn("Error closing connection: " + e.getMessage());
+            if (ApplicationManager.getApplication().isDispatchThread()) {
+                new SimpleBackgroundTask("close connection") {
+                    @Override
+                    protected void execute() {
+                        closeConnection(connection);
                     }
+                }.start();
+            } else {
+                try {
+                    connection.close();
+                } catch (Throwable e) {
+                    LOGGER.warn("Error closing connection: " + e.getMessage());
                 }
-            }.start();
+            }
         }
     }
 
@@ -284,5 +308,15 @@ public class ConnectionUtil {
         } catch (SQLException e) {
             LOGGER.warn("Error committing connection", e);
         }
+    }
+
+
+    public static boolean isClosed(final Connection connection) {
+        return new SimpleTimeoutCall<Boolean>(2, TimeUnit.SECONDS, false) {
+            @Override
+            public Boolean call() throws Exception {
+                return connection.isClosed();
+            }
+        }.start();
     }
 }

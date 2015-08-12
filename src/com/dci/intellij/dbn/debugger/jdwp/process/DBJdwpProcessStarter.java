@@ -1,30 +1,16 @@
 package com.dci.intellij.dbn.debugger.jdwp.process;
 
-import java.net.ServerSocket;
+import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStarter;
+import com.intellij.debugger.impl.DebuggerSession;
+import com.intellij.execution.ExecutionException;
+import com.intellij.openapi.util.Key;
+import com.intellij.xdebugger.XDebugProcess;
+import com.intellij.xdebugger.XDebugSession;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
-import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.debugger.common.config.DBRunConfig;
-import com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStarter;
-import com.dci.intellij.dbn.debugger.jdwp.config.DBJdwpRunConfig;
-import com.intellij.debugger.DebugEnvironment;
-import com.intellij.debugger.DebuggerManagerEx;
-import com.intellij.debugger.DefaultDebugEnvironment;
-import com.intellij.debugger.impl.DebuggerSession;
-import com.intellij.execution.ExecutionException;
-import com.intellij.execution.Executor;
-import com.intellij.execution.configurations.RemoteConnection;
-import com.intellij.execution.configurations.RunProfile;
-import com.intellij.execution.configurations.RunProfileState;
-import com.intellij.execution.executors.DefaultDebugExecutor;
-import com.intellij.execution.runners.ExecutionEnvironment;
-import com.intellij.execution.runners.ExecutionEnvironmentBuilder;
-import com.intellij.openapi.util.Key;
-import com.intellij.util.Range;
-import com.intellij.xdebugger.XDebugProcess;
-import com.intellij.xdebugger.XDebugSession;
+import java.net.ServerSocket;
 
 public abstract class DBJdwpProcessStarter extends DBDebugProcessStarter {
 
@@ -55,7 +41,8 @@ public abstract class DBJdwpProcessStarter extends DBDebugProcessStarter {
     @NotNull
     @Override
     public final XDebugProcess start(@NotNull XDebugSession session) throws ExecutionException {
-        Executor executor = DefaultDebugExecutor.getDebugExecutorInstance();
+        throw new UnsupportedOperationException();
+/*        Executor executor = DefaultDebugExecutor.getDebugExecutorInstance();
         RunProfile runProfile = session.getRunProfile();
         assertNotNull(runProfile, "Invalid run profile");
         if (runProfile instanceof DBRunConfig) {
@@ -75,7 +62,7 @@ public abstract class DBJdwpProcessStarter extends DBDebugProcessStarter {
         DebuggerSession debuggerSession = debuggerManagerEx.attachVirtualMachine(debugEnvironment);
         assertNotNull(debuggerSession, "Could not initialize JDWP listener");
 
-        return createDebugProcess(session, debuggerSession, freePort);
+        return createDebugProcess(session, debuggerSession, freePort);*/
     }
 
     protected abstract DBJdwpDebugProcess createDebugProcess(@NotNull XDebugSession session, DebuggerSession debuggerSession, int tcpPort);

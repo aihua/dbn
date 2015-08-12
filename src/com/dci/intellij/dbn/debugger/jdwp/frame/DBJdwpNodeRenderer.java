@@ -1,20 +1,11 @@
 package com.dci.intellij.dbn.debugger.jdwp.frame;
 
-import javax.swing.Icon;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.debugger.jdwp.process.DBJdwpDebugProcess;
 import com.intellij.debugger.DebuggerContext;
 import com.intellij.debugger.engine.DebugProcess;
 import com.intellij.debugger.engine.evaluation.EvaluateException;
 import com.intellij.debugger.engine.evaluation.EvaluationContext;
-import com.intellij.debugger.ui.impl.watch.ArgumentValueDescriptorImpl;
-import com.intellij.debugger.ui.impl.watch.DebuggerTreeNodeImpl;
 import com.intellij.debugger.ui.impl.watch.FieldDescriptorImpl;
 import com.intellij.debugger.ui.impl.watch.LocalVariableDescriptorImpl;
 import com.intellij.debugger.ui.impl.watch.NodeManagerImpl;
@@ -31,6 +22,13 @@ import com.sun.jdi.ReferenceType;
 import com.sun.jdi.Type;
 import com.sun.jdi.Value;
 import com.sun.tools.jdi.ObjectReferenceImpl;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import javax.swing.Icon;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class DBJdwpNodeRenderer extends NodeRendererImpl {
     public DBJdwpNodeRenderer() {
@@ -48,7 +46,7 @@ public class DBJdwpNodeRenderer extends NodeRendererImpl {
             for (Field field : fields) {
                 NodeManagerImpl nodeManager = (NodeManagerImpl) builder.getNodeManager();
                 FieldDescriptorImpl fieldDescriptor = nodeManager.getFieldDescriptor(null, objectReference, field);
-                nodes.add(new DebuggerTreeNodeImpl(null, fieldDescriptor));
+                //nodes.add(new DebuggerTreeNodeImpl(null, fieldDescriptor));
                 System.out.printf("");
             }
             builder.setChildren(nodes);
@@ -141,9 +139,7 @@ public class DBJdwpNodeRenderer extends NodeRendererImpl {
             catch (EvaluateException ignored) {}
             catch (ClassNotLoadedException ignore) {}
         }
-        else if (descriptor instanceof ArgumentValueDescriptorImpl) {
-            isArgument = ((ArgumentValueDescriptorImpl)descriptor).isParameter();
-        }
+
         if (isArgument) {
             return Icons.DBO_ARGUMENT;
         }

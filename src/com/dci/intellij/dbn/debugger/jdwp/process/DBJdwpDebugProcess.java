@@ -1,9 +1,7 @@
 package com.dci.intellij.dbn.debugger.jdwp.process;
 
-import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.notification.NotificationUtil;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
@@ -23,23 +21,13 @@ import com.dci.intellij.dbn.execution.ExecutionInput;
 import com.dci.intellij.dbn.object.DBMethod;
 import com.dci.intellij.dbn.object.DBProgram;
 import com.dci.intellij.dbn.object.DBSchema;
-import com.intellij.debugger.DebuggerManager;
-import com.intellij.debugger.engine.DebugProcessAdapter;
-import com.intellij.debugger.engine.JavaDebugProcess;
-import com.intellij.debugger.engine.JavaStackFrame;
-import com.intellij.debugger.engine.SuspendContext;
-import com.intellij.debugger.engine.SuspendContextImpl;
-import com.intellij.debugger.engine.events.DebuggerCommandImpl;
-import com.intellij.debugger.impl.DebuggerContextImpl;
-import com.intellij.debugger.impl.DebuggerContextListener;
 import com.intellij.debugger.impl.DebuggerSession;
-import com.intellij.execution.process.ProcessHandler;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.xdebugger.XDebugProcess;
 import com.intellij.xdebugger.XDebugSession;
-import com.intellij.xdebugger.XDebugSessionAdapter;
 import com.intellij.xdebugger.frame.XExecutionStack;
 import com.intellij.xdebugger.frame.XStackFrame;
 import com.intellij.xdebugger.frame.XSuspendContext;
@@ -54,7 +42,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.StringTokenizer;
 
-public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaDebugProcess implements DBDebugProcess {
+public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebugProcess implements DBDebugProcess {
     public static final Key<DBJdwpDebugProcess> KEY = new Key<DBJdwpDebugProcess>("DBNavigator.JdwpDebugProcess");
     protected Connection targetConnection;
     private ConnectionHandlerRef connectionHandlerRef;
@@ -67,7 +55,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
     private transient XSuspendContext lastSuspendContext;
 
     protected DBJdwpDebugProcess(@NotNull final XDebugSession session, DebuggerSession debuggerSession, ConnectionHandler connectionHandler, int tcpPort) {
-        super(session, debuggerSession);
+        super(session);
         console = new DBDebugConsoleLogger(session);
         this.connectionHandlerRef = ConnectionHandlerRef.from(connectionHandler);
         Project project = session.getProject();
@@ -153,7 +141,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
         final XDebugSession session = getSession();
         if (session instanceof XDebugSessionImpl) {
             XDebugSessionImpl sessionImpl = (XDebugSessionImpl) session;
-            sessionImpl.getSessionData().setBreakpointsMuted(false);
+            //sessionImpl.getSessionData().setBreakpointsMuted(false);
         }
         DBRunConfig<T> runProfile = getRunProfile();
         List<DBMethod> methods = runProfile.getMethods();
@@ -161,19 +149,19 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
             getBreakpointHandler().registerDefaultBreakpoint(methods.get(0));
         }
 
-
-        DebuggerSession debuggerSession = getDebuggerSession();
         final Project project = getProject();
+/*        DebuggerSession debuggerSession = getDebuggerSession();
+
         DebuggerManager debuggerManager = DebuggerManager.getInstance(project);
         ProcessHandler processHandler = debuggerSession.getProcess().getProcessHandler();
         debuggerManager.addDebugProcessListener(processHandler, new DebugProcessAdapter(){
             @Override
             public void paused(SuspendContext suspendContext) {
                 if (suspendContext instanceof XSuspendContext) {
-/*
+*//*
                     overwriteSuspendContext((XSuspendContext) suspendContext);
                     throw new ProcessCanceledException();
-*/
+*//*
                 }
             }
         });
@@ -202,7 +190,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
             }
         });
 
-        getDebuggerSession().getProcess().setXDebugProcess(this);
+        getDebuggerSession().getProcess().setXDebugProcess(this);*/
 
         new DBDebugOperationTask(project, "initialize debug environment") {
             public void execute() {
@@ -233,7 +221,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
             lastSuspendContext = suspendContext;
             final XDebugSession session = getSession();
             if (shouldSuspend(suspendContext)) {
-                getDebuggerSession().getProcess().getManagerThread().schedule(
+/*                getDebuggerSession().getProcess().getManagerThread().schedule(
                         new DebuggerCommandImpl() {
                             @Override
                             protected void action() throws Exception {
@@ -242,7 +230,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
 
                             }
                         });
-                throw AlreadyDisposedException.INSTANCE;
+                throw AlreadyDisposedException.INSTANCE;*/
             }
         }
     }
@@ -279,7 +267,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
 
     @Override
     public synchronized void stop() {
-        super.stop();
+        //super.stop();
         stopDebugger();
     }
 
@@ -371,9 +359,9 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
 
     @Nullable
     Location getLocation(@Nullable XStackFrame stackFrame) {
-        if (stackFrame instanceof JavaStackFrame) {
+/*        if (stackFrame instanceof JavaStackFrame) {
             return ((JavaStackFrame) stackFrame).getDescriptor().getLocation();
-        }
+        }*/
         return null;
     }
 }

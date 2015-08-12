@@ -1,11 +1,5 @@
 package com.dci.intellij.dbn.debugger.jdwp;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.debugger.DBDebugUtil;
 import com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointHandler;
@@ -38,6 +32,13 @@ import com.sun.jdi.ThreadReference;
 import com.sun.jdi.request.BreakpointRequest;
 import com.sun.jdi.request.ClassPrepareRequest;
 import com.sun.jdi.request.EventRequest;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import static com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointUtil.getDatabaseObject;
 import static com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointUtil.getProgramIdentifier;
 
@@ -191,7 +192,7 @@ public class DBJdwpBreakpointHandler extends DBBreakpointHandler<DBJdwpDebugProc
     }
 
     private DebugProcessImpl getJdiDebugProcess() {
-        return getDebugProcess().getDebuggerSession().getProcess();
+        return null; //getDebugProcess().getDebuggerSession().getProcess();
     }
 
     private RequestManagerImpl getRequestsManager() {

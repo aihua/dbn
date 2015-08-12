@@ -1,10 +1,5 @@
 package com.dci.intellij.dbn.debugger.jdwp.frame;
 
-import javax.swing.Icon;
-import java.util.Set;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.common.util.LazyValue;
 import com.dci.intellij.dbn.common.util.SimpleLazyValue;
 import com.dci.intellij.dbn.debugger.DBDebugUtil;
@@ -15,16 +10,21 @@ import com.dci.intellij.dbn.execution.ExecutionInput;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionInput;
 import com.dci.intellij.dbn.language.common.psi.IdentifierPsiElement;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
-import com.intellij.debugger.engine.JavaStackFrame;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.xdebugger.XSourcePosition;
 import com.intellij.xdebugger.frame.XCompositeNode;
+import com.intellij.xdebugger.frame.XStackFrame;
 import com.intellij.xdebugger.impl.XSourcePositionImpl;
 import com.sun.jdi.Location;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import javax.swing.Icon;
+import java.util.Set;
 
 public class DBJdwpDebugStackFrame extends DBDebugStackFrame<DBJdwpDebugProcess, DBJdwpDebugValue>{
     private long childrenComputed = 0;
-    private JavaStackFrame underlyingFrame;
+    private XStackFrame underlyingFrame;
     private LazyValue<DBJdwpDebuggerEvaluator> evaluator = new SimpleLazyValue<DBJdwpDebuggerEvaluator>() {
         @Override
         protected DBJdwpDebuggerEvaluator load() {
@@ -35,7 +35,7 @@ public class DBJdwpDebugStackFrame extends DBDebugStackFrame<DBJdwpDebugProcess,
     private LazyValue<Location> location = new SimpleLazyValue<Location>() {
         @Override
         protected Location load() {
-            return underlyingFrame == null ? null : underlyingFrame.getDescriptor().getLocation();
+            return null; //underlyingFrame == null ? null : underlyingFrame.getDescriptor().getLocation();
         }
     };
 
@@ -47,7 +47,7 @@ public class DBJdwpDebugStackFrame extends DBDebugStackFrame<DBJdwpDebugProcess,
         }
     };
 
-    public DBJdwpDebugStackFrame(DBJdwpDebugProcess debugProcess, JavaStackFrame underlyingFrame, int index) {
+    public DBJdwpDebugStackFrame(DBJdwpDebugProcess debugProcess, XStackFrame underlyingFrame, int index) {
         super(debugProcess, index);
         this.underlyingFrame = underlyingFrame;
     }
@@ -81,7 +81,7 @@ public class DBJdwpDebugStackFrame extends DBDebugStackFrame<DBJdwpDebugProcess,
         return XSourcePositionImpl.create(getVirtualFile(), lineNumber);
     }
 
-    public JavaStackFrame getUnderlyingFrame() {
+    public XStackFrame getUnderlyingFrame() {
         return underlyingFrame;
     }
 

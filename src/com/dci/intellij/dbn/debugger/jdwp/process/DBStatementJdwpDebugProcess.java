@@ -1,11 +1,5 @@
 package com.dci.intellij.dbn.debugger.jdwp.process;
 
-import javax.swing.Icon;
-import java.sql.SQLException;
-import java.util.StringTokenizer;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.execution.ExecutionTarget;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionInput;
@@ -14,7 +8,15 @@ import com.dci.intellij.dbn.execution.statement.processor.StatementExecutionProc
 import com.intellij.debugger.impl.DebuggerSession;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.xdebugger.XDebugSession;
+import com.intellij.xdebugger.XSourcePosition;
+import com.intellij.xdebugger.evaluation.XDebuggerEditorsProvider;
 import com.sun.jdi.Location;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import javax.swing.Icon;
+import java.sql.SQLException;
+import java.util.StringTokenizer;
 
 public class DBStatementJdwpDebugProcess extends DBJdwpDebugProcess<StatementExecutionInput> {
     public DBStatementJdwpDebugProcess(@NotNull XDebugSession session, @NotNull DebuggerSession debuggerSession, ConnectionHandler connectionHandler, int tcpPort) {
@@ -88,5 +90,36 @@ public class DBStatementJdwpDebugProcess extends DBJdwpDebugProcess<StatementExe
     @Override
     public ExecutionTarget getExecutionTarget() {
         return ExecutionTarget.STATEMENT;
+    }
+
+    @NotNull
+    @Override
+    public XDebuggerEditorsProvider getEditorsProvider() {
+        return null;
+    }
+
+    @Override
+    public void startStepOver() {
+
+    }
+
+    @Override
+    public void startStepInto() {
+
+    }
+
+    @Override
+    public void startStepOut() {
+
+    }
+
+    @Override
+    public void resume() {
+
+    }
+
+    @Override
+    public void runToPosition(@NotNull XSourcePosition position) {
+
     }
 }

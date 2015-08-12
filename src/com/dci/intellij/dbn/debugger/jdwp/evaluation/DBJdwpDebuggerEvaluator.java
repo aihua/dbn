@@ -1,11 +1,19 @@
 package com.dci.intellij.dbn.debugger.jdwp.evaluation;
 
 import com.dci.intellij.dbn.debugger.jdwp.frame.DBJdwpDebugStackFrame;
-import com.intellij.debugger.engine.JavaDebuggerEvaluator;
+import com.intellij.xdebugger.XSourcePosition;
+import com.intellij.xdebugger.evaluation.XDebuggerEvaluator;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-public class DBJdwpDebuggerEvaluator extends JavaDebuggerEvaluator {
+public class DBJdwpDebuggerEvaluator extends XDebuggerEvaluator {
     public DBJdwpDebuggerEvaluator(DBJdwpDebugStackFrame frame) {
-        super(frame.getDebugProcess().getDebuggerSession().getProcess(), frame.getUnderlyingFrame());
+        super();
+    }
+
+    @Override
+    public void evaluate(@NotNull String expression, @NotNull XEvaluationCallback callback, @Nullable XSourcePosition expressionPosition) {
+
     }
 
 /*    @Override

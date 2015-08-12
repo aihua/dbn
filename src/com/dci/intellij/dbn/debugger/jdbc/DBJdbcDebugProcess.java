@@ -1,14 +1,5 @@
 package com.dci.intellij.dbn.debugger.jdbc;
 
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.common.Constants;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
@@ -68,6 +59,16 @@ import com.intellij.xdebugger.breakpoints.XLineBreakpoint;
 import com.intellij.xdebugger.evaluation.XDebuggerEditorsProvider;
 import com.intellij.xdebugger.impl.XDebugSessionImpl;
 import com.intellij.xdebugger.ui.XDebugTabLayouter;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import static com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointUtil.getBreakpointId;
 import static com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointUtil.setBreakpointId;
 
@@ -145,7 +146,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
         final XDebugSession session = getSession();
         if (session instanceof XDebugSessionImpl) {
             XDebugSessionImpl sessionImpl = (XDebugSessionImpl) session;
-            sessionImpl.getSessionData().setBreakpointsMuted(false);
+            //sessionImpl.getSessionData().setBreakpointsMuted(false);
         }
         new BackgroundTask(project, "Initialize debug environment", true) {
             @Override

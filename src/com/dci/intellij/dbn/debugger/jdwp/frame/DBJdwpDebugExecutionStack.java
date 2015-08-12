@@ -1,18 +1,15 @@
 package com.dci.intellij.dbn.debugger.jdwp.frame;
 
-import java.util.ArrayList;
-import java.util.List;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.common.util.LazyValue;
 import com.dci.intellij.dbn.common.util.SimpleLazyValue;
-import com.dci.intellij.dbn.debugger.jdwp.process.DBJdwpDebugProcess;
-import com.intellij.debugger.engine.DebugProcessImpl;
-import com.intellij.debugger.engine.JavaStackFrame;
-import com.intellij.debugger.engine.events.DebuggerContextCommandImpl;
 import com.intellij.xdebugger.frame.XExecutionStack;
 import com.intellij.xdebugger.frame.XStackFrame;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
+
+//import com.intellij.debugger.engine.JavaStackFrame;
 
 public class DBJdwpDebugExecutionStack extends XExecutionStack {
     private DBJdwpDebugSuspendContext suspendContext;
@@ -21,9 +18,10 @@ public class DBJdwpDebugExecutionStack extends XExecutionStack {
     private LazyValue<DBJdwpDebugStackFrame> topStackFrame = new SimpleLazyValue<DBJdwpDebugStackFrame>() {
         @Override
         protected DBJdwpDebugStackFrame load() {
-            XExecutionStack underlyingStack = getUnderlyingStack();
+            throw new UnsupportedOperationException();
+/*            XExecutionStack underlyingStack = getUnderlyingStack();
             XStackFrame topFrame = underlyingStack == null ? null : underlyingStack.getTopFrame();
-            return getFrame((JavaStackFrame) topFrame);
+            return getFrame((JavaStackFrame) topFrame);*/
         }
     };
 
@@ -46,7 +44,7 @@ public class DBJdwpDebugExecutionStack extends XExecutionStack {
         return topStackFrame.get();
     }
 
-    private synchronized DBJdwpDebugStackFrame getFrame(JavaStackFrame underlyingFrame) {
+/*    private synchronized DBJdwpDebugStackFrame getFrame(JavaStackFrame underlyingFrame) {
         for (DBJdwpDebugStackFrame stackFrame : stackFrames) {
             if (stackFrame.getUnderlyingFrame().equals(underlyingFrame)) {
                 return stackFrame;
@@ -57,10 +55,12 @@ public class DBJdwpDebugExecutionStack extends XExecutionStack {
         DBJdwpDebugStackFrame stackFrame = new DBJdwpDebugStackFrame(debugProcess, underlyingFrame, stackFrames.size());
         stackFrames.add(stackFrame);
         return stackFrame;
-    }
+    }*/
 
     @Override
     public void computeStackFrames(final int firstFrameIndex, final XStackFrameContainer container) {
+        throw new UnsupportedOperationException();
+/*
         DebugProcessImpl debugProcess = getSuspendContext().getDebugProcess().getDebuggerSession().getProcess();
         final XExecutionStack underlyingStack = getUnderlyingStack();
         if (underlyingStack != null) {
@@ -103,5 +103,6 @@ public class DBJdwpDebugExecutionStack extends XExecutionStack {
                 }
             });
         }
+*/
     }
 }

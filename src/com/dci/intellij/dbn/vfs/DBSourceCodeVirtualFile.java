@@ -34,7 +34,6 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.lang.ref.Reference;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 
@@ -132,7 +131,7 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
                     changeTimestampCheck = object.loadChangeTimestamp(getContentType());
                 }
 
-                return changeTimestamp != null && changeTimestampCheck != null && changeTimestamp.value().before(changeTimestampCheck.value());
+                return changeTimestamp != null && changeTimestampCheck != null && changeTimestamp.before(changeTimestampCheck);
             } catch (Exception e) {
                 LOGGER.warn("Error loading object timestamp", e);
             }

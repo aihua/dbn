@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.vfs;
 
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
-import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
 import com.dci.intellij.dbn.common.thread.SimpleTask;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
@@ -10,7 +9,6 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingProvider;
 import com.dci.intellij.dbn.ddl.DDLFileAttachmentManager;
 import com.dci.intellij.dbn.ddl.DDLFileType;
-import com.dci.intellij.dbn.ddl.ObjectToDDLContentSynchronizer;
 import com.dci.intellij.dbn.ddl.options.DDLFileGeneralSettings;
 import com.dci.intellij.dbn.ddl.options.DDLFileSettings;
 import com.dci.intellij.dbn.editor.DBContentType;
@@ -25,7 +23,6 @@ import com.dci.intellij.dbn.object.DBDataset;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.FileEditor;
@@ -102,7 +99,7 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
                                 new SimpleTask() {
                                     @Override
                                     protected boolean canExecute() {
-                                        return getHandle() == DialogWrapper.OK_EXIT_CODE;
+                                        return getOption() == DialogWrapper.OK_EXIT_CODE;
                                     }
 
                                     @Override
@@ -158,28 +155,6 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
             return fileAttachmentManager.getAttachedDDLFiles(object);
         }
         return null;
-    }
-
-    public void updateDDLFiles() {
-        for (DBContentVirtualFile contentFile : getContentFiles()) {
-            updateDDLFiles(contentFile.getContentType());
-        }
-    }
-
-    public void updateDDLFiles(final DBContentType sourceContentType) {
-        Project project = getProject();
-        if (project != null) {
-            DDLFileSettings ddlFileSettings = DDLFileSettings.getInstance(project);
-            if (ddlFileSettings.getGeneralSettings().isSynchronizeDDLFilesEnabled()) {
-                new ConditionalLaterInvocator() {
-                    @Override
-                    protected void execute() {
-                        ObjectToDDLContentSynchronizer synchronizer = new ObjectToDDLContentSynchronizer(sourceContentType, DBEditableObjectVirtualFile.this);
-                        ApplicationManager.getApplication().runWriteAction(synchronizer);
-                    }
-                }.start();
-            }
-        }
     }
 
     @Nullable
@@ -299,9 +274,9 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
         return false;
     }
 
-    public void saveChanges() {
+    public void saveChanges(Runnable successCallback) {
         FileDocumentManager.getInstance().saveAllDocuments();
-        Project project = getProject();
+        final Project project = getProject();
         if (project != null) {
             SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
             FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
@@ -311,7 +286,7 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
                     for (FileEditor fileEditor : fileEditors) {
                         if (fileEditor instanceof SourceCodeEditor) {
                             SourceCodeEditor sourceCodeEditor = (SourceCodeEditor) fileEditor;
-                            sourceCodeManager.updateSourceToDatabase(sourceCodeEditor);
+                            sourceCodeManager.saveSourceToDatabase(sourceCodeEditor, successCallback);
                             break;
                         }
                     }
@@ -320,15 +295,22 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
         }
     }
 
-    public void revertChanges() {
-        List<DBContentVirtualFile> contentFiles = getContentFiles();
-        for (DBContentVirtualFile contentFile : contentFiles) {
-            if (contentFile instanceof DBSourceCodeVirtualFile) {
-                DBSourceCodeVirtualFile sourceCodeVirtualFile = (DBSourceCodeVirtualFile) contentFile;
-                sourceCodeVirtualFile.reloadFromDatabase();
+    public void revertChanges(Runnable successCallback) {
+        Project project = getProject();
+        if (project != null) {
+            List<DBContentVirtualFile> contentFiles = getContentFiles();
+            SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
+            for (DBContentVirtualFile contentFile : contentFiles) {
+                if (contentFile instanceof DBSourceCodeVirtualFile) {
+                    DBSourceCodeVirtualFile sourceCodeFile = (DBSourceCodeVirtualFile) contentFile;
+                    sourceCodeManager.loadSourceFromDatabase(sourceCodeFile);
+                }
+            }
+
+            if (successCallback != null) {
+                successCallback.run();
             }
         }
-
     }
 }
 

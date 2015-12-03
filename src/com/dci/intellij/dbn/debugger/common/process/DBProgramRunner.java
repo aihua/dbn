@@ -1,7 +1,12 @@
 package com.dci.intellij.dbn.debugger.common.process;
 
+import java.util.List;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.common.notification.NotificationUtil;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
+import com.dci.intellij.dbn.common.thread.RunnableTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.SimpleTask;
 import com.dci.intellij.dbn.common.thread.TaskInstructions;
@@ -37,10 +42,6 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.xdebugger.XDebugSession;
 import com.intellij.xdebugger.XDebuggerManager;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
 
 public abstract class DBProgramRunner<T extends ExecutionInput> extends GenericProgramRunner {
     @Nullable
@@ -224,50 +225,50 @@ public abstract class DBProgramRunner<T extends ExecutionInput> extends GenericP
                 final ConnectionHandler connectionHandler = executionInput.getConnectionHandler();
                 final Project project = environment.getProject();
 
-                boolean continueExecution = promptExecutionDialog(executionInput);
+                SimpleTask programRunnerTask = new SimpleTask() {
+                    @Override
+                    protected void execute() {
+                        RunContentDescriptor reuseContent = environment.getContentToReuse();
+                        DBDebugProcessStarter debugProcessStarter = createProcessStarter(connectionHandler);
+                        try {
+                            XDebugSession session = XDebuggerManager.getInstance(project).startSession(
+                                    DBProgramRunner.this,
+                                    environment,
+                                    reuseContent,
+                                    debugProcessStarter);
 
-                if (continueExecution) {
-                    RunContentDescriptor reuseContent = environment.getContentToReuse();
-                    DBDebugProcessStarter debugProcessStarter = createProcessStarter(connectionHandler);
-                    XDebugSession session = null;
-                    try {
-                        session = XDebuggerManager.getInstance(project).startSession(
-                                DBProgramRunner.this,
-                                environment,
-                                reuseContent,
-                                debugProcessStarter);
+                            RunContentDescriptor descriptor = session.getRunContentDescriptor();
 
-                        RunContentDescriptor descriptor = session.getRunContentDescriptor();
-
-                        if (callback != null) callback.processStarted(descriptor);
-                        Executor executor = environment.getExecutor();
-                        if (true /*LocalHistoryConfiguration.getInstance().ADD_LABEL_ON_RUNNING*/) {
-                            RunProfile runProfile = environment.getRunProfile();
-                            LocalHistory.getInstance().putSystemLabel(project, executor.getId() + " " + runProfile.getName());
-                        }
-
-                        ExecutionManager.getInstance(project).getContentManager().showRunContent(executor, descriptor);
-
-                        ProcessHandler processHandler = descriptor.getProcessHandler();
-                        if (processHandler != null) {
-                            processHandler.startNotify();
-                            ExecutionConsole executionConsole = descriptor.getExecutionConsole();
-                            if (executionConsole instanceof ConsoleView) {
-                                ConsoleView consoleView = (ConsoleView) executionConsole;
-                                consoleView.attachToProcess(processHandler);
+                            if (callback != null) callback.processStarted(descriptor);
+                            Executor executor = environment.getExecutor();
+                            if (true /*LocalHistoryConfiguration.getInstance().ADD_LABEL_ON_RUNNING*/) {
+                                RunProfile runProfile = environment.getRunProfile();
+                                LocalHistory.getInstance().putSystemLabel(project, executor.getId() + " " + runProfile.getName());
                             }
+
+                            ExecutionManager.getInstance(project).getContentManager().showRunContent(executor, descriptor);
+
+                            ProcessHandler processHandler = descriptor.getProcessHandler();
+                            if (processHandler != null) {
+                                processHandler.startNotify();
+                                ExecutionConsole executionConsole = descriptor.getExecutionConsole();
+                                if (executionConsole instanceof ConsoleView) {
+                                    ConsoleView consoleView = (ConsoleView) executionConsole;
+                                    consoleView.attachToProcess(processHandler);
+                                }
+                            }
+
+                        } catch (ExecutionException e) {
+                            NotificationUtil.sendErrorNotification(project, "Debugger", "Error initializing debug environment: " + e.getMessage());
                         }
-
-                    } catch (ExecutionException e) {
-                        NotificationUtil.sendErrorNotification(project, "Debugger", "Error initializing debug environment: " + e.getMessage());
                     }
-                }
-
+                };
+                promptExecutionDialog(executionInput, programRunnerTask);
             }
         }.start();
     }
 
     protected abstract DBDebugProcessStarter createProcessStarter(ConnectionHandler connectionHandler);
 
-    protected abstract boolean promptExecutionDialog(T executionInput);
+    protected abstract void promptExecutionDialog(T executionInput, RunnableTask callback);
 }

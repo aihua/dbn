@@ -2,6 +2,8 @@ package com.dci.intellij.dbn.debugger.jdwp.process;
 
 import com.dci.intellij.dbn.common.notification.NotificationUtil;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
+import com.dci.intellij.dbn.common.thread.ReadActionRunner;
+import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
@@ -10,6 +12,7 @@ import com.dci.intellij.dbn.debugger.DBDebugConsoleLogger;
 import com.dci.intellij.dbn.debugger.DBDebugOperationTask;
 import com.dci.intellij.dbn.debugger.DatabaseDebuggerManager;
 import com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointHandler;
+import com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointUtil;
 import com.dci.intellij.dbn.debugger.common.config.DBRunConfig;
 import com.dci.intellij.dbn.debugger.common.config.DBRunConfigCategory;
 import com.dci.intellij.dbn.debugger.common.process.DBDebugProcess;
@@ -149,6 +152,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
             getBreakpointHandler().registerDefaultBreakpoint(methods.get(0));
         }
 
+        DebuggerSession debuggerSession = getDebuggerSession();
         final Project project = getProject();
 /*        DebuggerSession debuggerSession = getDebuggerSession();
 
@@ -158,10 +162,15 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
             @Override
             public void paused(SuspendContext suspendContext) {
                 if (suspendContext instanceof XSuspendContext) {
-*//*
-                    overwriteSuspendContext((XSuspendContext) suspendContext);
-                    throw new ProcessCanceledException();
-*//*
+                    XSuspendContext xSuspendContext = (XSuspendContext) suspendContext;
+
+                    XExecutionStack[] executionStacks = xSuspendContext.getExecutionStacks();
+                    for (XExecutionStack executionStack : executionStacks) {
+                        System.out.println();
+                    }
+
+                    //underlyingFrame.getDescriptor().getLocation()
+
                 }
             }
         });
@@ -177,7 +186,16 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
                             session.resume();
                         }
                     }.start();
-
+                } else {
+                    XExecutionStack activeExecutionStack = suspendContext.getActiveExecutionStack();
+                    if (activeExecutionStack != null) {
+                        XStackFrame topFrame = activeExecutionStack.getTopFrame();
+                        if (topFrame instanceof JavaStackFrame) {
+                            Location location = getLocation(topFrame);
+                            VirtualFile virtualFile = getVirtualFile(location);
+                            DBBreakpointUtil.ensureFilesContentLoaded(virtualFile);
+                        }
+                    }
                 }
             }
         });
@@ -203,15 +221,42 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
                         DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
                         debuggerInterface.initializeJdwpSession(targetConnection, Inet4Address.getLocalHost().getHostAddress(), String.valueOf(localTcpPort));
                         console.system("Debug session initialized (JDWP)");
-
                         status.CAN_SET_BREAKPOINTS = true;
+
+                        initializeResources();
+                        initializeBreakpoints();
                         startTargetProgram();
                     }
                 } catch (Exception e) {
                     status.SESSION_INITIALIZATION_THREW_EXCEPTION = true;
-                    session.stop();
+                    stop();
                     NotificationUtil.sendErrorNotification(project, "Error initializing debug environment.", e.getMessage());
                 }
+            }
+        }.start();
+    }
+
+    void initializeResources() {
+        new ReadActionRunner() {
+            @Override
+            protected Object run() {
+
+                List<DBMethod> methods = getRunProfile().getMethods();
+                List<XLineBreakpoint<XBreakpointProperties>> breakpoints = DBBreakpointUtil.getDatabaseBreakpoints(getConnectionHandler());
+                getBreakpointHandler().initializeResources(breakpoints, methods);
+                return null;
+            }
+        }.start();
+    }
+
+    void initializeBreakpoints() {
+        new ReadActionRunner() {
+            @Override
+            protected Object run() {
+                console.system("Registering breakpoints");
+                List<XLineBreakpoint<XBreakpointProperties>> breakpoints = DBBreakpointUtil.getDatabaseBreakpoints(getConnectionHandler());
+                getBreakpointHandler().registerBreakpoints(breakpoints);
+                return null;
             }
         }.start();
     }
@@ -221,46 +266,50 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
             lastSuspendContext = suspendContext;
             final XDebugSession session = getSession();
             if (shouldSuspend(suspendContext)) {
-/*                getDebuggerSession().getProcess().getManagerThread().schedule(
-                        new DebuggerCommandImpl() {
-                            @Override
-                            protected void action() throws Exception {
-                                DBJdwpDebugSuspendContext dbSuspendContext = new DBJdwpDebugSuspendContext(DBJdwpDebugProcess.this, suspendContext);
-                                session.positionReached(dbSuspendContext);
-
-                            }
-                        });
+/*                new ManagedThreadCommand(getDebuggerSession().getProcess()) {
+                    @Override
+                    protected void action() throws Exception {
+                        DBJdwpDebugSuspendContext dbSuspendContext = new DBJdwpDebugSuspendContext(DBJdwpDebugProcess.this, suspendContext);
+                        session.positionReached(dbSuspendContext);
+                    }
+                }.schedule();
                 throw AlreadyDisposedException.INSTANCE;*/
             }
         }
     }
 
     private void startTargetProgram() {
-        new BackgroundTask(getProject(), "Running debugger target program", true, true) {
+        // trigger in managed thread
+        new ManagedThreadCommand(getDebuggerSession().getProcess()) {
             @Override
-            protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
-                T executionInput = getExecutionInput();
-                progressIndicator.setText("Executing " + (executionInput == null ? " target program" : executionInput.getExecutionContext().getTargetName()));
-                console.system("Executing target program");
-                if (status.PROCESS_IS_TERMINATING) return;
-                if (status.SESSION_INITIALIZATION_THREW_EXCEPTION) return;
-                try {
-                    status.TARGET_EXECUTION_STARTED = true;
-                    executeTarget();
-                } catch (SQLException e){
-                    status.TARGET_EXECUTION_THREW_EXCEPTION = true;
-                    MessageUtil.showErrorDialog(getProject(), executionInput == null ? "Error executing target program" : "Error executing " + executionInput.getExecutionContext().getTargetName(), e);
-                } finally {
-                    status.TARGET_EXECUTION_TERMINATED = true;
-                    DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
-                    try {
-                        debuggerInterface.disconnectJdwpSession(targetConnection);
-                    } catch (SQLException e) {
-                        console.error("Error disconnecting session: " + e.getMessage());
+            protected void action() throws Exception {
+                new BackgroundTask(getProject(), "Running debugger target program", true, true) {
+                    @Override
+                    protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
+                        T executionInput = getExecutionInput();
+                        progressIndicator.setText("Executing " + (executionInput == null ? " target program" : executionInput.getExecutionContext().getTargetName()));
+                        console.system("Executing target program");
+                        if (status.PROCESS_IS_TERMINATING) return;
+                        if (status.SESSION_INITIALIZATION_THREW_EXCEPTION) return;
+                        try {
+                            status.TARGET_EXECUTION_STARTED = true;
+                            executeTarget();
+                        } catch (SQLException e){
+                            status.TARGET_EXECUTION_THREW_EXCEPTION = true;
+                            MessageUtil.showErrorDialog(getProject(), executionInput == null ? "Error executing target program" : "Error executing " + executionInput.getExecutionContext().getTargetName(), e);
+                        } finally {
+                            status.TARGET_EXECUTION_TERMINATED = true;
+                            DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
+                            try {
+                                debuggerInterface.disconnectJdwpSession(targetConnection);
+                            } catch (SQLException e) {
+                                console.error("Error disconnecting session: " + e.getMessage());
+                            }
+                        }
                     }
-                }
+                }.start();
             }
-        }.start();
+        }.schedule();
     }
 
     protected abstract void executeTarget() throws SQLException;
@@ -274,6 +323,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
     private void stopDebugger() {
         if (!status.DEBUGGER_IS_STOPPING) {
             status.DEBUGGER_IS_STOPPING = true;
+            status.CAN_SET_BREAKPOINTS = false;
             final Project project = getProject();
             new BackgroundTask(project, "Stopping debugger", true) {
                 @Override
@@ -281,7 +331,6 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
                     progressIndicator.setText("Stopping debug environment.");
                     ConnectionHandler connectionHandler = getConnectionHandler();
                     try {
-                        status.CAN_SET_BREAKPOINTS = false;
                         DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
                         debuggerInterface.disconnectJdwpSession(targetConnection);
 

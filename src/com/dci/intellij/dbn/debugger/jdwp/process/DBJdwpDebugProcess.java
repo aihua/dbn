@@ -2,9 +2,6 @@ package com.dci.intellij.dbn.debugger.jdwp.process;
 
 import com.dci.intellij.dbn.common.notification.NotificationUtil;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
-import com.dci.intellij.dbn.common.thread.ReadActionRunner;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
-import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.database.DatabaseDebuggerInterface;
@@ -12,7 +9,6 @@ import com.dci.intellij.dbn.debugger.DBDebugConsoleLogger;
 import com.dci.intellij.dbn.debugger.DBDebugOperationTask;
 import com.dci.intellij.dbn.debugger.DatabaseDebuggerManager;
 import com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointHandler;
-import com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointUtil;
 import com.dci.intellij.dbn.debugger.common.config.DBRunConfig;
 import com.dci.intellij.dbn.debugger.common.config.DBRunConfigCategory;
 import com.dci.intellij.dbn.debugger.common.process.DBDebugProcess;
@@ -152,9 +148,9 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
             getBreakpointHandler().registerDefaultBreakpoint(methods.get(0));
         }
 
-        DebuggerSession debuggerSession = getDebuggerSession();
         final Project project = getProject();
-/*        DebuggerSession debuggerSession = getDebuggerSession();
+/*
+        DebuggerSession debuggerSession = getDebuggerSession();
 
         DebuggerManager debuggerManager = DebuggerManager.getInstance(project);
         ProcessHandler processHandler = debuggerSession.getProcess().getProcessHandler();
@@ -208,7 +204,8 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
             }
         });
 
-        getDebuggerSession().getProcess().setXDebugProcess(this);*/
+        getDebuggerSession().getProcess().setXDebugProcess(this);
+*/
 
         new DBDebugOperationTask(project, "initialize debug environment") {
             public void execute() {
@@ -237,6 +234,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
     }
 
     void initializeResources() {
+/*
         new ReadActionRunner() {
             @Override
             protected Object run() {
@@ -247,9 +245,11 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
                 return null;
             }
         }.start();
+*/
     }
 
     void initializeBreakpoints() {
+/*
         new ReadActionRunner() {
             @Override
             protected Object run() {
@@ -259,6 +259,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
                 return null;
             }
         }.start();
+*/
     }
 
     void overwriteSuspendContext(final @Nullable XSuspendContext suspendContext) {
@@ -280,6 +281,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
 
     private void startTargetProgram() {
         // trigger in managed thread
+/*
         new ManagedThreadCommand(getDebuggerSession().getProcess()) {
             @Override
             protected void action() throws Exception {
@@ -310,6 +312,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
                 }.start();
             }
         }.schedule();
+*/
     }
 
     protected abstract void executeTarget() throws SQLException;

@@ -39,7 +39,7 @@ public class DBJdwpDebugStackFrame extends DBDebugStackFrame<DBJdwpDebugProcess,
         }
     };
 
-    public DBJdwpDebugStackFrame(DBJdwpDebugProcess debugProcess, JavaStackFrame underlyingFrame, int index) {
+    public DBJdwpDebugStackFrame(DBJdwpDebugProcess debugProcess, XStackFrame underlyingFrame, int index) {
         super(debugProcess, index);
         this.underlyingFrame = underlyingFrame;
     }
@@ -80,7 +80,7 @@ public class DBJdwpDebugStackFrame extends DBDebugStackFrame<DBJdwpDebugProcess,
 
     }
 
-    public JavaStackFrame getUnderlyingFrame() {
+    public XStackFrame getUnderlyingFrame() {
         return underlyingFrame;
     }
 

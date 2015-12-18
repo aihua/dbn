@@ -40,6 +40,7 @@ import java.util.List;
 
 public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObject> implements FileConnectionMappingProvider {
     public ThreadLocal<Document> FAKE_DOCUMENT = new ThreadLocal<Document>();
+    private static final List<DBContentVirtualFile> EMPTY_CONTENT_FILES = Collections.emptyList();
     private List<DBContentVirtualFile> contentFiles;
     private transient EditorProviderId selectedEditorProviderId;
 
@@ -115,7 +116,6 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
         if (contentFiles == null) {
             synchronized (this) {
                 if (contentFiles == null) {
-                    if (isDisposed()) return Collections.emptyList();
                     contentFiles = new ArrayList<DBContentVirtualFile>();
                     DBContentType objectContentType = getObject().getContentType();
                     if (objectContentType.isBundle()) {
@@ -206,18 +206,6 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
         return false;
     }
 
-    public DBContentVirtualFile getDebuggableContentFile(){
-        DBContentType contentType = getObject().getContentType();
-        if (contentType == DBContentType.CODE) {
-            return getContentFile(DBContentType.CODE);
-        }
-
-        if (contentType == DBContentType.CODE_SPEC_AND_BODY) {
-            return getContentFile(DBContentType.CODE_BODY);
-        }
-        return null;
-    }
-
     @NotNull
     public byte[] contentsToByteArray() throws IOException {
         DBContentType mainContentType = getMainContentType();
@@ -274,6 +262,7 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
     public void dispose() {
         super.dispose();
         CollectionUtil.clearCollection(contentFiles);
+        contentFiles = EMPTY_CONTENT_FILES;
     }
 
 

@@ -7,6 +7,7 @@ import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleType;
 import com.intellij.openapi.util.Key;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.impl.PsiDocumentManagerBase;
 import com.intellij.ui.components.JBList;
 import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
@@ -55,6 +56,6 @@ public class CompatibilityUtil {
     }
 
     public static void cachePsi(@NotNull Document document, @Nullable PsiFile file) {
-        CompatibilityUtil.cachePsi(document, null);
+        PsiDocumentManagerBase.cachePsi(document, file);
     }
 }

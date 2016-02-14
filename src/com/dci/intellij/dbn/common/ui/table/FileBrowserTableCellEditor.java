@@ -58,7 +58,7 @@ public class FileBrowserTableCellEditor extends AbstractCellEditor implements Ta
             if (e.getButton() == MouseEvent.BUTTON1 && e.getClickCount() == 1) {
                 FileChooserDialog fileChooser = FileChooserFactory.getInstance().createFileChooser(fileChooserDescriptor, null, null);
                 VirtualFile file = LocalFileSystem.getInstance().findFileByIoFile(new File(textField.getText()));
-                VirtualFile[] virtualFiles = fileChooser.choose(null, file);
+                VirtualFile[] virtualFiles = fileChooser.choose(file, null);
                 if (virtualFiles.length > 0) {
                     textField.setText(new File(virtualFiles[0].getPath()).getPath());
                 }

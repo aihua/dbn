@@ -1,14 +1,5 @@
 package com.dci.intellij.dbn.debugger.jdwp.process;
 
-import java.net.Inet4Address;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.List;
-import java.util.StringTokenizer;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.notification.NotificationUtil;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -16,11 +7,9 @@ import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.database.DatabaseDebuggerInterface;
 import com.dci.intellij.dbn.debugger.DBDebugConsoleLogger;
 import com.dci.intellij.dbn.debugger.DBDebugOperationTask;
-import com.dci.intellij.dbn.debugger.DBDebugUtil;
 import com.dci.intellij.dbn.debugger.DatabaseDebuggerManager;
 import com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointHandler;
 import com.dci.intellij.dbn.debugger.common.config.DBRunConfig;
-import com.dci.intellij.dbn.debugger.common.config.DBRunConfigCategory;
 import com.dci.intellij.dbn.debugger.common.process.DBDebugProcess;
 import com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus;
 import com.dci.intellij.dbn.debugger.jdwp.DBJdwpBreakpointHandler;
@@ -42,6 +31,14 @@ import com.intellij.xdebugger.frame.XStackFrame;
 import com.intellij.xdebugger.frame.XSuspendContext;
 import com.intellij.xdebugger.impl.XDebugSessionImpl;
 import com.sun.jdi.Location;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.net.Inet4Address;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.StringTokenizer;
 
 public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebugProcess implements DBDebugProcess {
     public static final Key<DBJdwpDebugProcess> KEY = new Key<DBJdwpDebugProcess>("DBNavigator.JdwpDebugProcess");
@@ -322,7 +319,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
         stopDebugger();
     }
 
-    private void stopDebugger() {
+/*    private void stopDebugger() {
         if (!status.DEBUGGER_IS_STOPPING) {
             status.DEBUGGER_IS_STOPPING = true;
             status.CAN_SET_BREAKPOINTS = false;
@@ -330,14 +327,14 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
             super.stop();
             stopDebugger();
         }
-    }
+    }*/
 
     private void stopDebugger() {
         final Project project = getProject();
         new BackgroundTask(project, "Stopping debugger", true) {
             @Override
             protected void execute(@NotNull ProgressIndicator progressIndicator) {
-                progressIndicator.setText("Stopping debug environment.");
+/*                progressIndicator.setText("Stopping debug environment.");
                 T executionInput = getExecutionInput();
                 if (executionInput != null && !status.TARGET_EXECUTION_TERMINATED) {
                     ExecutionContext executionContext = executionInput.getExecutionContext();
@@ -361,7 +358,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
 
                     DatabaseDebuggerManager.getInstance(project).unregisterDebugSession(connectionHandler);
                     releaseTargetConnection();
-                }
+                }*/
             }
         }.start();
     }

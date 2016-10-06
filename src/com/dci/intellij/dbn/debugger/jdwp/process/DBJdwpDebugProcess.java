@@ -293,22 +293,19 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
                         T executionInput = getExecutionInput();
                         progressIndicator.setText("Executing " + (executionInput == null ? " target program" : executionInput.getExecutionContext().getTargetName()));
                         console.system("Executing target program");
-                        if (status.PROCESS_IS_TERMINATING) return;
                         if (status.SESSION_INITIALIZATION_THREW_EXCEPTION) return;
                         try {
                             status.TARGET_EXECUTION_STARTED = true;
                             executeTarget();
                         } catch (SQLException e){
                             status.TARGET_EXECUTION_THREW_EXCEPTION = true;
-                            MessageUtil.showErrorDialog(getProject(), executionInput == null ? "Error executing target program" : "Error executing " + executionInput.getExecutionContext().getTargetName(), e);
+                            if (!status.DEBUGGER_IS_STOPPING) {
+                                String message = executionInput == null ? "Error executing target program" : "Error executing " + executionInput.getExecutionContext().getTargetName();
+                                console.error(message + ": " + e.getMessage());
+                            }
                         } finally {
                             status.TARGET_EXECUTION_TERMINATED = true;
-                            DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
-                            try {
-                                debuggerInterface.disconnectJdwpSession(targetConnection);
-                            } catch (SQLException e) {
-                                console.error("Error disconnecting session: " + e.getMessage());
-                            }
+                            stop();
                         }
                     }
                 }.start();
@@ -329,32 +326,44 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
         if (!status.DEBUGGER_IS_STOPPING) {
             status.DEBUGGER_IS_STOPPING = true;
             status.CAN_SET_BREAKPOINTS = false;
-            final Project project = getProject();
-            new BackgroundTask(project, "Stopping debugger", true) {
-                @Override
-                protected void execute(@NotNull ProgressIndicator progressIndicator) {
-                    progressIndicator.setText("Stopping debug environment.");
-                    ConnectionHandler connectionHandler = getConnectionHandler();
-                    try {
-                        DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
-                        debuggerInterface.disconnectJdwpSession(targetConnection);
-
-                    } catch (final SQLException e) {
-                        NotificationUtil.sendErrorNotification(getProject(), "Error stopping debugger.", e.getMessage());
-                        //showErrorDialog(e);
-                    } finally {
-                        status.PROCESS_IS_TERMINATED = true;
-                        DBRunConfig<T> runProfile = getRunProfile();
-                        if (runProfile != null && runProfile.getCategory() != DBRunConfigCategory.CUSTOM) {
-                            runProfile.setCanRun(false);
-                        }
-
-                        DatabaseDebuggerManager.getInstance(project).unregisterDebugSession(connectionHandler);
-                        releaseTargetConnection();
-                    }
-                }
-            }.start();
+            console.system("Stopping debugger...");
+            super.stop();
+            stopDebugger();
         }
+    }
+
+    private void stopDebugger() {
+        final Project project = getProject();
+        new BackgroundTask(project, "Stopping debugger", true) {
+            @Override
+            protected void execute(@NotNull ProgressIndicator progressIndicator) {
+                progressIndicator.setText("Stopping debug environment.");
+                T executionInput = getExecutionInput();
+                if (executionInput != null && !status.TARGET_EXECUTION_TERMINATED) {
+                    ExecutionContext executionContext = executionInput.getExecutionContext();
+                    executionContext.dismissStatement();
+                }
+
+
+                ConnectionHandler connectionHandler = getConnectionHandler();
+                try {
+                    DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
+                    debuggerInterface.disconnectJdwpSession(targetConnection);
+
+                } catch (final SQLException e) {
+                    NotificationUtil.sendErrorNotification(getProject(), "Error stopping debugger.", e.getMessage());
+                    //showErrorDialog(e);
+                } finally {
+                    DBRunConfig<T> runProfile = getRunProfile();
+                    if (runProfile != null && runProfile.getCategory() != DBRunConfigCategory.CUSTOM) {
+                        runProfile.setCanRun(false);
+                    }
+
+                    DatabaseDebuggerManager.getInstance(project).unregisterDebugSession(connectionHandler);
+                    releaseTargetConnection();
+                }
+            }
+        }.start();
     }
 
 
@@ -388,7 +397,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
                 }
             }
         } catch (Exception e) {
-            getConsole().error("Error evaluating susped position: " + e.getMessage());
+            getConsole().error("Error evaluating suspend position: " + e.getMessage());
         }
 
         return null;

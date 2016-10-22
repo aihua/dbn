@@ -212,7 +212,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
                     T executionInput = getExecutionInput();
                     if (executionInput != null) {
                         ConnectionHandler connectionHandler = getConnectionHandler();
-                        targetConnection = connectionHandler.getPoolConnection(executionInput.getExecutionContext().getTargetSchema());
+                        targetConnection = connectionHandler.getPoolConnection(executionInput.getExecutionContext().getTargetSchema(), false);
                         targetConnection.setAutoCommit(false);
                         DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
                         debuggerInterface.initializeJdwpSession(targetConnection, Inet4Address.getLocalHost().getHostAddress(), String.valueOf(localTcpPort));

@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.common.DevNullStreams;
 import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.compatibility.CompatibilityUtil;
 import com.dci.intellij.dbn.common.thread.SynchronizedTask;
+import com.dci.intellij.dbn.common.thread.WriteActionRunner;
 import com.dci.intellij.dbn.common.util.ChangeTimestamp;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
@@ -261,15 +262,20 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
     }
 
     void updateOffsets() {
-        Document document = DocumentUtil.getDocument(this);
+        final Document document = DocumentUtil.getDocument(this);
         if (document != null) {
-            DocumentUtil.setText(document, localContent.getText());
-            SourceCodeOffsets offsets = localContent.getOffsets();
-            GuardedBlockMarkers guardedBlocks = offsets.getGuardedBlocks();
-            if (!guardedBlocks.isEmpty()) {
-                DocumentUtil.removeGuardedBlocks(document, GuardedBlockType.READONLY_DOCUMENT_SECTION);
-                DocumentUtil.createGuardedBlocks(document, GuardedBlockType.READONLY_DOCUMENT_SECTION, guardedBlocks, null);
-            }
+            new WriteActionRunner() {
+                @Override
+                public void run() {
+                    DocumentUtil.setText(document, localContent.getText());
+                    SourceCodeOffsets offsets = localContent.getOffsets();
+                    GuardedBlockMarkers guardedBlocks = offsets.getGuardedBlocks();
+                    if (!guardedBlocks.isEmpty()) {
+                        DocumentUtil.removeGuardedBlocks(document, GuardedBlockType.READONLY_DOCUMENT_SECTION);
+                        DocumentUtil.createGuardedBlocks(document, GuardedBlockType.READONLY_DOCUMENT_SECTION, guardedBlocks, null);
+                    }
+                }
+            }.start();
         }
     }
 

@@ -208,7 +208,7 @@ public class EditorUtil {
     }
     public static void setEditorReadonly(SourceCodeEditor sourceCodeEditor, final boolean readonly) {
         final EditorImpl editor = (EditorImpl) sourceCodeEditor.getEditor();
-        editor.setViewer(readonly);
+        editor.getDocument().setReadOnly(readonly);
         final EditorColorsScheme scheme = editor.getColorsScheme();
         final Color defaultBackground = scheme.getDefaultBackground();
         new ConditionalLaterInvocator() {

@@ -6,7 +6,6 @@ import com.intellij.debugger.DebuggerContext;
 import com.intellij.debugger.engine.DebugProcess;
 import com.intellij.debugger.engine.evaluation.EvaluateException;
 import com.intellij.debugger.engine.evaluation.EvaluationContext;
-import com.intellij.debugger.ui.impl.watch.ArgumentValueDescriptorImpl;
 import com.intellij.debugger.ui.impl.watch.DebuggerTreeNodeImpl;
 import com.intellij.debugger.ui.impl.watch.FieldDescriptorImpl;
 import com.intellij.debugger.ui.impl.watch.LocalVariableDescriptorImpl;
@@ -140,9 +139,6 @@ public class DBJdwpNodeRenderer extends NodeRendererImpl {
             }
             catch (EvaluateException ignored) {}
             catch (ClassNotLoadedException ignore) {}
-        }
-        else if (descriptor instanceof ArgumentValueDescriptorImpl) {
-            isArgument = ((ArgumentValueDescriptorImpl)descriptor).isParameter();
         }
         if (isArgument) {
             return Icons.DBO_ARGUMENT;

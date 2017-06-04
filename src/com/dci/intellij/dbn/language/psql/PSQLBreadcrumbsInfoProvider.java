@@ -1,12 +1,23 @@
 package com.dci.intellij.dbn.language.psql;
 
+import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
+import com.dci.intellij.dbn.language.common.psi.BasePsiElement;
+import com.dci.intellij.dbn.language.common.psi.IdentifierPsiElement;
+import com.dci.intellij.dbn.language.common.psi.NamedPsiElement;
+import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.intellij.lang.Language;
-//import com.intellij.ui.breadcrumbs.BreadcrumbsProvider;
+import com.intellij.psi.PsiElement;
+import com.intellij.xml.breadcrumbs.BreadcrumbsInfoProvider;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
-public class PSQLBreadcrumbsInfoProvider /*implements BreadcrumbsProvider*/ {
+import javax.swing.Icon;
+import java.util.Collections;
+import java.util.List;
+
+public class PSQLBreadcrumbsInfoProvider extends BreadcrumbsInfoProvider {
 
     private static final Language[] LANGUAGES = {PSQLLanguage.INSTANCE};
-/*
     @Override
     public Language[] getLanguages() {
         return LANGUAGES;
@@ -27,7 +38,6 @@ public class PSQLBreadcrumbsInfoProvider /*implements BreadcrumbsProvider*/ {
     }
 
     @Nullable
-    @Override
     public Icon getElementIcon(@NotNull PsiElement psiElement) {
         IdentifierPsiElement identifierPsiElement = getBreadcrumbIdentifier(psiElement);
         if (identifierPsiElement != null) {
@@ -58,7 +68,6 @@ public class PSQLBreadcrumbsInfoProvider /*implements BreadcrumbsProvider*/ {
     }
 
     @NotNull
-    @Override
     public List<PsiElement> getChildren(@NotNull PsiElement element) {
         return Collections.emptyList();
     }
@@ -90,5 +99,5 @@ public class PSQLBreadcrumbsInfoProvider /*implements BreadcrumbsProvider*/ {
             }
         }
         return null;
-    }*/
+    }
 }

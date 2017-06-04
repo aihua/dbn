@@ -1,24 +1,12 @@
 package com.dci.intellij.dbn.language.psql;
 
-import javax.swing.Icon;
-import java.util.Collections;
-import java.util.List;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
-import com.dci.intellij.dbn.language.common.psi.BasePsiElement;
-import com.dci.intellij.dbn.language.common.psi.IdentifierPsiElement;
-import com.dci.intellij.dbn.language.common.psi.NamedPsiElement;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.intellij.lang.Language;
-import com.intellij.psi.PsiElement;
-import com.intellij.ui.breadcrumbs.BreadcrumbsProvider;
+//import com.intellij.ui.breadcrumbs.BreadcrumbsProvider;
 
-public class PSQLBreadcrumbsInfoProvider implements BreadcrumbsProvider {
+public class PSQLBreadcrumbsInfoProvider /*implements BreadcrumbsProvider*/ {
 
     private static final Language[] LANGUAGES = {PSQLLanguage.INSTANCE};
-
+/*
     @Override
     public Language[] getLanguages() {
         return LANGUAGES;
@@ -102,5 +90,5 @@ public class PSQLBreadcrumbsInfoProvider implements BreadcrumbsProvider {
             }
         }
         return null;
-    }
+    }*/
 }

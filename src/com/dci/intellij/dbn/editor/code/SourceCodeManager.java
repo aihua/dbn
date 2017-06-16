@@ -43,6 +43,7 @@ import com.dci.intellij.dbn.editor.code.diff.SourceCodeDiffManager;
 import com.dci.intellij.dbn.editor.code.options.CodeEditorChangesOption;
 import com.dci.intellij.dbn.editor.code.options.CodeEditorConfirmationSettings;
 import com.dci.intellij.dbn.editor.code.options.CodeEditorSettings;
+import com.dci.intellij.dbn.execution.NavigationInstruction;
 import com.dci.intellij.dbn.execution.statement.DataDefinitionChangeListener;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.QuoteDefinition;
@@ -250,7 +251,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
                         BackgroundTask<Integer> openMergeDialogTask = new BackgroundTask<Integer>(project, "Loading database source code", false) {
                             @Override
                             protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
-                                if (getOption() == 0) {
+                                if (getData() == 0) {
                                     try {
                                         SourceCodeContent sourceCodeContent = loadSourceFromDatabase(object, contentType);
                                         String databaseContent = sourceCodeContent.getText().toString();
@@ -430,8 +431,8 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
             if (textEditor != null) {
                 Project project = getProject();
                 EditorProviderId editorProviderId = textEditor.getEditorProviderId();
-                FileEditor fileEditor = EditorUtil.selectEditor(project, textEditor, editableObjectFile, editorProviderId, true);
-                basePsiElement.navigateInEditor(fileEditor, true);
+                FileEditor fileEditor = EditorUtil.selectEditor(project, textEditor, editableObjectFile, editorProviderId, NavigationInstruction.OPEN);
+                basePsiElement.navigateInEditor(fileEditor, NavigationInstruction.FOCUS_SCROLL);
             }
         }
     }

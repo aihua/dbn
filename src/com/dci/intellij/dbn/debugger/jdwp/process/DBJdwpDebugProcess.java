@@ -261,7 +261,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
 */
     }
 
-    void overwriteSuspendContext(final @Nullable XSuspendContext suspendContext) {
+    private void overwriteSuspendContext(final @Nullable XSuspendContext suspendContext) {
         if (suspendContext != null && suspendContext != lastSuspendContext && !(suspendContext instanceof DBJdwpDebugSuspendContext)) {
             lastSuspendContext = suspendContext;
             final XDebugSession session = getSession();

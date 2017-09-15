@@ -1,11 +1,5 @@
 package com.dci.intellij.dbn.connection;
 
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.Set;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.database.DatabaseInfo;
@@ -28,15 +22,21 @@ import com.dci.intellij.dbn.vfs.DBSessionBrowserVirtualFile;
 import com.intellij.lang.Language;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.Set;
 
 public interface ConnectionHandler extends Disposable, EnvironmentTypeProvider, ConnectionProvider, Presentable {
     @NotNull
     Project getProject();
-    Connection createTestConnection() throws SQLException;
-    Connection getMainConnection() throws SQLException;
-    Connection getMainConnection(@Nullable DBSchema schema) throws SQLException;
-    Connection getPoolConnection(boolean readonly) throws SQLException;
-    Connection getPoolConnection(@Nullable DBSchema schema, boolean readonly) throws SQLException;
+    DBNConnection createTestConnection() throws SQLException;
+    DBNConnection getMainConnection() throws SQLException;
+    DBNConnection getMainConnection(@Nullable DBSchema schema) throws SQLException;
+    DBNConnection getPoolConnection(boolean readonly) throws SQLException;
+    DBNConnection getPoolConnection(@Nullable DBSchema schema, boolean readonly) throws SQLException;
     void freePoolConnection(Connection connection);
     void dropPoolConnection(Connection connection);
     ConnectionSettings getSettings();
@@ -78,7 +78,7 @@ public interface ConnectionHandler extends Disposable, EnvironmentTypeProvider, 
     boolean isVirtual();
     boolean isAutoCommit();
     boolean isLoggingEnabled();
-    boolean hasPendingTransactions(Connection connection);
+    boolean hasPendingTransactions(@NotNull Connection connection);
     void setAutoCommit(boolean autoCommit) throws SQLException;
     void setLoggingEnabled(boolean loggingEnabled);
     void disconnect() throws SQLException;
@@ -88,8 +88,8 @@ public interface ConnectionHandler extends Disposable, EnvironmentTypeProvider, 
     String getPresentableText();
     String getQualifiedName();
 
-    void notifyChanges(VirtualFile virtualFile);
-    void resetChanges();
+    void notifyDataChanges(VirtualFile virtualFile);
+    void resetDataChanges();
     boolean hasUncommittedChanges();
     void commit() throws SQLException;
     void rollback() throws SQLException;
@@ -106,7 +106,7 @@ public interface ConnectionHandler extends Disposable, EnvironmentTypeProvider, 
     Filter<BrowserTreeNode> getObjectTypeFilter();
     NavigationPsiCache getPsiCache();
 
-    UncommittedChangeBundle getUncommittedChanges();
+    UncommittedChangeBundle getDataChanges();
     boolean isConnected();
     int getIdleMinutes();
 

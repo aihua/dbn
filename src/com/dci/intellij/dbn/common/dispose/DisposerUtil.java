@@ -4,11 +4,22 @@ import java.util.Collection;
 import java.util.Map;
 
 import com.dci.intellij.dbn.common.list.FiltrableList;
+import com.dci.intellij.dbn.common.thread.SimpleBackgroundTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.util.Disposer;
 
 public class DisposerUtil {
+
+    public static void disposeInBackground(final Disposable disposable) {
+        new SimpleBackgroundTask("dispose element") {
+            @Override
+            protected void execute() {
+                dispose(disposable);
+            }
+        }.start();
+    }
+
 
     public static void dispose(Disposable disposable) {
         if (disposable != null) {
@@ -22,6 +33,15 @@ public class DisposerUtil {
                 dispose(disposable);
             }
         }
+    }
+
+    public static void disposeInBackground(final Collection<? extends Disposable> collection) {
+        new SimpleBackgroundTask("dispose collection") {
+            @Override
+            protected void execute() {
+                dispose(collection);
+            }
+        }.start();
     }
     
     public static void dispose(Collection<? extends Disposable> collection) {
@@ -50,6 +70,12 @@ public class DisposerUtil {
     public static void register(Disposable parent, Collection<? extends Disposable> collection) {
         for (Disposable disposable : collection) {
             Disposer.register(parent, disposable);
+        }
+    }
+
+    public static void register(Disposable parent, Object disposable) {
+        if (disposable instanceof Disposable) {
+            Disposer.register(parent, (Disposable) disposable);
         }
     }
 

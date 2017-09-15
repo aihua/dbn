@@ -25,7 +25,7 @@ import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.debugger.DBDebuggerType;
 import com.dci.intellij.dbn.debugger.DatabaseDebuggerManager;
-import com.dci.intellij.dbn.execution.common.ui.ExecutionTimeoutForm;
+import com.dci.intellij.dbn.execution.common.ui.ExecutionOptionsForm;
 import com.dci.intellij.dbn.execution.statement.processor.StatementExecutionProcessor;
 import com.dci.intellij.dbn.execution.statement.variables.StatementExecutionVariable;
 import com.dci.intellij.dbn.execution.statement.variables.StatementExecutionVariablesBundle;
@@ -45,18 +45,19 @@ import com.intellij.ui.DocumentAdapter;
 import com.intellij.ui.GuiUtils;
 
 public class StatementExecutionInputForm extends DBNFormImpl<StatementExecutionInputsDialog> {
-    private List<StatementExecutionVariableValueForm> variableValueForms = new ArrayList<StatementExecutionVariableValueForm>();
-    private StatementExecutionProcessor executionProcessor;
     private JPanel mainPanel;
     private JPanel variablesPanel;
     private JPanel previewPanel;
     private JPanel headerSeparatorPanel;
-    private JCheckBox reuseVariablesCheckBox;
-    private JPanel executionTimeoutForm;
+    private JPanel executionOptionsPanel;
     private JPanel headerPanel;
-    private JPanel debuggerVversionPanel;
+    private JPanel debuggerVersionPanel;
     private JLabel debuggerVersionLabel;
     private JLabel debuggerTypeLabel;
+
+    private StatementExecutionProcessor executionProcessor;
+    private List<StatementExecutionVariableValueForm> variableValueForms = new ArrayList<StatementExecutionVariableValueForm>();
+    private ExecutionOptionsForm executionOptionsForm;
     private Document previewDocument;
     private EditorEx viewer;
     private String statementText;
@@ -72,14 +73,14 @@ public class StatementExecutionInputForm extends DBNFormImpl<StatementExecutionI
 
         ConnectionHandler connectionHandler = executionProcessor.getConnectionHandler();
         if (debuggerType.isDebug()) {
-            debuggerVversionPanel.setVisible(true);
-            debuggerVversionPanel.setBorder(Borders.BOTTOM_LINE_BORDER);
+            debuggerVersionPanel.setVisible(true);
+            debuggerVersionPanel.setBorder(Borders.BOTTOM_LINE_BORDER);
             DatabaseDebuggerManager debuggerManager = DatabaseDebuggerManager.getInstance(getProject());
             String debuggerVersion = debuggerManager.getDebuggerVersion(connectionHandler);
             debuggerVersionLabel.setText(debuggerVersion);
             debuggerTypeLabel.setText(debuggerType.name());
         } else {
-            debuggerVversionPanel.setVisible(false);
+            debuggerVersionPanel.setVisible(false);
         }
 
         DBLanguagePsiFile psiFile = executionProcessor.getPsiFile();
@@ -115,16 +116,13 @@ public class StatementExecutionInputForm extends DBNFormImpl<StatementExecutionI
             headerSeparatorPanel.setVisible(false);
         }
 
-        ExecutionTimeoutForm executionTimeoutForm = new ExecutionTimeoutForm(executionProcessor.getExecutionInput(), DBDebuggerType.NONE) {
-            @Override
-            protected void handleChange(boolean hasError) {
-                parentComponent.setActionEnabled(!hasError);
-            }
-        };
-        this.executionTimeoutForm.add(executionTimeoutForm.getComponent());
+        executionOptionsForm = new ExecutionOptionsForm(this, executionProcessor.getExecutionInput(), debuggerType);
+        this.executionOptionsPanel.add(executionOptionsForm.getComponent());
+
         updatePreview();
         GuiUtils.replaceJSplitPaneWithIDEASplitter(mainPanel);
 
+        final JCheckBox reuseVariablesCheckBox = executionOptionsForm.getReuseVariablesCheckBox();
         if (isBulkExecution && executionVariables != null) {
             reuseVariablesCheckBox.setVisible(true);
             reuseVariablesCheckBox.addActionListener(new ActionListener() {
@@ -160,15 +158,16 @@ public class StatementExecutionInputForm extends DBNFormImpl<StatementExecutionI
         return null;
     }
 
-    public void saveValues() {
+    public void updateExecutionInput() {
         for (StatementExecutionVariableValueForm variableValueForm : variableValueForms) {
             variableValueForm.saveValue();
         }
+        executionOptionsForm.updateExecutionInput();
     }
 
     protected void updatePreview() {
         ConnectionHandler connectionHandler = FailsafeUtil.get(executionProcessor.getConnectionHandler());
-        DBSchema currentSchema = executionProcessor.getCurrentSchema();
+        DBSchema currentSchema = executionProcessor.getTargetSchema();
         Project project = connectionHandler.getProject();
         String previewText = this.statementText;
 

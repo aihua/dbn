@@ -25,11 +25,8 @@ import com.dci.intellij.dbn.execution.script.options.ScriptExecutionSettings;
 import com.dci.intellij.dbn.execution.script.ui.CmdLineInterfaceInputDialog;
 import com.dci.intellij.dbn.execution.script.ui.ScriptExecutionInputDialog;
 import com.dci.intellij.dbn.object.DBSchema;
-import com.intellij.openapi.components.PersistentStateComponent;
-import com.intellij.openapi.components.State;
-import com.intellij.openapi.components.Storage;
-import com.intellij.openapi.components.StoragePathMacros;
-import com.intellij.openapi.components.StorageScheme;
+import com.intellij.openapi.application.PathManager;
+import com.intellij.openapi.components.*;
 import com.intellij.openapi.fileChooser.FileChooser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.progress.ProcessCanceledException;
@@ -49,6 +46,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.security.SecureRandom;
 import java.sql.SQLException;
 import java.sql.SQLTimeoutException;
 import java.util.HashMap;
@@ -65,6 +63,7 @@ import java.util.concurrent.atomic.AtomicReference;
                 @Storage(file = StoragePathMacros.PROJECT_FILE)}
 )
 public class ScriptExecutionManager extends AbstractProjectComponent implements PersistentStateComponent<Element>{
+    private static final SecureRandom TMP_FILE_RANDOMIZER = new SecureRandom();
     private final Map<VirtualFile, Process> activeProcesses = new HashMap<VirtualFile, Process>();
     private Map<DatabaseType, String> recentlyUsedInterfaces = new HashMap<DatabaseType, String>();
     private boolean clearOutputOption = true;
@@ -133,8 +132,8 @@ public class ScriptExecutionManager extends AbstractProjectComponent implements 
     }
 
     private void doExecuteScript(final ScriptExecutionInput input) throws Exception {
-        ExecutionContext executionContext = input.getExecutionContext();
-        executionContext.setExecuting(true);
+        ExecutionContext context = input.getExecutionContext();
+        context.setExecuting(true);
         ConnectionHandler connectionHandler = FailsafeUtil.get(input.getConnectionHandler());
         final VirtualFile sourceFile = input.getSourceFile();
         activeProcesses.put(sourceFile, null);
@@ -168,6 +167,9 @@ public class ScriptExecutionManager extends AbstractProjectComponent implements 
                     );
 
                     FileUtil.writeToFile(temporaryScriptFile, executionInput.getTextContent());
+                    if (!temporaryScriptFile.isFile()) {
+                        throw new IllegalStateException("Failed to create temporary script file " + temporaryScriptFile + ". Check access rights at location.");
+                    }
 
                     ProcessBuilder processBuilder = new ProcessBuilder(executionInput.getCommand());
                     processBuilder.environment().putAll(executionInput.getEnvironmentVars());
@@ -255,14 +257,14 @@ public class ScriptExecutionManager extends AbstractProjectComponent implements 
                 throw e;
             }
         } finally {
-            executionContext.setExecuting(false);
+            context.setExecuting(false);
             outputContext.finish();
             BufferedReader consoleReader = logReader.get();
             if (consoleReader != null) consoleReader.close();
             activeProcesses.remove(sourceFile);
             File temporaryScriptFile = tempScriptFile.get();
             if (temporaryScriptFile != null && temporaryScriptFile.exists()) {
-                temporaryScriptFile.delete();
+                FileUtil.delete(temporaryScriptFile);
             }
         }
     }
@@ -328,7 +330,23 @@ public class ScriptExecutionManager extends AbstractProjectComponent implements 
     }
 
     private File createTempScriptFile() throws IOException {
-        return File.createTempFile("DBN", ".sql");
+        File tempFile = File.createTempFile("DBN-", ".sql");
+        if (!tempFile.isFile()) {
+            long n = TMP_FILE_RANDOMIZER.nextLong();
+            n = n == Long.MIN_VALUE ? 0 : Math.abs(n);
+            String tempFileName = "DBN-" + n;
+
+            tempFile = FileUtil.createTempFile(tempFileName, ".sql");
+            if (!tempFile.isFile()) {
+                String systemDir = PathManager.getSystemPath();
+                File systemTempDir = new File(systemDir, "tmp");
+                tempFile = new File(systemTempDir, tempFileName);
+                FileUtil.createParentDirs(tempFile);
+                FileUtil.delete(tempFile);
+                FileUtil.createIfDoesntExist(tempFile);
+            }
+        }
+        return tempFile;
     }
 
     /****************************************

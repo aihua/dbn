@@ -26,9 +26,9 @@ import com.intellij.util.ui.UIUtil;
 public abstract class ExecutionTimeoutForm extends DBNFormImpl{
     private JTextField executionTimeoutTextField;
     private JPanel mainPanel;
-    private JLabel executionTimeoutLabel;
     private JPanel actionsPanel;
     private JLabel hintLabel;
+
     private boolean hasErrors;
     private transient int timeout;
 

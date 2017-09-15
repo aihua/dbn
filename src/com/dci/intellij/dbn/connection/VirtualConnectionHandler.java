@@ -1,15 +1,5 @@
 package com.dci.intellij.dbn.connection;
 
-import javax.swing.Icon;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
@@ -32,6 +22,16 @@ import com.dci.intellij.dbn.vfs.DBSessionBrowserVirtualFile;
 import com.intellij.lang.Language;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import javax.swing.*;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 public class VirtualConnectionHandler implements ConnectionHandler {
     public static final ConnectionStatus CONNECTION_STATUS = new ConnectionStatus();
@@ -133,7 +133,7 @@ public class VirtualConnectionHandler implements ConnectionHandler {
     @Override public void setAutoCommit(boolean autoCommit) throws SQLException {}
     @Override public void setLoggingEnabled(boolean loggingEnabled) {}
 
-    @Override public UncommittedChangeBundle getUncommittedChanges() {return null;}
+    @Override public UncommittedChangeBundle getDataChanges() {return null;}
     @Override public boolean isConnected() {return false;}
     @Override public boolean isDisposed() {
         return false;
@@ -161,11 +161,11 @@ public class VirtualConnectionHandler implements ConnectionHandler {
 
     @Override public String getUserName() {return "root";}
 
-    @Override public Connection createTestConnection() throws SQLException {return null;}
-    @Override public Connection getPoolConnection(boolean readonly) throws SQLException {return null;}
-    @Override public Connection getPoolConnection(@Nullable DBSchema schema, boolean readonly) throws SQLException {return null;}
-    @Override public Connection getMainConnection() throws SQLException {return null;}
-    @Override public Connection getMainConnection(@Nullable DBSchema schema) throws SQLException {return null;}
+    @Override public DBNConnection createTestConnection() throws SQLException {return null;}
+    @Override public DBNConnection getPoolConnection(boolean readonly) throws SQLException {return null;}
+    @Override public DBNConnection getPoolConnection(@Nullable DBSchema schema, boolean readonly) throws SQLException {return null;}
+    @Override public DBNConnection getMainConnection() throws SQLException {return null;}
+    @Override public DBNConnection getMainConnection(@Nullable DBSchema schema) throws SQLException {return null;}
     @Override public void freePoolConnection(Connection connection) {}
     @Override public void dropPoolConnection(Connection connection) {}
 
@@ -184,7 +184,7 @@ public class VirtualConnectionHandler implements ConnectionHandler {
         return false;
     }
 
-    @Override public boolean hasPendingTransactions(Connection connection) {return false;}
+    @Override public boolean hasPendingTransactions(@NotNull Connection connection) {return false;}
 
     @NotNull
     @Override
@@ -253,8 +253,8 @@ public class VirtualConnectionHandler implements ConnectionHandler {
     }
 
     public ConnectionHandler clone() {return null;}
-    public void notifyChanges(VirtualFile virtualFile) {}
-    public void resetChanges() {}
+    public void notifyDataChanges(VirtualFile virtualFile) {}
+    public void resetDataChanges() {}
     public boolean hasUncommittedChanges() {return false;}
     public void commit() throws SQLException {}
     public void rollback() throws SQLException {}

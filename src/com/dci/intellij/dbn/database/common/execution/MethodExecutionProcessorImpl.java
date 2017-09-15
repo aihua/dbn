@@ -64,7 +64,7 @@ public abstract class MethodExecutionProcessorImpl<T extends DBMethod> implement
         executionInput.initExecution(debuggerType);
         boolean usePoolConnection = executionInput.isUsePoolConnection();
         ConnectionHandler connectionHandler = getConnectionHandler();
-        DBSchema executionSchema = executionInput.getExecutionSchema();
+        DBSchema executionSchema = executionInput.getTargetSchema();
         Connection connection = usePoolConnection ?
                 connectionHandler.getPoolConnection(executionSchema, false) :
                 connectionHandler.getMainConnection(executionSchema);
@@ -79,13 +79,13 @@ public abstract class MethodExecutionProcessorImpl<T extends DBMethod> implement
         executionInput.initExecution(debuggerType);
         final ConnectionHandler connectionHandler = getConnectionHandler();
         boolean usePoolConnection = false;
-        boolean loggingEnabled = debuggerType != DBDebuggerType.JDBC && executionInput.isEnableLogging();
+        boolean loggingEnabled = debuggerType != DBDebuggerType.JDBC && executionInput.isLoggingEnabled();
         Project project = getProject();
         final DatabaseLoggingManager loggingManager = DatabaseLoggingManager.getInstance(project);
         Counter runningMethods = connectionHandler.getLoadMonitor().getRunningMethods();
         runningMethods.increment();
 
-        ExecutionContext executionContext = executionInput.getExecutionContext();
+        ExecutionContext executionContext = executionInput.getExecutionContext(true);
         try {
             String command = buildExecutionCommand(executionInput);
             T method = getMethod();
@@ -132,9 +132,9 @@ public abstract class MethodExecutionProcessorImpl<T extends DBMethod> implement
                 }
             }
 
-            if (!usePoolConnection) connectionHandler.notifyChanges(method.getVirtualFile());
+            if (!usePoolConnection) connectionHandler.notifyDataChanges(method.getVirtualFile());
         } catch (SQLException e) {
-            executionContext.dismissStatement();
+            executionContext.resetStatement();
             throw e;
         } finally {
             runningMethods.decrement();

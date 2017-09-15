@@ -5,15 +5,17 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.thread.ReadActionRunner;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.LazyValue;
 import com.dci.intellij.dbn.common.util.SimpleLazyValue;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
+import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.execution.ExecutionContext;
-import com.dci.intellij.dbn.execution.ExecutionInput;
 import com.dci.intellij.dbn.execution.ExecutionTarget;
+import com.dci.intellij.dbn.execution.LocalExecutionInput;
 import com.dci.intellij.dbn.execution.statement.processor.StatementExecutionProcessor;
 import com.dci.intellij.dbn.execution.statement.variables.StatementExecutionVariablesBundle;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
@@ -27,11 +29,9 @@ import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 
-public class StatementExecutionInput extends ExecutionInput {
+public class StatementExecutionInput extends LocalExecutionInput {
     private StatementExecutionProcessor executionProcessor;
     private StatementExecutionVariablesBundle executionVariables;
-    private ConnectionHandlerRef connectionHandlerRef;
-    private DBObjectRef<DBSchema> currentSchemaRef;
 
     private String originalStatementText;
     private String executableStatementText;
@@ -67,10 +67,17 @@ public class StatementExecutionInput extends ExecutionInput {
     public StatementExecutionInput(String originalStatementText, String executableStatementText, StatementExecutionProcessor executionProcessor) {
         super(executionProcessor.getProject(), ExecutionTarget.STATEMENT);
         this.executionProcessor = executionProcessor;
-        this.connectionHandlerRef = ConnectionHandlerRef.from(executionProcessor.getConnectionHandler());
-        this.currentSchemaRef = DBObjectRef.from(executionProcessor.getCurrentSchema());
+        ConnectionHandler connectionHandler = executionProcessor.getConnectionHandler();
+        DBSchema currentSchema = executionProcessor.getTargetSchema();
+
+        this.targetConnectionRef = ConnectionHandlerRef.from(connectionHandler);
+        this.targetSchemaRef = DBObjectRef.from(currentSchema);
         this.originalStatementText = originalStatementText;
         this.executableStatementText = executableStatementText;
+
+        if (DatabaseFeature.DATABASE_LOGGING.isSupported(connectionHandler)) {
+            setLoggingEnabled(FailsafeUtil.get(connectionHandler).isLoggingEnabled());
+        }
     }
 
     public int getExecutableLineNumber() {
@@ -157,24 +164,37 @@ public class StatementExecutionInput extends ExecutionInput {
 
     @Nullable
     public ConnectionHandler getConnectionHandler() {
-        return ConnectionHandlerRef.get(connectionHandlerRef);
+        return ConnectionHandlerRef.get(targetConnectionRef);
+    }
+
+    @Override
+    public boolean hasExecutionVariables() {
+        return true;
+    }
+
+    @Override
+    public boolean isSchemaSelectionAllowed() {
+        return false;
     }
 
     public void setConnectionHandler(ConnectionHandler connectionHandler) {
-        this.connectionHandlerRef = ConnectionHandlerRef.from(connectionHandler);
+        this.targetConnectionRef = ConnectionHandlerRef.from(connectionHandler);
+        if (DatabaseFeature.DATABASE_LOGGING.isSupported(connectionHandler)) {
+            setLoggingEnabled(FailsafeUtil.get(connectionHandler).isLoggingEnabled());
+        }
     }
 
     public String getConnectionId() {
-        return connectionHandlerRef == null ? null : connectionHandlerRef.getConnectionId();
+        return targetConnectionRef == null ? null : targetConnectionRef.getConnectionId();
     }
 
     @Nullable
     public DBSchema getCurrentSchema() {
-        return DBObjectRef.get(currentSchemaRef);
+        return DBObjectRef.get(targetSchemaRef);
     }
 
     public void setCurrentSchema(DBSchema currentSchema) {
-        this.currentSchemaRef = DBObjectRef.from(currentSchema);
+        this.targetSchemaRef = DBObjectRef.from(currentSchema);
     }
 
     public boolean isBulkExecution() {
@@ -198,6 +218,7 @@ public class StatementExecutionInput extends ExecutionInput {
         return executablePsiElement == null ? "SQL Statement" : executablePsiElement.getPresentableText();
     }
 
+    @Override
     public boolean isDatabaseLogProducer() {
         return executablePsiElement != null && executablePsiElement.getElementType().is(ElementTypeAttribute.DATABASE_LOG_PRODUCER);
     }

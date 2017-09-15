@@ -104,7 +104,7 @@ public class ScriptExecutionInputForm extends DBNFormImpl<ScriptExecutionInputDi
         connectionComboBox.addListener(new ValueSelectorListener<ConnectionHandler>() {
             @Override
             public void selectionChanged(ConnectionHandler oldValue, ConnectionHandler newValue) {
-                executionInput.setConnectionHandler(newValue);
+                executionInput.setTargetConnection(newValue);
                 updateControls(executionInput);
             }
         });
@@ -156,7 +156,7 @@ public class ScriptExecutionInputForm extends DBNFormImpl<ScriptExecutionInputDi
 
             }
 
-            executionInput.setConnectionHandler(connectionHandler);
+            executionInput.setTargetConnection(connectionHandler);
             executionInput.setSchema(schema);
             executionInput.setCmdLineInterface(cmdLineInterface);
         } else {

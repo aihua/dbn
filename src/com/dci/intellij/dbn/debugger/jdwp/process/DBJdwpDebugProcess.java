@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.common.notification.NotificationUtil;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
+import com.dci.intellij.dbn.connection.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseDebuggerInterface;
 import com.dci.intellij.dbn.debugger.DBDebugConsoleLogger;
 import com.dci.intellij.dbn.debugger.DBDebugOperationTask;
@@ -35,14 +36,13 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.net.Inet4Address;
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.StringTokenizer;
 
 public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebugProcess implements DBDebugProcess {
     public static final Key<DBJdwpDebugProcess> KEY = new Key<DBJdwpDebugProcess>("DBNavigator.JdwpDebugProcess");
-    protected Connection targetConnection;
+    protected DBNConnection targetConnection;
     private ConnectionHandlerRef connectionHandlerRef;
     private DBDebugProcessStatus status = new DBDebugProcessStatus();
     private int localTcpPort = 4000;
@@ -107,7 +107,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
         return getConnectionHandler().getInterfaceProvider().getDebuggerInterface();
     }
 
-    public Connection getTargetConnection() {
+    public DBNConnection getTargetConnection() {
         return targetConnection;
     }
 

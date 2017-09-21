@@ -1,5 +1,14 @@
 package com.dci.intellij.dbn.execution.method;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Set;
+import org.jdom.Element;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.message.MessageCallback;
@@ -16,6 +25,7 @@ import com.dci.intellij.dbn.database.common.execution.MethodExecutionProcessor;
 import com.dci.intellij.dbn.debugger.DBDebuggerType;
 import com.dci.intellij.dbn.execution.ExecutionContext;
 import com.dci.intellij.dbn.execution.ExecutionManager;
+import com.dci.intellij.dbn.execution.ExecutionStatus;
 import com.dci.intellij.dbn.execution.method.browser.MethodBrowserSettings;
 import com.dci.intellij.dbn.execution.method.history.ui.MethodExecutionHistoryDialog;
 import com.dci.intellij.dbn.execution.method.ui.MethodExecutionHistory;
@@ -31,15 +41,6 @@ import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.util.Disposer;
-import org.jdom.Element;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.List;
-import java.util.Set;
 
 @State(
     name = "DBNavigator.Project.MethodExecutionManager",
@@ -173,8 +174,9 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
         cacheArgumentValues(executionInput);
         executionHistory.setSelection(executionInput.getMethodRef());
         final DBMethod method = executionInput.getMethod();
-        final ExecutionContext executionContext = executionInput.getExecutionContext();
-        executionContext.setExecuting(true);
+        final ExecutionContext context = executionInput.getExecutionContext();
+        final ExecutionStatus status = context.getExecutionStatus();
+        status.setExecuting(true);
 
         if (method == null) {
             DBObjectRef<DBMethod> methodRef = executionInput.getMethodRef();
@@ -190,16 +192,16 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
                     try {
                         initProgressIndicator(progressIndicator, true, "Executing " + method.getQualifiedNameWithType());
                         executionProcessor.execute(executionInput, DBDebuggerType.NONE);
-                        if (!executionContext.isExecutionCancelled()) {
+                        if (!status.isCancelled()) {
                             ExecutionManager executionManager = ExecutionManager.getInstance(project);
                             executionManager.addExecutionResult(executionInput.getExecutionResult());
-                            executionContext.setExecuting(false);
+                            status.setExecuting(false);
                         }
 
-                        executionContext.setExecutionCancelled(false);
+                        status.setCancelled(false);
                     } catch (final SQLException e) {
-                        executionContext.setExecuting(false);
-                        if (!executionContext.isExecutionCancelled()) {
+                        status.setExecuting(false);
+                        if (!status.isCancelled()) {
                             MessageUtil.showErrorDialog(project,
                                     "Method execution error",
                                     "Error executing " + method.getQualifiedNameWithType() + ".\n" + e.getMessage().trim(),
@@ -237,12 +239,13 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
                     executionInterface.createDebugExecutionProcessor(method);
 
             executionProcessor.execute(executionInput, connection, debuggerType);
-            ExecutionContext executionContext = executionInput.getExecutionContext();
-            if (!executionContext.isExecutionCancelled()) {
+            ExecutionContext context = executionInput.getExecutionContext();
+            ExecutionStatus status = context.getExecutionStatus();
+            if (!status.isCancelled()) {
                 ExecutionManager executionManager = ExecutionManager.getInstance(method.getProject());
                 executionManager.addExecutionResult(executionInput.getExecutionResult());
             }
-            executionContext.setExecutionCancelled(false);
+            status.setCancelled(false);
         }
     }
 

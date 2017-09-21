@@ -17,7 +17,7 @@ import com.intellij.openapi.options.ConfigurationException;
 public class ConnectionFilterSettingsDialog extends DBNDialog<DBNContentWithHeaderForm<ConnectionFilterSettingsDialog>> {
     private ConnectionFilterSettingsForm configurationEditor;
     public ConnectionFilterSettingsDialog(@NotNull final ConnectionHandler connectionHandler) {
-        super(connectionHandler.getProject(), "Object Filters", true);
+        super(connectionHandler.getProject(), "Object filters", true);
         component = new DBNContentWithHeaderForm<ConnectionFilterSettingsDialog>(this) {
             @Override
             public DBNHeaderForm createHeaderForm() {
@@ -55,7 +55,7 @@ public class ConnectionFilterSettingsDialog extends DBNDialog<DBNContentWithHead
             configuration.notifyChanges();
             super.doOKAction();
         } catch (ConfigurationException e) {
-            MessageUtil.showErrorDialog(getProject(), "Configuration Error", e.getMessage());
+            MessageUtil.showErrorDialog(getProject(), "Configuration error", e.getMessage());
         }
 
     }

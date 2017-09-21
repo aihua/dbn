@@ -7,6 +7,7 @@ import org.jetbrains.annotations.Nullable;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.EditorUtil;
+import com.dci.intellij.dbn.execution.ExecutionStatus;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionManager;
 import com.dci.intellij.dbn.execution.statement.processor.StatementExecutionCursorProcessor;
 import com.dci.intellij.dbn.execution.statement.processor.StatementExecutionProcessor;
@@ -22,7 +23,7 @@ import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 
 public class StatementGutterAction extends AnAction {
-    final ExecutablePsiElement executablePsiElement;
+    private final transient ExecutablePsiElement executablePsiElement;
 
     public StatementGutterAction(ExecutablePsiElement executablePsiElement) {
         this.executablePsiElement = executablePsiElement;
@@ -39,11 +40,16 @@ public class StatementGutterAction extends AnAction {
                     executionManager.executeStatement(executionProcessor);
                 }
             } else {
-                StatementExecutionResult executionResult = executionProcessor.getExecutionResult();
-                if (executionResult == null || !(executionProcessor instanceof StatementExecutionCursorProcessor) || executionProcessor.isDirty()) {
-                    executionManager.executeStatement(executionProcessor);
+                ExecutionStatus status = executionProcessor.getExecutionStatus();
+                if (status.isExecuting() || status.isQueued()) {
+                    executionProcessor.cancelExecution();
                 } else {
-                    executionProcessor.navigateToResult();
+                    StatementExecutionResult executionResult = executionProcessor.getExecutionResult();
+                    if (executionResult == null || !(executionProcessor instanceof StatementExecutionCursorProcessor) || executionProcessor.isDirty()) {
+                        executionManager.executeStatement(executionProcessor);
+                    } else {
+                        executionProcessor.navigateToResult();
+                    }
                 }
             }
         }
@@ -55,7 +61,12 @@ public class StatementGutterAction extends AnAction {
         if (executionProcessor != null) {
             StatementExecutionResult executionResult = executionProcessor.getExecutionResult();
             if (executionResult == null) {
-                return Icons.STMT_EXECUTION_RUN;
+                ExecutionStatus status = executionProcessor.getExecutionStatus();
+                return
+                    status.isExecuting() ? Icons.STMT_EXECUTION_STOP :
+                    status.isQueued() ? Icons.STMT_EXECUTION_STOP_QUEUED :
+                            Icons.STMT_EXECUTION_RUN;
+
             } else {
                 StatementExecutionStatus executionStatus = executionResult.getExecutionStatus();
                 if (executionStatus == StatementExecutionStatus.SUCCESS){
@@ -114,7 +125,15 @@ public class StatementGutterAction extends AnAction {
         StatementExecutionProcessor executionProcessor = getExecutionProcessor(false);
         if (executionProcessor!= null && !executionProcessor.isDisposed()) {
             StatementExecutionResult executionResult = executionProcessor.getExecutionResult();
-            if (executionResult != null) {
+            if (executionResult == null) {
+                ExecutionStatus status = executionProcessor.getExecutionStatus();
+                if (status.isExecuting()) {
+                    return "Statement execution in progress. Cancel?";
+                } else  if (status.isQueued()) {
+                    return "Statement execution queued. Cancel?";
+                }
+            }
+            else {
                 StatementExecutionStatus executionStatus = executionResult.getExecutionStatus();
                 if (executionStatus == StatementExecutionStatus.SUCCESS) {
                     return "Statement executed successfully. Execute again?";

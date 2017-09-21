@@ -1,15 +1,28 @@
 package com.dci.intellij.dbn.execution.statement.processor;
 
+import java.lang.ref.WeakReference;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.common.Counter;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.editor.BasicTextEditor;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
-import com.dci.intellij.dbn.common.message.MessageCallback;
 import com.dci.intellij.dbn.common.message.MessageType;
 import com.dci.intellij.dbn.common.thread.CancellableDatabaseCall;
 import com.dci.intellij.dbn.common.thread.ReadActionRunner;
-import com.dci.intellij.dbn.common.util.*;
+import com.dci.intellij.dbn.common.util.DocumentUtil;
+import com.dci.intellij.dbn.common.util.EditorUtil;
+import com.dci.intellij.dbn.common.util.EventUtil;
+import com.dci.intellij.dbn.common.util.LazyValue;
+import com.dci.intellij.dbn.common.util.SimpleLazyValue;
+import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionUtil;
 import com.dci.intellij.dbn.connection.DBNConnection;
@@ -18,12 +31,19 @@ import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.editor.EditorProviderId;
 import com.dci.intellij.dbn.execution.ExecutionContext;
 import com.dci.intellij.dbn.execution.ExecutionManager;
+import com.dci.intellij.dbn.execution.ExecutionStatus;
 import com.dci.intellij.dbn.execution.NavigationInstruction;
 import com.dci.intellij.dbn.execution.common.options.ExecutionEngineSettings;
-import com.dci.intellij.dbn.execution.compiler.*;
+import com.dci.intellij.dbn.execution.compiler.CompileManagerListener;
+import com.dci.intellij.dbn.execution.compiler.CompileType;
+import com.dci.intellij.dbn.execution.compiler.CompilerAction;
+import com.dci.intellij.dbn.execution.compiler.CompilerActionSource;
+import com.dci.intellij.dbn.execution.compiler.CompilerResult;
+import com.dci.intellij.dbn.execution.compiler.DatabaseCompilerManager;
 import com.dci.intellij.dbn.execution.logging.DatabaseLoggingManager;
 import com.dci.intellij.dbn.execution.statement.DataDefinitionChangeListener;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionInput;
+import com.dci.intellij.dbn.execution.statement.StatementExecutionManager;
 import com.dci.intellij.dbn.execution.statement.options.StatementExecutionSettings;
 import com.dci.intellij.dbn.execution.statement.result.StatementExecutionBasicResult;
 import com.dci.intellij.dbn.execution.statement.result.StatementExecutionResult;
@@ -31,7 +51,11 @@ import com.dci.intellij.dbn.execution.statement.result.StatementExecutionStatus;
 import com.dci.intellij.dbn.execution.statement.variables.StatementExecutionVariablesBundle;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
-import com.dci.intellij.dbn.language.common.psi.*;
+import com.dci.intellij.dbn.language.common.psi.BasePsiElement;
+import com.dci.intellij.dbn.language.common.psi.ChameleonPsiElement;
+import com.dci.intellij.dbn.language.common.psi.ExecutablePsiElement;
+import com.dci.intellij.dbn.language.common.psi.IdentifierPsiElement;
+import com.dci.intellij.dbn.language.common.psi.QualifiedIdentifierPsiElement;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBObjectType;
@@ -45,21 +69,13 @@ import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.lang.ref.WeakReference;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public class StatementExecutionBasicProcessor extends DisposableBase implements StatementExecutionProcessor {
     protected DBLanguagePsiFile psiFile;
     private WeakReference<FileEditor> fileEditorRef;
     private ExecutablePsiElement cachedExecutable;
     private EditorProviderId editorProviderId;
+    private transient CancellableDatabaseCall<StatementExecutionResult> databaseCall;
 
     private LazyValue<String> resultName = new SimpleLazyValue<String>() {
         @Override
@@ -203,6 +219,19 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
         return executionInput;
     }
 
+    @Override
+    public ExecutionStatus getExecutionStatus() {
+        return getExecutionContext().getExecutionStatus();
+    }
+
+    public ExecutionContext getExecutionContext() {
+        return executionInput.getExecutionContext();
+    }
+
+    public ExecutionContext getExecutionContext(boolean reset) {
+        return executionInput.getExecutionContext(reset);
+    }
+
     public StatementExecutionResult getExecutionResult() {
         if (executionResult != null && executionResult.isDisposed()) {
             executionResult = null;
@@ -229,56 +258,78 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
 
     public void execute(@Nullable DBNConnection connection, boolean debug) throws SQLException {
         ProgressMonitor.setTaskDescription("Executing " + getStatementName());
-        ExecutionContext context = executionInput.getExecutionContext(true);
-        resultName.reset();
-        executionInput.initExecution();
-
-        ConnectionHandler connectionHandler = getTargetConnection();
-
-
         try {
+            ExecutionContext context = getExecutionContext();
+            context.setExecutionTimestamp(System.currentTimeMillis());
+
+            ExecutionStatus status = context.getExecutionStatus();
+            status.setExecuting(true);
+
+            resultName.reset();
+            DocumentUtil.refreshEditorAnnotations(getPsiFile());
+
             String statementText = initStatementText();
+            SQLException executionException = null;
             if (statementText != null) {
+                ConnectionHandler connectionHandler = getTargetConnection();
                 Counter runningStatements = connectionHandler.getLoadMonitor().getRunningStatements();
 
                 try {
+                    status.assertNotCancelled();
                     runningStatements.increment();
                     initConnection(context, connection);
                     initTimeout(context, debug);
                     initLogging(context, debug);
 
-                    executionResult = executeStatement(context, statementText);
+                    executionResult = executeStatement(statementText);
 
                     // post execution activities
                     if (executionResult != null) {
                         executionResult.calculateExecDuration();
                         consumeLoggerOutput(context);
-                        notifyDataManipulationChanges(context);
                         notifyDataDefinitionChanges(context);
+                        notifyDataManipulationChanges(context);
                     }
                 } catch (SQLException e) {
-                    context.resetStatement();
-                    context.setExecutionException(e);
-                    executionResult = createErrorExecutionResult(e.getMessage());
-                    executionResult.calculateExecDuration();
+                    ConnectionUtil.cancelStatement(context.getStatement());
+                    if (!status.isCancelled()) {
+                        executionException = e;
+                        executionResult = createErrorExecutionResult(e.getMessage());
+                        executionResult.calculateExecDuration();
+                    }
                 } finally {
                     runningStatements.decrement();
                     disableLogging(context);
                 }
             }
 
+            status.assertNotCancelled();
             if (executionResult != null) {
                 Project project = getProject();
                 ExecutionManager executionManager = ExecutionManager.getInstance(project);
                 executionManager.addExecutionResult(executionResult);
             }
 
-            SQLException executionException = context.getExecutionException();
             if (executionException != null && debug) {
                 throw executionException;
             }
 
         } finally {
+            postExecute();
+        }
+    }
+
+    @Override
+    public void postExecute() {
+        ExecutionStatus status = getExecutionStatus();
+        if (!status.isPrompted()) {
+            ExecutionContext context = getExecutionContext();
+            DBNConnection connection = context.getConnection();
+            if (connection != null && connection.isPoolConnection()) {
+                ConnectionUtil.cancelStatement(context.getStatement());
+                ConnectionHandler connectionHandler = FailsafeUtil.get(getConnectionHandler());
+                connectionHandler.freePoolConnection(connection);
+            }
             context.reset();
         }
     }
@@ -308,8 +359,8 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
 
     private void initConnection(ExecutionContext context, DBNConnection connection) throws SQLException {
         ConnectionHandler connectionHandler = getTargetConnection();
-        DBSchema schema = getTargetSchema();
         if (connection == null) {
+            DBSchema schema = getTargetSchema();
             connection = connectionHandler.getMainConnection(schema);
         }
         context.setConnection(connection);
@@ -317,7 +368,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
 
     private void initLogging(ExecutionContext context, boolean debug) {
         boolean logging = false;
-        if (!debug && executionInput.isLoggingEnabled() && executionInput.isDatabaseLogProducer()) {
+        if (!debug && executionInput.getOptions().isEnableLogging() && executionInput.isDatabaseLogProducer()) {
             ConnectionHandler connectionHandler = getTargetConnection();
             DBNConnection connection = context.getConnection();
 
@@ -329,7 +380,11 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     }
 
     @Nullable
-    private StatementExecutionResult executeStatement(ExecutionContext context, final String statementText) throws SQLException {
+    private StatementExecutionResult executeStatement(final String statementText) throws SQLException {
+        final ExecutionContext context = getExecutionContext();
+        final ExecutionStatus status = getExecutionStatus();
+        status.assertNotCancelled();
+
         DBNConnection connection = context.getConnection();
         ConnectionHandler connectionHandler = getTargetConnection();
         final Statement statement = connection.createStatement();
@@ -337,18 +392,41 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
 
         int timeout = context.getTimeout();
         statement.setQueryTimeout(timeout);
-        return new CancellableDatabaseCall<StatementExecutionResult>(connectionHandler, connection, timeout, TimeUnit.SECONDS) {
+        status.assertNotCancelled();
+
+        databaseCall = new CancellableDatabaseCall<StatementExecutionResult>(connectionHandler, connection, timeout, TimeUnit.SECONDS) {
             @Override
-            public StatementExecutionResult execute() throws Exception{
-                statement.execute(statementText);
-                return createExecutionResult(statement, executionInput);
+            public StatementExecutionResult execute() throws Exception {
+                try {
+                    statement.execute(statementText);
+                    return createExecutionResult(statement, executionInput);
+                } finally {
+                    databaseCall = null;
+                }
             }
 
             @Override
-            public void cancel() throws Exception {
-                ConnectionUtil.cancelStatement(statement);
+            public void cancel(){
+                try {
+                    status.setCancelled(true);
+                    ConnectionUtil.cancelStatement(statement);
+                } finally {
+                    databaseCall = null;
+                }
             }
-        }.start();
+        };
+        return databaseCall.start();
+    }
+
+    @Override
+    public void cancelExecution() {
+        ExecutionStatus status = getExecutionStatus();
+        status.setCancelled(true);
+        StatementExecutionManager executionManager = getExecutionManager();
+        executionManager.getExecutionQueue().cancelExecution(this);
+        if (databaseCall != null) {
+            databaseCall.cancelSilently();
+        }
     }
 
     private void consumeLoggerOutput(ExecutionContext context) {
@@ -397,10 +475,13 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
                 VirtualFile virtualFile = getPsiFile().getVirtualFile();
                 connectionHandler.notifyDataChanges(virtualFile);
             } else if (connection.isPoolConnection()) {
+                StatementExecutionManager executionManager = getExecutionManager();
+                executionManager.promptPendingTransactionDialog(this);
+/*
                 MessageUtil.showQuestionDialog(
                         getProject(),
-                        "Commit or Rollback",
-                        "You executed this statement in a pool connection. You cannot leave the transactional status of this connection inconsistent. Please choose whether to commit or rollback the changes.",
+                        "Commit or rollback",
+                        "You executed this statement in a pool connection. \nThe transactional status of this connection cannot be left inconsistent. Please choose whether to commit or rollback the changes.",
                         new String[]{"Commit", "Rollback"},
                         0,
                         new MessageCallback() {
@@ -411,12 +492,18 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
                                 if (option == 1) ConnectionUtil.rollback(connection);
                             }
                         });
+*/
             }
         } else if (resetChanges) {
             if (connection.isMainConnection()) {
                 connectionHandler.resetDataChanges();
             }
         }
+    }
+
+    @NotNull
+    private StatementExecutionManager getExecutionManager() {
+        return StatementExecutionManager.getInstance(getProject());
     }
 
     private void notifyDataDefinitionChanges(ExecutionContext context) {
@@ -526,7 +613,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
 
 
 
-    public StatementExecutionResult createErrorExecutionResult(String cause) {
+    private StatementExecutionResult createErrorExecutionResult(String cause) {
         StatementExecutionResult executionResult = new StatementExecutionBasicResult(this, getResultName(), 0);
         executionResult.updateExecutionMessage(MessageType.ERROR, "Error executing " + getStatementName() + '.', cause);
         executionResult.setExecutionStatus(StatementExecutionStatus.ERROR);
@@ -564,7 +651,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
 
     public String getStatementName() {
         ExecutablePsiElement executablePsiElement = executionInput.getExecutablePsiElement();
-        return executablePsiElement == null ? "SQL statement" : executablePsiElement.getElementType().getDescription();
+        return executablePsiElement == null ? "SQL statement" : executablePsiElement.getSpecificElementType().getDescription();
     }
 
     public int getIndex() {
@@ -597,12 +684,12 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     /********************************************************
      *                    Disposable                        *
      ********************************************************/
-    public boolean isDataDefinitionStatement() {
+    private boolean isDataDefinitionStatement() {
         return cachedExecutable != null && cachedExecutable.is(ElementTypeAttribute.DATA_DEFINITION);
     }
 
     @Nullable
-    public DBSchemaObject getAffectedObject() {
+    private DBSchemaObject getAffectedObject() {
         if (isDataDefinitionStatement()) {
             IdentifierPsiElement subjectPsiElement = getSubjectPsiElement();
             if (subjectPsiElement != null) {
@@ -622,7 +709,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     }
 
     @Nullable
-    public DBSchema getAffectedSchema() {
+    private DBSchema getAffectedSchema() {
         if (isDataDefinitionStatement()) {
             IdentifierPsiElement subjectPsiElement = getSubjectPsiElement();
             if (subjectPsiElement != null) {
@@ -640,15 +727,15 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     }
 
     @Nullable
-    public IdentifierPsiElement getSubjectPsiElement() {
+    private IdentifierPsiElement getSubjectPsiElement() {
         return cachedExecutable == null ? null : (IdentifierPsiElement) cachedExecutable.findFirstPsiElement(ElementTypeAttribute.SUBJECT);
     }
 
-    public BasePsiElement getCompilableBlockPsiElement() {
+    private BasePsiElement getCompilableBlockPsiElement() {
         return cachedExecutable == null ? null : cachedExecutable.findFirstPsiElement(ElementTypeAttribute.COMPILABLE_BLOCK);
     }
 
-    public DBContentType getCompilableContentType() {
+    private DBContentType getCompilableContentType() {
         BasePsiElement compilableBlockPsiElement = getCompilableBlockPsiElement();
         if (compilableBlockPsiElement != null) {
             //if (compilableBlockPsiElement.is(ElementTypeAttribute.OBJECT_DEFINITION)) return DBContentType.CODE;

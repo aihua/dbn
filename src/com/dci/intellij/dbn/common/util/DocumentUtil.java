@@ -2,12 +2,14 @@ package com.dci.intellij.dbn.common.util;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import com.dci.intellij.dbn.common.editor.document.OverrideReadonlyFragmentModificationHandler;
 import com.dci.intellij.dbn.common.thread.ConditionalReadActionRunner;
 import com.dci.intellij.dbn.common.thread.ConditionalWriteActionRunner;
+import com.dci.intellij.dbn.common.thread.ReadActionRunner;
 import com.dci.intellij.dbn.common.thread.WriteActionRunner;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.editor.code.content.GuardedBlockMarkers;
@@ -41,6 +43,7 @@ import com.intellij.util.Range;
 
 public class DocumentUtil {
     private static final Key<Boolean> FOLDING_STATE_KEY = Key.create("FOLDING_STATE_KEY");
+    private static final Key<Long> LAST_ANNOTATION_REFRESH_KEY = Key.create("LAST_ANNOTATION_REFRESH");
 
     public static void touchDocument(final Editor editor, boolean reparse) {
         final Document document = editor.getDocument();
@@ -85,8 +88,20 @@ public class DocumentUtil {
         refreshEditorAnnotations(DocumentUtil.getFile(editor));
     }
 
-    public static void refreshEditorAnnotations(PsiFile psiFile) {
-        DaemonCodeAnalyzer.getInstance(psiFile.getProject()).restart(psiFile);
+    public static void refreshEditorAnnotations(@Nullable final PsiFile psiFile) {
+        if (psiFile != null) {
+            Long lastRefresh = psiFile.getUserData(LAST_ANNOTATION_REFRESH_KEY);
+            if (lastRefresh == null || TimeUtil.isOlderThan(lastRefresh, 1, TimeUnit.SECONDS)) {
+                psiFile.putUserData(LAST_ANNOTATION_REFRESH_KEY, System.currentTimeMillis());
+                new ReadActionRunner() {
+                    @Override
+                    protected Object run() {
+                        DaemonCodeAnalyzer.getInstance(psiFile.getProject()).restart(psiFile);
+                        return null;
+                    }
+                }.start();
+            }
+        }
     }
 
     public static Document getDocument(PsiFile file) {

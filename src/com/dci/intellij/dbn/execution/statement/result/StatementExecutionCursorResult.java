@@ -9,11 +9,13 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import com.dci.intellij.dbn.common.action.DBNDataKeys;
+import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.data.grid.ui.table.resultSet.ResultSetTable;
 import com.dci.intellij.dbn.data.model.resultSet.ResultSetDataModel;
+import com.dci.intellij.dbn.execution.ExecutionContext;
 import com.dci.intellij.dbn.execution.common.options.ExecutionEngineSettings;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionInput;
 import com.dci.intellij.dbn.execution.statement.options.StatementExecutionSettings;
@@ -23,7 +25,6 @@ import com.dci.intellij.dbn.execution.statement.result.ui.StatementExecutionResu
 import com.dci.intellij.dbn.object.DBSchema;
 import com.intellij.openapi.actionSystem.DataProvider;
 import com.intellij.openapi.progress.ProgressIndicator;
-import com.intellij.openapi.util.Disposer;
 
 public class StatementExecutionCursorResult extends StatementExecutionBasicResult {
     private StatementExecutionResultForm resultPanel;
@@ -39,8 +40,6 @@ public class StatementExecutionCursorResult extends StatementExecutionBasicResul
         dataModel = new ResultSetDataModel(resultSet, executionProcessor.getConnectionHandler(), fetchBlockSize);
         resultPanel = new StatementExecutionResultForm(this);
         resultPanel.updateVisibleComponents();
-
-        Disposer.register(this, dataModel);
     }
 
     private StatementExecutionSettings getQueryExecutionSettings() {
@@ -65,26 +64,32 @@ public class StatementExecutionCursorResult extends StatementExecutionBasicResul
             @Override
             protected void execute(@NotNull ProgressIndicator progressIndicator) {
                 initProgressIndicator(progressIndicator, true, "Reloading results for " + getExecutionProcessor().getStatementName());
+                ExecutionContext context = getExecutionProcessor().getExecutionContext(true);
+                context.setExecutionTimestamp(System.currentTimeMillis());
+                context.getExecutionStatus().setExecuting(true);
 
-                resultPanel.highlightLoading(true);
-                StatementExecutionInput executionInput = getExecutionInput();
-                executionInput.initExecution();
                 try {
-                    ConnectionHandler connectionHandler = getConnectionHandler();
-                    DBSchema currentSchema = getCurrentSchema();
-                    Connection connection = connectionHandler.getMainConnection(currentSchema);
-                    Statement statement = connection.createStatement();
-                    statement.setQueryTimeout(executionInput.getExecutionTimeout());
-                    statement.execute(executionInput.getExecutableStatementText());
-                    ResultSet resultSet = statement.getResultSet();
-                    if (resultSet != null) {
-                        loadResultSet(resultSet);
+                    resultPanel.highlightLoading(true);
+                    StatementExecutionInput executionInput = getExecutionInput();
+                    try {
+                        ConnectionHandler connectionHandler = getConnectionHandler();
+                        DBSchema currentSchema = getCurrentSchema();
+                        Connection connection = connectionHandler.getMainConnection(currentSchema);
+                        Statement statement = connection.createStatement();
+                        statement.setQueryTimeout(executionInput.getExecutionTimeout());
+                        statement.execute(executionInput.getExecutableStatementText());
+                        ResultSet resultSet = statement.getResultSet();
+                        if (resultSet != null) {
+                            loadResultSet(resultSet);
+                        }
+                    } catch (final SQLException e) {
+                        MessageUtil.showErrorDialog(getProject(), "Could not perform reload operation.", e);
                     }
-                } catch (final SQLException e) {
-                    MessageUtil.showErrorDialog(getProject(), "Could not perform reload operation.", e);
+                } finally {
+                    calculateExecDuration();
+                    resultPanel.highlightLoading(false);
+                    context.reset();
                 }
-                calculateExecDuration();
-                resultPanel.highlightLoading(false);
             }
         }.start();
     }
@@ -149,9 +154,11 @@ public class StatementExecutionCursorResult extends StatementExecutionBasicResul
     @Override
     public void dispose() {
         super.dispose();
+        DisposerUtil.disposeInBackground(dataModel);
         dataModel = null;
         resultPanel = null;
         dataProvider = null;
+
     }
 
 

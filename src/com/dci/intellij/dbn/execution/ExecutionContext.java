@@ -1,24 +1,20 @@
 package com.dci.intellij.dbn.execution;
 
-import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ConnectionUtil;
-import com.dci.intellij.dbn.connection.DBNConnection;
-import com.dci.intellij.dbn.object.DBSchema;
+import java.sql.Statement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.sql.SQLException;
-import java.sql.Statement;
+import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.DBNConnection;
+import com.dci.intellij.dbn.object.DBSchema;
 
 public abstract class ExecutionContext {
     private transient int timeout;
     private transient boolean logging = false;
-    private transient boolean executing = false;
-    private transient boolean executionCancelled = false;
     private transient long executionTimestamp;
-    private transient SQLException executionException;
     private transient DBNConnection connection;
     private transient Statement statement;
+    private ExecutionStatus executionStatus = new ExecutionStatus();
 
     public abstract @NotNull String getTargetName();
 
@@ -42,36 +38,12 @@ public abstract class ExecutionContext {
         this.logging = logging;
     }
 
-    public boolean isExecuting() {
-        return executing;
-    }
-
-    public void setExecuting(boolean isExecuting) {
-        this.executing = isExecuting;
-    }
-
-    public boolean isExecutionCancelled() {
-        return executionCancelled;
-    }
-
-    public void setExecutionCancelled(boolean isExecutionCancelled) {
-        this.executionCancelled = isExecutionCancelled;
-    }
-
     public long getExecutionTimestamp() {
         return executionTimestamp;
     }
 
     public void setExecutionTimestamp(long executionTimestamp) {
         this.executionTimestamp = executionTimestamp;
-    }
-
-    public SQLException getExecutionException() {
-        return executionException;
-    }
-
-    public void setExecutionException(SQLException executionException) {
-        this.executionException = executionException;
     }
 
     public DBNConnection getConnection() {
@@ -90,19 +62,17 @@ public abstract class ExecutionContext {
         this.statement = statement;
     }
 
-    public void resetStatement() {
-        ConnectionUtil.cancelStatement(statement);
-        ConnectionUtil.closeStatement(statement);
+    public ExecutionStatus getExecutionStatus() {
+        return executionStatus;
     }
 
     public void reset() {
+        executionStatus.reset();
         timeout = 0;
         logging = false;
-        executing = false;
-        executionCancelled = false;
         executionTimestamp = 0;
-        executionException = null;
         connection = null;
         statement = null;
+
     }
 }

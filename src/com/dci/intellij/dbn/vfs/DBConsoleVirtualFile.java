@@ -126,6 +126,10 @@ public class DBConsoleVirtualFile extends DBVirtualFileImpl implements DocumentL
         this.currentSchemaRef = new DBObjectRef<DBSchema>(getConnectionHandler().getId(), DBObjectType.SCHEMA, currentSchemaName);
     }
 
+    public String getCurrentSchemaName() {
+        return this.currentSchemaRef == null ? null : this.currentSchemaRef.getObjectName();
+    }
+
     @Override
     public boolean isValid() {
         return super.isValid() && connectionHandlerRef.isValid();
@@ -262,6 +266,7 @@ public class DBConsoleVirtualFile extends DBVirtualFileImpl implements DocumentL
     @Override
     public void documentChanged(DocumentEvent event) {
         Document document = event.getDocument();
+        content.setText(document.getCharsSequence());
         if (document instanceof DocumentEx) {
             DocumentEx documentEx = (DocumentEx) document;
             List<RangeMarker> blocks = documentEx.getGuardedBlocks();

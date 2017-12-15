@@ -4,8 +4,6 @@ import com.dci.intellij.dbn.common.notification.NotificationUtil;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
-import com.dci.intellij.dbn.connection.DBNConnection;
-import com.dci.intellij.dbn.connection.ConnectionUtil;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseDebuggerInterface;
 import com.dci.intellij.dbn.debugger.DBDebugConsoleLogger;
@@ -37,12 +35,13 @@ import com.intellij.xdebugger.impl.XDebugSessionImpl;
 import com.sun.jdi.Location;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.*;
 
 import java.net.Inet4Address;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.StringTokenizer;
+
+import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.*;
 
 public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebugProcess implements DBDebugProcess {
     public static final Key<DBJdwpDebugProcess> KEY = new Key<DBJdwpDebugProcess>("DBNavigator.JdwpDebugProcess");
@@ -333,8 +332,9 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
         if (isNot(DEBUGGER_STOPPING)) {
             set(DEBUGGER_STOPPING, true);
             set(BREAKPOINT_SETTING_ALLOWED, false);
-        //super.stop();
-        stopDebugger();
+            //super.stop();
+            stopDebugger();
+        }
     }
 
 /*    private void stopDebugger() {

@@ -37,6 +37,7 @@ import java.io.OutputStream;
 import java.lang.ref.Reference;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.*;
 
 public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBParseableVirtualFile, ConnectionProvider, DocumentListener {
 
@@ -49,17 +50,6 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
     private ChangeTimestamp databaseTimestamp = new ChangeTimestamp();
 
     private String sourceLoadError;
-    private boolean loading;
-    private boolean saving;
-    private boolean refreshing;
-
-    private Status status = Status.OK;
-
-    private enum Status {
-        OK,
-        MERGED,
-        OUTDATED
-    }
 
     public DBSourceCodeVirtualFile(final DBEditableObjectVirtualFile databaseFile, DBContentType contentType) {
         super(databaseFile, contentType);
@@ -90,22 +80,6 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
         return localContent.isLoaded();
     }
 
-    public synchronized boolean isLoading() {
-        return loading;
-    }
-
-    public synchronized void setLoading(boolean loading) {
-        this.loading = loading;
-    }
-
-    public synchronized boolean isSaving() {
-        return saving;
-    }
-
-    public synchronized void setSaving(boolean saving) {
-        this.saving = saving;
-    }
-
     public String getParseRootId() {
         return getObject().getCodeParseRootId(contentType);
     }
@@ -128,16 +102,16 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
 
             @Override
             protected boolean canExecute() {
-                return !refreshing && isLoaded();
+                return isNot(REFRESHING) && isLoaded();
             }
 
             @Override
             protected void execute() {
                 try {
-                    refreshing = true;
+                    set(REFRESHING, true);
                     DBSchemaObject object = getObject();
 
-                    if (status == Status.OK || status == Status.MERGED) {
+                    if (is(LATEST) || is(MERGED)) {
                         boolean checkSources = true;
 
                         ChangeTimestamp latestTimestamp = new ChangeTimestamp();
@@ -154,13 +128,13 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
                             SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
                             SourceCodeContent latestContent = sourceCodeManager.loadSourceFromDatabase(object, contentType);
 
-                            if (status == Status.OK && !latestContent.matches(originalContent, true)) {
-                                status = Status.OUTDATED;
+                            if (is(LATEST) && !latestContent.matches(originalContent, true)) {
+                                set(OUTDATED, true);
                                 databaseContent = latestContent;
                             }
 
-                            if (status == Status.MERGED && !latestContent.matches(databaseContent, true)) {
-                                status = Status.OUTDATED;
+                            if (is(MERGED) && !latestContent.matches(databaseContent, true)) {
+                                set(OUTDATED, true);
                                 databaseContent = latestContent;
                             }
                         }
@@ -169,28 +143,28 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
                 } catch (SQLException e) {
                     LOGGER.warn("Error refreshing source content state", e);
                 } finally {
-                    refreshing = false;
+                    set(REFRESHING, false);
                 }
             }
         }.start();
     }
 
     public boolean isChangedInDatabase(boolean reload) {
-        if (!refreshing && isLoaded()) {
+        if (isNot(REFRESHING) && isLoaded()) {
             if (reload || databaseTimestamp.isDirty()) {
                 refreshContentState();
             }
-            return !refreshing && (status == Status.OUTDATED || status == Status.MERGED);
+            return isNot(REFRESHING) && (is(OUTDATED) || is(MERGED));
         }
         return false;
     }
 
     public boolean isMergeRequired() {
-        return isModified() && status == Status.OUTDATED;
+        return is(MODIFIED) && is(OUTDATED);
     }
 
     public void markAsMerged() {
-        status = Status.MERGED;
+        set(MERGED, true);
     }
 
     @NotNull
@@ -220,8 +194,8 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
 
         databaseContent = null;
         sourceLoadError = null;
-        status = Status.OK;
-        setModified(false);
+        set(LATEST, true);
+        set(MODIFIED, false);
     }
 
     public void saveSourceToDatabase() throws SQLException {
@@ -234,16 +208,16 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
 
         databaseContent = null;
         sourceLoadError = null;
-        status = Status.OK;
-        setModified(false);
+        set(LATEST, true);
+        set(MODIFIED, false);
     }
 
     public void revertLocalChanges() {
         updateFileContent(null, originalContent.getText());
         databaseContent = null;
         sourceLoadError = null;
-        status = Status.OK;
-        setModified(false);
+        set(LATEST, true);
+        set(MODIFIED, false);
     }
 
     private void updateFileContent(final SourceCodeContent newContent, final CharSequence newText) {
@@ -312,8 +286,8 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
     @Override
     public void documentChanged(DocumentEvent event) {
         CharSequence newContent = event.getDocument().getCharsSequence();
-        if (!isModified() && !StringUtil.equals(originalContent.getText(), newContent)) {
-            setModified(true);
+        if (isNot(MODIFIED) && !StringUtil.equals(originalContent.getText(), newContent)) {
+            set(MODIFIED, true);
         }
         localContent.setText(newContent);
     }

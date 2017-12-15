@@ -2,14 +2,13 @@ package com.dci.intellij.dbn.execution.statement.processor;
 
 import java.lang.ref.WeakReference;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import com.dci.intellij.dbn.common.Counter;
+import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.editor.BasicTextEditor;
@@ -25,13 +24,13 @@ import com.dci.intellij.dbn.common.util.SimpleLazyValue;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionUtil;
-import com.dci.intellij.dbn.connection.DBNConnection;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
+import com.dci.intellij.dbn.connection.jdbc.DBNStatement;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.editor.EditorProviderId;
 import com.dci.intellij.dbn.execution.ExecutionContext;
 import com.dci.intellij.dbn.execution.ExecutionManager;
-import com.dci.intellij.dbn.execution.ExecutionStatus;
 import com.dci.intellij.dbn.execution.NavigationInstruction;
 import com.dci.intellij.dbn.execution.common.options.ExecutionEngineSettings;
 import com.dci.intellij.dbn.execution.compiler.CompileManagerListener;
@@ -62,13 +61,14 @@ import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
-import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
+import static com.dci.intellij.dbn.execution.ExecutionStatus.*;
+import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.COMPILABLE;
 
 public class StatementExecutionBasicProcessor extends DisposableBase implements StatementExecutionProcessor {
     protected DBLanguagePsiFile psiFile;
@@ -219,11 +219,6 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
         return executionInput;
     }
 
-    @Override
-    public ExecutionStatus getExecutionStatus() {
-        return getExecutionContext().getExecutionStatus();
-    }
-
     public ExecutionContext getExecutionContext() {
         return executionInput.getExecutionContext();
     }
@@ -262,8 +257,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
             ExecutionContext context = getExecutionContext();
             context.setExecutionTimestamp(System.currentTimeMillis());
 
-            ExecutionStatus status = context.getExecutionStatus();
-            status.setExecuting(true);
+            context.set(EXECUTING, true);
 
             resultName.reset();
             DocumentUtil.refreshEditorAnnotations(getPsiFile());
@@ -271,12 +265,8 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
             String statementText = initStatementText();
             SQLException executionException = null;
             if (statementText != null) {
-                ConnectionHandler connectionHandler = getTargetConnection();
-                Counter runningStatements = connectionHandler.getLoadMonitor().getRunningStatements();
-
                 try {
-                    status.assertNotCancelled();
-                    runningStatements.increment();
+                    assertNotCancelled();
                     initConnection(context, connection);
                     initTimeout(context, debug);
                     initLogging(context, debug);
@@ -291,19 +281,18 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
                         notifyDataManipulationChanges(context);
                     }
                 } catch (SQLException e) {
-                    ConnectionUtil.cancelStatement(context.getStatement());
-                    if (!status.isCancelled()) {
+                    ConnectionUtil.cancel(context.getStatement());
+                    if (context.isNot(CANCELLED)) {
                         executionException = e;
                         executionResult = createErrorExecutionResult(e.getMessage());
                         executionResult.calculateExecDuration();
                     }
                 } finally {
-                    runningStatements.decrement();
                     disableLogging(context);
                 }
             }
 
-            status.assertNotCancelled();
+            assertNotCancelled();
             if (executionResult != null) {
                 Project project = getProject();
                 ExecutionManager executionManager = ExecutionManager.getInstance(project);
@@ -319,14 +308,21 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
         }
     }
 
+    private void assertNotCancelled() {
+        ExecutionContext context = getExecutionContext();
+        if (context.is(CANCELLED)) {
+            throw AlreadyDisposedException.INSTANCE;
+        }
+    }
+
     @Override
     public void postExecute() {
-        ExecutionStatus status = getExecutionStatus();
-        if (!status.isPrompted()) {
-            ExecutionContext context = getExecutionContext();
+        ExecutionContext context = getExecutionContext();
+        if (context.isNot(PROMPTED)) {
+
             DBNConnection connection = context.getConnection();
             if (connection != null && connection.isPoolConnection()) {
-                ConnectionUtil.cancelStatement(context.getStatement());
+                ConnectionUtil.cancel(context.getStatement());
                 ConnectionHandler connectionHandler = FailsafeUtil.get(getConnectionHandler());
                 connectionHandler.freePoolConnection(connection);
             }
@@ -382,17 +378,16 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     @Nullable
     private StatementExecutionResult executeStatement(final String statementText) throws SQLException {
         final ExecutionContext context = getExecutionContext();
-        final ExecutionStatus status = getExecutionStatus();
-        status.assertNotCancelled();
+        assertNotCancelled();
 
-        DBNConnection connection = context.getConnection();
+        final DBNConnection connection = context.getConnection();
         ConnectionHandler connectionHandler = getTargetConnection();
-        final Statement statement = connection.createStatement();
+        final DBNStatement statement = connection.createStatement();
         context.setStatement(statement);
 
         int timeout = context.getTimeout();
         statement.setQueryTimeout(timeout);
-        status.assertNotCancelled();
+        assertNotCancelled();
 
         databaseCall = new CancellableDatabaseCall<StatementExecutionResult>(connectionHandler, connection, timeout, TimeUnit.SECONDS) {
             @Override
@@ -408,8 +403,8 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
             @Override
             public void cancel(){
                 try {
-                    status.setCancelled(true);
-                    ConnectionUtil.cancelStatement(statement);
+                    context.set(CANCELLED, true);
+                    ConnectionUtil.cancel(statement);
                 } finally {
                     databaseCall = null;
                 }
@@ -420,8 +415,9 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
 
     @Override
     public void cancelExecution() {
-        ExecutionStatus status = getExecutionStatus();
-        status.setCancelled(true);
+        ExecutionContext context = getExecutionContext();
+
+        context.set(CANCELLED, true);
         StatementExecutionManager executionManager = getExecutionManager();
         executionManager.getExecutionQueue().cancelExecution(this);
         if (databaseCall != null) {
@@ -473,7 +469,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
         if (notifyChanges) {
             if (connection.isMainConnection()) {
                 VirtualFile virtualFile = getPsiFile().getVirtualFile();
-                connectionHandler.notifyDataChanges(virtualFile);
+                connection.notifyDataChanges(virtualFile);
             } else if (connection.isPoolConnection()) {
                 StatementExecutionManager executionManager = getExecutionManager();
                 executionManager.promptPendingTransactionDialog(this);
@@ -496,7 +492,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
             }
         } else if (resetChanges) {
             if (connection.isMainConnection()) {
-                connectionHandler.resetDataChanges();
+                connection.resetDataChanges();
             }
         }
     }
@@ -540,8 +536,14 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     }
 
     @NotNull
-    protected StatementExecutionResult createExecutionResult(Statement statement, final StatementExecutionInput executionInput) throws SQLException {
-        final StatementExecutionBasicResult executionResult = new StatementExecutionBasicResult(this, getResultName(), statement.getUpdateCount());
+    protected StatementExecutionResult createExecutionResult(DBNStatement statement, final StatementExecutionInput executionInput) throws SQLException {
+        StatementExecutionBasicResult executionResult = new StatementExecutionBasicResult(this, getResultName(), statement.getUpdateCount());
+        ConnectionUtil.close(statement);
+        attachDdlExecutionInfo(executionInput, executionResult);
+        return executionResult;
+    }
+
+    private void attachDdlExecutionInfo(StatementExecutionInput executionInput, final StatementExecutionBasicResult executionResult) {
         boolean isDdlStatement = isDataDefinitionStatement();
         boolean hasCompilerErrors = false;
         final ConnectionHandler connectionHandler = executionInput.getConnectionHandler();
@@ -573,8 +575,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
                             if (object != null) {
                                 Project project = getProject();
                                 DatabaseCompilerManager compilerManager = DatabaseCompilerManager.getInstance(project);
-                                boolean isCompilable = object.getProperties().is(DBObjectProperty.COMPILABLE);
-                                if (isCompilable) {
+                                if (object.is(COMPILABLE)) {
                                     CompileType compileType = compilerManager.getCompileType(object, contentType);
                                     if (compileType == CompileType.DEBUG) {
                                         compilerManager.compileObject(object, compileType, compilerAction);
@@ -607,10 +608,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
             executionResult.updateExecutionMessage(MessageType.INFO, message);
             executionResult.setExecutionStatus(StatementExecutionStatus.SUCCESS);
         }
-
-        return executionResult;
     }
-
 
 
     private StatementExecutionResult createErrorExecutionResult(String cause) {

@@ -37,6 +37,8 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
 
 public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObject> implements FileConnectionMappingProvider {
     public ThreadLocal<Document> FAKE_DOCUMENT = new ThreadLocal<Document>();
@@ -158,7 +160,7 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
     public List<VirtualFile> getAttachedDDLFiles() {
         DBSchemaObject object = getObject();
         DDLFileAttachmentManager fileAttachmentManager = DDLFileAttachmentManager.getInstance(object.getProject());
-        if (object.getProperties().is(DBObjectProperty.EDITABLE)) {
+        if (object.is(DBObjectProperty.EDITABLE)) {
             return fileAttachmentManager.getAttachedDDLFiles(object);
         }
         return null;
@@ -264,7 +266,7 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
     public boolean isModified() {
         if (isContentLoaded()) {
             for (DBContentVirtualFile contentVirtualFile : getContentFiles()) {
-                if (contentVirtualFile.isModified()) {
+                if (contentVirtualFile.is(MODIFIED)) {
                     return true;
                 }
             }
@@ -275,7 +277,7 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
     public boolean isSaving() {
         if (isContentLoaded()) {
             for (DBSourceCodeVirtualFile sourceCodeFile : getSourceCodeFiles()) {
-                if (sourceCodeFile.isSaving()) {
+                if (sourceCodeFile.is(SAVING)) {
                     return true;
                 }
             }

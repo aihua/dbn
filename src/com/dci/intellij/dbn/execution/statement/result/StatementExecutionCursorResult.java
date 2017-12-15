@@ -1,18 +1,19 @@
 package com.dci.intellij.dbn.execution.statement.result;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import com.dci.intellij.dbn.common.action.DBNDataKeys;
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
+import com.dci.intellij.dbn.connection.jdbc.DBNResultSet;
+import com.dci.intellij.dbn.connection.jdbc.DBNStatement;
 import com.dci.intellij.dbn.data.grid.ui.table.resultSet.ResultSetTable;
 import com.dci.intellij.dbn.data.model.resultSet.ResultSetDataModel;
 import com.dci.intellij.dbn.execution.ExecutionContext;
@@ -25,6 +26,7 @@ import com.dci.intellij.dbn.execution.statement.result.ui.StatementExecutionResu
 import com.dci.intellij.dbn.object.DBSchema;
 import com.intellij.openapi.actionSystem.DataProvider;
 import com.intellij.openapi.progress.ProgressIndicator;
+import static com.dci.intellij.dbn.execution.ExecutionStatus.EXECUTING;
 
 public class StatementExecutionCursorResult extends StatementExecutionBasicResult {
     private StatementExecutionResultForm resultPanel;
@@ -33,7 +35,7 @@ public class StatementExecutionCursorResult extends StatementExecutionBasicResul
     public StatementExecutionCursorResult(
             @NotNull StatementExecutionProcessor executionProcessor,
             @NotNull String resultName,
-            ResultSet resultSet,
+            DBNResultSet resultSet,
             int updateCount) throws SQLException {
         super(executionProcessor, resultName, updateCount);
         int fetchBlockSize = getQueryExecutionSettings().getResultSetFetchBlockSize();
@@ -66,7 +68,7 @@ public class StatementExecutionCursorResult extends StatementExecutionBasicResul
                 initProgressIndicator(progressIndicator, true, "Reloading results for " + getExecutionProcessor().getStatementName());
                 ExecutionContext context = getExecutionProcessor().getExecutionContext(true);
                 context.setExecutionTimestamp(System.currentTimeMillis());
-                context.getExecutionStatus().setExecuting(true);
+                context.set(EXECUTING, true);
 
                 try {
                     resultPanel.highlightLoading(true);
@@ -74,11 +76,11 @@ public class StatementExecutionCursorResult extends StatementExecutionBasicResul
                     try {
                         ConnectionHandler connectionHandler = getConnectionHandler();
                         DBSchema currentSchema = getCurrentSchema();
-                        Connection connection = connectionHandler.getMainConnection(currentSchema);
-                        Statement statement = connection.createStatement();
+                        DBNConnection connection = connectionHandler.getMainConnection(currentSchema);
+                        DBNStatement statement = connection.createStatement();
                         statement.setQueryTimeout(executionInput.getExecutionTimeout());
                         statement.execute(executionInput.getExecutableStatementText());
-                        ResultSet resultSet = statement.getResultSet();
+                        DBNResultSet resultSet = statement.getResultSet();
                         if (resultSet != null) {
                             loadResultSet(resultSet);
                         }
@@ -94,7 +96,8 @@ public class StatementExecutionCursorResult extends StatementExecutionBasicResul
         }.start();
     }
 
-    public void loadResultSet(ResultSet resultSet) throws SQLException {
+    public void loadResultSet(DBNResultSet resultSet) throws SQLException {
+        StatementExecutionResultForm resultPanel = FailsafeUtil.get(this.resultPanel);
         int rowCount = Math.max(dataModel == null ? 0 : dataModel.getRowCount() + 1, 100);
         dataModel = new ResultSetDataModel(resultSet, getConnectionHandler(), rowCount);
         resultPanel.reloadTableModel();

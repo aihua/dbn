@@ -22,8 +22,9 @@ import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
+import com.dci.intellij.dbn.connection.ConnectionHandlerStatusListener;
+import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionProvider;
-import com.dci.intellij.dbn.connection.ConnectionStatusListener;
 import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingProvider;
 import com.dci.intellij.dbn.connection.transaction.TransactionAction;
 import com.dci.intellij.dbn.connection.transaction.TransactionListener;
@@ -98,7 +99,7 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
         Disposer.register(this, editorForm);
 
         EventUtil.subscribe(project, this, TransactionListener.TOPIC, transactionListener);
-        EventUtil.subscribe(project, this, ConnectionStatusListener.TOPIC, connectionStatusListener);
+        EventUtil.subscribe(project, this, ConnectionHandlerStatusListener.TOPIC, connectionStatusListener);
         EventUtil.subscribe(project, this, DataGridSettingsChangeListener.TOPIC, dataGridSettingsChangeListener);
     }
 
@@ -505,9 +506,9 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
     /*******************************************************
      *                      Listeners                      *
      *******************************************************/
-    private ConnectionStatusListener connectionStatusListener = new ConnectionStatusListener() {
+    private ConnectionHandlerStatusListener connectionStatusListener = new ConnectionHandlerStatusListener() {
         @Override
-        public void statusChanged(String connectionId) {
+        public void statusChanged(ConnectionId connectionId) {
             DatasetEditorTable editorTable = getEditorTable();
             ConnectionHandler connectionHandler = getConnectionHandler();
             if (connectionHandler.getId().equals(connectionId)) {
@@ -604,6 +605,17 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
         return dataLoadError;
     }
 
+
+    public List<DatasetColumnState> initColumnStates() {
+        DatasetColumnSetup columnSetup = editorState.getColumnSetup();
+        List<DatasetColumnState> columnStates = columnSetup.getColumnStates();
+        DBDataset dataset = getDataset();
+        if (columnStates.size() != dataset.getColumns().size()) {
+            columnSetup.init(dataset);
+        }
+        return columnStates;
+    }
+
     /********************************************************
      *                    Disposable                        *
      ********************************************************/
@@ -624,14 +636,8 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
         }
     }
 
-
-    public List<DatasetColumnState> initColumnStates() {
-        DatasetColumnSetup columnSetup = editorState.getColumnSetup();
-        List<DatasetColumnState> columnStates = columnSetup.getColumnStates();
-        DBDataset dataset = getDataset();
-        if (columnStates.size() != dataset.getColumns().size()) {
-            columnSetup.init(dataset);
-        }
-        return columnStates;
+    @Override
+    public void checkDisposed() {
+        if (disposed) throw AlreadyDisposedException.INSTANCE;
     }
 }

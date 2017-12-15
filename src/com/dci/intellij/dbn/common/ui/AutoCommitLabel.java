@@ -9,7 +9,8 @@ import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
-import com.dci.intellij.dbn.connection.ConnectionStatusListener;
+import com.dci.intellij.dbn.connection.ConnectionHandlerStatusListener;
+import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.VirtualConnectionHandler;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
@@ -37,7 +38,7 @@ public class AutoCommitLabel extends JLabel implements Disposable {
             if (!subscribed) {
                 subscribed = true;
                 Project project = connectionHandler.getProject();
-                EventUtil.subscribe(project, this, ConnectionStatusListener.TOPIC, connectionStatusListener);
+                EventUtil.subscribe(project, this, ConnectionHandlerStatusListener.TOPIC, connectionStatusListener);
             }
         }
         update();
@@ -79,11 +80,11 @@ public class AutoCommitLabel extends JLabel implements Disposable {
         }
     }
 
-    private ConnectionStatusListener connectionStatusListener = new ConnectionStatusListener() {
+    private ConnectionHandlerStatusListener connectionStatusListener = new ConnectionHandlerStatusListener() {
         @Override
-        public void statusChanged(String connectionId) {
+        public void statusChanged(ConnectionId connectionId) {
             ConnectionHandler connectionHandler = getConnectionHandler();
-            if (connectionHandler != null && connectionHandler.getId().equals(connectionId)) {
+            if (connectionHandler != null && connectionHandler.getId() == connectionId) {
                 update();
             }
         }

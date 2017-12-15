@@ -12,6 +12,8 @@ import com.dci.intellij.dbn.common.ui.dialog.DialogWithTimeout;
 import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
+import com.dci.intellij.dbn.connection.jdbc.ResourceStatus;
 import com.dci.intellij.dbn.connection.transaction.DatabaseTransactionManager;
 import com.dci.intellij.dbn.connection.transaction.TransactionAction;
 import com.intellij.openapi.project.Project;
@@ -19,10 +21,12 @@ import com.intellij.openapi.project.Project;
 public class IdleConnectionDialog extends DialogWithTimeout {
     private IdleConnectionDialogForm idleConnectionDialogForm;
     private ConnectionHandlerRef connectionHandlerRef;
+    private DBNConnection connection;
 
-    public IdleConnectionDialog(ConnectionHandler connectionHandler) {
+    public IdleConnectionDialog(ConnectionHandler connectionHandler, DBNConnection connection) {
         super(connectionHandler.getProject(), "Idle connection", true, TimeUtil.getSeconds(5));
         this.connectionHandlerRef = connectionHandler.getRef();
+        this.connection = connection;
         idleConnectionDialogForm = new IdleConnectionDialogForm(connectionHandler, 5);
         DisposerUtil.register(this, idleConnectionDialogForm);
         setModal(false);
@@ -47,7 +51,7 @@ public class IdleConnectionDialog extends DialogWithTimeout {
     @Override
     protected void doOKAction() {
         try {
-            getConnectionHandler().getConnectionStatus().setResolvingIdleStatus(false);
+            connection.set(ResourceStatus.RESOLVING_TRANSACTION, false);
         } finally {
             super.doOKAction();
         }
@@ -100,7 +104,7 @@ public class IdleConnectionDialog extends DialogWithTimeout {
     private void commit() {
         try {
             DatabaseTransactionManager transactionManager = getTransactionManager();
-            transactionManager.execute(getConnectionHandler(), true, TransactionAction.COMMIT, TransactionAction.DISCONNECT_IDLE);
+            transactionManager.execute(getConnectionHandler(), connection, true, TransactionAction.COMMIT, TransactionAction.DISCONNECT_IDLE);
         } finally {
             doOKAction();
         }
@@ -110,7 +114,7 @@ public class IdleConnectionDialog extends DialogWithTimeout {
     private void rollback() {
         try {
             DatabaseTransactionManager transactionManager = getTransactionManager();
-            transactionManager.execute(getConnectionHandler(), true, TransactionAction.ROLLBACK_IDLE, TransactionAction.DISCONNECT_IDLE);
+            transactionManager.execute(getConnectionHandler(), connection, true, TransactionAction.ROLLBACK_IDLE, TransactionAction.DISCONNECT_IDLE);
         } finally {
             doOKAction();
         }
@@ -119,7 +123,7 @@ public class IdleConnectionDialog extends DialogWithTimeout {
     private void ping() {
         try {
             DatabaseTransactionManager transactionManager = getTransactionManager();
-            transactionManager.execute(getConnectionHandler(), true, TransactionAction.PING);
+            transactionManager.execute(getConnectionHandler(), connection, true, TransactionAction.KEEP_ALIVE);
         } finally {
             doOKAction();
         }
@@ -134,6 +138,7 @@ public class IdleConnectionDialog extends DialogWithTimeout {
     public void dispose() {
         if (!isDisposed()) {
             super.dispose();
+            connection = null;
         }
     }
 }

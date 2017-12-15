@@ -1,5 +1,9 @@
 package com.dci.intellij.dbn.language.common.element;
 
+import javax.swing.Icon;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.code.common.style.formatting.FormattingDefinition;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
@@ -11,7 +15,6 @@ import com.dci.intellij.dbn.language.common.element.parser.Branch;
 import com.dci.intellij.dbn.language.common.element.parser.ElementTypeParser;
 import com.dci.intellij.dbn.language.common.element.path.PathNode;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
-import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttributesBundle;
 import com.dci.intellij.dbn.language.common.psi.ChameleonPsiElement;
 import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.intellij.lang.ASTNode;
@@ -21,16 +24,19 @@ import com.intellij.lang.PsiParser;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.tree.ILazyParseableElementType;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.Icon;
 
 public class ChameleonElementType extends ILazyParseableElementType implements ElementType, TokenType {
+    private int uniqueIndex;
     private DBLanguageDialect parentLanguage;
     public ChameleonElementType(DBLanguageDialect language,DBLanguageDialect parentLanguage) {
         super("chameleon (" + language.getDisplayName() + ")", language);
         this.parentLanguage = parentLanguage;
+        uniqueIndex = INDEXER.incrementAndGet();
+    }
+
+    @Override
+    public int getIdx() {
+        return uniqueIndex;
     }
 
     public String getId() {
@@ -95,11 +101,6 @@ public class ChameleonElementType extends ILazyParseableElementType implements E
     }
 
     @Override
-    public ElementTypeAttributesBundle getAttributes() {
-        return null;
-    }
-
-    @Override
     public WrappingDefinition getWrapping() {
         return null;
     }
@@ -135,6 +136,16 @@ public class ChameleonElementType extends ILazyParseableElementType implements E
         return false;
     }
 
+    @Override
+    public boolean isNot(ElementTypeAttribute status) {
+        return true;
+    }
+
+    @Override
+    public boolean set(ElementTypeAttribute status, boolean value) {
+        throw new AbstractMethodError("Operation not allowed");
+    }
+
     public boolean isLeaf() {
         return false;
     }
@@ -159,7 +170,7 @@ public class ChameleonElementType extends ILazyParseableElementType implements E
         return parentLanguage;
     }
 
-    public int getIdx() {
+    public int getLookupIndex() {
         return 0;
     }
 

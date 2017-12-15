@@ -3,7 +3,6 @@ package com.dci.intellij.dbn.connection;
 import javax.swing.Icon;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -28,16 +27,15 @@ import com.dci.intellij.dbn.connection.config.ConnectionSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSettingsListener;
 import com.dci.intellij.dbn.object.common.DBObjectBundle;
 import com.dci.intellij.dbn.object.common.DBObjectType;
-import com.dci.intellij.dbn.vfs.DBConsoleType;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 
 public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTreeNode, Disposable {
 
-    public static final Filter<ConnectionHandler> ACTIVE_CONNECTIONS_FILTER = new Filter<ConnectionHandler>() {
+    private static final Filter<ConnectionHandler> ACTIVE_CONNECTIONS_FILTER = new Filter<ConnectionHandler>() {
         public boolean accepts(ConnectionHandler connectionHandler) {
-            return connectionHandler != null && connectionHandler.isActive();
+            return connectionHandler != null && connectionHandler.isEnabled();
         }
     };
 
@@ -49,35 +47,35 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
     public ConnectionBundle(Project project) {
         this.projectRef = new ProjectRef(project);
         virtualConnections.add(new VirtualConnectionHandler(
-                "virtual-oracle-connection",
+                ConnectionId.VIRTUAL_ORACLE_CONNECTION,
                 "Virtual - Oracle 10.1",
                 DatabaseType.ORACLE,
                 10.1,
                 project));
 
         virtualConnections.add(new VirtualConnectionHandler(
-                "virtual-mysql-connection",
+                ConnectionId.VIRTUAL_MYSQL_CONNECTION,
                 "Virtual - MySQL 5.0",
                 DatabaseType.MYSQL,
                 5.0,
                 project));
 
         virtualConnections.add(new VirtualConnectionHandler(
-                "virtual-postgres-connection",
+                ConnectionId.VIRTUAL_POSTGRES_CONNECTION,
                 "Virtual - PostgreSQL 9.3.4",
                 DatabaseType.POSTGRES,
                 9.3,
                 project));
 
         virtualConnections.add(new VirtualConnectionHandler(
-                "virtual-sqlite-connection",
+                ConnectionId.VIRTUAL_SQLITE_CONNECTION,
                 "Virtual - SQLite 3.10.2",
                 DatabaseType.SQLITE,
                 3.10,
                 project));
 
         virtualConnections.add(new VirtualConnectionHandler(
-                "virtual-iso92-sql-connection",
+                ConnectionId.VIRTUAL_ISO92_SQL_CONNECTION,
                 "Virtual - ISO-92 SQL",
                 DatabaseType.UNKNOWN,
                 92,
@@ -88,9 +86,9 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
         return virtualConnections;
     }
 
-    public ConnectionHandler getVirtualConnection(String id) {
+    public ConnectionHandler getVirtualConnection(ConnectionId id) {
         for (ConnectionHandler virtualConnection : virtualConnections) {
-            if (virtualConnection.getId().equals(id)) {
+            if (virtualConnection.getId() == id) {
                 return virtualConnection;
             }
         }
@@ -103,7 +101,7 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
         List<ConnectionSettings> connections = settings.getConnections();
         boolean listChanged = false;
         for (ConnectionSettings connection : connections) {
-            String connectionId = connection.getConnectionId();
+            ConnectionId connectionId = connection.getConnectionId();
             ConnectionHandler connectionHandler = getConnectionHandler(oldConnectionHandlers, connectionId);
             if (connectionHandler == null) {
                 connectionHandler = new ConnectionHandlerImpl(this, connection);
@@ -111,17 +109,11 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
                 Disposer.register(this, connectionHandler);
                 listChanged = true;
             } else {
-                listChanged = listChanged || connectionHandler.isActive() != connection.isActive();
+                listChanged = listChanged || connectionHandler.isEnabled() != connection.isActive();
                 connectionHandler.setSettings(connection);
                 newConnectionHandlers.add(connectionHandler);
                 oldConnectionHandlers.remove(connectionHandler);
             }
-            Map<String, DBConsoleType> consoles = connection.getConsoles();
-            for (String consoleName : consoles.keySet()) {
-                DBConsoleType consoleType = consoles.get(consoleName);
-                connectionHandler.getConsoleBundle().getConsole(consoleName, consoleType, true);
-            }
-
         }
         this.connectionHandlers = newConnectionHandlers;
 
@@ -141,9 +133,9 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
         }
     }
 
-    ConnectionHandler getConnectionHandler(List<ConnectionHandler> list, String connectionId) {
+    ConnectionHandler getConnectionHandler(List<ConnectionHandler> list, ConnectionId connectionId) {
         for (ConnectionHandler connectionHandler : list) {
-            if (connectionHandler.getId().equals(connectionId)) {
+            if (connectionHandler.getId() == connectionId) {
                 return connectionHandler;
             }
         }
@@ -188,9 +180,9 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
         return connectionHandlers.contains(connectionHandler);
     }
 
-    public ConnectionHandler getConnection(String id) {
+    public ConnectionHandler getConnection(ConnectionId id) {
         for (ConnectionHandler connectionHandler : connectionHandlers.getFullList()){
-            if (connectionHandler.getId().equals(id)) return connectionHandler;
+            if (connectionHandler.getId() == id) return connectionHandler;
         }
         return null;
     }

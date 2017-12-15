@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.object.impl;
 
 import javax.swing.Icon;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -14,6 +13,7 @@ import com.dci.intellij.dbn.browser.ui.HtmlToolTipBuilder;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoader;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
 import com.dci.intellij.dbn.object.DBColumn;
 import com.dci.intellij.dbn.object.DBConstraint;
@@ -32,13 +32,13 @@ import com.dci.intellij.dbn.object.common.list.loader.DBObjectListFromRelationLi
 import com.dci.intellij.dbn.object.common.operation.DBOperationExecutor;
 import com.dci.intellij.dbn.object.common.operation.DBOperationNotSupportedException;
 import com.dci.intellij.dbn.object.common.operation.DBOperationType;
-import com.dci.intellij.dbn.object.common.property.DBObjectProperties;
-import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatus;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.object.properties.DBObjectPresentableProperty;
 import com.dci.intellij.dbn.object.properties.PresentableProperty;
 import com.dci.intellij.dbn.object.properties.SimplePresentableProperty;
+import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.DISABLEABLE;
+import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.SCHEMA_OBJECT;
 
 public class DBConstraintImpl extends DBSchemaObjectImpl implements DBConstraint {
     private int constraintType;
@@ -99,9 +99,8 @@ public class DBConstraintImpl extends DBSchemaObjectImpl implements DBConstraint
 
     @Override
     protected void initProperties() {
-        DBObjectProperties properties = getProperties();
-        properties.set(DBObjectProperty.SCHEMA_OBJECT);
-        properties.set(DBObjectProperty.DISABLEABLE);
+        properties.set(SCHEMA_OBJECT, true);
+        properties.set(DISABLEABLE, true);
     }
 
     @Nullable
@@ -264,7 +263,7 @@ public class DBConstraintImpl extends DBSchemaObjectImpl implements DBConstraint
         return new DBOperationExecutor() {
             public void executeOperation(DBOperationType operationType) throws SQLException, DBOperationNotSupportedException {
                 ConnectionHandler connectionHandler = getConnectionHandler();
-                Connection connection = connectionHandler.getMainConnection(getSchema());
+                DBNConnection connection = connectionHandler.getMainConnection(getSchema());
                 DatabaseMetadataInterface metadataInterface = connectionHandler.getInterfaceProvider().getMetadataInterface();
                 if (operationType == DBOperationType.ENABLE) {
                     metadataInterface.enableConstraint(

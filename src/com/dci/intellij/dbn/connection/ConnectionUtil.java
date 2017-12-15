@@ -7,7 +7,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLRecoverableException;
 import java.sql.Savepoint;
-import java.sql.Statement;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -18,7 +17,6 @@ import org.jetbrains.annotations.Nullable;
 import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.notification.NotificationUtil;
-import com.dci.intellij.dbn.common.thread.SimpleBackgroundTask;
 import com.dci.intellij.dbn.common.thread.SimpleTimeoutCall;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
@@ -26,13 +24,14 @@ import com.dci.intellij.dbn.connection.config.ConnectionPropertiesSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSettings;
 import com.dci.intellij.dbn.connection.config.file.DatabaseFile;
 import com.dci.intellij.dbn.connection.info.ConnectionInfo;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
+import com.dci.intellij.dbn.connection.jdbc.DBNStatement;
 import com.dci.intellij.dbn.connection.ssh.SshTunnelConnector;
 import com.dci.intellij.dbn.connection.ssh.SshTunnelManager;
 import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
 import com.dci.intellij.dbn.database.DatabaseMessageParserInterface;
 import com.dci.intellij.dbn.driver.DatabaseDriverManager;
 import com.dci.intellij.dbn.driver.DriverSource;
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 
 public class ConnectionUtil {
@@ -46,77 +45,27 @@ public class ConnectionUtil {
             return false;
         }
     }
-
-    public static void closeResultSet(final ResultSet resultSet) {
-        if (resultSet != null) {
-            if (ApplicationManager.getApplication().isDispatchThread()) {
-                new SimpleBackgroundTask("close result set") {
-                    @Override
-                    protected void execute() {
-                        closeResultSet(resultSet);
-                    }
-                }.start();
-            } else {
-                try {
-                    closeStatement(resultSet.getStatement());
-                    resultSet.close();
-                } catch (Throwable ignore) {
-                }
-            }
-        }
-    }
-
-    public static void closeStatement(final Statement statement) {
-        closeStatement(statement, false);
-    }
-
-    public static void closeStatement(final Statement statement, boolean background) {
-        if (statement != null) {
-            if (ApplicationManager.getApplication().isDispatchThread() || background) {
-                new SimpleBackgroundTask("close statement") {
-                    @Override
-                    protected void execute() {
-                        closeStatement(statement, false);
-                    }
-                }.start();
-            } else {
-                try {
-                    statement.close();
-                } catch (Throwable ignore) {
-                }
-            }
-        }
-    }
-
-    public static void cancelStatement(final Statement statement) {
+    public static void cancel(final DBNStatement statement) {
         if (statement != null) {
             try {
                 statement.cancel();
             } catch (Throwable e) {
                 LOGGER.warn("Error cancelling statement: " + e.getMessage());
             } finally {
-                closeStatement(statement, true);
+                close(statement);
             }
         }
     }
 
-    public static void closeConnection(final Connection connection) {
-        if (connection != null) {
-            if (ApplicationManager.getApplication().isDispatchThread()) {
-                new SimpleBackgroundTask("close connection") {
-                    @Override
-                    protected void execute() {
-                        closeConnection(connection);
-                    }
-                }.start();
-            } else {
-                try {
-                    connection.close();
-                } catch (Throwable e) {
-                    LOGGER.warn("Error closing connection: " + e.getMessage());
-                }
+    public static <T extends AutoCloseable> T close(T resource) {
+        if (resource != null) {
+            try {
+                resource.close();
+            } catch (Throwable e) {
+                LOGGER.warn("Failed to close resource", e);
             }
         }
+        return null;
     }
 
     public static void setAutoCommit(Connection connection, boolean autoCommit) throws SQLException {
@@ -128,7 +77,7 @@ public class ConnectionUtil {
     }
 
     public static DBNConnection connect(ConnectionHandler connectionHandler, ConnectionType connectionType) throws SQLException {
-        ConnectionStatus connectionStatus = connectionHandler.getConnectionStatus();
+        ConnectionHandlerStatus connectionStatus = connectionHandler.getConnectionStatus();
         ConnectionSettings connectionSettings = connectionHandler.getSettings();
         ConnectionPropertiesSettings propertiesSettings = connectionSettings.getPropertiesSettings();
 
@@ -150,7 +99,7 @@ public class ConnectionUtil {
         DatabaseInterfaceProvider interfaceProvider = databaseType == DatabaseType.UNKNOWN ? null : connectionHandler.getInterfaceProvider();
         try {
             DatabaseAttachmentHandler attachmentHandler = interfaceProvider == null ? null : interfaceProvider.getCompatibilityInterface().getDatabaseAttachmentHandler();
-            Connection connection = connect(
+            DBNConnection connection = connect(
                     connectionSettings,
                     connectionType,
                     connectionStatus,
@@ -160,7 +109,7 @@ public class ConnectionUtil {
             ConnectionInfo connectionInfo = new ConnectionInfo(connection.getMetaData());
             connectionHandler.setConnectionInfo(connectionInfo);
             connectionStatus.setAuthenticationError(null);
-            return new DBNConnection(connection, connectionType);
+            return connection;
         } catch (SQLException e) {
             if (interfaceProvider != null) {
                 DatabaseMessageParserInterface messageParserInterface = interfaceProvider.getMessageParserInterface();
@@ -176,7 +125,7 @@ public class ConnectionUtil {
     public static DBNConnection connect(
             ConnectionSettings connectionSettings,
             @NotNull ConnectionType connectionType,
-            @Nullable ConnectionStatus connectionStatus,
+            @Nullable ConnectionHandlerStatus connectionStatus,
             @Nullable AuthenticationInfo temporaryAuthenticationInfo,
             boolean autoCommit,
             @Nullable DatabaseAttachmentHandler attachmentHandler) throws SQLException {
@@ -187,7 +136,7 @@ public class ConnectionUtil {
         connectCall.connectionStatus = connectionStatus;
         connectCall.autoCommit = autoCommit;
         connectCall.databaseAttachmentHandler = attachmentHandler;
-        Connection connection = connectCall.start();
+        DBNConnection connection = connectCall.start();
 
         if (connectCall.exception != null) {
             throw connectCall.exception;
@@ -197,25 +146,26 @@ public class ConnectionUtil {
             throw new SQLException("Could not connect to database. Communication timeout");
         }
 
-        return new DBNConnection(connection, connectionType);
+        return connection;
     }
 
-    private static class ConnectTimeoutCall extends SimpleTimeoutCall<Connection> {
+    private static class ConnectTimeoutCall extends SimpleTimeoutCall<DBNConnection> {
         private ConnectionType connectionType;
         private AuthenticationInfo temporaryAuthenticationInfo;
         private ConnectionSettings connectionSettings;
-        private ConnectionStatus connectionStatus;
+        private ConnectionHandlerStatus connectionStatus;
         private DatabaseAttachmentHandler databaseAttachmentHandler;
         private boolean autoCommit;
 
         private SQLException exception;
 
-        public ConnectTimeoutCall() {
-            super(30, TimeUnit.SECONDS, null);
+        ConnectTimeoutCall() {
+            super(30, TimeUnit.SECONDS, null, true);
         }
 
         @Override
-        public Connection call() throws Exception{
+        public DBNConnection call() {
+            trace(this);
             ConnectionDatabaseSettings databaseSettings = connectionSettings.getDatabaseSettings();
             try {
                 final Properties properties = new Properties();
@@ -261,7 +211,7 @@ public class ConnectionUtil {
                 }
                 ConnectionUtil.setAutoCommit(connection, autoCommit);
                 if (connectionStatus != null) {
-                    connectionStatus.setStatusMessage(null);
+                    connectionStatus.setConnectionException(null);
                     connectionStatus.setConnected(true);
                     connectionStatus.setValid(true);
                 }
@@ -285,18 +235,17 @@ public class ConnectionUtil {
                 databaseSettings.setDatabaseType(databaseType);
                 databaseSettings.setDatabaseVersion(getDatabaseVersion(connection));
                 databaseSettings.setConnectivityStatus(ConnectivityStatus.VALID);
-                return connection;
+                return new DBNConnection(connection, connectionType, connectionSettings.getConnectionId());
 
             } catch (Throwable e) {
                 DatabaseType databaseType = getDatabaseType(databaseSettings.getDriver());
                 databaseSettings.setDatabaseType(databaseType);
                 databaseSettings.setConnectivityStatus(ConnectivityStatus.INVALID);
                 if (connectionStatus != null) {
-                    connectionStatus.setStatusMessage(e.getMessage());
-                    connectionStatus.setConnected(false);
+                    connectionStatus.setConnectionException(e);
                     connectionStatus.setValid(false);
                 }
-                exception = new SQLException("Connection error: " + e.getMessage());
+                exception = e instanceof SQLException ? (SQLException) e : new SQLException("Connection error: " + e.getMessage(), e);
             }
             return null;
         }
@@ -342,7 +291,7 @@ public class ConnectionUtil {
         return DatabaseType.resolve(productName);
     }
 
-    public static void commit(Connection connection) {
+    public static void commit(DBNConnection connection) {
         try {
             if (connection != null) connection.commit();
         } catch (SQLRecoverableException e){
@@ -387,14 +336,14 @@ public class ConnectionUtil {
         }
     }
 
-    public static void setReadonly(Connection connection, boolean readonly) {
+    public static void setReadonly(DBNConnection connection, boolean readonly) {
         try {
             connection.setReadOnly(readonly);
         } catch (SQLException ignore) {
         }
     }
 
-    public static void setAutocommit(Connection connection, boolean autoCommit) {
+    public static void setAutocommit(DBNConnection connection, boolean autoCommit) {
         try {
             if (connection != null && !connection.isClosed()) {
                 ConnectionUtil.setAutoCommit(connection, autoCommit);
@@ -404,15 +353,5 @@ public class ConnectionUtil {
         } catch (SQLException e) {
             LOGGER.warn("Error committing connection", e);
         }
-    }
-
-
-    public static boolean isClosed(final Connection connection) {
-        return new SimpleTimeoutCall<Boolean>(2, TimeUnit.SECONDS, false) {
-            @Override
-            public Boolean call() throws Exception {
-                return connection.isClosed();
-            }
-        }.start();
     }
 }

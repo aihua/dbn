@@ -1,10 +1,10 @@
 package com.dci.intellij.dbn.connection;
 
-import java.sql.Connection;
 import java.sql.SQLException;
 import org.jetbrains.annotations.NotNull;
 
 import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
 import com.dci.intellij.dbn.database.generic.GenericInterfaceProvider;
 import com.dci.intellij.dbn.database.mysql.MySqlInterfaceProvider;
@@ -28,9 +28,9 @@ public class DatabaseInterfaceProviderFactory {
             ConnectionDatabaseSettings databaseSettings = connectionHandler.getSettings().getDatabaseSettings();
             databaseType = databaseSettings.getDatabaseType();
             if (databaseType == null || databaseType == DatabaseType.UNKNOWN) {
-                Connection testConnection = null;
+                DBNConnection testConnection = null;
                 try {
-                    testConnection = connectionHandler.createTestConnection();
+                    testConnection = connectionHandler.getTestConnection();
                     databaseType = ConnectionUtil.getDatabaseType(testConnection);
                     databaseSettings.setDatabaseType(databaseType);
                 } catch (SQLException e) {
@@ -39,7 +39,7 @@ public class DatabaseInterfaceProviderFactory {
                     }
                     throw e;
                 } finally {
-                    ConnectionUtil.closeConnection(testConnection);
+                    ConnectionUtil.close(testConnection);
                 }
             }
         }

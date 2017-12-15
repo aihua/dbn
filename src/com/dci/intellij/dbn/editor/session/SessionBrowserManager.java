@@ -1,5 +1,18 @@
 package com.dci.intellij.dbn.editor.session;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
+import org.jdom.Element;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.notification.NotificationUtil;
@@ -13,6 +26,8 @@ import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionUtil;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
+import com.dci.intellij.dbn.connection.jdbc.DBNResultSet;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
 import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
@@ -34,20 +49,6 @@ import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import org.jdom.Element;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 
 @State(
     name = "DBNavigator.Project.SessionEditorManager",
@@ -87,12 +88,12 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
 
     public SessionBrowserModel loadSessions(DBSessionBrowserVirtualFile sessionBrowserFile) {
         ConnectionHandler connectionHandler = sessionBrowserFile.getConnectionHandler();
-        Connection connection = null;
-        ResultSet resultSet = null;
+        DBNConnection connection = null;
+        DBNResultSet resultSet = null;
         try {
             DatabaseMetadataInterface metadataInterface = connectionHandler.getInterfaceProvider().getMetadataInterface();
             connection = connectionHandler.getPoolConnection(true);
-            resultSet = metadataInterface.loadSessions(connection);
+            resultSet = (DBNResultSet) metadataInterface.loadSessions(connection);
             return new SessionBrowserModel(connectionHandler, resultSet);
         } catch (SQLException e) {
             SessionBrowserModel model = new SessionBrowserModel(connectionHandler);
@@ -100,13 +101,13 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
             return model;
 
         } finally {
-            ConnectionUtil.closeResultSet(resultSet);
+            ConnectionUtil.close(resultSet);
             connectionHandler.freePoolConnection(connection);
         }
     }
 
     public String loadSessionCurrentSql(ConnectionHandler connectionHandler, Object sessionId) {
-        Connection connection = null;
+        DBNConnection connection = null;
         ResultSet resultSet = null;
         try {
             DatabaseInterfaceProvider interfaceProvider = connectionHandler.getInterfaceProvider();
@@ -124,7 +125,7 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
         } catch (SQLException e) {
             NotificationUtil.sendWarningNotification(connectionHandler.getProject(), "Session Browser", "Could not load current session SQL. Cause: {0}", e.getMessage());
         } finally {
-            ConnectionUtil.closeResultSet(resultSet);
+            ConnectionUtil.close(resultSet);
             connectionHandler.freePoolConnection(connection);
         }
         return "";
@@ -163,7 +164,7 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
             @Override
             protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
                 Project project = connectionHandler.getProject();
-                Connection connection = null;
+                DBNConnection connection = null;
                 try {
                     connection = connectionHandler.getPoolConnection(true);
                     Map<Object, SQLException> errors = new HashMap<Object, SQLException>();

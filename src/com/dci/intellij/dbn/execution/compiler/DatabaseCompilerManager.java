@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.execution.compiler;
 
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,6 +15,7 @@ import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.operation.options.OperationSettings;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
@@ -55,7 +55,7 @@ public class DatabaseCompilerManager extends AbstractProjectComponent {
             DBContentType contentType = sourceCodeFile.getContentType();
 
             if (DatabaseFeature.OBJECT_INVALIDATION.isSupported(object)) {
-                boolean isCompilable = object.getProperties().is(DBObjectProperty.COMPILABLE);
+                boolean isCompilable = object.is(DBObjectProperty.COMPILABLE);
 
                 if (isCompilable) {
                     CompileType compileType = getCompileType(object, contentType);
@@ -164,57 +164,59 @@ public class DatabaseCompilerManager extends AbstractProjectComponent {
     private void doCompileObject(DBSchemaObject object, CompileType compileType, CompilerAction compilerAction) {
         DBContentType contentType = compilerAction.getContentType();
         DBObjectStatusHolder objectStatus = object.getStatus();
-        objectStatus.set(contentType, DBObjectStatus.COMPILING, true);
-        Connection connection = null;
-        ConnectionHandler connectionHandler = object.getConnectionHandler();
-        boolean verbose = compilerAction.getSource() != CompilerActionSource.BULK_COMPILE;
-        try {
-            connection = connectionHandler.getPoolConnection(true);
-            DatabaseMetadataInterface metadataInterface = connectionHandler.getInterfaceProvider().getMetadataInterface();
+        if (objectStatus.isNot(contentType, DBObjectStatus.COMPILING)) {
+            objectStatus.set(contentType, DBObjectStatus.COMPILING, true);
+            DBNConnection connection = null;
+            ConnectionHandler connectionHandler = object.getConnectionHandler();
+            boolean verbose = compilerAction.getSource() != CompilerActionSource.BULK_COMPILE;
+            try {
+                connection = connectionHandler.getPoolConnection(true);
+                DatabaseMetadataInterface metadataInterface = connectionHandler.getInterfaceProvider().getMetadataInterface();
 
-            boolean isDebug = compileType == CompileType.DEBUG;
+                boolean isDebug = compileType == CompileType.DEBUG;
 
-            if (compileType == CompileType.KEEP) {
-                isDebug = objectStatus.is(DBObjectStatus.DEBUG);
+                if (compileType == CompileType.KEEP) {
+                    isDebug = objectStatus.is(DBObjectStatus.DEBUG);
+                }
+
+                if (contentType == DBContentType.CODE_SPEC || contentType == DBContentType.CODE) {
+                    metadataInterface.compileObject(
+                            object.getSchema().getName(),
+                            object.getName(),
+                            object.getTypeName().toUpperCase(),
+                            isDebug,
+                            connection);
+                }
+                else if (contentType == DBContentType.CODE_BODY){
+                    metadataInterface.compileObjectBody(
+                            object.getSchema().getName(),
+                            object.getName(),
+                            object.getTypeName().toUpperCase(),
+                            isDebug,
+                            connection);
+
+                } else if (contentType == DBContentType.CODE_SPEC_AND_BODY) {
+                    metadataInterface.compileObject(
+                            object.getSchema().getName(),
+                            object.getName(),
+                            object.getTypeName().toUpperCase(),
+                            isDebug,
+                            connection);
+                    metadataInterface.compileObjectBody(
+                            object.getSchema().getName(),
+                            object.getName(),
+                            object.getTypeName().toUpperCase(),
+                            isDebug,
+                            connection);
+                }
+
+                if (verbose) createCompilerResult(object, compilerAction);
+            } catch (SQLException e) {
+                if (verbose) createErrorCompilerResult(compilerAction, object, contentType, e);
+            }  finally{
+                connectionHandler.freePoolConnection(connection);
+                objectStatus.set(contentType, DBObjectStatus.COMPILING, false);
             }
-
-            if (contentType == DBContentType.CODE_SPEC || contentType == DBContentType.CODE) {
-                metadataInterface.compileObject(
-                            object.getSchema().getName(),
-                            object.getName(),
-                            object.getTypeName().toUpperCase(),
-                            isDebug,
-                            connection);
-            }
-            else if (contentType == DBContentType.CODE_BODY){
-                metadataInterface.compileObjectBody(
-                            object.getSchema().getName(),
-                            object.getName(),
-                            object.getTypeName().toUpperCase(),
-                            isDebug,
-                            connection);
-
-            } else if (contentType == DBContentType.CODE_SPEC_AND_BODY) {
-                metadataInterface.compileObject(
-                            object.getSchema().getName(),
-                            object.getName(),
-                            object.getTypeName().toUpperCase(),
-                            isDebug,
-                            connection);
-                metadataInterface.compileObjectBody(
-                            object.getSchema().getName(),
-                            object.getName(),
-                            object.getTypeName().toUpperCase(),
-                            isDebug,
-                            connection);
-            }
-
-            if (verbose) createCompilerResult(object, compilerAction);
-        } catch (SQLException e) {
-            if (verbose) createErrorCompilerResult(compilerAction, object, contentType, e);
-        }  finally{
-            connectionHandler.freePoolConnection(connection);
-            objectStatus.set(contentType, DBObjectStatus.COMPILING, false);
         }
     }
 
@@ -238,7 +240,8 @@ public class DatabaseCompilerManager extends AbstractProjectComponent {
                         doCompileInvalidObjects(schema.getPackages(), "packages", progressIndicator, compileType);
                         doCompileInvalidObjects(schema.getFunctions(), "functions", progressIndicator, compileType);
                         doCompileInvalidObjects(schema.getProcedures(), "procedures", progressIndicator, compileType);
-                        doCompileInvalidObjects(schema.getDatasetTriggers(), "triggers", progressIndicator, compileType);
+                        doCompileInvalidObjects(schema.getDatasetTriggers(), "dataset triggers", progressIndicator, compileType);
+                        doCompileInvalidObjects(schema.getDatabaseTriggers(), "database triggers", progressIndicator, compileType);
                         EventUtil.notify(project, CompileManagerListener.TOPIC).compileFinished(connectionHandler, null);
 
                         if (!progressIndicator.isCanceled()) {
@@ -247,6 +250,7 @@ public class DatabaseCompilerManager extends AbstractProjectComponent {
                             buildCompilationErrors(schema.getFunctions(), compilerErrors);
                             buildCompilationErrors(schema.getProcedures(), compilerErrors);
                             buildCompilationErrors(schema.getDatasetTriggers(), compilerErrors);
+                            buildCompilationErrors(schema.getDatabaseTriggers(), compilerErrors);
                             if (compilerErrors.size() > 0) {
                                 ExecutionManager executionManager = ExecutionManager.getInstance(getProject());
                                 executionManager.addExecutionResults(compilerErrors);
@@ -265,21 +269,22 @@ public class DatabaseCompilerManager extends AbstractProjectComponent {
         progressIndicator.setText("Compiling invalid " + description + "...");
         int count = objects.size();
         for (int i=0; i< count; i++) {
-            if (progressIndicator.isCanceled()) {
+            if (progressIndicator.isCanceled() || objects.size() == 0 /* may be disposed meanwhile*/) {
                 break;
             } else {
-                progressIndicator.setFraction(CommonUtil.getProgressPercentage(i, count));
                 DBSchemaObject object = objects.get(i);
+                progressIndicator.setFraction(CommonUtil.getProgressPercentage(i, count));
+                DBObjectStatusHolder objectStatus = object.getStatus();
                 if (object.getContentType().isBundle()) {
                     for (DBContentType contentType : object.getContentType().getSubContentTypes()) {
-                        if (!object.getStatus().is(contentType, DBObjectStatus.VALID)) {
+                        if (objectStatus.isNot(contentType, DBObjectStatus.VALID)) {
                             CompilerAction compilerAction = new CompilerAction(CompilerActionSource.BULK_COMPILE, contentType);
                             doCompileObject(object, compileType, compilerAction);
                             progressIndicator.setText2("Compiling " + object.getQualifiedNameWithType());
                         }
                     }
                 } else {
-                    if (!object.getStatus().is(DBObjectStatus.VALID)) {
+                    if (objectStatus.isNot(DBObjectStatus.VALID)) {
                         CompilerAction compilerAction = new CompilerAction(CompilerActionSource.BULK_COMPILE, object.getContentType());
                         doCompileObject(object, compileType, compilerAction);
                         progressIndicator.setText2("Compiling " + object.getQualifiedNameWithType());

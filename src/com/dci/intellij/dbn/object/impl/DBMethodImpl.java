@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.object.impl;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -12,6 +11,7 @@ import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoader;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentResultSetLoader;
 import com.dci.intellij.dbn.common.content.loader.DynamicSubcontentLoader;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.language.common.DBLanguage;
@@ -24,15 +24,14 @@ import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.common.DBSchemaObjectImpl;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
-import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatus;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatusHolder;
+import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.*;
 
 public abstract class DBMethodImpl extends DBSchemaObjectImpl implements DBMethod {
     protected DBObjectList<DBArgument> arguments;
     protected int position;
     protected int overload;
-    protected boolean isDeterministic;
     private DBLanguage language;
 
     public DBMethodImpl(DBSchemaObject parent, ResultSet resultSet) throws SQLException {
@@ -45,7 +44,7 @@ public abstract class DBMethodImpl extends DBSchemaObjectImpl implements DBMetho
 
     @Override
     protected void initObject(ResultSet resultSet) throws SQLException {
-        isDeterministic = resultSet.getString("IS_DETERMINISTIC").equals("Y");
+        set(DETERMINISTIC, resultSet.getString("IS_DETERMINISTIC").equals("Y"));
         overload = resultSet.getInt("OVERLOAD");
         position = resultSet.getInt("POSITION");
         language = DBLanguage.getLanguage(resultSet.getString("LANGUAGE"));
@@ -54,7 +53,9 @@ public abstract class DBMethodImpl extends DBSchemaObjectImpl implements DBMetho
     @Override
     public void initProperties() {
         super.initProperties();
-        getProperties().set(DBObjectProperty.COMPILABLE);
+        properties.set(COMPILABLE, true);
+        properties.set(INVALIDABLE, true);
+        properties.set(DEBUGABLE, true);
     }
 
     @Override
@@ -83,7 +84,7 @@ public abstract class DBMethodImpl extends DBSchemaObjectImpl implements DBMetho
     }
 
     public boolean isDeterministic() {
-        return isDeterministic;
+        return is(DETERMINISTIC);
     }
 
     public boolean hasDeclaredArguments() {
@@ -159,7 +160,7 @@ public abstract class DBMethodImpl extends DBSchemaObjectImpl implements DBMetho
      *********************************************************/
 
     private static final DynamicContentLoader<DBArgument> ARGUMENTS_ALTERNATIVE_LOADER = new DynamicContentResultSetLoader<DBArgument>() {
-        public ResultSet createResultSet(DynamicContent<DBArgument> dynamicContent, Connection connection) throws SQLException {
+        public ResultSet createResultSet(DynamicContent<DBArgument> dynamicContent, DBNConnection connection) throws SQLException {
             DatabaseMetadataInterface metadataInterface = dynamicContent.getConnectionHandler().getInterfaceProvider().getMetadataInterface();
             DBMethod method = (DBMethod) dynamicContent.getParentElement();
             String ownerName = method.getSchema().getName();

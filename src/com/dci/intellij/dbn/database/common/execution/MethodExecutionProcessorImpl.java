@@ -1,14 +1,12 @@
 package com.dci.intellij.dbn.database.common.execution;
 
 import java.sql.CallableStatement;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.NotNull;
 
-import com.dci.intellij.dbn.common.Counter;
 import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.locale.Formatter;
@@ -17,6 +15,9 @@ import com.dci.intellij.dbn.common.thread.CancellableDatabaseCall;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionUtil;
+import com.dci.intellij.dbn.connection.SessionId;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
+import com.dci.intellij.dbn.connection.jdbc.DBNPreparedStatement;
 import com.dci.intellij.dbn.data.type.DBDataType;
 import com.dci.intellij.dbn.debugger.DBDebuggerType;
 import com.dci.intellij.dbn.execution.ExecutionContext;
@@ -63,10 +64,10 @@ public abstract class MethodExecutionProcessorImpl<T extends DBMethod> implement
 
     public void execute(MethodExecutionInput executionInput, DBDebuggerType debuggerType) throws SQLException {
         executionInput.initExecution(debuggerType);
-        boolean usePoolConnection = executionInput.getOptions().isUsePoolConnection();
+        boolean usePoolConnection = executionInput.getSession().getId() == SessionId.POOL;
         ConnectionHandler connectionHandler = getConnectionHandler();
         DBSchema executionSchema = executionInput.getTargetSchema();
-        Connection connection = usePoolConnection ?
+        DBNConnection connection = usePoolConnection ?
                 connectionHandler.getPoolConnection(executionSchema, false) :
                 connectionHandler.getMainConnection(executionSchema);
         if (usePoolConnection) {
@@ -76,16 +77,14 @@ public abstract class MethodExecutionProcessorImpl<T extends DBMethod> implement
         execute(executionInput, connection, debuggerType);
     }
 
-    public void execute(final MethodExecutionInput executionInput, final Connection connection, DBDebuggerType debuggerType) throws SQLException {
+    public void execute(final MethodExecutionInput executionInput, final DBNConnection connection, DBDebuggerType debuggerType) throws SQLException {
         executionInput.initExecution(debuggerType);
         ExecutionOptions options = executionInput.getOptions();
         final ConnectionHandler connectionHandler = getConnectionHandler();
-        boolean usePoolConnection = options.isUsePoolConnection();
+        boolean usePoolConnection = executionInput.getSession().getId() == SessionId.POOL;
         boolean loggingEnabled = debuggerType != DBDebuggerType.JDBC && options.isEnableLogging();
         Project project = getProject();
         final DatabaseLoggingManager loggingManager = DatabaseLoggingManager.getInstance(project);
-        Counter runningMethods = connectionHandler.getLoadMonitor().getRunningMethods();
-        runningMethods.increment();
 
         ExecutionContext context = executionInput.getExecutionContext(true);
         try {
@@ -96,10 +95,11 @@ public abstract class MethodExecutionProcessorImpl<T extends DBMethod> implement
                 loggingEnabled = loggingManager.enableLogger(connectionHandler, connection);
             }
 
-            final PreparedStatement statement = isQuery() ?
+            final DBNPreparedStatement statement = isQuery() ?
                     connection.prepareStatement(command) :
                     connection.prepareCall(command);
 
+            context.setConnection(connection);
             context.setStatement(statement);
 
             bindParameters(executionInput, statement);
@@ -119,7 +119,7 @@ public abstract class MethodExecutionProcessorImpl<T extends DBMethod> implement
 
                 @Override
                 public void cancel() throws Exception {
-                    ConnectionUtil.cancelStatement(statement);
+                    ConnectionUtil.cancel(statement);
                 }
             }.start();
 
@@ -133,12 +133,11 @@ public abstract class MethodExecutionProcessorImpl<T extends DBMethod> implement
                 }
             }
 
-            if (!usePoolConnection) connectionHandler.notifyDataChanges(method.getVirtualFile());
+            if (!usePoolConnection) connection.notifyDataChanges(method.getVirtualFile());
         } catch (SQLException e) {
-            ConnectionUtil.cancelStatement(context.getStatement());
+            ConnectionUtil.cancel(context.getStatement());
             throw e;
         } finally {
-            runningMethods.decrement();
             if (loggingEnabled) {
                 loggingManager.disableLogger(connectionHandler, connection);
             }
@@ -184,7 +183,7 @@ public abstract class MethodExecutionProcessorImpl<T extends DBMethod> implement
         }
     }
 
-    public void loadValues(MethodExecutionResult executionResult, PreparedStatement preparedStatement) throws SQLException {
+    public void loadValues(MethodExecutionResult executionResult, DBNPreparedStatement preparedStatement) throws SQLException {
         for (DBArgument argument : getArguments()) {
             if (argument.isOutput() && preparedStatement instanceof CallableStatement) {
                 CallableStatement callableStatement = (CallableStatement) preparedStatement;

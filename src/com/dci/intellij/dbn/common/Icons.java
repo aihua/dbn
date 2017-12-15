@@ -273,13 +273,19 @@ public class Icons {
     public static final Icon CONN_STATUS_DISCONNECTED = load("/img/common/BulbOff.png");
 
     public static final Icon CONNECTION_VIRTUAL       = load("/img/connection/ConnectionVirtual.png");
+    public static final Icon CONNECTION_CONNECTED     = load("/img/connection/ConnectionConnected.png");
     public static final Icon CONNECTION_ACTIVE        = load("/img/connection/ConnectionActive.png");
-    public static final Icon CONNECTION_ACTIVE_NEW    = load("/img/connection/ConnectionActiveNew.png");
+    public static final Icon CONNECTION_BUSY          = load("/img/connection/ConnectionBusy.png");
+    public static final Icon CONNECTION_CONNECTED_NEW = load("/img/connection/ConnectionConnectedNew.png");
     public static final Icon CONNECTION_INACTIVE      = load("/img/connection/ConnectionInactive.png");
     public static final Icon CONNECTION_DISABLED      = load("/img/connection/ConnectionDisabled.png");
     public static final Icon CONNECTION_NEW           = load("/img/connection/ConnectionNew.png");
     public static final Icon CONNECTION_INVALID       = load("/img/connection/ConnectionInvalid.png");
     public static final Icon CONNECTIONS              = load("/img/connection/Connections.png");
+
+    public static final Icon SESSION_CUSTOM           = load("/img/connection/SessionCustom.png");
+    public static final Icon SESSION_MAIN             = load("/img/connection/SessionMain.png");
+    public static final Icon SESSION_POOL             = load("/img/connection/SessionPool.png");
 
 
     public static final Icon DB_ORACLE            = load("/img/database/Oracle.png");

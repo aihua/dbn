@@ -1,6 +1,11 @@
 package com.dci.intellij.dbn.language.common.element;
 
+import javax.swing.Icon;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.code.common.style.formatting.FormattingDefinition;
+import com.dci.intellij.dbn.common.index.Indexable;
+import com.dci.intellij.dbn.common.property.PropertyHolder;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
 import com.dci.intellij.dbn.language.common.TokenType;
@@ -10,15 +15,11 @@ import com.dci.intellij.dbn.language.common.element.parser.Branch;
 import com.dci.intellij.dbn.language.common.element.parser.ElementTypeParser;
 import com.dci.intellij.dbn.language.common.element.path.PathNode;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
-import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttributesBundle;
 import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.PsiElement;
-import org.jetbrains.annotations.Nullable;
 
-import javax.swing.Icon;
-
-public interface ElementType {
+public interface ElementType extends Indexable, PropertyHolder<ElementTypeAttribute>{
 
     String getId();
 
@@ -38,8 +39,6 @@ public interface ElementType {
 
     ElementTypeParser getParser();
 
-    boolean is(ElementTypeAttribute attribute);
-
     boolean isLeaf();
 
     boolean isVirtualObject();
@@ -53,8 +52,6 @@ public interface ElementType {
     FormattingDefinition getFormatting();
 
     void setDefaultFormatting(FormattingDefinition defaults);
-
-    ElementTypeAttributesBundle getAttributes();
 
     WrappingDefinition getWrapping();
 

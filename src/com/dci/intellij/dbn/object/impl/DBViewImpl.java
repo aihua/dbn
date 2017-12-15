@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.object.impl;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -10,6 +9,7 @@ import org.jetbrains.annotations.NotNull;
 import com.dci.intellij.dbn.browser.DatabaseBrowserUtils;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseDDLInterface;
 import com.dci.intellij.dbn.ddl.DDLFileManager;
 import com.dci.intellij.dbn.ddl.DDLFileType;
@@ -26,9 +26,9 @@ import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationList;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationListImpl;
 import com.dci.intellij.dbn.object.common.loader.DBSourceCodeLoader;
+import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
 
 public class DBViewImpl extends DBDatasetImpl implements DBView {
-    private boolean isSystemView;
     private DBType type;
     public DBViewImpl(DBSchema schema, ResultSet resultSet) throws SQLException {
         super(schema, resultSet);
@@ -37,7 +37,7 @@ public class DBViewImpl extends DBDatasetImpl implements DBView {
     @Override
     protected void initObject(ResultSet resultSet) throws SQLException {
         name = resultSet.getString("VIEW_NAME");
-        isSystemView = resultSet.getString("IS_SYSTEM_VIEW").equals("Y");
+        set(DBObjectProperty.SYSTEM_OBJECT, resultSet.getString("IS_SYSTEM_VIEW").equals("Y"));
         String typeOwner = resultSet.getString("VIEW_TYPE_OWNER");
         String typeName = resultSet.getString("VIEW_TYPE");
         if (typeOwner != null && typeName != null) {
@@ -49,7 +49,7 @@ public class DBViewImpl extends DBDatasetImpl implements DBView {
 
     @Override
     public DBContentType getContentType() {
-        return isSystemView ? DBContentType.DATA : DBContentType.CODE_AND_DATA;
+        return isSystemView() ? DBContentType.DATA : DBContentType.CODE_AND_DATA;
     }
 
     public DBObjectType getObjectType() {
@@ -85,6 +85,11 @@ public class DBViewImpl extends DBDatasetImpl implements DBView {
         return objectNavigationLists;
     }
 
+    @Override
+    public boolean isSystemView() {
+        return is(DBObjectProperty.SYSTEM_OBJECT);
+    }
+
     /*********************************************************
      *                         Loaders                       *
      *********************************************************/
@@ -94,7 +99,7 @@ public class DBViewImpl extends DBDatasetImpl implements DBView {
             super(object, false);
         }
 
-        public ResultSet loadSourceCode(Connection connection) throws SQLException {
+        public ResultSet loadSourceCode(DBNConnection connection) throws SQLException {
             return getConnectionHandler().getInterfaceProvider().getMetadataInterface().loadViewSourceCode(
                    getSchema().getName(), getName(), connection);
         }
@@ -111,7 +116,7 @@ public class DBViewImpl extends DBDatasetImpl implements DBView {
 
     public void executeUpdateDDL(DBContentType contentType, String oldCode, String newCode) throws SQLException {
         ConnectionHandler connectionHandler = getConnectionHandler();
-        Connection connection = connectionHandler.getPoolConnection(getSchema(), false);
+        DBNConnection connection = connectionHandler.getPoolConnection(getSchema(), false);
         try {
             DatabaseDDLInterface ddlInterface = connectionHandler.getInterfaceProvider().getDDLInterface();
             ddlInterface.updateView(getName(), newCode, connection);

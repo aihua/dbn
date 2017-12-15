@@ -2,13 +2,27 @@ package com.dci.intellij.dbn.common.util;
 
 public abstract class SimpleLazyValue<T> implements LazyValue<T> {
     private T value;
+    private boolean loading; // recursivity check
+
+    public SimpleLazyValue() {
+    }
+
+    public SimpleLazyValue(T defaultValue) {
+        this.value = defaultValue;
+    }
 
     @Override
     public final T get(){
-        if (value == null) {
+        if (value == null && !loading) {
             synchronized (this) {
-                if (value == null) {
-                    value = load();
+                if (value == null && !loading) {
+                    try {
+                        loading = true;
+                        value = load();
+                    } finally {
+                        loading = false;
+                    }
+
                 }
             }
         }

@@ -1,8 +1,6 @@
 package com.dci.intellij.dbn.object.common;
 
 import javax.swing.Icon;
-import java.sql.CallableStatement;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
@@ -40,6 +38,8 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ConnectionUtil;
 import com.dci.intellij.dbn.connection.GenericDatabaseElement;
+import com.dci.intellij.dbn.connection.jdbc.DBNCallableStatement;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.language.common.DBLanguage;
@@ -58,6 +58,7 @@ import com.dci.intellij.dbn.object.common.operation.DBOperationExecutor;
 import com.dci.intellij.dbn.object.common.operation.DBOperationNotSupportedException;
 import com.dci.intellij.dbn.object.common.operation.DBOperationType;
 import com.dci.intellij.dbn.object.common.property.DBObjectProperties;
+import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.object.properties.ConnectionPresentableProperty;
 import com.dci.intellij.dbn.object.properties.DBObjectPresentableProperty;
@@ -83,7 +84,7 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
     protected String name;
     protected DBObjectRef objectRef;
     protected DBObjectRef parentObjectRef;
-    private DBObjectProperties properties;
+    protected DBObjectProperties properties = new DBObjectProperties();
     private DBObjectListContainer childObjects;
     private DBObjectRelationListContainer childObjectRelations;
     private DBObjectPsiElement psi;
@@ -142,6 +143,21 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
         return null;
     }*/
 
+    @Override
+    public boolean set(DBObjectProperty status, boolean value) {
+        return properties.set(status, value);
+    }
+
+    @Override
+    public boolean is(DBObjectProperty property) {
+        return properties.is(property);
+    }
+
+    @Override
+    public boolean isNot(DBObjectProperty property) {
+        return properties.isNot(property);
+    }
+
     public DBContentType getContentType() {
         return DBContentType.NONE;
     }
@@ -166,13 +182,6 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
     @Override
     public boolean isParentOf(DBObject object) {
         return this.equals(object.getParentObject());
-    }
-
-    public DBObjectProperties getProperties() {
-        if (properties == null) {
-            properties = new DBObjectProperties();
-        }
-        return properties;
     }
 
     public DBOperationExecutor getOperationExecutor() {
@@ -474,9 +483,9 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
     }
 
     public String extractDDL() throws SQLException {
-        String ddl = null;
-        CallableStatement statement = null;
-        Connection connection = null;
+        String ddl;
+        DBNCallableStatement statement = null;
+        DBNConnection connection = null;
 
         ConnectionHandler connectionHandler = FailsafeUtil.get(getConnectionHandler());
         try {
@@ -490,9 +499,8 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
             statement.execute();
             ddl = statement.getString(1);
             ddl = ddl == null ? null : ddl.trim();
-            statement.close();
         } finally{
-            ConnectionUtil.closeStatement(statement);
+            ConnectionUtil.close(statement);
             connectionHandler.freePoolConnection(connection);
         }
         return ddl;

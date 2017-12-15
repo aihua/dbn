@@ -1,23 +1,30 @@
 package com.dci.intellij.dbn.database.common.statement;
 
-import com.dci.intellij.dbn.common.LoggerFactory;
-import com.dci.intellij.dbn.common.options.setting.SettingsUtil;
-import com.dci.intellij.dbn.common.util.StringUtil;
-import com.dci.intellij.dbn.connection.ConnectionUtil;
-import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
-import com.intellij.openapi.diagnostic.Logger;
+import java.sql.CallableStatement;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.StringTokenizer;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.sql.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.StringTokenizer;
+import com.dci.intellij.dbn.common.LoggerFactory;
+import com.dci.intellij.dbn.common.options.setting.SettingsUtil;
+import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.connection.ConnectionUtil;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
+import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
+import com.intellij.openapi.diagnostic.Logger;
 
 public class StatementExecutionProcessor {
-    private DatabaseInterfaceProvider interfaceProvider;
     private static final Logger LOGGER = LoggerFactory.createLogger();
+
+    private DatabaseInterfaceProvider interfaceProvider;
     private String id;
     private boolean isQuery;
     private boolean isPreparedStatement;
@@ -79,7 +86,7 @@ public class StatementExecutionProcessor {
         return executeQuery(connection, false, arguments);
     }
 
-    public ResultSet executeQuery(@NotNull Connection connection, boolean forceExecution, Object... arguments) throws SQLException {
+    public ResultSet executeQuery(@NotNull DBNConnection connection, boolean forceExecution, Object... arguments) throws SQLException {
         if (statementDefinition != null) {
             return executeQuery(statementDefinition, connection, forceExecution, arguments);
         } else {
@@ -95,7 +102,7 @@ public class StatementExecutionProcessor {
         }
     }
 
-    private ResultSet executeQuery(final StatementDefinition statementDefinition, @NotNull final Connection connection, boolean forceExecution, final Object... arguments) throws SQLException {
+    private ResultSet executeQuery(final StatementDefinition statementDefinition, @NotNull final DBNConnection connection, boolean forceExecution, final Object... arguments) throws SQLException {
         if (forceExecution || statementDefinition.canExecute(connection)) {
             return new StatementExecutor<ResultSet>(timeout) {
                 private Statement statement;
@@ -110,8 +117,8 @@ public class StatementExecutionProcessor {
                         }
                         if (isPreparedStatement) {
                             PreparedStatement preparedStatement = statementDefinition.prepareStatement(connection, arguments);
-                            preparedStatement.setQueryTimeout(timeout);
                             statement = preparedStatement;
+                            preparedStatement.setQueryTimeout(timeout);
                             return preparedStatement.executeQuery();
                         } else {
                             if (statementText == null)
@@ -123,17 +130,17 @@ public class StatementExecutionProcessor {
                                 try {
                                     return statement.getResultSet();
                                 } catch (SQLException e) {
+                                    ConnectionUtil.close(statement);
                                     return null;
                                 }
                             } else {
-                                ConnectionUtil.closeStatement(statement);
+                                ConnectionUtil.close(statement);
                                 return null;
                             }
                         }
-
                     } catch (SQLException exception) {
                         executionSuccessful = false;
-
+                        ConnectionUtil.close(statement);
                         if (SettingsUtil.isDebugEnabled) LOGGER.info("[DBN-ERROR] Error executing statement: " + statementText + "\nCause: " + exception.getMessage());
                         if (interfaceProvider.getMessageParserInterface().isModelException(exception)) {
                             statementDefinition.setDisabled(true);
@@ -141,7 +148,9 @@ public class StatementExecutionProcessor {
                         } else {
                             lastException = new SQLException("Too many failed attempts of executing query '" + id +"'. " + exception.getMessage());
                         }
-                        ConnectionUtil.closeStatement(statement);
+                        throw exception;
+                    } catch (Exception exception) {
+                        ConnectionUtil.close(statement);
                         throw exception;
                     } finally {
                         statementDefinition.updateExecutionStatus(executionSuccessful);
@@ -150,7 +159,7 @@ public class StatementExecutionProcessor {
 
                 @Override
                 protected void handleTimeout() {
-                    ConnectionUtil.closeStatement(statement);
+                    ConnectionUtil.close(statement);
                 }
             }.start();
         } else {
@@ -161,7 +170,7 @@ public class StatementExecutionProcessor {
         }
     }
 
-    public <T extends CallableStatementOutput> T executeCall(@NotNull Connection connection, @Nullable T outputReader, Object... arguments) throws SQLException {
+    public <T extends CallableStatementOutput> T executeCall(@NotNull DBNConnection connection, @Nullable T outputReader, Object... arguments) throws SQLException {
         if (statementDefinition != null) {
             return executeCall(statementDefinition, connection, outputReader, arguments);
         } else {
@@ -178,7 +187,7 @@ public class StatementExecutionProcessor {
         }
     }
 
-    private <T extends CallableStatementOutput> T executeCall(final StatementDefinition statementDefinition, @NotNull final Connection connection, @Nullable final T outputReader, final Object... arguments) throws SQLException {
+    private <T extends CallableStatementOutput> T executeCall(final StatementDefinition statementDefinition, @NotNull final DBNConnection connection, @Nullable final T outputReader, final Object... arguments) throws SQLException {
         return new StatementExecutor<T>(timeout) {
             CallableStatement statement;
             @Override
@@ -201,18 +210,18 @@ public class StatementExecutionProcessor {
 
                     throw exception;
                 } finally {
-                    ConnectionUtil.closeStatement(statement);
+                    ConnectionUtil.close(statement);
                 }
             }
 
             @Override
             protected void handleTimeout() {
-                ConnectionUtil.closeStatement(statement);
+                ConnectionUtil.close(statement);
             }
         }.start();
     }
 
-    public void executeUpdate(Connection connection, Object... arguments) throws SQLException {
+    public void executeUpdate(DBNConnection connection, Object... arguments) throws SQLException {
         if (statementDefinition != null) {
             executeUpdate(statementDefinition, connection, arguments);
         } else {
@@ -229,7 +238,7 @@ public class StatementExecutionProcessor {
         }
     }
 
-    private void executeUpdate(final StatementDefinition statementDefinition, @NotNull final Connection connection, final Object... arguments) throws SQLException {
+    private void executeUpdate(final StatementDefinition statementDefinition, @NotNull final DBNConnection connection, final Object... arguments) throws SQLException {
         new StatementExecutor(timeout) {
             private Statement statement;
             @Override
@@ -249,19 +258,19 @@ public class StatementExecutionProcessor {
 
                     throw exception;
                 } finally {
-                    ConnectionUtil.closeStatement(statement);
+                    ConnectionUtil.close(statement);
                 }
                 return null;
             }
 
             @Override
             protected void handleTimeout() {
-                ConnectionUtil.closeStatement(statement);
+                ConnectionUtil.close(statement);
             }
         }.start();
     }
 
-    public boolean executeStatement(@NotNull Connection connection, Object... arguments) throws SQLException {
+    public boolean executeStatement(@NotNull DBNConnection connection, Object... arguments) throws SQLException {
         if (statementDefinition != null) {
             return executeStatement(statementDefinition, connection, arguments);
         } else {
@@ -277,7 +286,7 @@ public class StatementExecutionProcessor {
         }
     }
 
-    private boolean executeStatement(final StatementDefinition statementDefinition, @NotNull final Connection connection, final Object... arguments) throws SQLException {
+    private boolean executeStatement(final StatementDefinition statementDefinition, @NotNull final DBNConnection connection, final Object... arguments) throws SQLException {
         return new StatementExecutor<Boolean>(timeout) {
             private Statement statement;
             @Override
@@ -297,13 +306,13 @@ public class StatementExecutionProcessor {
 
                     throw exception;
                 } finally {
-                    ConnectionUtil.closeStatement(statement);
+                    ConnectionUtil.close(statement);
                 }
             }
 
             @Override
             protected void handleTimeout() {
-                ConnectionUtil.closeStatement(statement);
+                ConnectionUtil.close(statement);
             }
         }.start();
     }

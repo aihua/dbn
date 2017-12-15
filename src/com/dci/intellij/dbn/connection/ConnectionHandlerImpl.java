@@ -1,5 +1,14 @@
 package com.dci.intellij.dbn.connection;
 
+import javax.swing.Icon;
+import java.sql.SQLException;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.browser.model.BrowserTreeEventListener;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.common.Icons;
@@ -11,18 +20,22 @@ import com.dci.intellij.dbn.common.dispose.DisposableBase;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.filter.Filter;
-import com.dci.intellij.dbn.common.options.setting.SettingsUtil;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
-import com.dci.intellij.dbn.common.thread.SimpleBackgroundTask;
 import com.dci.intellij.dbn.common.ui.tree.TreeEventType;
-import com.dci.intellij.dbn.common.util.*;
+import com.dci.intellij.dbn.common.util.CommonUtil;
+import com.dci.intellij.dbn.common.util.DisposableLazyValue;
+import com.dci.intellij.dbn.common.util.EventUtil;
+import com.dci.intellij.dbn.common.util.LazyValue;
+import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionDetailSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSettings;
 import com.dci.intellij.dbn.connection.console.DatabaseConsoleBundle;
 import com.dci.intellij.dbn.connection.info.ConnectionInfo;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
+import com.dci.intellij.dbn.connection.session.DatabaseSessionBundle;
 import com.dci.intellij.dbn.connection.transaction.TransactionAction;
-import com.dci.intellij.dbn.connection.transaction.UncommittedChangeBundle;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.database.DatabaseInterface;
 import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
@@ -35,39 +48,26 @@ import com.dci.intellij.dbn.object.common.DBObjectBundle;
 import com.dci.intellij.dbn.object.common.DBObjectBundleImpl;
 import com.dci.intellij.dbn.vfs.DBSessionBrowserVirtualFile;
 import com.intellij.lang.Language;
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
-import com.intellij.openapi.vfs.VirtualFile;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 public class ConnectionHandlerImpl extends DisposableBase implements ConnectionHandler {
     private static final Logger LOGGER = LoggerFactory.createLogger();
 
     private ConnectionSettings connectionSettings;
     private ConnectionBundle connectionBundle;
-    private ConnectionStatus connectionStatus;
+    private ConnectionHandlerStatus connectionStatus;
     private ConnectionPool connectionPool;
     private ConnectionLoadMonitor loadMonitor;
     private DatabaseInterfaceProvider interfaceProvider;
-    private UncommittedChangeBundle dataChanges;
     private DatabaseConsoleBundle consoleBundle;
+    private DatabaseSessionBundle sessionBundle;
     private DBSessionBrowserVirtualFile sessionBrowserFile;
     private ConnectionInstructions instructions = new ConnectionInstructions();
 
-    private boolean active;
-    private long validityCheckTimestamp = 0;
+    private boolean enabled;
     private ConnectionHandlerRef ref;
     private AuthenticationInfo temporaryAuthenticationInfo = new AuthenticationInfo();
     private ConnectionInfo connectionInfo;
@@ -99,17 +99,22 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     public ConnectionHandlerImpl(ConnectionBundle connectionBundle, ConnectionSettings connectionSettings) {
         this.connectionBundle = connectionBundle;
         this.connectionSettings = connectionSettings;
-        this.active = connectionSettings.isActive();
+        this.enabled = connectionSettings.isActive();
         ref = new ConnectionHandlerRef(this);
 
-        connectionStatus = new ConnectionStatus();
+        connectionStatus = new ConnectionHandlerStatus(this);
         connectionPool = new ConnectionPool(this);
         consoleBundle = new DatabaseConsoleBundle(this);
+        sessionBundle = new DatabaseSessionBundle(this);
         loadMonitor = new ConnectionLoadMonitor(this);
 
-        Disposer.register(this, connectionPool);
-        Disposer.register(this, consoleBundle);
         Disposer.register(this, loadMonitor);
+    }
+
+    @NotNull
+    @Override
+    public List<DBNConnection> getConnections(ConnectionType... connectionTypes) {
+        return getConnectionPool().getConnections(connectionTypes);
     }
 
     @Override
@@ -159,9 +164,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
 
         ConnectionDetailSettings detailSettings = connectionSettings.getDetailSettings();
         if (detailSettings.isConnectAutomatically() || instructions.isAllowAutoConnect()) {
-            if (isAuthenticationProvided()) {
-                return true;
-            }
+            return isAuthenticationProvided();
         }
         return false;
     }
@@ -188,17 +191,24 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     @Override
     public void setSettings(ConnectionSettings connectionSettings) {
         this.connectionSettings = connectionSettings;
-        this.active = connectionSettings.isActive();
+        this.enabled = connectionSettings.isActive();
     }
 
     @NotNull
-    public ConnectionStatus getConnectionStatus() {
+    public ConnectionHandlerStatus getConnectionStatus() {
         return connectionStatus;
     }
 
+    @NotNull
     @Override
     public DatabaseConsoleBundle getConsoleBundle() {
         return consoleBundle;
+    }
+
+    @NotNull
+    @Override
+    public DatabaseSessionBundle getSessionBundle() {
+        return sessionBundle;
     }
 
     @Override
@@ -210,8 +220,8 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
         return sessionBrowserFile;
     }
 
-    public boolean isActive() {
-        return active;
+    public boolean isEnabled() {
+        return enabled;
     }
 
     public DatabaseType getDatabaseType() {
@@ -238,44 +248,19 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
         return connectionSettings.getDetailSettings().getEnvironmentType();
     }
 
-    public boolean hasUncommittedChanges() {
-        return dataChanges != null && !dataChanges.isEmpty();
-    }
-
-    public void commit() throws SQLException {
-        Connection mainConnection = getConnectionPool().getMainConnection(false);
+    public void commit() {
+        DBNConnection mainConnection = getConnectionPool().getMainConnection();
         ConnectionUtil.commit(mainConnection);
-        dataChanges = null;
     }
 
-    public void rollback() throws SQLException {
-        Connection mainConnection = getConnectionPool().getMainConnection(false);
+    public void rollback() {
+        DBNConnection mainConnection = getConnectionPool().getMainConnection();
         ConnectionUtil.rollback(mainConnection);
-        dataChanges = null;
     }
 
     @Override
     public void ping(boolean check) {
         getConnectionPool().keepAlive(check);
-    }
-
-    public void notifyDataChanges(VirtualFile virtualFile) {
-        if (!isAutoCommit()) {
-            if (dataChanges == null) {
-                dataChanges = new UncommittedChangeBundle();
-            }
-            dataChanges.notifyChange(virtualFile);
-        }
-    }
-
-    @Override
-    public void resetDataChanges() {
-        dataChanges = null;
-    }
-
-    @Override
-    public UncommittedChangeBundle getDataChanges() {
-        return dataChanges;
     }
 
     @Override
@@ -290,17 +275,6 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     @NotNull
     public Project getProject() {
         return getConnectionBundle().getProject();
-    }
-
-    public boolean isValid(boolean check) {
-        if (check) {
-            try {
-                getMainConnection();
-            } catch (SQLException e) {
-                return false;
-            }
-        }
-        return isValid();
     }
 
     @Override
@@ -324,34 +298,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     }
 
     public boolean isValid() {
-        if (getConnectionBundle().containsConnection(this)) {
-            long currentTimestamp = System.currentTimeMillis();
-            if (validityCheckTimestamp < currentTimestamp - 30000) {
-                if (ApplicationManager.getApplication().isDispatchThread()) {
-                    new SimpleBackgroundTask("verify connection") {
-                        @Override
-                        protected void execute() {
-                            checkConnection();
-                        }
-                    }.start();
-                } else {
-                    checkConnection();
-                }
-            }
-            return connectionStatus.isValid();
-        }
-        return false;
-    }
-
-    void checkConnection() {
-        validityCheckTimestamp = System.currentTimeMillis();
-        try {
-            getMainConnection();
-        } catch (SQLException e) {
-            if (SettingsUtil.isDebugEnabled) {
-                LOGGER.warn("[DBN-INFO] Could not connect to database [" + getName() + "]: " + e.getMessage());
-            }
-        }
+        return connectionStatus.isValid();
     }
 
     public boolean isVirtual() {
@@ -369,7 +316,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     }
 
     @Override
-    public boolean hasPendingTransactions(@NotNull Connection connection) {
+    public boolean hasPendingTransactions(@NotNull DBNConnection connection) {
         return getInterfaceProvider().getMetadataInterface().hasPendingTransactions(connection);
     }
 
@@ -383,17 +330,15 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
         connectionSettings.getPropertiesSettings().setEnableAutoCommit(autoCommit);
     }
 
-    public void disconnect() throws SQLException {
-        try {
-            getConnectionPool().closeConnections();
-            dataChanges = null;
-            temporaryAuthenticationInfo = new AuthenticationInfo();
-        } finally {
-            connectionStatus.setConnected(false);
-        }
+    public void disconnect() {
+        // explicit disconnect (reset auto-connect data)
+        temporaryAuthenticationInfo = new AuthenticationInfo();
+        instructions.setAllowAutoConnect(false);
+        connectionStatus.setConnected(false);
+        getConnectionPool().closeConnections();
     }
 
-    public String getId() {
+    public ConnectionId getId() {
         return connectionSettings.getConnectionId();
     }
 
@@ -434,21 +379,24 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     }
 
     @Override
-    public DBNConnection createTestConnection() throws SQLException {
+    public DBNConnection getTestConnection() throws SQLException {
         assertCanConnect();
-        return getConnectionPool().createTestConnection();
+        return getConnectionPool().ensureTestConnection();
     }
 
+    @NotNull
     public DBNConnection getMainConnection() throws SQLException {
         assertCanConnect();
-        return getConnectionPool().getMainConnection(true);
+        return getConnectionPool().ensureMainConnection();
     }
 
+    @NotNull
     public DBNConnection getPoolConnection(boolean readonly) throws SQLException {
         assertCanConnect();
         return getConnectionPool().allocateConnection(readonly);
     }
 
+    @NotNull
     public DBNConnection getMainConnection(@Nullable DBSchema schema) throws SQLException {
         DBNConnection connection = getMainConnection();
         if (schema != null && !schema.isPublicSchema() && DatabaseFeature.CURRENT_SCHEMA.isSupported(this)) {
@@ -458,6 +406,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
         return connection;
     }
 
+    @NotNull
     public DBNConnection getPoolConnection(@Nullable DBSchema schema, boolean readonly) throws SQLException {
         DBNConnection connection = getPoolConnection(readonly);
         //if (!schema.isPublicSchema()) {
@@ -476,14 +425,14 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
         }
     }
 
-    public void freePoolConnection(Connection connection) {
+    public void freePoolConnection(DBNConnection connection) {
         if (!isDisposed()) {
             getConnectionPool().releaseConnection(connection);
         }
     }
 
     @Override
-    public void dropPoolConnection(Connection connection) {
+    public void dropPoolConnection(DBNConnection connection) {
         getConnectionPool().dropConnection(connection);
     }
 
@@ -568,9 +517,16 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     }
 
     public Icon getIcon(){
-        return connectionStatus.isConnected() ? Icons.CONNECTION_ACTIVE : 
-               connectionStatus.isValid() ? Icons.CONNECTION_INACTIVE :
-                        Icons.CONNECTION_INVALID;
+        if (connectionStatus.isConnected()) {
+            return
+                connectionStatus.isBusy() ? Icons.CONNECTION_BUSY :
+                connectionStatus.isActive() ? Icons.CONNECTION_ACTIVE :
+                    Icons.CONNECTION_CONNECTED;
+        } else {
+            return connectionStatus.isValid() ?
+                    Icons.CONNECTION_INACTIVE :
+                    Icons.CONNECTION_INVALID;
+        }
     }
 
     @Nullable
@@ -579,7 +535,19 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
         return this;
     }
 
-   /*********************************************************
+    @Override
+    @Deprecated
+    public boolean hasUncommittedChanges() {
+        List<DBNConnection> connections = getConnections(ConnectionType.MAIN, ConnectionType.SESSION);
+        for (DBNConnection connection : connections) {
+            if (connection.hasDataChanges()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /*********************************************************
     *                      Disposable                       *
     *********************************************************/
     public void dispose() {
@@ -587,7 +555,6 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
             super.dispose();
             connectionPool = null;
             connectionBundle = null;
-            dataChanges = null;
             loadMonitor = null;
             sessionBrowserFile = null;
             psiCache = null;
@@ -598,7 +565,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
         boolean refresh = this.connectionSettings.getDatabaseSettings().hashCode() != connectionSettings.getDatabaseSettings().hashCode();
         this.connectionSettings = connectionSettings;
         if (refresh) {
-            connectionPool.closeConnectionsSilently();
+            connectionPool.closeConnections();
 
             final Project project = getProject();
             new BackgroundTask(getProject(), "Trying to connect to " + getName(), false) {

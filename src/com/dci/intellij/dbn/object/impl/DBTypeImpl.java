@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.object.impl;
 
 import javax.swing.Icon;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -19,6 +18,7 @@ import com.dci.intellij.dbn.common.content.loader.DynamicContentLoader;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentResultSetLoader;
 import com.dci.intellij.dbn.common.content.loader.DynamicSubcontentLoader;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.data.type.DBDataType;
 import com.dci.intellij.dbn.data.type.DBNativeDataType;
 import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
@@ -40,6 +40,7 @@ import com.dci.intellij.dbn.object.common.list.DBObjectNavigationList;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationListImpl;
 import com.dci.intellij.dbn.object.common.loader.DBObjectTimestampLoader;
 import com.dci.intellij.dbn.object.common.loader.DBSourceCodeLoader;
+import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatus;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.object.properties.DBDataTypePresentableProperty;
@@ -59,7 +60,6 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
     private DBDataType collectionElementType;
 
     private DBNativeDataType nativeDataType;
-    private boolean isCollection;
 
     DBTypeImpl(DBSchemaObject parent, ResultSet resultSet) throws SQLException {
         // type functions are not editable independently
@@ -78,19 +78,17 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
         superTypeName = resultSet.getString("SUPERTYPE_NAME");
 
         String typecode = resultSet.getString("TYPECODE");
-        isCollection = "COLLECTION".equals(typecode);
+        set(DBObjectProperty.COLLECTION, "COLLECTION".equals(typecode));
         ConnectionHandler connectionHandler = getConnectionHandler();
-        if  (connectionHandler != null) {
-            nativeDataType = connectionHandler.getObjectBundle().getNativeDataType(typecode);
-            if (isCollection) {
-                collectionElementTypeRef = new DBDataType.Ref(resultSet,  "COLLECTION_");
-            }
+        nativeDataType = connectionHandler.getObjectBundle().getNativeDataType(typecode);
+        if (isCollection()) {
+            collectionElementTypeRef = new DBDataType.Ref(resultSet,  "COLLECTION_");
         }
     }
 
     protected void initLists() {
         super.initLists();
-        if (!isCollection) {
+        if (!isCollection()) {
             DBObjectListContainer container = initChildObjects();
             DBSchema schema = getSchema();
             attributes = container.createSubcontentObjectList(DBObjectType.TYPE_ATTRIBUTE, this, ATTRIBUTES_LOADER, schema, true);
@@ -115,15 +113,15 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
             if (getStatus().is(DBObjectStatus.DEBUG))  {
                 return Icons.DBO_TYPE_DEBUG;
             } else {
-                return isCollection ? Icons.DBO_TYPE_COLLECTION : Icons.DBO_TYPE;
+                return isCollection() ? Icons.DBO_TYPE_COLLECTION : Icons.DBO_TYPE;
             }
         } else {
-            return isCollection ? Icons.DBO_TYPE_COLLECTION_ERR : Icons.DBO_TYPE_ERR;
+            return isCollection() ? Icons.DBO_TYPE_COLLECTION_ERR : Icons.DBO_TYPE_ERR;
         }
     }
 
     public Icon getOriginalIcon() {
-        return isCollection ? Icons.DBO_TYPE_COLLECTION : Icons.DBO_TYPE;
+        return isCollection() ? Icons.DBO_TYPE_COLLECTION : Icons.DBO_TYPE;
     }
 
     public List<DBTypeAttribute> getAttributes() {
@@ -132,7 +130,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
 
     public DBType getSuperType() {
         ConnectionHandler connectionHandler = getConnectionHandler();
-        if (superType == null && superTypeOwner != null && superTypeName != null && connectionHandler != null) {
+        if (superType == null && superTypeOwner != null && superTypeName != null) {
             DBType type = connectionHandler.getObjectBundle().getSchema(superTypeOwner).getType(superTypeName);
             superType = DBObjectRef.from(type);
             superTypeOwner = null;
@@ -143,7 +141,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
 
     public DBDataType getCollectionElementType() {
         ConnectionHandler connectionHandler = getConnectionHandler();
-        if (collectionElementType == null && collectionElementTypeRef != null && connectionHandler != null) {
+        if (collectionElementType == null && collectionElementTypeRef != null) {
             collectionElementType = collectionElementTypeRef.get(connectionHandler);
             collectionElementTypeRef = null;
         }
@@ -152,7 +150,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
 
     @Nullable
     public DBObject getDefaultNavigationObject() {
-        if (isCollection) {
+        if (isCollection()) {
             DBDataType dataType = getCollectionElementType();
             if (dataType != null && dataType.isDeclared()) {
                 return dataType.getDeclaredType();
@@ -181,7 +179,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
     }
 
     public boolean isCollection() {
-        return isCollection;
+        return is(DBObjectProperty.COLLECTION);
     }
 
     public void buildToolTip(HtmlToolTipBuilder ttb) {
@@ -195,7 +193,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
      *********************************************************/
     @NotNull
     public List<BrowserTreeNode> buildAllPossibleTreeChildren() {
-        return isCollection ?
+        return isCollection() ?
                 EMPTY_TREE_NODE_LIST :
                 DatabaseBrowserUtils.createList(attributes, procedures, functions);
     }
@@ -205,7 +203,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
      *********************************************************/
 
     private static final DynamicContentLoader<DBTypeAttribute> ATTRIBUTES_ALTERNATIVE_LOADER = new DynamicContentResultSetLoader<DBTypeAttribute>() {
-        public ResultSet createResultSet(DynamicContent<DBTypeAttribute> dynamicContent, Connection connection) throws SQLException {
+        public ResultSet createResultSet(DynamicContent<DBTypeAttribute> dynamicContent, DBNConnection connection) throws SQLException {
             DatabaseMetadataInterface metadataInterface = dynamicContent.getConnectionHandler().getInterfaceProvider().getMetadataInterface();
             DBType type = (DBType) dynamicContent.getParentElement();
             return metadataInterface.loadTypeAttributes(type.getSchema().getName(), type.getName(), connection);
@@ -229,7 +227,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
     };
 
     private static final DynamicContentLoader<DBTypeFunction> FUNCTIONS_ALTERNATIVE_LOADER = new DynamicContentResultSetLoader<DBTypeFunction>() {
-        public ResultSet createResultSet(DynamicContent<DBTypeFunction> dynamicContent, Connection connection) throws SQLException {
+        public ResultSet createResultSet(DynamicContent<DBTypeFunction> dynamicContent, DBNConnection connection) throws SQLException {
             DatabaseMetadataInterface metadataInterface = dynamicContent.getConnectionHandler().getInterfaceProvider().getMetadataInterface();
             DBType type = (DBType) dynamicContent.getParentElement();
             return metadataInterface.loadTypeFunctions(type.getSchema().getName(), type.getName(), connection);
@@ -253,7 +251,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
     };
 
     private static final DynamicContentLoader<DBTypeProcedure> PROCEDURES_ALTERNATIVE_LOADER = new DynamicContentResultSetLoader<DBTypeProcedure>() {
-        public ResultSet createResultSet(DynamicContent<DBTypeProcedure> dynamicContent, Connection connection) throws SQLException {
+        public ResultSet createResultSet(DynamicContent<DBTypeProcedure> dynamicContent, DBNConnection connection) throws SQLException {
             DatabaseMetadataInterface metadataInterface = dynamicContent.getConnectionHandler().getInterfaceProvider().getMetadataInterface();
             DBType type = (DBType) dynamicContent.getParentElement();
             return metadataInterface.loadTypeProcedures(type.getSchema().getName(), type.getName(), connection);
@@ -294,7 +292,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
             super(object, false);
         }
 
-        public ResultSet loadSourceCode(Connection connection) throws SQLException {
+        public ResultSet loadSourceCode(DBNConnection connection) throws SQLException {
             DatabaseMetadataInterface metadataInterface = getConnectionHandler().getInterfaceProvider().getMetadataInterface();
             return metadataInterface.loadObjectSourceCode(getSchema().getName(), getName(), "TYPE", connection);
         }
@@ -305,7 +303,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
             super(object, true);
         }
 
-        public ResultSet loadSourceCode(Connection connection) throws SQLException {
+        public ResultSet loadSourceCode(DBNConnection connection) throws SQLException {
             ConnectionHandler connectionHandler = getConnectionHandler();
             DatabaseMetadataInterface metadataInterface = connectionHandler.getInterfaceProvider().getMetadataInterface();
             return metadataInterface.loadObjectSourceCode(getSchema().getName(), getName(), "TYPE BODY", connection);
@@ -354,8 +352,8 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
         if (o instanceof DBType) {
             DBType type = (DBType) o;
             if (getParentObject().equals(type.getParentObject())) {
-                if ((type.isCollection() && isCollection) ||
-                        (!type.isCollection() && !isCollection)) return super.compareTo(o); else
+                if ((type.isCollection() && isCollection()) ||
+                        (!type.isCollection() && !isCollection())) return super.compareTo(o); else
                 return type.isCollection() ? -1 : 1;
             }
         }
@@ -373,7 +371,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
         if (subTypes != null && subTypes.size() > 0) {
             objectNavigationLists.add(new DBObjectNavigationListImpl<DBType>("Sub Types", subTypes.getObjects()));
         }
-        if (isCollection) {
+        if (isCollection()) {
             DBDataType dataType = getCollectionElementType();
             if (dataType != null && dataType.isDeclared()) {
                 DBType collectionElementType = dataType.getDeclaredType();

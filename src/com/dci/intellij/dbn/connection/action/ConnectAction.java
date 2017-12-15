@@ -5,7 +5,6 @@ import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionManager;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.project.Project;
 
 public class ConnectAction extends AbstractConnectionAction {
     public ConnectAction(ConnectionHandler connectionHandler) {
@@ -15,13 +14,17 @@ public class ConnectAction extends AbstractConnectionAction {
 
     public void actionPerformed(AnActionEvent anActionEvent) {
         final ConnectionHandler connectionHandler = getConnectionHandler();
-        final Project project = connectionHandler.getProject();
         connectionHandler.getInstructions().setAllowAutoConnect(true);
         TaskInstructions taskInstructions = new TaskInstructions("Trying to connect to " + connectionHandler.getName(), false, false);
         new ConnectionAction("connecting to database", connectionHandler, taskInstructions) {
             @Override
             protected void execute() {
                 ConnectionManager.testConnection(connectionHandler, false, true);
+            }
+
+            @Override
+            protected boolean isManaged() {
+                return true;
             }
         }.start();
     }

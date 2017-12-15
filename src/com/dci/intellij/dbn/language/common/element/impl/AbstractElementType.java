@@ -1,5 +1,13 @@
 package com.dci.intellij.dbn.language.common.element.impl;
 
+import javax.swing.Icon;
+import java.util.Set;
+import java.util.StringTokenizer;
+import org.apache.commons.lang.StringUtils;
+import org.jdom.Element;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.code.common.style.formatting.FormattingDefinition;
 import com.dci.intellij.dbn.code.common.style.formatting.FormattingDefinitionFactory;
 import com.dci.intellij.dbn.code.common.style.formatting.IndentDefinition;
@@ -22,24 +30,18 @@ import com.dci.intellij.dbn.language.common.element.parser.BranchCheck;
 import com.dci.intellij.dbn.language.common.element.parser.ElementTypeParser;
 import com.dci.intellij.dbn.language.common.element.path.PathNode;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
-import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttributesBundle;
+import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttributeHolder;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeDefinitionException;
 import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.psi.tree.IElementType;
 import gnu.trove.THashSet;
-import org.apache.commons.lang.StringUtils;
-import org.jdom.Element;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.Icon;
-import java.util.Set;
-import java.util.StringTokenizer;
 
 public abstract class AbstractElementType extends IElementType implements ElementType {
     private static final Logger LOGGER = LoggerFactory.createLogger();
     private static final FormattingDefinition STATEMENT_FORMATTING = new FormattingDefinition(null, IndentDefinition.NORMAL, SpacingDefinition.MIN_LINE_BREAK, null);
+
+    private int idx;
 
     private String id;
     private String description;
@@ -50,14 +52,14 @@ public abstract class AbstractElementType extends IElementType implements Elemen
     private ElementTypeParser parser;
     private ElementTypeBundle bundle;
     private ElementType parent;
-
     private DBObjectType virtualObjectType;
-    private ElementTypeAttributesBundle attributes = ElementTypeAttributesBundle.EMPTY;
+    private ElementTypeAttributeHolder attributes;
 
     protected WrappingDefinition wrapping;
 
     public AbstractElementType(ElementTypeBundle bundle, ElementType parent, String id, @Nullable String description) {
         super(id, bundle.getLanguageDialect(), false);
+        idx = TokenType.INDEXER.incrementAndGet();
         this.id = id;
         this.description = description;
         this.bundle = bundle;
@@ -66,6 +68,7 @@ public abstract class AbstractElementType extends IElementType implements Elemen
 
     public AbstractElementType(ElementTypeBundle bundle, ElementType parent, String id, Element def) throws ElementTypeDefinitionException {
         super(id, bundle.getLanguageDialect(), false);
+        idx = TokenType.INDEXER.incrementAndGet();
         this.id = def.getAttributeValue("id");
         if (!id.equals(this.id)) {
             this.id = id;
@@ -91,6 +94,11 @@ public abstract class AbstractElementType extends IElementType implements Elemen
             }
         }
         return branches;
+    }
+
+    @Override
+    public int getIdx() {
+        return idx;
     }
 
     public WrappingDefinition getWrapping() {
@@ -128,7 +136,7 @@ public abstract class AbstractElementType extends IElementType implements Elemen
     protected void loadDefinition(Element def) throws ElementTypeDefinitionException {
         String attributesString = def.getAttributeValue("attributes");
         if (StringUtil.isNotEmptyOrSpaces(attributesString)) {
-            attributes =  new ElementTypeAttributesBundle(attributesString);
+            attributes =  new ElementTypeAttributeHolder(attributesString);
         }
 
         String objectTypeName = def.getAttributeValue("virtual-object");
@@ -229,12 +237,19 @@ public abstract class AbstractElementType extends IElementType implements Elemen
         return parser;
     }
 
+
     public boolean is(ElementTypeAttribute attribute) {
-        return attributes.is(attribute);
+        return attributes != null && attributes.is(attribute);
     }
 
-    public ElementTypeAttributesBundle getAttributes() {
-        return attributes;
+    @Override
+    public boolean set(ElementTypeAttribute attribute, boolean value) {
+        throw new AbstractMethodError("Operation not allowed");
+    }
+
+    @Override
+    public boolean isNot(ElementTypeAttribute attribute) {
+        return !is(attribute);
     }
 
     public FormattingDefinition getFormatting() {

@@ -26,7 +26,6 @@ import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.QuoteDefinition;
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
-import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttributesBundle;
 import com.dci.intellij.dbn.language.common.element.util.IdentifierCategory;
 import com.dci.intellij.dbn.language.common.psi.lookup.ObjectLookupAdapter;
 import com.dci.intellij.dbn.language.common.psi.lookup.ObjectReferenceLookupAdapter;
@@ -64,8 +63,6 @@ import com.intellij.psi.search.SearchScope;
 public abstract class BasePsiElement extends ASTWrapperPsiElement implements ItemPresentation, FormattingProviderPsiElement {
     private ElementType elementType;
     private DBVirtualObject underlyingObject;
-    private boolean isScopeIsolation;
-    private boolean isScopeDemarcation;
     private FormattingAttributes formattingAttributes;
 
     public enum MatchType {
@@ -77,8 +74,6 @@ public abstract class BasePsiElement extends ASTWrapperPsiElement implements Ite
     public BasePsiElement(ASTNode astNode, ElementType elementType) {
         super(astNode);
         this.elementType = elementType;
-        isScopeIsolation = elementType.is(ElementTypeAttribute.SCOPE_ISOLATION);
-        isScopeDemarcation = elementType.is(ElementTypeAttribute.SCOPE_DEMARCATION) || elementType.is(ElementTypeAttribute.STATEMENT);
     }
 
     public FormattingAttributes getFormattingAttributes() {
@@ -88,10 +83,6 @@ public abstract class BasePsiElement extends ASTWrapperPsiElement implements Ite
         }
 
         return formattingAttributes;
-    }
-
-    public ElementTypeAttributesBundle getElementTypeAttributes() {
-        return elementType.getAttributes();
     }
 
     public FormattingAttributes getFormattingAttributesRecursive(boolean left) {
@@ -201,8 +192,8 @@ public abstract class BasePsiElement extends ASTWrapperPsiElement implements Ite
         return hasErrors() ?
                 "[INVALID] " + elementType.getDebugName() :
                 elementType.getDebugName() +
-                        (isScopeDemarcation ? " SCOPE_DEMARCATION" : "") +
-                        (isScopeIsolation ? " SCOPE_ISOLATION" : "");
+                        (isScopeDemarcation() ? " SCOPE_DEMARCATION" : "") +
+                        (isScopeIsolation() ? " SCOPE_ISOLATION" : "");
     }
 
     public void acceptChildren(@NotNull PsiElementVisitor visitor) {
@@ -540,7 +531,7 @@ public abstract class BasePsiElement extends ASTWrapperPsiElement implements Ite
         while (element != null && !(element instanceof PsiFile)) {
             if (element instanceof BasePsiElement) {
                 basePsiElement = (BasePsiElement) element;
-                if (basePsiElement.isScopeIsolation) {
+                if (basePsiElement.isScopeIsolation()) {
                     return basePsiElement;
                 }
             }
@@ -558,7 +549,7 @@ public abstract class BasePsiElement extends ASTWrapperPsiElement implements Ite
             if (element instanceof BasePsiElement) {
                 basePsiElement = (BasePsiElement) element;
                 //return elementType.is(ElementTypeAttribute.SCOPE_DEMARCATION);
-                if (basePsiElement.isScopeDemarcation) {
+                if (basePsiElement.isScopeDemarcation()) {
                     return basePsiElement;
                 }
             }
@@ -653,17 +644,15 @@ public abstract class BasePsiElement extends ASTWrapperPsiElement implements Ite
     }
 
     public boolean isScopeDemarcation() {
-        return isScopeDemarcation;
-        //return elementType.is(ElementTypeAttribute.SCOPE_DEMARCATION);
+        return elementType.is(ElementTypeAttribute.SCOPE_DEMARCATION) || elementType.is(ElementTypeAttribute.STATEMENT);
     }
 
     public boolean isScopeIsolation() {
-        return isScopeIsolation;
+        return elementType.is(ElementTypeAttribute.SCOPE_ISOLATION);
     }
     
     public boolean isScopeBoundary() {
-        //return elementType.is(ElementTypeAttribute.SCOPE_DEMARCATION);
-        return isScopeDemarcation || isScopeIsolation;
+        return isScopeDemarcation() || isScopeIsolation();
     }
 
 

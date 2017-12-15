@@ -21,6 +21,7 @@ import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.Presentation;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.project.Project;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
 
 public class CompileObjectAction extends AbstractSourceCodeEditorAction {
     public CompileObjectAction() {
@@ -50,7 +51,7 @@ public class CompileObjectAction extends AbstractSourceCodeEditorAction {
         } else {
 
             DBSchemaObject schemaObject = sourceCodeFile.getObject();
-            if (schemaObject.getProperties().is(DBObjectProperty.COMPILABLE) && DatabaseFeature.OBJECT_INVALIDATION.isSupported(schemaObject)) {
+            if (schemaObject.is(DBObjectProperty.COMPILABLE) && DatabaseFeature.OBJECT_INVALIDATION.isSupported(schemaObject)) {
                 CompilerSettings compilerSettings = getCompilerSettings(schemaObject.getProject());
                 CompileType compileType = compilerSettings.getCompileType();
                 DBObjectStatusHolder objectStatus = schemaObject.getStatus();
@@ -63,7 +64,7 @@ public class CompileObjectAction extends AbstractSourceCodeEditorAction {
 
                 boolean isPresent = objectStatus.is(contentType, DBObjectStatus.PRESENT);
                 boolean isValid = objectStatus.is(contentType, DBObjectStatus.VALID);
-                boolean isModified = sourceCodeFile.isModified();
+                boolean isModified = sourceCodeFile.is(MODIFIED);
 
                 boolean isCompiling = objectStatus.is(contentType, DBObjectStatus.COMPILING);
                 boolean isEnabled = !isModified && isPresent && !isCompiling && (compilerSettings.alwaysShowCompilerControls() || !isValid /*|| isDebug != isDebugActive*/);

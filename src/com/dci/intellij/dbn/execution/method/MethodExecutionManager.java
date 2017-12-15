@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.execution.method;
 
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Set;
@@ -20,12 +19,13 @@ import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.ConnectionId;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseExecutionInterface;
 import com.dci.intellij.dbn.database.common.execution.MethodExecutionProcessor;
 import com.dci.intellij.dbn.debugger.DBDebuggerType;
 import com.dci.intellij.dbn.execution.ExecutionContext;
 import com.dci.intellij.dbn.execution.ExecutionManager;
-import com.dci.intellij.dbn.execution.ExecutionStatus;
 import com.dci.intellij.dbn.execution.method.browser.MethodBrowserSettings;
 import com.dci.intellij.dbn.execution.method.history.ui.MethodExecutionHistoryDialog;
 import com.dci.intellij.dbn.execution.method.ui.MethodExecutionHistory;
@@ -41,6 +41,8 @@ import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.util.Disposer;
+import static com.dci.intellij.dbn.execution.ExecutionStatus.CANCELLED;
+import static com.dci.intellij.dbn.execution.ExecutionStatus.EXECUTING;
 
 @State(
     name = "DBNavigator.Project.MethodExecutionManager",
@@ -110,7 +112,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
             protected void execute() {
                 Project project = getProject();
                 ConnectionHandler connectionHandler = getConnectionHandler();
-                if (connectionHandler.isValid(true)) {
+                if (connectionHandler.isValid()) {
                     DBMethod method = executionInput.getMethod();
                     if (method == null) {
                         String message =
@@ -175,8 +177,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
         executionHistory.setSelection(executionInput.getMethodRef());
         final DBMethod method = executionInput.getMethod();
         final ExecutionContext context = executionInput.getExecutionContext();
-        final ExecutionStatus status = context.getExecutionStatus();
-        status.setExecuting(true);
+        context.set(EXECUTING, true);
 
         if (method == null) {
             DBObjectRef<DBMethod> methodRef = executionInput.getMethodRef();
@@ -192,16 +193,16 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
                     try {
                         initProgressIndicator(progressIndicator, true, "Executing " + method.getQualifiedNameWithType());
                         executionProcessor.execute(executionInput, DBDebuggerType.NONE);
-                        if (!status.isCancelled()) {
+                        if (context.isNot(CANCELLED)) {
                             ExecutionManager executionManager = ExecutionManager.getInstance(project);
                             executionManager.addExecutionResult(executionInput.getExecutionResult());
-                            status.setExecuting(false);
+                            context.set(EXECUTING, false);
                         }
 
-                        status.setCancelled(false);
+                        context.set(CANCELLED, false);
                     } catch (final SQLException e) {
-                        status.setExecuting(false);
-                        if (!status.isCancelled()) {
+                        context.set(EXECUTING, false);
+                        if (context.isNot(CANCELLED)) {
                             MessageUtil.showErrorDialog(project,
                                     "Method execution error",
                                     "Error executing " + method.getQualifiedNameWithType() + ".\n" + e.getMessage().trim(),
@@ -229,7 +230,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
         }
     }
 
-    public void debugExecute(final MethodExecutionInput executionInput, final Connection connection, DBDebuggerType debuggerType) throws SQLException {
+    public void debugExecute(final MethodExecutionInput executionInput, final DBNConnection connection, DBDebuggerType debuggerType) throws SQLException {
         final DBMethod method = executionInput.getMethod();
         if (method != null) {
             ConnectionHandler connectionHandler = method.getConnectionHandler();
@@ -240,12 +241,11 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
 
             executionProcessor.execute(executionInput, connection, debuggerType);
             ExecutionContext context = executionInput.getExecutionContext();
-            ExecutionStatus status = context.getExecutionStatus();
-            if (!status.isCancelled()) {
+            if (context.isNot(CANCELLED)) {
                 ExecutionManager executionManager = ExecutionManager.getInstance(method.getProject());
                 executionManager.addExecutionResult(executionInput.getExecutionResult());
             }
-            status.setCancelled(false);
+            context.set(CANCELLED, false);
         }
     }
 
@@ -254,7 +254,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
         executionHistory.setExecutionInputs(executionInputs);
     }
 
-    public void cleanupExecutionHistory(List<String> connectionIds) {
+    public void cleanupExecutionHistory(List<ConnectionId> connectionIds) {
         executionHistory.cleanupHistory(connectionIds);
     }
 

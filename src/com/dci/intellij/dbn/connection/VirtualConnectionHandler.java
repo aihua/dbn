@@ -1,5 +1,15 @@
 package com.dci.intellij.dbn.connection;
 
+import javax.swing.Icon;
+import java.sql.SQLException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
@@ -9,8 +19,9 @@ import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.connection.config.ConnectionSettings;
 import com.dci.intellij.dbn.connection.console.DatabaseConsoleBundle;
 import com.dci.intellij.dbn.connection.info.ConnectionInfo;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
+import com.dci.intellij.dbn.connection.session.DatabaseSessionBundle;
 import com.dci.intellij.dbn.connection.transaction.TransactionAction;
-import com.dci.intellij.dbn.connection.transaction.UncommittedChangeBundle;
 import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
@@ -21,25 +32,14 @@ import com.dci.intellij.dbn.object.common.DBVirtualObjectBundle;
 import com.dci.intellij.dbn.vfs.DBSessionBrowserVirtualFile;
 import com.intellij.lang.Language;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.vfs.VirtualFile;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
 
 public class VirtualConnectionHandler implements ConnectionHandler {
-    public static final ConnectionStatus CONNECTION_STATUS = new ConnectionStatus();
-    private String id;
+    private ConnectionId id;
     private String name;
     private DatabaseType databaseType;
     private double databaseVersion;
     private Project project;
+    private ConnectionHandlerStatus connectionStatus;
     private DatabaseInterfaceProvider interfaceProvider;
     private Map<String, String> properties = new HashMap<String, String>();
     private NavigationPsiCache psiCache;
@@ -47,19 +47,20 @@ public class VirtualConnectionHandler implements ConnectionHandler {
     private DBObjectBundle objectBundle;
     private ConnectionInstructions instructions = new ConnectionInstructions();
 
-    public VirtualConnectionHandler(String id, String name, DatabaseType databaseType, double databaseVersion, Project project){
+    public VirtualConnectionHandler(ConnectionId id, String name, DatabaseType databaseType, double databaseVersion, Project project){
         this.id = id;
         this.name = name;
         this.project = project;
         this.databaseType = databaseType;
         this.databaseVersion = databaseVersion;
         this.ref = new ConnectionHandlerRef(this);
+        this.connectionStatus = new ConnectionHandlerStatus(this);
         this.objectBundle = new DBVirtualObjectBundle(this);
     }
 
     public static ConnectionHandler getDefault(Project project) {
         ConnectionManager connectionManager = ConnectionManager.getInstance(project);
-        return connectionManager.getConnectionBundle().getVirtualConnection("virtual-oracle-connection");
+        return connectionManager.getConnectionBundle().getVirtualConnection(ConnectionId.VIRTUAL_ORACLE_CONNECTION);
 
     }
 
@@ -111,11 +112,11 @@ public class VirtualConnectionHandler implements ConnectionHandler {
     @NotNull
     public Project getProject() {return project;}
 
-    public boolean isActive() {
+    public boolean isEnabled() {
         return true;
     }
 
-    @Override public String getId() {return id;}
+    @Override public ConnectionId getId() {return id;}
     @NotNull
     @Override public String getName() {return name;}
     @Override public String getPresentableText() {
@@ -133,7 +134,6 @@ public class VirtualConnectionHandler implements ConnectionHandler {
     @Override public void setAutoCommit(boolean autoCommit) throws SQLException {}
     @Override public void setLoggingEnabled(boolean loggingEnabled) {}
 
-    @Override public UncommittedChangeBundle getDataChanges() {return null;}
     @Override public boolean isConnected() {return false;}
     @Override public boolean isDisposed() {
         return false;
@@ -161,18 +161,29 @@ public class VirtualConnectionHandler implements ConnectionHandler {
 
     @Override public String getUserName() {return "root";}
 
-    @Override public DBNConnection createTestConnection() throws SQLException {return null;}
-    @Override public DBNConnection getPoolConnection(boolean readonly) throws SQLException {return null;}
-    @Override public DBNConnection getPoolConnection(@Nullable DBSchema schema, boolean readonly) throws SQLException {return null;}
-    @Override public DBNConnection getMainConnection() throws SQLException {return null;}
-    @Override public DBNConnection getMainConnection(@Nullable DBSchema schema) throws SQLException {return null;}
-    @Override public void freePoolConnection(Connection connection) {}
-    @Override public void dropPoolConnection(Connection connection) {}
+    @Override public DBNConnection getTestConnection() throws SQLException {return null;}
+    @NotNull
+    @Override public DBNConnection getPoolConnection(boolean readonly) throws SQLException {throw new UnsupportedOperationException();}
+    @NotNull
+    @Override public DBNConnection getPoolConnection(@Nullable DBSchema schema, boolean readonly) throws SQLException {throw new UnsupportedOperationException();}
+    @NotNull
+    @Override public DBNConnection getMainConnection() throws SQLException {throw new UnsupportedOperationException();}
+    @NotNull
+    @Override public DBNConnection getMainConnection(@Nullable DBSchema schema) throws SQLException {throw new UnsupportedOperationException();}
+    @Override public void freePoolConnection(DBNConnection connection) {}
+    @Override public void dropPoolConnection(DBNConnection connection) {}
 
     @Override public ConnectionSettings getSettings() {return null;}
     @Override public void setSettings(ConnectionSettings connectionSettings) {}
+
     @NotNull
-    @Override public ConnectionStatus getConnectionStatus() {return CONNECTION_STATUS;}
+    @Override
+    public List<DBNConnection> getConnections(ConnectionType... connectionTypes) {
+        return Collections.emptyList();
+    }
+
+    @NotNull
+    @Override public ConnectionHandlerStatus getConnectionStatus() {return connectionStatus;}
 
     @Override public void setTemporaryAuthenticationInfo(AuthenticationInfo temporaryAuthenticationInfo) {}
 
@@ -184,7 +195,7 @@ public class VirtualConnectionHandler implements ConnectionHandler {
         return false;
     }
 
-    @Override public boolean hasPendingTransactions(@NotNull Connection connection) {return false;}
+    @Override public boolean hasPendingTransactions(@NotNull DBNConnection connection) {return false;}
 
     @NotNull
     @Override
@@ -224,12 +235,23 @@ public class VirtualConnectionHandler implements ConnectionHandler {
         return null;
     }
 
+    @NotNull
     @Override
     public DatabaseConsoleBundle getConsoleBundle() {return null;}
-    public boolean isValid(boolean check) {return true;}
+
+    @NotNull
+    @Override
+    public DatabaseSessionBundle getSessionBundle() {
+        return null;
+    }
+
+    @Override
     public boolean isValid() {return true;}
+    @Override
     public void disconnect() {}
+    @Override
     public void ping(boolean check) {}
+    @Override
     public int getIdleMinutes() {return 0;}
 
     @Override
@@ -253,11 +275,16 @@ public class VirtualConnectionHandler implements ConnectionHandler {
     }
 
     public ConnectionHandler clone() {return null;}
-    public void notifyDataChanges(VirtualFile virtualFile) {}
-    public void resetDataChanges() {}
+    @Override
     public boolean hasUncommittedChanges() {return false;}
+    @Override
     public void commit() throws SQLException {}
+    @Override
     public void rollback() throws SQLException {}
+    @Override
     public void dispose() {}
+    @Override
+    public void checkDisposed() {
 
+    }
 }

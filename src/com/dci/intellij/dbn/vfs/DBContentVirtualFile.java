@@ -9,7 +9,9 @@ import org.jetbrains.annotations.Nullable;
 
 import com.dci.intellij.dbn.common.DevNullStreams;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.property.PropertyHolder;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingProvider;
 import com.dci.intellij.dbn.ddl.DDLFileType;
 import com.dci.intellij.dbn.editor.DBContentType;
@@ -24,11 +26,11 @@ import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.vfs.VirtualFile;
 
-public abstract class DBContentVirtualFile extends DBVirtualFileImpl implements FileConnectionMappingProvider  {
+public abstract class DBContentVirtualFile extends DBVirtualFileImpl implements PropertyHolder<VirtualFileStatus>, FileConnectionMappingProvider  {
     protected DBEditableObjectVirtualFile mainDatabaseFile;
     protected DBContentType contentType;
     private FileType fileType;
-    private boolean modified;
+    private VirtualFileStatusHolder status = new VirtualFileStatusHolder();
 
     public DBContentVirtualFile(@NotNull DBEditableObjectVirtualFile mainDatabaseFile, DBContentType contentType) {
         super(mainDatabaseFile.getProject());
@@ -40,6 +42,21 @@ public abstract class DBContentVirtualFile extends DBVirtualFileImpl implements 
 
         DDLFileType ddlFileType = object.getDDLFileType(contentType);
         this.fileType = ddlFileType == null ? null : ddlFileType.getLanguageFileType();
+    }
+
+    @Override
+    public boolean set(VirtualFileStatus status, boolean value) {
+        return this.status.set(status, value);
+    }
+
+    @Override
+    public boolean is(VirtualFileStatus status) {
+        return this.status.is(status);
+    }
+
+    @Override
+    public boolean isNot(VirtualFileStatus status) {
+        return this.status.isNot(status);
     }
 
     @Nullable
@@ -61,14 +78,6 @@ public abstract class DBContentVirtualFile extends DBVirtualFileImpl implements 
         return contentType;
     }
 
-    public boolean isModified() {
-        return modified;
-    }
-
-    public void setModified(boolean modified) {
-        this.modified = modified;
-    }
-
     @Override
     public boolean isValid() {
         return super.isValid() && mainDatabaseFile != null && mainDatabaseFile.isValid();
@@ -87,7 +96,7 @@ public abstract class DBContentVirtualFile extends DBVirtualFileImpl implements 
 
     @NotNull
     @Override
-    public String getConnectionId() {
+    public ConnectionId getConnectionId() {
         return getMainDatabaseFile().getConnectionId();
     }
 

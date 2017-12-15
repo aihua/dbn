@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.object.impl;
 
 import javax.swing.Icon;
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -16,6 +15,7 @@ import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoader;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentResultSetLoader;
 import com.dci.intellij.dbn.common.content.loader.DynamicSubcontentLoader;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.object.DBColumn;
@@ -32,10 +32,10 @@ import com.dci.intellij.dbn.object.common.list.DBObjectNavigationListImpl;
 import com.dci.intellij.dbn.object.common.list.DBObjectRelationListContainer;
 import com.dci.intellij.dbn.object.properties.PresentableProperty;
 import com.dci.intellij.dbn.object.properties.SimplePresentableProperty;
+import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.TEMPORARY;
 
 public class DBTableImpl extends DBDatasetImpl implements DBTable {
     private static final List<DBColumn> EMPTY_COLUMN_LIST = new ArrayList<DBColumn>();
-    private boolean isTemporary;
 
     private DBObjectList<DBIndex> indexes;
     private DBObjectList<DBNestedTable> nestedTables;
@@ -47,7 +47,7 @@ public class DBTableImpl extends DBDatasetImpl implements DBTable {
     @Override
     protected void initObject(ResultSet resultSet) throws SQLException {
         name = resultSet.getString("TABLE_NAME");
-        isTemporary = resultSet.getString("IS_TEMPORARY").equals("Y");
+        set(TEMPORARY, resultSet.getString("IS_TEMPORARY").equals("Y"));
     }
 
     @Override
@@ -73,13 +73,13 @@ public class DBTableImpl extends DBDatasetImpl implements DBTable {
 
     @Nullable
     public Icon getIcon() {
-        return isTemporary ?
+        return isTemporary() ?
                 Icons.DBO_TMP_TABLE :
                 Icons.DBO_TABLE;
     }
 
     public boolean isTemporary() {
-        return isTemporary;
+        return is(TEMPORARY);
     }
 
     @Nullable
@@ -170,7 +170,7 @@ public class DBTableImpl extends DBDatasetImpl implements DBTable {
     @Override
     public List<PresentableProperty> getPresentableProperties() {
         List<PresentableProperty> properties = super.getPresentableProperties();
-        if (isTemporary) {
+        if (isTemporary()) {
             properties.add(0, new SimplePresentableProperty("Attributes", "temporary"));
         }
         return properties;
@@ -192,7 +192,7 @@ public class DBTableImpl extends DBDatasetImpl implements DBTable {
     };
 
     private static final DynamicContentLoader<DBNestedTable> NESTED_TABLES_ALTERNATIVE_LOADER = new DynamicContentResultSetLoader<DBNestedTable>() {
-        public ResultSet createResultSet(DynamicContent<DBNestedTable> dynamicContent, Connection connection) throws SQLException {
+        public ResultSet createResultSet(DynamicContent<DBNestedTable> dynamicContent, DBNConnection connection) throws SQLException {
             DatabaseMetadataInterface metadataInterface = dynamicContent.getConnectionHandler().getInterfaceProvider().getMetadataInterface();
             DBTable table = (DBTable) dynamicContent.getParentElement();
             return metadataInterface.loadNestedTables(table.getSchema().getName(), table.getName(), connection);

@@ -1,5 +1,17 @@
 package com.dci.intellij.dbn.editor.data.model;
 
+import javax.swing.ListSelectionModel;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.environment.EnvironmentManager;
@@ -7,6 +19,9 @@ import com.dci.intellij.dbn.common.thread.CancellableDatabaseCall;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionUtil;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
+import com.dci.intellij.dbn.connection.jdbc.DBNResultSet;
+import com.dci.intellij.dbn.connection.jdbc.DBNStatement;
 import com.dci.intellij.dbn.data.model.resultSet.ResultSetDataModel;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.editor.DBContentType;
@@ -25,20 +40,6 @@ import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import javax.swing.event.ListSelectionEvent;
-import javax.swing.event.ListSelectionListener;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow> implements ListSelectionListener {
     private boolean isInserting;
@@ -74,14 +75,14 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
         checkDisposed();
         closeResultSet();
         int timeout = getSettings().getGeneralSettings().getFetchTimeout().value();
-        final AtomicReference<Statement> statementRef = new AtomicReference<Statement>();
+        final AtomicReference<DBNStatement> statementRef = new AtomicReference<DBNStatement>();
         final ConnectionHandler connectionHandler = getConnectionHandler();
-        Connection connection = connectionHandler.getMainConnection();
+        final DBNConnection connection = connectionHandler.getMainConnection();
 
         loaderCall = new CancellableDatabaseCall(connectionHandler, connection, timeout, TimeUnit.SECONDS) {
             @Override
             public Object execute() throws Exception {
-                ResultSet newResultSet = loadResultSet(useCurrentFilter, statementRef);
+                DBNResultSet newResultSet = loadResultSet(useCurrentFilter, statementRef);
 
                 if (newResultSet != null) {
                     checkDisposed();
@@ -99,8 +100,8 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
 
             @Override
             public void cancel() throws Exception {
-                Statement statement = statementRef.get();
-                ConnectionUtil.cancelStatement(statement);
+                DBNStatement statement = statementRef.get();
+                ConnectionUtil.cancel(statement);
                 loaderCall = null;
                 isDirty = true;
             }
@@ -109,7 +110,7 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
     }
 
     @Override
-    public void setResultSet(ResultSet resultSet) throws SQLException {
+    public void setResultSet(DBNResultSet resultSet) throws SQLException {
         super.setResultSet(resultSet);
 
         // create the adapter
@@ -141,10 +142,10 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
         return FailsafeUtil.get(settings);
     }
 
-    private ResultSet loadResultSet(boolean useCurrentFilter, AtomicReference<Statement> statementRef) throws SQLException {
+    private DBNResultSet loadResultSet(boolean useCurrentFilter, AtomicReference<DBNStatement> statementRef) throws SQLException {
         int timeout = getSettings().getGeneralSettings().getFetchTimeout().value();
         ConnectionHandler connectionHandler = getConnectionHandler();
-        Connection connection = connectionHandler.getMainConnection();
+        DBNConnection connection = connectionHandler.getMainConnection();
         DBDataset dataset = getDataset();
         Project project = dataset.getProject();
         DatasetFilter filter = DatasetFilterManager.EMPTY_FILTER;
@@ -155,7 +156,7 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
         }
 
         String selectStatement = filter.createSelectStatement(dataset, getState().getSortingState());
-        Statement statement;
+        DBNStatement statement;
         if (isReadonly()) {
             statement = connection.createStatement();
         } else {
@@ -337,7 +338,8 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
             isModified = true;
         }
         DBDataset dataset = getDataset();
-        getConnectionHandler().notifyDataChanges(dataset.getVirtualFile());
+        DBNConnection connection = getConnection();
+        connection.notifyDataChanges(dataset.getVirtualFile());
     }
 
     public void insertRecord(int rowIndex) {
@@ -355,7 +357,8 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
 
             editorTable.selectCell(rowIndex, editorTable.getSelectedColumn() == -1 ? 0 : editorTable.getSelectedColumn());
 
-            getConnectionHandler().notifyDataChanges(dataset.getVirtualFile());
+            DBNConnection connection = getConnection();
+            connection.notifyDataChanges(dataset.getVirtualFile());
         } catch (SQLException e) {
             MessageUtil.showErrorDialog(getProject(), "Could not insert record for " + dataset.getQualifiedNameWithType() + ".", e);
         }
@@ -378,7 +381,8 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
             notifyRowsInserted(insertIndex, insertIndex);
 
             editorTable.selectCell(insertIndex, editorTable.getSelectedColumn());
-            getConnectionHandler().notifyDataChanges(dataset.getVirtualFile());
+            DBNConnection connection = getConnection();
+            connection.notifyDataChanges(dataset.getVirtualFile());
         } catch (SQLException e) {
             MessageUtil.showErrorDialog(getProject(), "Could not duplicate record in " + dataset.getQualifiedNameWithType() + ".", e);
         }

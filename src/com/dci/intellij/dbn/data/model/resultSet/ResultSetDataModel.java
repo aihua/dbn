@@ -1,23 +1,24 @@
 package com.dci.intellij.dbn.data.model.resultSet;
 
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.thread.SimpleBackgroundTask;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionUtil;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
+import com.dci.intellij.dbn.connection.jdbc.DBNResultSet;
+import com.dci.intellij.dbn.connection.jdbc.ResourceStatus;
 import com.dci.intellij.dbn.data.model.sortable.SortableDataModel;
 import com.dci.intellij.dbn.data.model.sortable.SortableDataModelState;
 import com.intellij.openapi.util.Disposer;
 
 public class ResultSetDataModel<T extends ResultSetDataModelRow> extends SortableDataModel<T> {
-    private ResultSet resultSet;
+    private DBNResultSet resultSet;
     private ConnectionHandler connectionHandler;
     private boolean resultSetExhausted = false;
 
@@ -26,7 +27,7 @@ public class ResultSetDataModel<T extends ResultSetDataModelRow> extends Sortabl
         this.connectionHandler = connectionHandler;
     }
 
-    public ResultSetDataModel(ResultSet resultSet, ConnectionHandler connectionHandler, int maxRecords) throws SQLException {
+    public ResultSetDataModel(DBNResultSet resultSet, ConnectionHandler connectionHandler, int maxRecords) throws SQLException {
         super(connectionHandler.getProject());
         this.connectionHandler = connectionHandler;
         this.resultSet = resultSet;
@@ -40,11 +41,16 @@ public class ResultSetDataModel<T extends ResultSetDataModelRow> extends Sortabl
     }
 
     @NotNull
-    public ResultSet getResultSet() {
+    protected DBNResultSet getResultSet() {
         return FailsafeUtil.get(resultSet);
     }
 
-    public void setResultSet(ResultSet resultSet) throws SQLException {
+    @NotNull
+    public DBNConnection getConnection() {
+        return getResultSet().getConnection();
+    }
+
+    public void setResultSet(DBNResultSet resultSet) throws SQLException {
         this.resultSet = resultSet;
     }
 
@@ -75,16 +81,22 @@ public class ResultSetDataModel<T extends ResultSetDataModelRow> extends Sortabl
         if (resultSet == null || ConnectionUtil.isClosed(resultSet)) {
             resultSetExhausted = true;
         } else {
-            while (count < records) {
-                checkDisposed();
-                if (resultSet != null && resultSet.next()) {
-                    count++;
-                    T row = createRow(initialIndex + count);
-                    newRows.add(row);
-                } else {
-                    resultSetExhausted = true;
-                    break;
+            DBNConnection connection = resultSet.getConnection();
+            try {
+                connection.set(ResourceStatus.ACTIVE, true);
+                while (count < records) {
+                    checkDisposed();
+                    if (resultSet != null && resultSet.next()) {
+                        count++;
+                        T row = createRow(initialIndex + count);
+                        newRows.add(row);
+                    } else {
+                        resultSetExhausted = true;
+                        break;
+                    }
                 }
+            } finally {
+                connection.set(ResourceStatus.ACTIVE, false);
             }
         }
 
@@ -118,10 +130,6 @@ public class ResultSetDataModel<T extends ResultSetDataModelRow> extends Sortabl
         }.start();
     }
 
-    protected void checkDisposed() {
-        if (isDisposed()) throw AlreadyDisposedException.INSTANCE;
-    }
-
     protected void disposeRow(T row) {
         Disposer.dispose(row);
     }
@@ -135,7 +143,7 @@ public class ResultSetDataModel<T extends ResultSetDataModelRow> extends Sortabl
     }
 
     public void closeResultSet() {
-        ConnectionUtil.closeResultSet(resultSet);
+        ConnectionUtil.close(resultSet);
     }
 
     @NotNull

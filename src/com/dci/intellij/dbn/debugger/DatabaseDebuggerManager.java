@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.debugger;
 
-import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -20,6 +19,7 @@ import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.common.util.NamingUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionProvider;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.operation.options.OperationSettings;
 import com.dci.intellij.dbn.database.DatabaseDebuggerInterface;
 import com.dci.intellij.dbn.database.DatabaseFeature;
@@ -50,6 +50,7 @@ import com.dci.intellij.dbn.object.DBSystemPrivilege;
 import com.dci.intellij.dbn.object.DBUser;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
+import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatus;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatusHolder;
 import com.dci.intellij.dbn.vfs.DBConsoleType;
@@ -419,7 +420,7 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
     private boolean addToCompileList(List<DBSchemaObject> compileList, DBSchemaObject schemaObject) {
         DBSchema schema = schemaObject.getSchema();
         DBObjectStatusHolder objectStatus = schemaObject.getStatus();
-        if (!schema.isPublicSchema() && !schema.isSystemSchema() && objectStatus.has(DBObjectStatus.DEBUG) && !objectStatus.is(DBObjectStatus.DEBUG)) {
+        if (!schema.isPublicSchema() && !schema.isSystemSchema() && schemaObject.is(DBObjectProperty.DEBUGABLE) && !objectStatus.is(DBObjectStatus.DEBUG)) {
             compileList.add(schemaObject);
             return true;
         }
@@ -456,7 +457,7 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
 
         if (connectionHandler != null && DatabaseFeature.DEBUGGING.isSupported(connectionHandler)) {
             DatabaseDebuggerInterface debuggerInterface = connectionHandler.getInterfaceProvider().getDebuggerInterface();
-            Connection connection = null;
+            DBNConnection connection = null;
             try {
                 connection = connectionHandler.getPoolConnection(true);
                 DebuggerVersionInfo debuggerVersion = debuggerInterface.getDebuggerVersion(connection);

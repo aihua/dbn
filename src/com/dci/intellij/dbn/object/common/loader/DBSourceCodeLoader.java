@@ -1,15 +1,15 @@
 package com.dci.intellij.dbn.object.common.loader;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionUtil;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.intellij.openapi.diagnostic.Logger;
-import org.jetbrains.annotations.Nullable;
-
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 
 public abstract class DBSourceCodeLoader {
     protected Logger logger = Logger.getInstance(getClass().getName());
@@ -23,7 +23,7 @@ public abstract class DBSourceCodeLoader {
     }
 
     public String load() throws SQLException {
-        Connection connection = null;
+        DBNConnection connection = null;
         ResultSet resultSet = null;
         ConnectionHandler connectionHandler = object.getConnectionHandler();
         try {
@@ -41,11 +41,11 @@ public abstract class DBSourceCodeLoader {
 
             return StringUtil.removeCharacter(sourceCode.toString(), '\r');
         } finally {
-            ConnectionUtil.closeResultSet(resultSet);
+            ConnectionUtil.close(resultSet);
             connectionHandler.freePoolConnection(connection);
         }
     }
 
     @Nullable
-    public abstract ResultSet loadSourceCode(Connection connection) throws SQLException;
+    public abstract ResultSet loadSourceCode(DBNConnection connection) throws SQLException;
 }

@@ -11,6 +11,7 @@ import org.jetbrains.annotations.Nullable;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.debugger.DBDebuggerType;
 import com.dci.intellij.dbn.execution.ExecutionContext;
@@ -41,8 +42,8 @@ public class MethodExecutionInput extends LocalExecutionInput implements Compara
         targetSchemaRef = new DBObjectRef<DBSchema>();
 
         ExecutionOptions options = getOptions();
-        options.setUsePoolConnection(true);
         options.setCommitAfterExecution(true);
+        //setSessionId(SessionId.POOL);
     }
 
     public MethodExecutionInput(Project project, DBMethod method) {
@@ -103,6 +104,11 @@ public class MethodExecutionInput extends LocalExecutionInput implements Compara
     }
 
     @Override
+    public boolean isSessionSelectionAllowed() {
+        return true;
+    }
+
+    @Override
     public boolean isDatabaseLogProducer() {
         return true;
     }
@@ -116,7 +122,7 @@ public class MethodExecutionInput extends LocalExecutionInput implements Compara
         return methodRef;
     }
 
-    public String getConnectionId() {
+    public ConnectionId getConnectionId() {
         return methodRef.getConnectionId();
     }
 
@@ -221,10 +227,12 @@ public class MethodExecutionInput extends LocalExecutionInput implements Compara
         String schemaName = element.getAttributeValue("execution-schema");
         targetSchemaRef = new DBObjectRef<DBSchema>(methodRef.getConnectionId(), DBObjectType.SCHEMA, schemaName);
         Element argumentsElement = element.getChild("argument-list");
-        for (Object object : argumentsElement.getChildren()) {
-            Element argumentElement = (Element) object;
-            MethodExecutionArgumentValue variable = new MethodExecutionArgumentValue(argumentElement);
-            argumentValues.add(variable);
+        if (argumentsElement != null) {
+            for (Object object : argumentsElement.getChildren()) {
+                Element argumentElement = (Element) object;
+                MethodExecutionArgumentValue variable = new MethodExecutionArgumentValue(argumentElement);
+                argumentValues.add(variable);
+            }
         }
     }
 

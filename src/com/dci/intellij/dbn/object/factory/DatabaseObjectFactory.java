@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.object.factory;
 
-import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,6 +13,7 @@ import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseDDLInterface;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.object.DBMethod;
@@ -85,7 +85,7 @@ public class DatabaseObjectFactory extends AbstractProjectComponent {
             DBSchema schema = methodFactoryInput.getSchema();
             try {
                 ConnectionHandler connectionHandler = schema.getConnectionHandler();
-                Connection connection = connectionHandler.getMainConnection(schema);
+                DBNConnection connection = connectionHandler.getMainConnection(schema);
                 connectionHandler.getInterfaceProvider().getDDLInterface().createMethod(methodFactoryInput, connection);
                 DBObjectType objectType = methodFactoryInput.isFunction() ? DBObjectType.FUNCTION : DBObjectType.PROCEDURE;
                 schema.getChildObjectList(objectType).reload();
@@ -126,7 +126,7 @@ public class DatabaseObjectFactory extends AbstractProjectComponent {
 
     private void doDropObject(DBSchemaObject object) {
         ConnectionHandler connectionHandler = object.getConnectionHandler();
-        Connection connection = null;
+        DBNConnection connection = null;
         try {
             DBContentType contentType = object.getContentType();
             connection = connectionHandler.getPoolConnection(false);

@@ -8,10 +8,9 @@ import org.jetbrains.annotations.Nullable;
 import com.dci.intellij.dbn.common.dispose.Disposable;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionProvider;
-import com.dci.intellij.dbn.connection.DBNConnection;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.editor.EditorProviderId;
 import com.dci.intellij.dbn.execution.ExecutionContext;
-import com.dci.intellij.dbn.execution.ExecutionStatus;
 import com.dci.intellij.dbn.execution.NavigationInstruction;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionInput;
 import com.dci.intellij.dbn.execution.statement.result.StatementExecutionResult;
@@ -90,8 +89,6 @@ public interface StatementExecutionProcessor extends ConnectionProvider, Disposa
     List<StatementExecutionProcessor> asList();
 
     int getExecutableLineNumber();
-
-    ExecutionStatus getExecutionStatus();
 
     ExecutionContext getExecutionContext();
 

@@ -1,23 +1,23 @@
 package com.dci.intellij.dbn.data.record;
 
 
+import java.sql.SQLException;
+import java.util.Iterator;
+import java.util.Map;
+
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionUtil;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
+import com.dci.intellij.dbn.connection.jdbc.DBNPreparedStatement;
+import com.dci.intellij.dbn.connection.jdbc.DBNResultSet;
+import com.dci.intellij.dbn.connection.jdbc.ResourceStatus;
 import com.dci.intellij.dbn.editor.data.filter.DatasetFilterInput;
 import com.dci.intellij.dbn.object.DBColumn;
 import com.dci.intellij.dbn.object.DBDataset;
 import com.intellij.openapi.Disposable;
 import gnu.trove.THashMap;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.Iterator;
-import java.util.Map;
-
 public class DatasetRecord implements Disposable {
-    private ResultSet resultSet;
     private DatasetFilterInput filterInput;
     private Map<String, Object> values = new THashMap<String, Object>();
 
@@ -58,10 +58,12 @@ public class DatasetRecord implements Disposable {
         }
 
         ConnectionHandler connectionHandler = dataset.getConnectionHandler();
-        Connection connection = null;
+        DBNConnection connection = null;
+        DBNPreparedStatement statement = null;
+        DBNResultSet resultSet = null;
         try {
             connection = connectionHandler.getPoolConnection(true);
-            PreparedStatement statement = connection.prepareStatement(selectStatement.toString());
+            statement = connection.prepareStatement(selectStatement.toString());
 
             int index = 1;
             iterator = filterInput.getColumns().iterator();
@@ -73,16 +75,23 @@ public class DatasetRecord implements Disposable {
             }
 
             resultSet = statement.executeQuery();
-            if (resultSet.next()) {
-                index = 1;
+            try {
+                connection.set(ResourceStatus.ACTIVE, true);
+                if (resultSet.next()) {
+                    index = 1;
 
-                for (DBColumn column : dataset.getColumns()) {
-                    Object value = column.getDataType().getValueFromResultSet(resultSet, index);
-                    values.put(column.getName(), value);
-                    index++;
+                    for (DBColumn column : dataset.getColumns()) {
+                        Object value = column.getDataType().getValueFromResultSet(resultSet, index);
+                        values.put(column.getName(), value);
+                        index++;
+                    }
                 }
+            } finally {
+                connection.set(ResourceStatus.ACTIVE, false);
             }
         }  finally {
+            ConnectionUtil.close(resultSet);
+            ConnectionUtil.close(statement);
             connectionHandler.freePoolConnection(connection);
         }
 
@@ -98,9 +107,7 @@ public class DatasetRecord implements Disposable {
 
     @Override
     public void dispose() {
-        ConnectionUtil.closeResultSet(resultSet);
         filterInput = null;
-        resultSet = null;
         values.clear();
         values = null;
     }

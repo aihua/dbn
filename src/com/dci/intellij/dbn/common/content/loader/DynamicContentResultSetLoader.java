@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.common.content.loader;
 
-import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -17,6 +16,8 @@ import com.dci.intellij.dbn.common.options.setting.SettingsUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionUtil;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
+import com.dci.intellij.dbn.connection.jdbc.ResourceStatus;
 import com.dci.intellij.dbn.database.DatabaseInterface;
 import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
 import com.dci.intellij.dbn.database.common.util.SkipEntrySQLException;
@@ -27,7 +28,7 @@ import com.intellij.openapi.progress.ProcessCanceledException;
 public abstract class DynamicContentResultSetLoader<T extends DynamicContentElement> implements DynamicContentLoader<T> {
     private static final Logger LOGGER = LoggerFactory.createLogger();
 
-    public abstract ResultSet createResultSet(DynamicContent<T> dynamicContent, Connection connection) throws SQLException;
+    public abstract ResultSet createResultSet(DynamicContent<T> dynamicContent, DBNConnection connection) throws SQLException;
     public abstract T createElement(DynamicContent<T> dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException;
 
     private class DebugInfo {                                                         
@@ -64,7 +65,7 @@ public abstract class DynamicContentResultSetLoader<T extends DynamicContentElem
         dynamicContent.checkDisposed();
         ConnectionHandler connectionHandler = dynamicContent.getConnectionHandler();
         LoaderCache loaderCache = new LoaderCache();
-        Connection connection = null;
+        DBNConnection connection = null;
         ResultSet resultSet = null;
         int count = 0;
         Counter runningMetaLoaders = connectionHandler.getLoadMonitor().getRunningMetaLoaders();
@@ -72,40 +73,45 @@ public abstract class DynamicContentResultSetLoader<T extends DynamicContentElem
             runningMetaLoaders.increment();
             dynamicContent.checkDisposed();
             connection = connectionHandler.getPoolConnection(true);
-            dynamicContent.checkDisposed();
-            resultSet = createResultSet(dynamicContent, connection);
-            if (addDelay) Thread.sleep(500);
-            List<T> list = null;
-            while (resultSet != null && resultSet.next()) {
-                if (addDelay) Thread.sleep(10);
+            try {
+                connection.set(ResourceStatus.ACTIVE, true);
                 dynamicContent.checkDisposed();
-                
-                T element = null;
-                try {
-                    element = createElement(dynamicContent, resultSet, loaderCache);
-                } catch (ProcessCanceledException e){
-                    return;
-                } catch (RuntimeException e) {
-                    System.out.println("RuntimeException: " + e.getMessage());
-                } catch (SkipEntrySQLException e) {
-                    continue;
-                }
+                resultSet = createResultSet(dynamicContent, connection);
+                if (addDelay) Thread.sleep(500);
+                List<T> list = null;
+                while (resultSet != null && resultSet.next()) {
+                    if (addDelay) Thread.sleep(10);
+                    dynamicContent.checkDisposed();
 
-                dynamicContent.checkDisposed();
-                if (element != null) {
-                    if (list == null) list = new ArrayList<T>();
-                    list.add(element);
-                    if (count%10 == 0) {
-                        String description = element.getDescription();
-                        if (description != null)
-                            ProgressMonitor.setSubtaskDescription(description);
+                    T element = null;
+                    try {
+                        element = createElement(dynamicContent, resultSet, loaderCache);
+                    } catch (ProcessCanceledException e){
+                        return;
+                    } catch (RuntimeException e) {
+                        System.out.println("RuntimeException: " + e.getMessage());
+                    } catch (SkipEntrySQLException e) {
+                        continue;
                     }
-                    count++;
+
+                    dynamicContent.checkDisposed();
+                    if (element != null) {
+                        if (list == null) list = new ArrayList<T>();
+                        list.add(element);
+                        if (count%10 == 0) {
+                            String description = element.getDescription();
+                            if (description != null)
+                                ProgressMonitor.setSubtaskDescription(description);
+                        }
+                        count++;
+                    }
                 }
+                dynamicContent.checkDisposed();
+                dynamicContent.setElements(list);
+                postLoadContent(dynamicContent, debugInfo);
+            } finally {
+                connection.set(ResourceStatus.ACTIVE, false);
             }
-            dynamicContent.checkDisposed();
-            dynamicContent.setElements(list);
-            postLoadContent(dynamicContent, debugInfo);
         } catch (Exception e) {
             if (e instanceof InterruptedException) throw (InterruptedException) e;
             if (e instanceof ProcessCanceledException) throw (ProcessCanceledException) e;
@@ -124,8 +130,8 @@ public abstract class DynamicContentResultSetLoader<T extends DynamicContentElem
             }
             throw new DynamicContentLoadException(e, modelException);
         } finally {
+            ConnectionUtil.close(resultSet);
             runningMetaLoaders.decrement();
-            ConnectionUtil.closeResultSet(resultSet);
             connectionHandler.freePoolConnection(connection);
         }
     }

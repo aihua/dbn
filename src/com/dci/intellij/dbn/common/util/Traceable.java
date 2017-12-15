@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.common.util;
 
-import com.intellij.openapi.util.objectTree.ThrowableInterner;
 
 public class Traceable {
     private static final ThreadLocal<Traceable> LOCAL = new ThreadLocal<Traceable>();
@@ -8,8 +7,7 @@ public class Traceable {
 
     public Traceable() {
         Traceable traceable = LOCAL.get();
-        Throwable trace = traceable == null ? new Throwable() : new Throwable(traceable.trace);
-        this.trace = ThrowableInterner.intern(trace);
+        this.trace = traceable == null ? new Throwable() : new Throwable(traceable.trace);
     }
 
     public Throwable getTrace() {

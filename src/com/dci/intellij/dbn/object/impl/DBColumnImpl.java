@@ -64,15 +64,15 @@ public class DBColumnImpl extends DBObjectImpl implements DBColumn {
 
     protected void initLists() {
         DBObjectListContainer childObjects = initChildObjects();
-        constraints = childObjects.createSubcontentObjectList(DBObjectType.CONSTRAINT, this, CONSTRAINTS_LOADER, getDataset(), DBObjectRelationType.CONSTRAINT_COLUMN, false);
-        indexes = childObjects.createSubcontentObjectList(DBObjectType.INDEX, this, INDEXES_LOADER, getDataset(), DBObjectRelationType.INDEX_COLUMN, false);
+        constraints = childObjects.createSubcontentObjectList(DBObjectType.CONSTRAINT, this, CONSTRAINTS_LOADER, getDataset(), DBObjectRelationType.CONSTRAINT_COLUMN);
+        indexes = childObjects.createSubcontentObjectList(DBObjectType.INDEX, this, INDEXES_LOADER, getDataset(), DBObjectRelationType.INDEX_COLUMN);
 
         DBType declaredType = dataType.getDeclaredType();
         if (declaredType != null) {
             DBObjectListContainer typeChildObjects = declaredType.getChildObjects();
             if (typeChildObjects != null) {
                 DBObjectList typeAttributes = typeChildObjects.getObjectList(DBObjectType.TYPE_ATTRIBUTE);
-                childObjects.addObjectList(typeAttributes, false);
+                childObjects.addObjectList(typeAttributes);
             }
         }
     }
@@ -110,7 +110,9 @@ public class DBColumnImpl extends DBObjectImpl implements DBColumn {
         if (isForeignKey() && getForeignKeyColumn() != null) {
             ttb.append(true, "FK column:&nbsp;", false);
             DBColumn foreignKeyColumn = getForeignKeyColumn();
-            ttb.append(false, foreignKeyColumn.getDataset().getName() + '.' + foreignKeyColumn.getName(), false);
+            if (foreignKeyColumn != null) {
+                ttb.append(false, foreignKeyColumn.getDataset().getName() + '.' + foreignKeyColumn.getName(), false);
+            }
         }
 
         ttb.createEmptyRow();
@@ -225,7 +227,7 @@ public class DBColumnImpl extends DBObjectImpl implements DBColumn {
             if (schema.isSystemSchema() == isSystemSchema) {
                 DBObjectListContainer childObjects = schema.getChildObjects();
                 if (childObjects != null) {
-                    List<DBColumn> columns = (List<DBColumn>) childObjects.getHiddenObjectList(DBObjectType.COLUMN).getObjects();
+                    List<DBColumn> columns = (List<DBColumn>) childObjects.getInternalObjectList(DBObjectType.COLUMN).getObjects();
                     for (DBColumn column : columns){
                         if (this.equals(column.getForeignKeyColumn())) {
                             list.add(column);

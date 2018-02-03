@@ -4,6 +4,7 @@ import org.jetbrains.annotations.NotNull;
 
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.environment.EnvironmentManager;
+import com.dci.intellij.dbn.common.util.ActionUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.editor.data.DatasetEditor;
@@ -18,7 +19,7 @@ public class ImportDataAction extends AbstractDataEditorAction {
     }
 
     public void actionPerformed(@NotNull AnActionEvent e) {
-        Project project = getEventProject(e);
+        Project project = ActionUtil.getProject(e);
         MessageUtil.showInfoDialog(project, "Not implemented", "Data import is not implemented yet.");
     }
 
@@ -34,7 +35,7 @@ public class ImportDataAction extends AbstractDataEditorAction {
             boolean isEnvironmentReadonlyData = environmentManager.isReadonly(datasetEditor.getDataset(), DBContentType.DATA);
             presentation.setVisible(!isEnvironmentReadonlyData && !datasetEditor.isReadonlyData());
             boolean enabled =
-                    datasetEditor.getActiveConnection().isConnected() &&
+                    datasetEditor.getConnectionHandler().isConnected() &&
                     !datasetEditor.isReadonly() &&
                     !datasetEditor.isInserting();
             presentation.setEnabled(enabled);

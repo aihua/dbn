@@ -41,6 +41,9 @@ public interface ConnectionHandler extends Disposable, EnvironmentTypeProvider, 
     DBNConnection getMainConnection(@Nullable DBSchema schema) throws SQLException;
 
     @NotNull
+    DBNConnection getConnection(SessionId sessionId, @Nullable DBSchema schema) throws SQLException;
+
+    @NotNull
     DBNConnection getPoolConnection(boolean readonly) throws SQLException;
 
     @NotNull
@@ -56,7 +59,7 @@ public interface ConnectionHandler extends Disposable, EnvironmentTypeProvider, 
     List<DBNConnection> getConnections(ConnectionType... connectionTypes);
 
     @NotNull
-    ConnectionHandlerStatus getConnectionStatus();
+    ConnectionHandlerStatusHolder getConnectionStatus();
 
     @NotNull
     DatabaseConsoleBundle getConsoleBundle();
@@ -85,8 +88,6 @@ public interface ConnectionHandler extends Disposable, EnvironmentTypeProvider, 
 
     @NotNull ConnectionBundle getConnectionBundle();
     @NotNull ConnectionPool getConnectionPool();
-    @Deprecated
-    ConnectionLoadMonitor getLoadMonitor();
     DatabaseInterfaceProvider getInterfaceProvider();
     @NotNull DBObjectBundle getObjectBundle();
     @Nullable DBSchema getUserSchema();
@@ -106,8 +107,12 @@ public interface ConnectionHandler extends Disposable, EnvironmentTypeProvider, 
     String getPresentableText();
     String getQualifiedName();
 
+    @Deprecated
     void commit() throws SQLException;
+
+    @Deprecated
     void rollback() throws SQLException;
+
     void ping(boolean check);
 
     @Nullable
@@ -122,6 +127,9 @@ public interface ConnectionHandler extends Disposable, EnvironmentTypeProvider, 
     NavigationPsiCache getPsiCache();
 
     boolean isConnected();
+
+    boolean isConnected(SessionId sessionId);
+
     int getIdleMinutes();
 
     ConnectionHandlerRef getRef();

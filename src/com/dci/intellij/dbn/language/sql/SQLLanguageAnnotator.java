@@ -5,6 +5,7 @@ import org.jetbrains.annotations.NotNull;
 import com.dci.intellij.dbn.code.sql.color.SQLTextAttributesKeys;
 import com.dci.intellij.dbn.common.content.DatabaseLoadMonitor;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.ConnectionHandlerStatus;
 import com.dci.intellij.dbn.debugger.DatabaseDebuggerManager;
 import com.dci.intellij.dbn.execution.statement.StatementGutterRenderer;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
@@ -17,6 +18,7 @@ import com.dci.intellij.dbn.language.common.psi.TokenPsiElement;
 import com.intellij.lang.annotation.Annotation;
 import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.Annotator;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 
@@ -38,7 +40,7 @@ public class SQLLanguageAnnotator implements Annotator {
 
             } else if (psiElement instanceof IdentifierPsiElement) {
                 IdentifierPsiElement identifierPsiElement = (IdentifierPsiElement) psiElement;
-                ConnectionHandler connectionHandler = identifierPsiElement.getActiveConnection();
+                ConnectionHandler connectionHandler = identifierPsiElement.getConnectionHandler();
                 if (connectionHandler != null && !connectionHandler.isVirtual()) {
                     annotateIdentifier(identifierPsiElement, holder);
                 }
@@ -51,6 +53,7 @@ public class SQLLanguageAnnotator implements Annotator {
                     holder.createErrorAnnotation(namedPsiElement, "Invalid " + namedPsiElement.getElementType().getDescription());
                 }
             }
+        } catch (ProcessCanceledException ignore){
         } finally {
             DatabaseLoadMonitor.setEnsureDataLoaded(ensureDataLoaded);
         }
@@ -120,8 +123,12 @@ public class SQLLanguageAnnotator implements Annotator {
     }
 
     private static boolean checkConnection(IdentifierPsiElement objectReference) {
-        ConnectionHandler connectionHandler = objectReference.getActiveConnection();
-        return connectionHandler != null && !connectionHandler.isVirtual() && connectionHandler.canConnect() && connectionHandler.isValid() && !connectionHandler.getLoadMonitor().isLoading();
+        ConnectionHandler connectionHandler = objectReference.getConnectionHandler();
+        return connectionHandler != null &&
+                !connectionHandler.isVirtual() &&
+                connectionHandler.canConnect() &&
+                connectionHandler.isValid() &&
+                !connectionHandler.getConnectionStatus().is(ConnectionHandlerStatus.LOADING);
     }
 
     private static void annotateExecutable(ExecutablePsiElement executablePsiElement, AnnotationHolder holder) {

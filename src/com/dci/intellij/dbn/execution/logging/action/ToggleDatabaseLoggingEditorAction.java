@@ -3,7 +3,6 @@ package com.dci.intellij.dbn.execution.logging.action;
 import org.jetbrains.annotations.Nullable;
 
 import com.dci.intellij.dbn.common.Icons;
-import com.dci.intellij.dbn.common.util.ActionUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingManager;
@@ -11,12 +10,13 @@ import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.debugger.DatabaseDebuggerManager;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.PlatformDataKeys;
 import com.intellij.openapi.actionSystem.Presentation;
 import com.intellij.openapi.actionSystem.ToggleAction;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
+import static com.dci.intellij.dbn.common.util.ActionUtil.getProject;
+import static com.dci.intellij.dbn.common.util.ActionUtil.getVirtualFile;
 
 public class ToggleDatabaseLoggingEditorAction extends ToggleAction implements DumbAware {
 
@@ -25,17 +25,17 @@ public class ToggleDatabaseLoggingEditorAction extends ToggleAction implements D
     }
 
     public boolean isSelected(AnActionEvent e) {
-        ConnectionHandler activeConnection = getActiveConnection(e);
+        ConnectionHandler activeConnection = getConnectionHandler(e);
         return activeConnection != null && activeConnection.isLoggingEnabled();
     }
 
     @Nullable
-    private static ConnectionHandler getActiveConnection(AnActionEvent e) {
-        Project project = ActionUtil.getProject(e);
-        VirtualFile virtualFile = e.getData(PlatformDataKeys.VIRTUAL_FILE);
+    private static ConnectionHandler getConnectionHandler(AnActionEvent e) {
+        Project project = getProject(e);
+        VirtualFile virtualFile = getVirtualFile(e);
         if (project != null && virtualFile != null) {
             FileConnectionMappingManager connectionMappingManager = FileConnectionMappingManager.getInstance(project);
-            ConnectionHandler activeConnection = connectionMappingManager.getActiveConnection(virtualFile);
+            ConnectionHandler activeConnection = connectionMappingManager.getConnectionHandler(virtualFile);
             if (activeConnection != null && !activeConnection.isVirtual() && !activeConnection.isDisposed()) {
                 return activeConnection ;
             }
@@ -45,13 +45,13 @@ public class ToggleDatabaseLoggingEditorAction extends ToggleAction implements D
     }
 
     public void setSelected(AnActionEvent e, boolean selected) {
-        ConnectionHandler activeConnection = getActiveConnection(e);
+        ConnectionHandler activeConnection = getConnectionHandler(e);
         if (activeConnection != null) activeConnection.setLoggingEnabled(selected);
     }
 
     public void update(AnActionEvent e) {
         super.update(e);
-        ConnectionHandler activeConnection = getActiveConnection(e);
+        ConnectionHandler activeConnection = getConnectionHandler(e);
         Presentation presentation = e.getPresentation();
 
         boolean visible = false;
@@ -72,7 +72,7 @@ public class ToggleDatabaseLoggingEditorAction extends ToggleAction implements D
     }
 
     public static boolean isVisible(AnActionEvent e) {
-        VirtualFile virtualFile = e.getData(PlatformDataKeys.VIRTUAL_FILE);
+        VirtualFile virtualFile = getVirtualFile(e);
         return !DatabaseDebuggerManager.isDebugConsole(virtualFile);
     }
 }

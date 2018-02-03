@@ -62,7 +62,7 @@ public class DBNTable<T extends DBNTableModel> extends JTable implements Disposa
     }
     public DBNTable(Project project, T tableModel, boolean showHeader) {
         super(tableModel);
-        projectRef = new ProjectRef(project);
+        projectRef = ProjectRef.from(project);
         setGridColor(GRID_COLOR);
         Font font = getFont();//UIUtil.getListFont();
         setFont(font);
@@ -151,8 +151,9 @@ public class DBNTable<T extends DBNTableModel> extends JTable implements Disposa
         return scrollDistance;
     }
 
+    @NotNull
     public Project getProject() {
-        return projectRef.get();
+        return projectRef.getnn();
     }
 
     public Object getValueAtMouseLocation() {

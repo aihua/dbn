@@ -6,8 +6,10 @@ import javax.swing.JScrollBar;
 import javax.swing.JScrollPane;
 import javax.swing.ScrollPaneConstants;
 import java.awt.BorderLayout;
+import org.jetbrains.annotations.NotNull;
 
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
 import com.dci.intellij.dbn.common.thread.ReadActionRunner;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
@@ -86,22 +88,22 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
         }
     }
 
+    @NotNull
     public StatementExecutionCursorResult getExecutionResult() {
-        return executionResult;
+        return FailsafeUtil.get(executionResult);
     }
 
     public void reloadTableModel() {
         new SimpleLaterInvocator() {
             protected void execute() {
-                if (executionResult != null) {
-                    JScrollBar horizontalScrollBar = resultScrollPane.getHorizontalScrollBar();
-                    int horizontalScrolling = horizontalScrollBar.getValue();
-                    resultTable = new ResultSetTable(executionResult.getTableModel(), true, recordViewInfo);
-                    resultScrollPane.setViewportView(resultTable);
-                    resultTable.initTableGutter();
-                    resultTable.setName(executionResult.getName());
-                    horizontalScrollBar.setValue(horizontalScrolling);
-                }
+                StatementExecutionCursorResult executionResult = getExecutionResult();
+                JScrollBar horizontalScrollBar = resultScrollPane.getHorizontalScrollBar();
+                int horizontalScrolling = horizontalScrollBar.getValue();
+                resultTable = new ResultSetTable(executionResult.getTableModel(), true, recordViewInfo);
+                resultScrollPane.setViewportView(resultTable);
+                resultTable.initTableGutter();
+                resultTable.setName(StatementExecutionResultForm.this.executionResult.getName());
+                horizontalScrollBar.setValue(horizontalScrolling);
             }
         }.start();
     }
@@ -113,9 +115,13 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
     public void updateVisibleComponents() {
         new ConditionalLaterInvocator() {
             protected void execute() {
+                StatementExecutionCursorResult executionResult = getExecutionResult();
                 ResultSetDataModel dataModel = executionResult.getTableModel();
                 String connectionName = executionResult.getConnectionHandler().getPresentableText();
-                String connectionType = executionResult.getExecutionInput().getSession().getId() == SessionId.POOL ? " (pool)" :"";
+                SessionId sessionId = executionResult.getExecutionInput().getTargetSessionId();
+                String connectionType =
+                        sessionId == SessionId.MAIN ? " (main)" :
+                        sessionId == SessionId.POOL ? " (pool)" : " (session)";
                 int rowCount = dataModel.getRowCount();
                 String partialResultInfo = dataModel.isResultSetExhausted() ? "" : " (partial)";
                 statusLabel.setText(connectionName + connectionType + ": " + rowCount + " records" + partialResultInfo);
@@ -130,6 +136,7 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
     }
 
     public void show() {
+        StatementExecutionCursorResult executionResult = getExecutionResult();
         Project project = executionResult.getProject();
         ExecutionManager.getInstance(project).selectResultTab(executionResult);
     }

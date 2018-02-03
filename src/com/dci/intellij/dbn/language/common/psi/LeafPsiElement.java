@@ -95,13 +95,13 @@ public abstract class LeafPsiElement extends BasePsiElement implements PsiRefere
         Set<DBObjectType> parentTypes = objectType.getGenericParents();
         if (parentTypes.size() > 0) {
             if (objectType.isSchemaObject()) {
-                ConnectionHandler connectionHandler = sourceScope.getActiveConnection();
+                ConnectionHandler connectionHandler = sourceScope.getConnectionHandler();
 
                 if (connectionHandler != null && !connectionHandler.isVirtual()) {
                     DBObjectBundle objectBundle = connectionHandler.getObjectBundle();
 
                     if (filter == null || filter.acceptsCurrentSchemaObject(objectType)) {
-                        DBSchema currentSchema = sourceScope.getCurrentSchema();
+                        DBSchema currentSchema = sourceScope.getDatabaseSchema();
                         parentObjects = addObjectToSet(parentObjects, currentSchema);
                     }
 

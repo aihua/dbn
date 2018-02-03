@@ -1,14 +1,5 @@
 package com.dci.intellij.dbn.object.action;
 
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.SwingConstants;
-import java.awt.BorderLayout;
-import java.awt.Point;
-import java.util.List;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.browser.DatabaseBrowserManager;
 import com.dci.intellij.dbn.browser.ui.DatabaseBrowserTree;
 import com.dci.intellij.dbn.common.Colors;
@@ -25,8 +16,14 @@ import com.intellij.openapi.ui.popup.ComponentPopupBuilder;
 import com.intellij.openapi.ui.popup.JBPopup;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.ui.awt.RelativePoint;
-import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.tree.TreeUtil;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import javax.swing.*;
+import javax.swing.border.EmptyBorder;
+import java.awt.*;
+import java.util.List;
 
 public abstract class ObjectListShowAction extends AnAction {
     protected DBObjectRef sourceObjectRef;
@@ -79,7 +76,7 @@ public abstract class ObjectListShowAction extends AnAction {
                                 }
                                 else {
                                     JLabel label = new JLabel(getEmptyListMessage(), Icons.EXEC_MESSAGES_INFO, SwingConstants.LEFT);
-                                    label.setBorder(JBUI.Borders.empty(3));
+                                    label.setBorder(new EmptyBorder(3, 3, 3, 3));
                                     JPanel panel = new JPanel(new BorderLayout());
                                     panel.add(label);
                                     panel.setBackground(Colors.LIGHT_BLUE);

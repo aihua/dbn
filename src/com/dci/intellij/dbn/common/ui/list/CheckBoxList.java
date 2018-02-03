@@ -1,11 +1,11 @@
 package com.dci.intellij.dbn.common.ui.list;
 
 import com.intellij.ui.JBColor;
-import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 import java.awt.*;
 import java.awt.event.*;
@@ -199,7 +199,7 @@ public class CheckBoxList<T extends Selectable> extends JList {
             textPanel.add(label, BorderLayout.WEST);
             textPanel.add(errorLabel, BorderLayout.CENTER);
             textPanel.setBackground(UIUtil.getListBackground());
-            textPanel.setBorder(JBUI.Borders.emptyLeft(8));
+            textPanel.setBorder(new EmptyBorder(0, 8, 0, 0));
             add(textPanel, BorderLayout.CENTER);
         }
 

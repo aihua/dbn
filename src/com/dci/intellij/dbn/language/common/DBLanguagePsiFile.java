@@ -15,9 +15,11 @@ import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.EditorUtil;
 import com.dci.intellij.dbn.common.util.VirtualFileUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.PresentableConnectionProvider;
 import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingManager;
 import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingProvider;
+import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.ddl.DDLFileAttachmentManager;
 import com.dci.intellij.dbn.language.common.element.ElementTypeBundle;
 import com.dci.intellij.dbn.language.common.element.lookup.ElementLookupContext;
@@ -67,8 +69,9 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
     private Language language;
     private DBLanguageFileType fileType;
     private ParserDefinition parserDefinition;
-    private ConnectionHandler activeConnection;
-    private DBSchema currentSchema;
+    private ConnectionHandlerRef connectionHandlerRef;
+    private DatabaseSession databaseSession;
+    private DBObjectRef<DBSchema> databaseSchemaRef;
     private DBObjectRef<DBSchemaObject> underlyingObjectRef;
 
     @Override
@@ -143,12 +146,6 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
         return DBObjectRef.get(underlyingObjectRef);
     }
 
-    @Nullable
-    @Override
-    public ConnectionHandler getConnectionHandler() {
-        return getActiveConnection();
-    }
-
     public DBLanguagePsiFile(Project project, DBLanguageFileType fileType, @NotNull DBLanguage language) {
         this(createFileViewProvider(project), fileType, language);
     }
@@ -189,7 +186,7 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
         
         if (language instanceof DBLanguage) {
             DBLanguage dbLanguage = (DBLanguage) language;
-            ConnectionHandler connectionHandler = getActiveConnection();
+            ConnectionHandler connectionHandler = getConnectionHandler();
             if (connectionHandler != null) {
 
                 DBLanguageDialect languageDialect = connectionHandler.getLanguageDialect(dbLanguage);
@@ -219,59 +216,76 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
     }
 
     @Nullable
-    public ConnectionHandler getActiveConnection() {
+    public ConnectionHandler getConnectionHandler() {
         VirtualFile file = getVirtualFile();
         if (file != null && !getProject().isDisposed()) {
             if (VirtualFileUtil.isVirtualFileSystem(file)) {
                 PsiFile originalFile = getOriginalFile();
                 if (originalFile instanceof DBLanguagePsiFile) {
                     DBLanguagePsiFile databaseFile = (DBLanguagePsiFile) originalFile;
-                    return originalFile == this ? activeConnection : databaseFile.getActiveConnection();
+                    return originalFile == this ? ConnectionHandlerRef.get(connectionHandlerRef) : databaseFile.getConnectionHandler();
                 }
             } else {
-                return getConnectionMappingManager().getActiveConnection(file);
+                return getConnectionMappingManager().getConnectionHandler(file);
             }
         }
         return null;
     }
 
-    public void setActiveConnection(ConnectionHandler activeConnection) {
+    public void setConnectionHandler(ConnectionHandler connectionHandler) {
         VirtualFile file = getVirtualFile();
         if (file != null) {
             if (VirtualFileUtil.isVirtualFileSystem(file)) {
-                this.activeConnection = activeConnection;
+                this.connectionHandlerRef = ConnectionHandlerRef.from(connectionHandler);
             } else {
-                getConnectionMappingManager().setActiveConnection(file, activeConnection);
+                getConnectionMappingManager().setConnectionHandler(file, connectionHandler);
             }
         }
     }
 
     @Nullable
-    public DBSchema getCurrentSchema() {
+    public DBSchema getDatabaseSchema() {
         VirtualFile file = getVirtualFile();
         if (file != null) {
             if (VirtualFileUtil.isVirtualFileSystem(file)) {
                 PsiFile originalFile = getOriginalFile();
                 if (originalFile instanceof DBLanguagePsiFile) {
                     DBLanguagePsiFile databaseFile = (DBLanguagePsiFile) originalFile;
-                    return originalFile == this ? currentSchema : databaseFile.getCurrentSchema();
+                    return originalFile == this ? DBObjectRef.get(databaseSchemaRef) : databaseFile.getDatabaseSchema();
                 }
             } else {
-                return getConnectionMappingManager().getCurrentSchema(file);
+                return getConnectionMappingManager().getDatabaseSchema(file);
             }
         }
         return null;
     }
 
-    public void setCurrentSchema(DBSchema schema) {
+    public void setDatabaseSchema(DBSchema schema) {
         VirtualFile file = getVirtualFile();
         if (file != null) {
             if (VirtualFileUtil.isVirtualFileSystem(file)) {
-                this.currentSchema = schema;
+                this.databaseSchemaRef = DBObjectRef.from(schema);
             } else {
-                getConnectionMappingManager().setCurrentSchema(file, schema);
+                getConnectionMappingManager().setDatabaseSchema(file, schema);
             }
         }
+    }
+
+    @Override
+    public DatabaseSession getDatabaseSession() {
+        VirtualFile file = getVirtualFile();
+        if (file != null && !getProject().isDisposed()) {
+            if (VirtualFileUtil.isVirtualFileSystem(file)) {
+                PsiFile originalFile = getOriginalFile();
+                if (originalFile instanceof DBLanguagePsiFile) {
+                    DBLanguagePsiFile databaseFile = (DBLanguagePsiFile) originalFile;
+                    return originalFile == this ? databaseSession : databaseFile.getDatabaseSession();
+                }
+            } else {
+                return getConnectionMappingManager().getDatabaseSession(file);
+            }
+        }
+        return null;
     }
 
     @NotNull
@@ -300,7 +314,7 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
                 }
             }
         }
-        if (!(getVirtualFile() instanceof DBParseableVirtualFile)) {
+        if (!(getVirtualFile() instanceof DBParseableVirtualFile) && canNavigate()) {
             super.navigate(requestFocus);
         }
     }
@@ -358,15 +372,15 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
     }
 
     public double getDatabaseVersion() {
-        ConnectionHandler activeConnection = getActiveConnection();
-        return activeConnection == null ? ElementLookupContext.MAX_DB_VERSION : activeConnection.getDatabaseVersion();
+        ConnectionHandler connectionHandler = getConnectionHandler();
+        return connectionHandler == null ? ElementLookupContext.MAX_DB_VERSION : connectionHandler.getDatabaseVersion();
     }
 
     public static DBLanguagePsiFile createFromText(Project project, String fileName, DBLanguageDialect languageDialect, String text, ConnectionHandler activeConnection, DBSchema currentSchema) {
         PsiFileFactory psiFileFactory = PsiFileFactory.getInstance(project);
         DBLanguagePsiFile psiFile = (DBLanguagePsiFile) psiFileFactory.createFileFromText(fileName, languageDialect, text);
-        psiFile.setActiveConnection(activeConnection);
-        psiFile.setCurrentSchema(currentSchema);
+        psiFile.setConnectionHandler(activeConnection);
+        psiFile.setDatabaseSchema(currentSchema);
         return psiFile;
     }
 

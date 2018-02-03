@@ -1,10 +1,20 @@
 package com.dci.intellij.dbn.debugger.jdwp.config.ui;
 
+import javax.swing.Icon;
+import javax.swing.JCheckBox;
+import javax.swing.JPanel;
+import javax.swing.JTextField;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.action.GroupPopupAction;
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
+import com.dci.intellij.dbn.common.thread.SimpleTask;
 import com.dci.intellij.dbn.common.ui.DBNHeaderForm;
 import com.dci.intellij.dbn.common.ui.DBNHintForm;
 import com.dci.intellij.dbn.common.util.ActionUtil;
@@ -33,15 +43,6 @@ import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.util.Range;
 import com.intellij.util.ui.UIUtil;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.Icon;
-import javax.swing.JCheckBox;
-import javax.swing.JPanel;
-import javax.swing.JTextField;
-import java.awt.BorderLayout;
-import java.awt.Color;
 
 public class DBMethodJdwpRunConfigEditorForm extends DBProgramRunConfigurationEditorForm<DBMethodJdwpRunConfig>{
     private JPanel headerPanel;
@@ -148,10 +149,15 @@ public class DBMethodJdwpRunConfigEditorForm extends DBProgramRunConfigurationEd
             Project project = ActionUtil.getProject(e);
             if (project != null) {
                 MethodExecutionManager methodExecutionManager = MethodExecutionManager.getInstance(project);
-                MethodExecutionInput methodExecutionInput = methodExecutionManager.selectHistoryMethodExecutionInput(getExecutionInput(), true);
-                if (methodExecutionInput != null) {
-                    setExecutionInput(methodExecutionInput, true);
-                }
+                methodExecutionManager.showExecutionHistoryDialog(getExecutionInput(), false, true, new SimpleTask<MethodExecutionInput>() {
+                    @Override
+                    protected void execute() {
+                        MethodExecutionInput executionInput = getData();
+                        if (executionInput != null) {
+                            setExecutionInput(executionInput, true);
+                        }
+                    }
+                });
             }
         }
     }
@@ -216,7 +222,8 @@ public class DBMethodJdwpRunConfigEditorForm extends DBProgramRunConfigurationEd
         DBNHeaderForm headerForm = new DBNHeaderForm(
                 headerTitle,
                 headerIcon,
-                headerBackground);
+                headerBackground,
+                this);
         headerPanel.removeAll();
         headerPanel.add(headerForm.getComponent(), BorderLayout.CENTER);
 

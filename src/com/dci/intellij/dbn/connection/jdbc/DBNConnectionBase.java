@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Executor;
 
-abstract class DBNConnectionBase extends DBNResource<Connection> implements Connection, Closeable, Invalidable {
+abstract class DBNConnectionBase extends DBNResource<Connection> implements Connection, Closeable {
     public DBNConnectionBase(Connection inner) {
         super(inner, ResourceType.CONNECTION);
     }
@@ -107,6 +107,7 @@ abstract class DBNConnectionBase extends DBNResource<Connection> implements Conn
         inner.rollback();
     }
 
+/*
     @Override
     public void setAutoCommit(boolean autoCommit) throws SQLException {
         inner.setAutoCommit(autoCommit);
@@ -117,6 +118,7 @@ abstract class DBNConnectionBase extends DBNResource<Connection> implements Conn
         return inner.getAutoCommit();
     }
 
+*/
     @Override
     public DatabaseMetaData getMetaData() throws SQLException {
         return inner.getMetaData();

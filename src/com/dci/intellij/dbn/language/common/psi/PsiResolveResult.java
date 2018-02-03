@@ -17,8 +17,8 @@ import com.intellij.psi.PsiElement;
 import static com.dci.intellij.dbn.language.common.psi.PsiResolveStatus.*;
 
 public class PsiResolveResult extends PropertyHolderImpl<PsiResolveStatus>{
-    private ConnectionHandlerRef activeConnection;
-    private DBObjectRef<DBSchema> currentSchema;
+    private ConnectionHandlerRef connectionHandlerRef;
+    private DBObjectRef<DBSchema> databaseSchema;
     private WeakReference<IdentifierPsiElement> element;
     private WeakReference<BasePsiElement> parent;
     private WeakReference<PsiElement> referencedElement;
@@ -29,7 +29,7 @@ public class PsiResolveResult extends PropertyHolderImpl<PsiResolveStatus>{
     private int overallResolveTrials = 0;
 
     PsiResolveResult(IdentifierPsiElement element) {
-        this.activeConnection = ConnectionHandlerRef.from(element.getActiveConnection());
+        this.connectionHandlerRef = ConnectionHandlerRef.from(element.getConnectionHandler());
         this.element = new WeakReference<IdentifierPsiElement>(element);
         set(PsiResolveStatus.NEW, true);
     }
@@ -46,13 +46,13 @@ public class PsiResolveResult extends PropertyHolderImpl<PsiResolveStatus>{
     public void preResolve(IdentifierPsiElement psiElement) {
         set(RESOLVING, true);
         this.text = psiElement.getUnquotedText();
-        ConnectionHandler connectionHandler = psiElement.getActiveConnection();
+        ConnectionHandler connectionHandler = psiElement.getConnectionHandler();
         set(CONNECTION_VALID, connectionHandler != null && !connectionHandler.isVirtual() && connectionHandler.isValid());
         set(CONNECTION_ACTIVE, connectionHandler != null && !connectionHandler.isVirtual() && connectionHandler.canConnect());
         this.referencedElement = null;
         this.parent = null;
-        this.activeConnection = ConnectionHandlerRef.from(connectionHandler);
-        this.currentSchema = DBObjectRef.from(psiElement.getCurrentSchema());
+        this.connectionHandlerRef = ConnectionHandlerRef.from(connectionHandler);
+        this.databaseSchema = DBObjectRef.from(psiElement.getDatabaseSchema());
         BasePsiElement enclosingScopePsiElement = psiElement.findEnclosingScopePsiElement();
         this.scopeTextLength = enclosingScopePsiElement == null ? 0 : enclosingScopePsiElement.getTextLength();
         if (StringUtil.isEmpty(text)) {
@@ -91,11 +91,11 @@ public class PsiResolveResult extends PropertyHolderImpl<PsiResolveStatus>{
         }
 
         IdentifierPsiElement element = this.element.get();
-        ConnectionHandler activeConnection = element == null ? null : element.getActiveConnection();
+        ConnectionHandler activeConnection = element == null ? null : element.getConnectionHandler();
         if (activeConnection == null || activeConnection.isVirtual()) {
-            if (currentSchema != null) return true;
+            if (databaseSchema != null) return true;
         } else {
-            if (connectionBecameActive(activeConnection) || connectionBecameValid(activeConnection) || currentSchemaChanged()) {
+            if (connectionBecameActive(activeConnection) || connectionBecameValid(activeConnection) || schemaChanged()) {
                 return true;
             }
         }
@@ -138,12 +138,12 @@ public class PsiResolveResult extends PropertyHolderImpl<PsiResolveStatus>{
 
     private boolean connectionChanged() {
         IdentifierPsiElement element = this.element.get();
-        return element != null && getActiveConnection() != element.getActiveConnection();
+        return element != null && getConnectionHandler() != element.getConnectionHandler();
     }
 
-    private boolean currentSchemaChanged() {
+    private boolean schemaChanged() {
         IdentifierPsiElement element = this.element.get();
-        return element != null && !CommonUtil.safeEqual(DBObjectRef.get(currentSchema), element.getCurrentSchema());
+        return element != null && !CommonUtil.safeEqual(DBObjectRef.get(databaseSchema), element.getDatabaseSchema());
     }
 
     private boolean connectionBecameValid(ConnectionHandler connectionHandler) {
@@ -165,21 +165,28 @@ public class PsiResolveResult extends PropertyHolderImpl<PsiResolveStatus>{
     }
 
     public DBObjectType getObjectType() {
-        PsiElement referencedElement = getReferencedElement();
-        if (referencedElement instanceof DBObjectPsiElement) {
-            DBObjectPsiElement objectPsiElement = (DBObjectPsiElement) referencedElement;
-            return objectPsiElement.getObjectType();
-        }
-        if (referencedElement instanceof IdentifierPsiElement) {
-            IdentifierPsiElement identifierPsiElement = (IdentifierPsiElement) referencedElement;
-            return identifierPsiElement.getObjectType();
-        }
+        if (isNot(RESOLVING_OBJECT_TYPE)) {
+            set(RESOLVING_OBJECT_TYPE, true);
+            try {
+                PsiElement referencedElement = getReferencedElement();
+                if (referencedElement instanceof DBObjectPsiElement) {
+                    DBObjectPsiElement objectPsiElement = (DBObjectPsiElement) referencedElement;
+                    return objectPsiElement.getObjectType();
+                }
+                if (referencedElement instanceof IdentifierPsiElement) {
+                    IdentifierPsiElement identifierPsiElement = (IdentifierPsiElement) referencedElement;
+                    return identifierPsiElement.getObjectType();
+                }
 
-        if (referencedElement instanceof BasePsiElement) {
-            BasePsiElement basePsiElement = (BasePsiElement) referencedElement;
-            DBObject object = basePsiElement.resolveUnderlyingObject();
-            if (object != null) {
-                return object.getObjectType();
+                if (referencedElement instanceof BasePsiElement) {
+                    BasePsiElement basePsiElement = (BasePsiElement) referencedElement;
+                    DBObject object = basePsiElement.resolveUnderlyingObject();
+                    if (object != null) {
+                        return object.getObjectType();
+                    }
+                }
+            } finally {
+                set(RESOLVING_OBJECT_TYPE, false);
             }
         }
 
@@ -198,8 +205,8 @@ public class PsiResolveResult extends PropertyHolderImpl<PsiResolveStatus>{
         return this.referencedElement == null ? null : this.referencedElement.get();
     }
 
-    public ConnectionHandler getActiveConnection() {
-        return ConnectionHandlerRef.get(activeConnection);
+    public ConnectionHandler getConnectionHandler() {
+        return ConnectionHandlerRef.get(connectionHandlerRef);
     }
 
     public void setParent(@Nullable BasePsiElement parent) {

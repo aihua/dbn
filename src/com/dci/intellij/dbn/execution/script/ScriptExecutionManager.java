@@ -100,8 +100,8 @@ public class ScriptExecutionManager extends AbstractProjectComponent implements 
         } else {
             FileConnectionMappingManager connectionMappingManager = FileConnectionMappingManager.getInstance(project);
 
-            ConnectionHandler activeConnection = connectionMappingManager.getActiveConnection(virtualFile);
-            DBSchema currentSchema = connectionMappingManager.getCurrentSchema(virtualFile);
+            ConnectionHandler activeConnection = connectionMappingManager.getConnectionHandler(virtualFile);
+            DBSchema currentSchema = connectionMappingManager.getDatabaseSchema(virtualFile);
 
             final ScriptExecutionInput executionInput = new ScriptExecutionInput(getProject(), virtualFile, activeConnection, currentSchema, clearOutputOption);
             ScriptExecutionSettings scriptExecutionSettings = ExecutionEngineSettings.getInstance(project).getScriptExecutionSettings();
@@ -115,8 +115,8 @@ public class ScriptExecutionManager extends AbstractProjectComponent implements 
                 final ConnectionHandler connectionHandler = executionInput.getConnectionHandler();
                 final DBSchema schema = executionInput.getSchema();
                 final CmdLineInterface cmdLineExecutable = executionInput.getCmdLineInterface();
-                connectionMappingManager.setActiveConnection(virtualFile, connectionHandler);
-                connectionMappingManager.setCurrentSchema(virtualFile, schema);
+                connectionMappingManager.setConnectionHandler(virtualFile, connectionHandler);
+                connectionMappingManager.setDatabaseSchema(virtualFile, schema);
                 if (connectionHandler != null) {
                     recentlyUsedInterfaces.put(connectionHandler.getDatabaseType(), cmdLineExecutable.getId());
                 }
@@ -172,7 +172,7 @@ public class ScriptExecutionManager extends AbstractProjectComponent implements 
                     );
 
                     FileUtil.writeToFile(temporaryScriptFile, executionInput.getTextContent());
-                    if (!temporaryScriptFile.isFile()) {
+                    if (!temporaryScriptFile.isFile() || !temporaryScriptFile.exists()) {
                         throw new IllegalStateException("Failed to create temporary script file " + temporaryScriptFile + ". Check access rights at location.");
                     }
 

@@ -29,6 +29,7 @@ import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import com.intellij.util.Consumer;
+import static com.dci.intellij.dbn.common.thread.TaskInstruction.CANCELLABLE;
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
 
 /*
@@ -189,7 +190,7 @@ public class SourceCodeDiffManager extends AbstractProjectComponent implements P
 
 
     public void opedDatabaseDiffWindow(final DBSourceCodeVirtualFile sourceCodeFile) {
-        new ConnectionAction("comparing changes", sourceCodeFile, new TaskInstructions("Loading database source code", false, true)) {
+        new ConnectionAction("comparing changes", sourceCodeFile, new TaskInstructions("Loading database source code", CANCELLABLE)) {
             @Override
             protected void execute() {
                 DBSchemaObject object = sourceCodeFile.getObject();

@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.NotNull;
 
 import com.dci.intellij.dbn.common.LoggerFactory;
+import com.dci.intellij.dbn.common.dispose.FailsafeWeakRef;
 import com.dci.intellij.dbn.common.options.setting.SettingsUtil;
 import com.dci.intellij.dbn.common.thread.SimpleBackgroundTask;
 import com.dci.intellij.dbn.common.thread.SimpleTimeoutTask;
@@ -14,7 +15,7 @@ import com.intellij.openapi.diagnostic.Logger;
 public abstract class ResourceStatusAdapter<T extends Resource> {
     protected static final Logger LOGGER = LoggerFactory.createLogger();
 
-    private final T resource;
+    private final FailsafeWeakRef<T> resource;
     private final ResourceStatus current;
     private final ResourceStatus changing;
     private final ResourceStatus checking;
@@ -26,7 +27,7 @@ public abstract class ResourceStatusAdapter<T extends Resource> {
     }
 
     ResourceStatusAdapter(T resource, ResourceStatus current, ResourceStatus changing, ResourceStatus checking, long checkInterval) {
-        this.resource = resource;
+        this.resource = new FailsafeWeakRef<T>(resource);
         this.current = current;
         this.changing = changing;
         this.checking = checking;
@@ -34,13 +35,20 @@ public abstract class ResourceStatusAdapter<T extends Resource> {
     }
 
     private boolean is(ResourceStatus status) {
+        T resource = getResource();
         return resource.is(status);
     }
 
     private boolean set(ResourceStatus status, boolean value) {
+        T resource = getResource();
         boolean changed = resource.set(status, value);
-        if (changed && status == current) resource.statusChanged(current);
+        if (status == current && changed) resource.statusChanged(current);
         return changed;
+    }
+
+    @NotNull
+    private T getResource() {
+        return this.resource.get();
     }
 
     private boolean isChecking() {
@@ -56,12 +64,10 @@ public abstract class ResourceStatusAdapter<T extends Resource> {
     }
 
 
-    public boolean check() {
-        if (isCurrent() || isChanging()) return true;
-
-        if (!isChecking() && !isChanging()) {
+    public final boolean get() {
+        if (canCheck()) {
             synchronized (this) {
-                if (!isChecking() && !isChanging()) {
+                if (canCheck()) {
                     try {
                         set(checking, true);
                         if (checkInterval == 0) {
@@ -75,35 +81,46 @@ public abstract class ResourceStatusAdapter<T extends Resource> {
                         }
                     } catch (Exception t){
                         LOGGER.warn("Failed to check resource " + current + "status", t);
-                        set(current, true);
+                        fail();
                     } finally {
                         set(checking, false);
                     }
-                    return isCurrent();
-
                 }
             }
         }
 
-        return false;
+        return isCurrent();
     }
 
-    public void change() {
-        if (!isCurrent() && !isChanging() && !check()) {
+    protected void fail() {
+        set(current, true);
+    }
+
+    public final void change(boolean value) {
+        if (canChange(value)) {
             synchronized (this) {
-                if (!isCurrent() && !isChanging()) {
+                if (canChange(value)) {
                     set(changing, true);
-                    changeControlled();
+                    changeControlled(value);
                 }
             }
         }
     }
 
-    private void changeControlled() {
+    private boolean canCheck() {
+        return !isChecking() && !isChanging();
+    }
+
+    private boolean canChange(boolean value) {
+        return !isCurrent() && !isChanging() && get() != value;
+    }
+
+    private void changeControlled(final boolean value) {
         new SimpleBackgroundTask("change resource status") {
             @Override
             protected void execute() {
                 boolean daemon = true;
+                T resource = getResource();
                 if (resource.getResourceType() == ResourceType.CONNECTION && current == ResourceStatus.CLOSED) {
                     // non daemon threads for closing connections
                     daemon = false;
@@ -114,11 +131,12 @@ public abstract class ResourceStatusAdapter<T extends Resource> {
                     public void run() {
                         try {
                             if (SettingsUtil.isDebugEnabled) LOGGER.info("Started " + getLogIdentifier());
-                            changeInner();
+                            changeInner(value);
+                            set(current, value);
                         } catch (Throwable e) {
                             LOGGER.warn("Error " + getLogIdentifier() + ": " + e.getMessage());
+                            fail();
                         } finally {
-                            set(current, true);
                             set(changing, false);
                             if (SettingsUtil.isDebugEnabled) LOGGER.info("Done " + getLogIdentifier());
                         }
@@ -130,15 +148,15 @@ public abstract class ResourceStatusAdapter<T extends Resource> {
 
     @NotNull
     private String getLogIdentifier() {
-        return changing.toString().toLowerCase() + " " + resource.getResourceType();
+        return changing.toString().toLowerCase() + " " + getResource().getResourceType();
     }
 
-    protected abstract void changeInner() throws SQLException;
+    protected abstract void changeInner(boolean value) throws SQLException;
 
     protected abstract boolean checkInner() throws SQLException;
 
     @Override
     public String toString() {
-        return resource.toString();
+        return getResource().toString();
     }
 }

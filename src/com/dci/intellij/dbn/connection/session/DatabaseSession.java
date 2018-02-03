@@ -10,6 +10,7 @@ import com.dci.intellij.dbn.common.ui.Presentable;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.SessionId;
+import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 
 public class DatabaseSession extends DisposableBase implements Comparable<DatabaseSession>, Presentable {
     private ConnectionHandlerRef connectionHandlerRef;
@@ -41,10 +42,18 @@ public class DatabaseSession extends DisposableBase implements Comparable<Databa
     @Nullable
     @Override
     public Icon getIcon() {
-        return
-            isMain() ? Icons.SESSION_MAIN :
-            isPool() ? Icons.SESSION_POOL :
-                       Icons.SESSION_CUSTOM;
+        if (isPool()) {
+            return Icons.SESSION_POOL;
+        } else {
+            DBNConnection connection = getConnectionHandler().getConnectionPool().getSessionConnection(id);
+            if (connection == null || !connection.isValid()) {
+                return isMain() ? Icons.SESSION_MAIN : Icons.SESSION_CUSTOM;
+            } else if (connection.hasDataChanges()) {
+                return isMain() ? Icons.SESSION_MAIN_TRANSACTIONAL : Icons.SESSION_CUSTOM_TRANSACTIONAL;
+            } else {
+                return isMain() ? Icons.SESSION_MAIN/*_CONNECTED*/ : Icons.SESSION_CUSTOM/*_CONNECTED*/;
+            }
+        }
     }
 
     public boolean isMain() {
@@ -75,6 +84,10 @@ public class DatabaseSession extends DisposableBase implements Comparable<Databa
 
     @Override
     public int compareTo(@NotNull DatabaseSession o) {
+        if (id == SessionId.MAIN) return -1;
+        if (id == SessionId.POOL) {
+            return o.id == SessionId.MAIN ? 1 : -1;
+        }
         return name.compareTo(o.name);
     }
 }

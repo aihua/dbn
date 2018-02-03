@@ -10,6 +10,7 @@ import org.jetbrains.annotations.Nullable;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.thread.RunnableTask;
+import com.dci.intellij.dbn.common.thread.TaskInstruction;
 import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -46,12 +47,12 @@ public class ExplainPlanManager extends AbstractProjectComponent {
      *********************************************************/
 
     public void explainPlan(final ExecutablePsiElement executable, final @Nullable RunnableTask<ExplainPlanResult> callback) {
-        TaskInstructions taskInstructions = new TaskInstructions("Extracting explain plan for " + executable.getSpecificElementType().getDescription(), false, true);
+        TaskInstructions taskInstructions = new TaskInstructions("Extracting explain plan for " + executable.getSpecificElementType().getDescription(), TaskInstruction.CANCELLABLE);
         ConnectionAction explainAction = new ConnectionAction("generating the explain plan", executable.getFile(), taskInstructions) {
             @Override
             protected void execute() {
                 ConnectionHandler connectionHandler = getConnectionHandler();
-                DBSchema currentSchema = executable.getFile().getCurrentSchema();
+                DBSchema currentSchema = executable.getFile().getDatabaseSchema();
                 ExplainPlanResult explainPlanResult = null;
                 DBNConnection connection = null;
                 Statement statement = null;

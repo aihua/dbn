@@ -41,7 +41,7 @@ public class GoToDatabaseObjectModel extends DisposableBase implements ChooseByN
 
 
     public GoToDatabaseObjectModel(@NotNull Project project, @Nullable ConnectionHandler selectedConnection, DBSchema selectedSchema) {
-        this.project = new ProjectRef(project);
+        this.project = ProjectRef.from(project);
         this.selectedConnection = selectedConnection;
         this.selectedSchema = DBObjectRef.from(selectedSchema);
         objectsLookupSettings = ProjectSettingsManager.getSettings(project).getNavigationSettings().getObjectsLookupSettings();
@@ -114,8 +114,9 @@ public class GoToDatabaseObjectModel extends DisposableBase implements ChooseByN
         }
     }
 
+    @NotNull
     public Project getProject() {
-        return project.get();
+        return project.getnn();
     }
 
     @NotNull

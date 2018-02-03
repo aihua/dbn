@@ -60,9 +60,10 @@ import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.awt.RelativePoint;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.*;
 
 public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
-    public static final DatasetLoadInstructions SORT_LOAD_INSTRUCTIONS = new DatasetLoadInstructions(true, true, true, false);
+    private static final DatasetLoadInstructions SORT_LOAD_INSTRUCTIONS = new DatasetLoadInstructions(USE_CURRENT_FILTER, PRESERVE_CHANGES, DELIBERATE_ACTION);
     private DatasetTableCellEditorFactory cellEditorFactory = new DatasetTableCellEditorFactory();
     private DatasetEditor datasetEditor;
     private boolean isEditingEnabled = true;
@@ -98,6 +99,7 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
         return new DatasetEditorTableCellRenderer();
     }
 
+    @NotNull
     public Project getProject() {
         return datasetEditor.getProject();
     }

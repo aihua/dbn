@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.execution;
 
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import com.dci.intellij.dbn.common.ProjectRef;
 import com.dci.intellij.dbn.common.dispose.Disposable;
@@ -60,7 +61,7 @@ public abstract class ExecutionInput extends DisposableBase implements Disposabl
     };
 
     public ExecutionInput(Project project, ExecutionTarget executionTarget) {
-        projectRef = new ProjectRef(project);
+        projectRef = ProjectRef.from(project);
         this.executionTarget = executionTarget;
         ExecutionTimeoutSettings timeoutSettings = getExecutionTimeoutSettings();
         executionTimeout = new ExecutionTimeout(timeoutSettings.getExecutionTimeout());
@@ -75,23 +76,26 @@ public abstract class ExecutionInput extends DisposableBase implements Disposabl
         return executionEngineSettings.getExecutionTimeoutSettings(getExecutionTarget());
     }
 
-    public Project getProject() {
-        return projectRef.get();
+    @NotNull
+    public final Project getProject() {
+        return projectRef.getnn();
     }
 
-    public DBSchema getTargetSchema() {
+    @Nullable
+    public final DBSchema getTargetSchema() {
         return DBObjectRef.get(targetSchemaRef);
     }
 
-    public void setTargetSchema(DBSchema schema){
-        targetSchemaRef = schema.getRef();
+    public final void setTargetSchema(@Nullable DBSchema schema){
+        targetSchemaRef = DBObjectRef.from(schema);
     }
 
-    public ConnectionHandler getTargetConnection() {
+    @Nullable
+    public final ConnectionHandler getTargetConnection() {
         return ConnectionHandlerRef.get(targetConnectionRef);
     }
 
-    public void setTargetConnection(ConnectionHandler connectionHandler) {
+    public final void setTargetConnection(@Nullable ConnectionHandler connectionHandler) {
         this.targetConnectionRef = ConnectionHandlerRef.from(connectionHandler);
     }
 

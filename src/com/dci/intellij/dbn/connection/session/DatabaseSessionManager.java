@@ -10,10 +10,12 @@ import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.message.MessageCallback;
 import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
+import com.dci.intellij.dbn.common.thread.RunnableTask;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionManager;
+import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.session.ui.CreateRenameSessionDialog;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
@@ -37,16 +39,16 @@ public class DatabaseSessionManager extends AbstractProjectComponent implements 
         return FailsafeUtil.getComponent(project, DatabaseSessionManager.class);
     }
 
-    public void showCreateSessionDialog(ConnectionHandler connectionHandler) {
-        showCreateRenameSessionDialog(connectionHandler, null);
+    public void showCreateSessionDialog(ConnectionHandler connectionHandler, @Nullable RunnableTask<DatabaseSession> callback) {
+        showCreateRenameSessionDialog(connectionHandler, null, callback);
     }
 
-    public void showRenameSessionDialog(@NotNull DatabaseSession session) {
-        showCreateRenameSessionDialog(session.getConnectionHandler(), session);
+    public void showRenameSessionDialog(@NotNull DatabaseSession session, @Nullable RunnableTask<DatabaseSession> callback) {
+        showCreateRenameSessionDialog(session.getConnectionHandler(), session, callback);
     }
 
 
-    private void showCreateRenameSessionDialog(final ConnectionHandler connectionHandler, final DatabaseSession session) {
+    private void showCreateRenameSessionDialog(final ConnectionHandler connectionHandler, final DatabaseSession session, @Nullable final RunnableTask<DatabaseSession> callback) {
         new ConditionalLaterInvocator() {
             @Override
             protected void execute() {
@@ -55,12 +57,17 @@ public class DatabaseSessionManager extends AbstractProjectComponent implements 
                         new CreateRenameSessionDialog(connectionHandler, session);
                 dialog.setModal(true);
                 dialog.show();
+                DatabaseSession session = dialog.getSession();
+                if (callback != null) {
+                    callback.setData(session);
+                    callback.start();
+                }
             }
         }.start();
     }
 
-    public void createSession(ConnectionHandler connectionHandler, String name) {
-        connectionHandler.getSessionBundle().createSession(name);
+    public DatabaseSession createSession(ConnectionHandler connectionHandler, String name) {
+        return connectionHandler.getSessionBundle().createSession(name);
     }
 
     public void renameSession(DatabaseSession session, String newName) {
@@ -86,8 +93,7 @@ public class DatabaseSessionManager extends AbstractProjectComponent implements 
                     @Override
                     protected void execute() {
                         ConnectionHandler connectionHandler = session.getConnectionHandler();
-                        String sessionName = session.getName();
-                        connectionHandler.getSessionBundle().removeSession(sessionName);
+                        connectionHandler.getSessionBundle().removeSession(session.getId());
                     }
                 });
     }
@@ -112,6 +118,7 @@ public class DatabaseSessionManager extends AbstractProjectComponent implements 
                     Element sessionElement = new Element("session");
                     connectionElement.addContent(sessionElement);
                     sessionElement.setAttribute("name", session.getName());
+                    sessionElement.setAttribute("id", session.getId().id());
                 }
             }
         }
@@ -129,7 +136,8 @@ public class DatabaseSessionManager extends AbstractProjectComponent implements 
                 DatabaseSessionBundle sessionBundle = connectionHandler.getSessionBundle();
                 for (Element sessionElement : connectionElement.getChildren()) {
                     String sessionName = sessionElement.getAttributeValue("name");
-                    DatabaseSession session = sessionBundle.getSession(sessionName, true);
+                    SessionId sessionId = SessionId.get(sessionElement.getAttributeValue("id"));
+                    sessionBundle.addSession(sessionId, sessionName);
                 }
             }
         }

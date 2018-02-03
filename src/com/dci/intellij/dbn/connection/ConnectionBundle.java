@@ -15,7 +15,6 @@ import com.dci.intellij.dbn.common.ProjectRef;
 import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
 import com.dci.intellij.dbn.common.dispose.Disposable;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.list.AbstractFiltrableList;
 import com.dci.intellij.dbn.common.list.FiltrableList;
@@ -45,7 +44,7 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
     private List<ConnectionHandler> virtualConnections = new ArrayList<ConnectionHandler>();
 
     public ConnectionBundle(Project project) {
-        this.projectRef = new ProjectRef(project);
+        this.projectRef = ProjectRef.from(project);
         virtualConnections.add(new VirtualConnectionHandler(
                 ConnectionId.VIRTUAL_ORACLE_CONNECTION,
                 "Virtual - Oracle 10.1",
@@ -149,7 +148,7 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
 
     @NotNull
     public Project getProject() {
-        return FailsafeUtil.get(projectRef.get());
+        return projectRef.getnn();
     }
 
     @Nullable

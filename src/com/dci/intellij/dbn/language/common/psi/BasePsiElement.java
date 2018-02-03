@@ -172,19 +172,15 @@ public abstract class BasePsiElement extends ASTWrapperPsiElement implements Ite
     }
 
     @Nullable
-    public ConnectionHandler getActiveConnection() {
+    public ConnectionHandler getConnectionHandler() {
         DBLanguagePsiFile file = getFile();
-        return file == null ? null : file.getActiveConnection();
+        return file == null ? null : file.getConnectionHandler();
     }
 
-    public DBSchema getCurrentSchema() {
-        PsiElement parent = getParent();
-        if (parent instanceof BasePsiElement) {
-            BasePsiElement basePsiElement = (BasePsiElement) parent;
-            return basePsiElement.getCurrentSchema();
-        }
+    @Nullable
+    public DBSchema getDatabaseSchema() {
         DBLanguagePsiFile file = getFile();
-        return file == null ? null : file.getCurrentSchema();
+        return file == null ? null : file.getDatabaseSchema();
     }
 
     public String toString() {
@@ -736,7 +732,7 @@ public abstract class BasePsiElement extends ASTWrapperPsiElement implements Ite
     }
 
     public QuoteDefinition getIdentifierQuotes() {
-        ConnectionHandler activeConnection = getActiveConnection();
+        ConnectionHandler activeConnection = getConnectionHandler();
         if (activeConnection != null) {
             return DatabaseCompatibilityInterface.getInstance(activeConnection).getIdentifierQuotes();
         }

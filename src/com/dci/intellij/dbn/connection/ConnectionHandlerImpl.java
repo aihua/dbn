@@ -58,9 +58,8 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
 
     private ConnectionSettings connectionSettings;
     private ConnectionBundle connectionBundle;
-    private ConnectionHandlerStatus connectionStatus;
+    private ConnectionHandlerStatusHolder connectionStatus;
     private ConnectionPool connectionPool;
-    private ConnectionLoadMonitor loadMonitor;
     private DatabaseInterfaceProvider interfaceProvider;
     private DatabaseConsoleBundle consoleBundle;
     private DatabaseSessionBundle sessionBundle;
@@ -102,13 +101,10 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
         this.enabled = connectionSettings.isActive();
         ref = new ConnectionHandlerRef(this);
 
-        connectionStatus = new ConnectionHandlerStatus(this);
+        connectionStatus = new ConnectionHandlerStatusHolder(this);
         connectionPool = new ConnectionPool(this);
         consoleBundle = new DatabaseConsoleBundle(this);
         sessionBundle = new DatabaseSessionBundle(this);
-        loadMonitor = new ConnectionLoadMonitor(this);
-
-        Disposer.register(this, loadMonitor);
     }
 
     @NotNull
@@ -153,7 +149,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
 
     @Override
     public boolean canConnect() {
-        if (isDisposed()) {
+        if (isDisposed() || !connectionSettings.isActive()) {
             return false;
         }
 
@@ -195,7 +191,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     }
 
     @NotNull
-    public ConnectionHandlerStatus getConnectionStatus() {
+    public ConnectionHandlerStatusHolder getConnectionStatus() {
         return connectionStatus;
     }
 
@@ -266,6 +262,11 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     @Override
     public boolean isConnected() {
         return connectionStatus.isConnected();
+    }
+
+    @Override
+    public boolean isConnected(SessionId sessionId) {
+        return connectionPool.isConnected(sessionId);
     }
 
     public String toString() {
@@ -346,10 +347,6 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
         return CommonUtil.nvl(connectionSettings.getDatabaseSettings().getAuthenticationInfo().getUser(), "");
     }
 
-    public ConnectionLoadMonitor getLoadMonitor() {
-        return loadMonitor;
-    }
-
     @NotNull
     public DBObjectBundle getObjectBundle() {
         return objectBundle.get();
@@ -410,14 +407,29 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     public DBNConnection getPoolConnection(@Nullable DBSchema schema, boolean readonly) throws SQLException {
         DBNConnection connection = getPoolConnection(readonly);
         //if (!schema.isPublicSchema()) {
-        if (schema != null && DatabaseFeature.CURRENT_SCHEMA.isSupported(this)) {
-            DatabaseMetadataInterface metadataInterface = getInterfaceProvider().getMetadataInterface();
-            metadataInterface.setCurrentSchema(schema.getQuotedName(false), connection);
-        }
+        setCurrentSchema(connection, schema);
 
         //}
         return connection;
     }
+
+    @NotNull
+    public DBNConnection getConnection(@NotNull SessionId sessionId, @Nullable DBSchema schema) throws SQLException {
+        DBNConnection connection =
+                sessionId == SessionId.MAIN ? getMainConnection() :
+                sessionId == SessionId.POOL ? getPoolConnection(false) :
+                getConnectionPool().ensureSessionConnection(sessionId);
+        return setCurrentSchema(connection, schema);
+    }
+
+    protected DBNConnection setCurrentSchema(DBNConnection connection, @Nullable DBSchema schema) throws SQLException {
+        if (schema != null && DatabaseFeature.CURRENT_SCHEMA.isSupported(this)) {
+            DatabaseMetadataInterface metadataInterface = getInterfaceProvider().getMetadataInterface();
+            metadataInterface.setCurrentSchema(schema.getQuotedName(false), connection);
+        }
+        return connection;
+    }
+
 
     private void assertCanConnect() throws SQLException {
         if (!canConnect()) {
@@ -448,7 +460,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
                     try {
                         interfaceProvider = DatabaseInterfaceProviderFactory.getInterfaceProvider(this);
                     } catch (SQLException e) {
-
+                        System.out.println();
                     }
                 }
             }
@@ -555,7 +567,6 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
             super.dispose();
             connectionPool = null;
             connectionBundle = null;
-            loadMonitor = null;
             sessionBrowserFile = null;
             psiCache = null;
         }

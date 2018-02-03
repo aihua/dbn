@@ -24,8 +24,10 @@ import com.dci.intellij.dbn.common.util.SimpleLazyValue;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionUtil;
+import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.jdbc.DBNStatement;
+import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.editor.EditorProviderId;
@@ -43,6 +45,7 @@ import com.dci.intellij.dbn.execution.logging.DatabaseLoggingManager;
 import com.dci.intellij.dbn.execution.statement.DataDefinitionChangeListener;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionInput;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionManager;
+import com.dci.intellij.dbn.execution.statement.StatementExecutionQueue;
 import com.dci.intellij.dbn.execution.statement.options.StatementExecutionSettings;
 import com.dci.intellij.dbn.execution.statement.result.StatementExecutionBasicResult;
 import com.dci.intellij.dbn.execution.statement.result.StatementExecutionResult;
@@ -126,7 +129,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
 
     public boolean isDirty(){
         if (getConnectionHandler() != executionInput.getConnectionHandler() || // connection changed since execution
-            getTargetSchema() != executionInput.getCurrentSchema()) { // current schema changed since execution)
+            getTargetSchema() != executionInput.getTargetSchema()) { // current schema changed since execution)
             return true;
 
         } else {
@@ -241,7 +244,8 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
             executionInput.setOriginalStatementText(cachedExecutable.getText());
             executionInput.setExecutableStatementText(cachedExecutable.prepareStatementText());
             executionInput.setConnectionHandler(getConnectionHandler());
-            executionInput.setCurrentSchema(getTargetSchema());
+            executionInput.setTargetSchema(getTargetSchema());
+            executionInput.setTargetSession(getTargetSession());
             executionInput.setBulkExecution(bulkExecution);
         }
 
@@ -419,7 +423,9 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
 
         context.set(CANCELLED, true);
         StatementExecutionManager executionManager = getExecutionManager();
-        executionManager.getExecutionQueue().cancelExecution(this);
+        SessionId sessionId = getExecutionInput().getTargetSessionId();
+        StatementExecutionQueue executionQueue = executionManager.getExecutionQueue(sessionId);
+        executionQueue.cancelExecution(this);
         if (databaseCall != null) {
             databaseCall.cancelSilently();
         }
@@ -467,31 +473,15 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
         }
 
         if (notifyChanges) {
-            if (connection.isMainConnection()) {
-                VirtualFile virtualFile = getPsiFile().getVirtualFile();
-                connection.notifyDataChanges(virtualFile);
-            } else if (connection.isPoolConnection()) {
+            if (connection.isPoolConnection()) {
                 StatementExecutionManager executionManager = getExecutionManager();
                 executionManager.promptPendingTransactionDialog(this);
-/*
-                MessageUtil.showQuestionDialog(
-                        getProject(),
-                        "Commit or rollback",
-                        "You executed this statement in a pool connection. \nThe transactional status of this connection cannot be left inconsistent. Please choose whether to commit or rollback the changes.",
-                        new String[]{"Commit", "Rollback"},
-                        0,
-                        new MessageCallback() {
-                            @Override
-                            protected void execute() {
-                                int option = getData();
-                                if (option == 0) ConnectionUtil.commit(connection); else
-                                if (option == 1) ConnectionUtil.rollback(connection);
-                            }
-                        });
-*/
+            } else {
+                VirtualFile virtualFile = getPsiFile().getVirtualFile();
+                connection.notifyDataChanges(virtualFile);
             }
         } else if (resetChanges) {
-            if (connection.isMainConnection()) {
+            if (!connection.isPoolConnection()) {
                 connection.resetDataChanges();
             }
         }
@@ -624,7 +614,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
 
     @Nullable
     public ConnectionHandler getConnectionHandler() {
-        return getPsiFile().getActiveConnection();
+        return getPsiFile().getConnectionHandler();
     }
 
     @NotNull
@@ -634,7 +624,12 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
 
     @Nullable
     public DBSchema getTargetSchema() {
-        return getPsiFile().getCurrentSchema();
+        return getPsiFile().getDatabaseSchema();
+    }
+
+    @Nullable
+    public DatabaseSession getTargetSession() {
+        return getPsiFile().getDatabaseSession();
     }
 
     @NotNull

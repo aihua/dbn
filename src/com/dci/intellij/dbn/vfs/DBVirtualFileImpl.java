@@ -10,6 +10,8 @@ import com.dci.intellij.dbn.common.ProjectRef;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.ui.Presentable;
+import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.ConnectionId;
 import com.intellij.openapi.fileEditor.impl.FileDocumentManagerImpl;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -29,7 +31,7 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
     public DBVirtualFileImpl(Project project) {
         //id = ID_STORE.getAndIncrement();
         id = DummyFileIdGenerator.next();
-        projectRef = new ProjectRef(project);
+        projectRef = ProjectRef.from(project);
     }
 
     @NotNull
@@ -45,6 +47,14 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
     public void setDocumentHashCode(int documentHashCode) {
         this.documentHashCode = documentHashCode;
     }
+
+    public ConnectionId getConnectionId() {
+        return getConnectionHandler().getId();
+    }
+
+    @NotNull
+    @Override
+    public abstract ConnectionHandler getConnectionHandler();
 
     @Override
     public boolean isInLocalFileSystem() {

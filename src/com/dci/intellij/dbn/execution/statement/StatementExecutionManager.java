@@ -32,12 +32,10 @@ import com.dci.intellij.dbn.connection.ConnectionProvider;
 import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingManager;
-import com.dci.intellij.dbn.connection.session.DatabaseSessionBundle;
 import com.dci.intellij.dbn.debugger.DBDebuggerType;
 import com.dci.intellij.dbn.editor.console.SQLConsoleEditor;
 import com.dci.intellij.dbn.editor.ddl.DDLFileEditor;
 import com.dci.intellij.dbn.execution.ExecutionContext;
-import com.dci.intellij.dbn.execution.TargetConnectionOption;
 import com.dci.intellij.dbn.execution.common.options.ExecutionEngineSettings;
 import com.dci.intellij.dbn.execution.statement.options.StatementExecutionSettings;
 import com.dci.intellij.dbn.execution.statement.processor.StatementExecutionBasicProcessor;
@@ -88,12 +86,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
 
     private final Map<FileEditor, List<StatementExecutionProcessor>> fileExecutionProcessors = new HashMap<FileEditor, List<StatementExecutionProcessor>>();
     private final StatementExecutionVariablesCache variablesCache = new StatementExecutionVariablesCache();
-    private StatementExecutionQueue executionQueue = new StatementExecutionQueue(getProject()) {
-        @Override
-        protected void execute(StatementExecutionProcessor processor) {
-            process(processor);
-        }
-    };
+    private Map<SessionId, StatementExecutionQueue> executionQueues = new HashMap<SessionId, StatementExecutionQueue>();
 
     private static final AtomicInteger RESULT_SEQUENCE = new AtomicInteger(0);
 
@@ -101,6 +94,25 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
         super(project);
         EventUtil.subscribe(project, this, PsiDocumentTransactionListener.TOPIC, psiDocumentTransactionListener);
         EventUtil.subscribe(project, this, FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorManagerListener);
+    }
+
+    public StatementExecutionQueue getExecutionQueue(SessionId sessionId) {
+        StatementExecutionQueue executionQueue = executionQueues.get(sessionId);
+        if (executionQueue == null) {
+            synchronized (this) {
+                executionQueue = executionQueues.get(sessionId);
+                if (executionQueue == null) {
+                    executionQueue = new StatementExecutionQueue(StatementExecutionManager.this) {
+                        @Override
+                        protected void execute(StatementExecutionProcessor processor) {
+                            process(processor);
+                        }
+                    };
+                    executionQueues.put(sessionId, executionQueue);
+                }
+            }
+        }
+        return executionQueue;
     }
 
     public static StatementExecutionManager getInstance(@NotNull Project project) {
@@ -223,10 +235,6 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
         return null;
     }
 
-    public StatementExecutionQueue getExecutionQueue() {
-        return executionQueue;
-    }
-
     /*********************************************************
      *                       Execution                       *
      *********************************************************/
@@ -251,7 +259,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
                 @Nullable
                 @Override
                 public ConnectionHandler getConnectionHandler() {
-                    return connectionMappingManager.getActiveConnection(virtualFile);
+                    return connectionMappingManager.getConnectionHandler(virtualFile);
                 }
             };
 
@@ -263,9 +271,10 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
                         protected void execute() {
                             for (final StatementExecutionProcessor executionProcessor : executionProcessors) {
                                 ExecutionContext context = executionProcessor.getExecutionContext();
-                                if (context.isNot(EXECUTING) && context.isNot(QUEUED) && !executionQueue.contains(executionProcessor)) {
-                                    StatementExecutionInput executionInput = executionProcessor.getExecutionInput();
-                                    if (executionInput.getSession().getId() == SessionId.POOL) {
+                                StatementExecutionInput executionInput = executionProcessor.getExecutionInput();
+                                SessionId sessionId = executionInput.getTargetSessionId();
+                                if (context.isNot(EXECUTING) && context.isNot(QUEUED)) {
+                                    if (sessionId == SessionId.POOL) {
                                         new BackgroundTask(getProject(), "Executing statement", true, true) {
                                             @Override
                                             protected void execute(@NotNull ProgressIndicator progressIndicator) {
@@ -273,7 +282,10 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
                                             }
                                         }.start();
                                     } else {
-                                        executionQueue.queue(executionProcessor);
+                                        StatementExecutionQueue executionQueue = getExecutionQueue(sessionId);
+                                        if (!executionQueue.contains(executionProcessor)) {
+                                            executionQueue.queue(executionProcessor);
+                                        }
                                     }
                                 }
                             }
@@ -292,15 +304,10 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     private void process(StatementExecutionProcessor executionProcessor) {
         try {
             StatementExecutionInput executionInput = executionProcessor.getExecutionInput();
-
-            if (executionInput.getSession().getId() == SessionId.POOL) {
-                DBSchema schema = executionInput.getTargetSchema();
-                ConnectionHandler connectionHandler = FailsafeUtil.get(executionProcessor.getConnectionHandler());
-                DBNConnection connection = connectionHandler.getPoolConnection(schema, false);
-                executionProcessor.execute(connection, false);
-            } else {
-                executionProcessor.execute();
-            }
+            DBSchema schema = executionInput.getTargetSchema();
+            ConnectionHandler connectionHandler = FailsafeUtil.get(executionProcessor.getConnectionHandler());
+            DBNConnection connection = connectionHandler.getConnection(executionInput.getTargetSessionId(), schema);
+            executionProcessor.execute(connection, false);
 
         } catch (SQLException e) {
             NotificationUtil.sendErrorNotification(getProject(), "Error executing " + executionProcessor.getStatementName(), e.getMessage());
@@ -357,22 +364,13 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     private boolean promptExecutionDialogs(@NotNull List<StatementExecutionProcessor> executionProcessors, DBDebuggerType debuggerType) {
         Map<String, StatementExecutionVariable> variableCache = new HashMap<String, StatementExecutionVariable>();
         boolean reuseVariables = false;
-        boolean usePoolConnection = false;
         boolean bulkExecution = executionProcessors.size() > 1;
 
         StatementExecutionSettings executionSettings = ExecutionEngineSettings.getInstance(getProject()).getStatementExecutionSettings();
-        TargetConnectionOption connectionOption = executionSettings.getTargetConnection().resolve();
-        if (connectionOption == TargetConnectionOption.CANCEL) {
-            return false;
-        } else {
-            usePoolConnection = connectionOption == TargetConnectionOption.POOL;
-        }
 
         for (StatementExecutionProcessor executionProcessor : executionProcessors) {
             executionProcessor.initExecutionInput(bulkExecution);
             StatementExecutionInput executionInput = executionProcessor.getExecutionInput();
-            DatabaseSessionBundle sessionBundle = executionProcessor.getConnectionHandler().getSessionBundle();
-            executionInput.setSession(usePoolConnection ? sessionBundle.POOL : sessionBundle.MAIN);
             Set<ExecVariablePsiElement> bucket = new THashSet<ExecVariablePsiElement>();
             ExecutablePsiElement executablePsiElement = executionInput.getExecutablePsiElement();
             if (executablePsiElement != null) {
@@ -435,8 +433,8 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
                     PendingTransactionDialog dialog = new PendingTransactionDialog(executionProcessor);
                     dialog.show();
                 } finally {
-                    context.set(PROMPTED, false);
                     executionProcessor.postExecute();
+                    context.set(PROMPTED, false);
                 }
             }
         }.start();

@@ -11,6 +11,7 @@ import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.editor.code.SourceCodeManager;
 import com.dci.intellij.dbn.editor.code.options.CodeEditorGeneralSettings;
 import com.dci.intellij.dbn.execution.statement.StatementGutterRenderer;
+import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.TokenTypeCategory;
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
@@ -33,6 +34,7 @@ import com.intellij.lang.annotation.Annotation;
 import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.Annotator;
 import com.intellij.openapi.editor.markup.GutterIconRenderer;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 
@@ -55,7 +57,7 @@ public class PSQLLanguageAnnotator implements Annotator {
             }
             else if (psiElement instanceof IdentifierPsiElement) {
                 IdentifierPsiElement identifierPsiElement = (IdentifierPsiElement) psiElement;
-                ConnectionHandler connectionHandler = identifierPsiElement.getActiveConnection();
+                ConnectionHandler connectionHandler = identifierPsiElement.getConnectionHandler();
                 if (connectionHandler != null) {
                     annotateIdentifier(psiElement, holder);
                 }
@@ -73,6 +75,7 @@ public class PSQLLanguageAnnotator implements Annotator {
 
             if (psiElement instanceof ExecutablePsiElement)  annotateExecutable(psiElement, holder);
 
+        } catch (ProcessCanceledException ignore){
         } finally {
             DatabaseLoadMonitor.setEnsureDataLoaded(ensureDataLoaded);
         }
@@ -137,7 +140,7 @@ public class PSQLLanguageAnnotator implements Annotator {
 
     private static void annotateObject(IdentifierPsiElement objectReference, AnnotationHolder holder) {
         PsiElement reference = objectReference.resolve();
-        /*ConnectionHandler connectionHandler = objectReference.getActiveConnection();
+        /*ConnectionHandler connectionHandler = objectReference.getConnectionHandler();
         if (reference == null && connectionHandler != null && connectionHandler.getConnectionStatus().isValid()) {
             Annotation annotation = holder.createErrorAnnotation(objectReference.getAstNode(),
                     "Unknown " + objectReference.getObjectTypeName());
@@ -180,7 +183,7 @@ public class PSQLLanguageAnnotator implements Annotator {
                                                 identifierPsiElement.getChars(),
                                                 identifierPsiElement.getObjectType());
 
-                                if (targetElement != null) {
+                                if (targetElement != null && targetElement.isValid()) {
                                     NavigationAction navigationAction = targetContentType == DBContentType.CODE_BODY ?
                                             new NavigateToDefinitionAction(null, targetElement, objectType) :
                                             new NavigateToSpecificationAction(null, targetElement, objectType);
@@ -194,7 +197,7 @@ public class PSQLLanguageAnnotator implements Annotator {
 
 
                             BasePsiElement targetElement = codeEditorManager.getObjectNavigationElement(object, targetContentType, identifierPsiElement.getObjectType(), identifierPsiElement.getChars());
-                            if (targetElement != null) {
+                            if (targetElement != null && targetElement.isValid()) {
                                 NavigationAction navigationAction = targetContentType == DBContentType.CODE_BODY ?
                                         new NavigateToDefinitionAction(object, targetElement, objectType) :
                                         new NavigateToSpecificationAction(object, targetElement, objectType);
@@ -216,11 +219,14 @@ public class PSQLLanguageAnnotator implements Annotator {
 
     private static void annotateExecutable(PsiElement psiElement, AnnotationHolder holder) {
         ExecutablePsiElement executable = (ExecutablePsiElement) psiElement;
-        if (!executable.isNestedExecutable()) {
-            VirtualFile virtualFile = executable.getFile().getVirtualFile();
-            if (!DatabaseDebuggerManager.isDebugConsole(virtualFile)) {
-                Annotation annotation = holder.createInfoAnnotation(psiElement, null);
-                annotation.setGutterIconRenderer(new StatementGutterRenderer(executable));
+        if (executable.isValid() && !executable.isNestedExecutable()) {
+            DBLanguagePsiFile psiFile = executable.getFile();
+            if (psiFile != null) {
+                VirtualFile virtualFile = psiFile.getVirtualFile();
+                if (!DatabaseDebuggerManager.isDebugConsole(virtualFile)) {
+                    Annotation annotation = holder.createInfoAnnotation(psiElement, null);
+                    annotation.setGutterIconRenderer(new StatementGutterRenderer(executable));
+                }
             }
         }
     }

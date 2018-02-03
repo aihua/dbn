@@ -155,7 +155,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
         try {
             databaseSettings.checkConfiguration();
             connectionHandler.getMainConnection();
-            ConnectionHandlerStatus connectionStatus = connectionHandler.getConnectionStatus();
+            ConnectionHandlerStatusHolder connectionStatus = connectionHandler.getConnectionStatus();
             connectionStatus.setValid(true);
             connectionStatus.setConnected(true);
             if (showSuccessMessage) {
@@ -382,7 +382,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
          }
 
          if (connectionHandler == null && virtualFile != null) {
-             connectionHandler = FileConnectionMappingManager.getInstance(project).getActiveConnection(virtualFile);
+             connectionHandler = FileConnectionMappingManager.getInstance(project).getConnectionHandler(virtualFile);
          }
 
          return connectionHandler;
@@ -401,7 +401,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
         DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(getProject());
         for (ConnectionHandler connectionHandler : getConnectionBundle().getConnectionHandlers()) {
             if (connectionHandler.hasUncommittedChanges()) {
-                transactionManager.commit(connectionHandler, false, false);
+                transactionManager.commit(connectionHandler, null, false, false);
             }
         }
     }
@@ -410,7 +410,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
         DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(getProject());
         for (ConnectionHandler connectionHandler : getConnectionBundle().getConnectionHandlers()) {
             if (connectionHandler.hasUncommittedChanges()) {
-                transactionManager.rollback(connectionHandler, false, false);
+                transactionManager.rollback(connectionHandler, null, false, false);
             }
         }
     }
@@ -513,7 +513,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
             switch (result) {
                 case COMMIT: commitAll(); return true;
                 case ROLLBACK: rollbackAll(); return true;
-                case REVIEW_CHANGES: return DatabaseTransactionManager.getInstance(project).showUncommittedChangesOverviewDialog(null);
+                case REVIEW_CHANGES: return DatabaseTransactionManager.getInstance(project).showPendingTransactionsOverviewDialog(null);
                 case CANCEL: return false;
             }
         }

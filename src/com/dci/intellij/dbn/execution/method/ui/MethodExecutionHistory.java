@@ -30,11 +30,12 @@ public class MethodExecutionHistory implements PersistentStateElement<Element>, 
     private ProjectRef projectRef;
 
     public MethodExecutionHistory(Project project) {
-        this.projectRef = new ProjectRef(project);
+        this.projectRef = ProjectRef.from(project);
     }
 
+    @NotNull
     public Project getProject() {
-        return projectRef.get();
+        return projectRef.getnn();
     }
 
     public List<MethodExecutionInput> getExecutionInputs() {
@@ -132,6 +133,14 @@ public class MethodExecutionHistory implements PersistentStateElement<Element>, 
 
         return null;
     }
+
+    public void initialize() {
+        for (MethodExecutionInput executionInput : executionInputs) {
+            // try to locate method
+            executionInput.getMethod();
+        }
+    }
+
 
     @Override
     public void dispose() {

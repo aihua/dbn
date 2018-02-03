@@ -93,7 +93,6 @@ public class SessionSelectComboBoxAction extends DBNComboBoxAction implements Du
         presentation.setEnabled(enabled);
     }
 
-    @Override
     protected boolean shouldShowDisabledActions() {
         return true;
     }

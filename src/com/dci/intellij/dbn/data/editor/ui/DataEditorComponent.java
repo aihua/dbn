@@ -10,7 +10,7 @@ import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
 
 public interface DataEditorComponent extends Disposable{
-    Border BUTTON_OUTSIDE_BORDER = JBUI.Borders.empty(1);
+    Border BUTTON_OUTSIDE_BORDER = JBUI.Borders.empty(1, 1, 1, 1);
     Border BUTTON_INSIDE_BORDER = JBUI.Borders.empty(0, 8);
     RoundedLineBorder BUTTON_LINE_BORDER = new RoundedLineBorder(Colors.BUTTON_BORDER_COLOR, 4);
     CompoundBorder BUTTON_BORDER = new CompoundBorder(BUTTON_OUTSIDE_BORDER, new CompoundBorder(BUTTON_LINE_BORDER, BUTTON_INSIDE_BORDER));

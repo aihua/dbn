@@ -40,7 +40,7 @@ public class TextEditorPopupProviderForm extends TextFieldPopupProviderForm {
 
     public TextEditorPopupProviderForm(TextFieldWithPopup textField, boolean autoPopup) {
         super(textField, autoPopup, true);
-        editorTextArea.setBorder(JBUI.Borders.empty(4));
+        editorTextArea.setBorder(JBUI.Borders.empty(4, 4, 4, 4));
         editorTextArea.addKeyListener(this);
         editorTextArea.setWrapStyleWord(true);
         Color bgColor = TextAttributesUtil.getSimpleTextAttributes(DataGridTextAttributesKeys.DEFAULT_PLAIN_DATA).getBgColor();

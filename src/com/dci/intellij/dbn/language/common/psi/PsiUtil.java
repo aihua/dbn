@@ -31,17 +31,17 @@ import gnu.trove.THashSet;
 
 public class PsiUtil {
 
-    public static DBSchema getCurrentSchema(PsiElement psiElement) {
+    public static DBSchema getDatabaseSchema(PsiElement psiElement) {
         DBSchema currentSchema = null;
         if (psiElement instanceof BasePsiElement) {
             BasePsiElement basePsiElement = (BasePsiElement) psiElement;
-            currentSchema = basePsiElement.getCurrentSchema();
+            currentSchema = basePsiElement.getDatabaseSchema();
         }
         if (currentSchema == null) {
             VirtualFile virtualFile = getVirtualFileForElement(psiElement);
             if (virtualFile != null) {
                 FileConnectionMappingManager mappingManager = FileConnectionMappingManager.getInstance(psiElement.getProject());
-                currentSchema = mappingManager.getCurrentSchema(virtualFile);
+                currentSchema = mappingManager.getDatabaseSchema(virtualFile);
             }
         }
         return currentSchema;

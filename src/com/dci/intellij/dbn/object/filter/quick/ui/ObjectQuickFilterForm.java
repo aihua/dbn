@@ -5,7 +5,6 @@ import javax.swing.Icon;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.border.CompoundBorder;
-import javax.swing.border.EmptyBorder;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.util.ArrayList;
@@ -33,6 +32,7 @@ import com.dci.intellij.dbn.object.filter.quick.ObjectQuickFilterCondition;
 import com.dci.intellij.dbn.object.filter.quick.ObjectQuickFilterManager;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.util.PlatformIcons;
+import com.intellij.util.ui.JBUI;
 
 public class ObjectQuickFilterForm extends DBNFormImpl<ObjectQuickFilterDialog> {
     private JPanel mainPanel;
@@ -82,7 +82,7 @@ public class ObjectQuickFilterForm extends DBNFormImpl<ObjectQuickFilterDialog> 
                 (parentElement instanceof DBSchema ? (parentElement.getName() + " - ") : "") +
                 NamingUtil.capitalizeWords(objectList.getObjectType().getListName()) + " filter";
         Color headerBackground = connectionHandler.getEnvironmentType().getColor();
-        DBNHeaderForm headerForm = new DBNHeaderForm(headerText, headerIcon, headerBackground);
+        DBNHeaderForm headerForm = new DBNHeaderForm(headerText, headerIcon, headerBackground, this);
         headerPanel.add(headerForm.getComponent(), BorderLayout.CENTER);
     }
 
@@ -95,7 +95,7 @@ public class ObjectQuickFilterForm extends DBNFormImpl<ObjectQuickFilterDialog> 
     private void addConditionPanel(ObjectQuickFilterCondition condition) {
         ObjectQuickFilterConditionForm conditionForm = new ObjectQuickFilterConditionForm(this, condition);
         conditionsPanel.add(conditionForm.getComponent());
-        conditionsPanel.setBorder(new CompoundBorder(Borders.BOTTOM_LINE_BORDER, new EmptyBorder(0,0,4,0)));
+        conditionsPanel.setBorder(new CompoundBorder(Borders.BOTTOM_LINE_BORDER, JBUI.Borders.emptyBottom(4)));
         conditionsPanel.revalidate();
         conditionsPanel.repaint();
 
@@ -117,7 +117,7 @@ public class ObjectQuickFilterForm extends DBNFormImpl<ObjectQuickFilterDialog> 
             }
         }
         int conditionsCount = filter.getConditions().size();
-        conditionsPanel.setBorder(conditionsCount > 0 ? new CompoundBorder(Borders.BOTTOM_LINE_BORDER, new EmptyBorder(0,0,4,0)) : null);
+        conditionsPanel.setBorder(conditionsCount > 0 ? new CompoundBorder(Borders.BOTTOM_LINE_BORDER, JBUI.Borders.emptyBottom(4)) : null);
         conditionsPanel.revalidate();
         conditionsPanel.repaint();
         updateJoinTypeComponents();

@@ -39,7 +39,7 @@ public class VirtualConnectionHandler implements ConnectionHandler {
     private DatabaseType databaseType;
     private double databaseVersion;
     private Project project;
-    private ConnectionHandlerStatus connectionStatus;
+    private ConnectionHandlerStatusHolder connectionStatus;
     private DatabaseInterfaceProvider interfaceProvider;
     private Map<String, String> properties = new HashMap<String, String>();
     private NavigationPsiCache psiCache;
@@ -54,7 +54,7 @@ public class VirtualConnectionHandler implements ConnectionHandler {
         this.databaseType = databaseType;
         this.databaseVersion = databaseVersion;
         this.ref = new ConnectionHandlerRef(this);
-        this.connectionStatus = new ConnectionHandlerStatus(this);
+        this.connectionStatus = new ConnectionHandlerStatusHolder(this);
         this.objectBundle = new DBVirtualObjectBundle(this);
     }
 
@@ -135,6 +135,7 @@ public class VirtualConnectionHandler implements ConnectionHandler {
     @Override public void setLoggingEnabled(boolean loggingEnabled) {}
 
     @Override public boolean isConnected() {return false;}
+    @Override public boolean isConnected(SessionId sessionId) {return false;}
     @Override public boolean isDisposed() {
         return false;
     }
@@ -162,12 +163,20 @@ public class VirtualConnectionHandler implements ConnectionHandler {
     @Override public String getUserName() {return "root";}
 
     @Override public DBNConnection getTestConnection() throws SQLException {return null;}
+
     @NotNull
     @Override public DBNConnection getPoolConnection(boolean readonly) throws SQLException {throw new UnsupportedOperationException();}
+
     @NotNull
     @Override public DBNConnection getPoolConnection(@Nullable DBSchema schema, boolean readonly) throws SQLException {throw new UnsupportedOperationException();}
+
     @NotNull
     @Override public DBNConnection getMainConnection() throws SQLException {throw new UnsupportedOperationException();}
+
+    @NotNull
+    @Override
+    public DBNConnection getConnection(SessionId sessionId, @Nullable DBSchema schema) throws SQLException {throw new UnsupportedOperationException();}
+
     @NotNull
     @Override public DBNConnection getMainConnection(@Nullable DBSchema schema) throws SQLException {throw new UnsupportedOperationException();}
     @Override public void freePoolConnection(DBNConnection connection) {}
@@ -183,7 +192,7 @@ public class VirtualConnectionHandler implements ConnectionHandler {
     }
 
     @NotNull
-    @Override public ConnectionHandlerStatus getConnectionStatus() {return connectionStatus;}
+    @Override public ConnectionHandlerStatusHolder getConnectionStatus() {return connectionStatus;}
 
     @Override public void setTemporaryAuthenticationInfo(AuthenticationInfo temporaryAuthenticationInfo) {}
 
@@ -215,11 +224,6 @@ public class VirtualConnectionHandler implements ConnectionHandler {
     public ConnectionBundle getConnectionBundle() {return null;}
     @NotNull
     public ConnectionPool getConnectionPool() {return null;}
-
-    @Override
-    public ConnectionLoadMonitor getLoadMonitor() {
-        return null;
-    }
 
     @NotNull
     public DBObjectBundle getObjectBundle() {return objectBundle;}

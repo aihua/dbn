@@ -6,7 +6,9 @@ import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingProvider;
+import com.dci.intellij.dbn.connection.SessionId;
+import com.dci.intellij.dbn.connection.session.DatabaseSession;
+import com.dci.intellij.dbn.connection.session.DatabaseSessionBundle;
 import com.dci.intellij.dbn.ddl.DDLFileAttachmentManager;
 import com.dci.intellij.dbn.ddl.DDLFileType;
 import com.dci.intellij.dbn.ddl.options.DDLFileGeneralSettings;
@@ -19,6 +21,7 @@ import com.dci.intellij.dbn.editor.data.options.DataEditorSettings;
 import com.dci.intellij.dbn.language.sql.SQLFileType;
 import com.dci.intellij.dbn.object.DBDataset;
 import com.dci.intellij.dbn.object.DBSchema;
+import com.dci.intellij.dbn.object.DBTable;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
 import com.intellij.openapi.editor.Document;
@@ -40,24 +43,40 @@ import java.util.List;
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
 
-public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObject> implements FileConnectionMappingProvider {
+public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObject> {
     public ThreadLocal<Document> FAKE_DOCUMENT = new ThreadLocal<Document>();
     private static final List<DBContentVirtualFile> EMPTY_CONTENT_FILES = Collections.emptyList();
     private List<DBContentVirtualFile> contentFiles;
     private transient EditorProviderId selectedEditorProviderId;
+    private SessionId databaseSessionId;
 
     public DBEditableObjectVirtualFile(DBSchemaObject object) {
         super(object);
+        if (object instanceof DBTable) {
+            databaseSessionId = SessionId.MAIN;
+        }
     }
 
     @Nullable
-    public ConnectionHandler getActiveConnection() {
-        return getConnectionHandler();
-    }
-
-    @Nullable
-    public DBSchema getCurrentSchema() {
+    public DBSchema getDatabaseSchema() {
         return getObject().getSchema();
+    }
+
+    @Override
+    public DatabaseSession getDatabaseSession() {
+        if (databaseSessionId != null) {
+            DatabaseSessionBundle sessionBundle = getConnectionHandler().getSessionBundle();
+            return sessionBundle.getSession(databaseSessionId);
+        }
+        return super.getDatabaseSession();
+    }
+
+    public SessionId getDatabaseSessionId() {
+        return databaseSessionId;
+    }
+
+    public void setDatabaseSessionId(SessionId databaseSessionId) {
+        this.databaseSessionId = databaseSessionId;
     }
 
     public boolean preOpen() {

@@ -26,7 +26,7 @@ public class SimpleBrowserTreeRoot extends BrowserTreeNodeBase implements Browse
     private ProjectRef projectRef;
 
     public SimpleBrowserTreeRoot(@NotNull Project project, ConnectionBundle connectionBundle) {
-        this.projectRef = new ProjectRef(project);
+        this.projectRef = ProjectRef.from(project);
         this.rootChildren = new ArrayList<ConnectionBundle>();
         if (connectionBundle != null) {
             this.rootChildren.add(connectionBundle);
@@ -35,7 +35,7 @@ public class SimpleBrowserTreeRoot extends BrowserTreeNodeBase implements Browse
 
     @NotNull
     public Project getProject() {
-        return FailsafeUtil.get(projectRef.get());
+        return projectRef.getnn();
     }
 
     @Nullable

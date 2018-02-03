@@ -13,13 +13,14 @@ import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.dci.intellij.dbn.connection.ConnectionCache;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ConnectionHandlerStatus;
+import com.dci.intellij.dbn.connection.ConnectionHandlerStatusHolder;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionType;
-import com.dci.intellij.dbn.connection.transaction.UncommittedChangeBundle;
+import com.dci.intellij.dbn.connection.transaction.PendingTransactionBundle;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.vfs.VirtualFile;
-import static com.dci.intellij.dbn.connection.jdbc.ResourceStatus.*;
+import static com.dci.intellij.dbn.connection.jdbc.ResourceStatus.ACTIVE;
+import static com.dci.intellij.dbn.connection.jdbc.ResourceStatus.RESERVED;
 
 public class DBNConnection extends DBNConnectionBase {
     private static final Logger LOGGER = LoggerFactory.createLogger();
@@ -28,19 +29,61 @@ public class DBNConnection extends DBNConnectionBase {
 
     private long lastAccess;
     private Set<DBNStatement> statements = new HashSet<DBNStatement>();
-    private UncommittedChangeBundle dataChanges;
-    private IncrementalResourceStatusAdapter<DBNConnection> ACTIVE_STATUS_ADAPTER = new IncrementalResourceStatusAdapter<DBNConnection>(ResourceStatus.ACTIVE, this) {
-        @Override
-        protected boolean setInner(ResourceStatus status, boolean value) {
-            return DBNConnection.super.set(status, value);
-        }
-    };
-    private IncrementalResourceStatusAdapter<DBNConnection> RESERVED_STATUS_ADAPTER = new IncrementalResourceStatusAdapter<DBNConnection>(ResourceStatus.RESERVED, this) {
-        @Override
-        protected boolean setInner(ResourceStatus status, boolean value) {
-            return DBNConnection.super.set(status, value);
-        }
-    };
+    private PendingTransactionBundle dataChanges;
+
+    private IncrementalResourceStatusAdapter<DBNConnection> active =
+            new IncrementalResourceStatusAdapter<DBNConnection>(ResourceStatus.ACTIVE, this) {
+                @Override
+                protected boolean setInner(ResourceStatus status, boolean value) {
+                    return DBNConnection.super.set(status, value);
+                }
+            };
+
+    private IncrementalResourceStatusAdapter<DBNConnection> reserved =
+            new IncrementalResourceStatusAdapter<DBNConnection>(ResourceStatus.RESERVED, this) {
+                @Override
+                protected boolean setInner(ResourceStatus status, boolean value) {
+                    return DBNConnection.super.set(status, value);
+                }
+            };
+
+    private ResourceStatusAdapter<DBNConnection> invalid =
+            new ResourceStatusAdapter<DBNConnection>(this,
+                    ResourceStatus.INVALID,
+                    ResourceStatus.INVALID_SETTING,
+                    ResourceStatus.INVALID_CHECKING,
+                    TimeUtil.THIRTY_SECONDS) {
+                @Override
+                protected void changeInner(boolean value) throws SQLException {
+                }
+
+                @Override
+                protected boolean checkInner() throws SQLException {
+                    return !isActive() && !inner.isValid(2);
+                }
+            };
+
+    private ResourceStatusAdapter<DBNConnection> autoCommit =
+            new ResourceStatusAdapter<DBNConnection>(this,
+                    ResourceStatus.AUTO_COMMIT,
+                    ResourceStatus.AUTO_COMMIT_SETTING,
+                    ResourceStatus.AUTO_COMMIT_CHECKING,
+                    TimeUtil.FIVE_MINUTES) {
+                @Override
+                protected void changeInner(boolean value) throws SQLException {
+                    inner.setAutoCommit(value);
+                }
+
+                @Override
+                protected boolean checkInner() throws SQLException {
+                    return inner.getAutoCommit();
+                }
+
+                @Override
+                protected void fail() {
+                    // do not set the status if check failed
+                }
+            };
 
     public DBNConnection(Connection connection, ConnectionType type, ConnectionId id) {
         super(connection);
@@ -87,16 +130,6 @@ public class DBNConnection extends DBNConnectionBase {
         inner.close();
     }
 
-    @Override
-    public boolean isInvalidInner() throws SQLException {
-        return !isActive() && !inner.isValid(2);
-    }
-
-    @Override
-    public void invalidateInner() throws SQLException {
-        // do nothing
-    }
-
     public ConnectionId getId() {
         return id;
     }
@@ -121,7 +154,7 @@ public class DBNConnection extends DBNConnectionBase {
     public void statusChanged(ResourceStatus status) {
         ConnectionHandler connectionHandler = ConnectionCache.findConnectionHandler(id);
         if (connectionHandler != null && !connectionHandler.isDisposed()) {
-            ConnectionHandlerStatus connectionStatus = connectionHandler.getConnectionStatus();
+            ConnectionHandlerStatusHolder connectionStatus = connectionHandler.getConnectionStatus();
             switch (status) {
                 case CLOSED: connectionStatus.getConnected().markDirty(); break;
                 case INVALID: connectionStatus.getValid().markDirty(); break;
@@ -144,16 +177,12 @@ public class DBNConnection extends DBNConnectionBase {
      ********************************************************************/
     @Override
     public void setAutoCommit(boolean autoCommit) throws SQLException {
-        try {
-            super.setAutoCommit(autoCommit);
-        } finally {
-            set(AUTO_COMMIT, autoCommit);
-        }
+        this.autoCommit.change(autoCommit);
     }
 
     @Override
-    public boolean getAutoCommit() throws SQLException {
-        return super.getAutoCommit();
+    public boolean getAutoCommit() {
+        return autoCommit.get();
     }
 
     @Override
@@ -189,14 +218,24 @@ public class DBNConnection extends DBNConnectionBase {
         return is(ACTIVE);
     }
 
-    public boolean isAutoCommit() {
-        return is(AUTO_COMMIT);
+
+    public boolean isValid() {
+        return isValid(2);
     }
+
+    public boolean isValid(int timeout) {
+        return !isInvalid();
+    }
+
+    public boolean isInvalid() {
+        return invalid.get();
+    }
+
 
     public boolean set(ResourceStatus status, boolean value) {
         boolean changed;
         if (status == ACTIVE) {
-            changed = ACTIVE_STATUS_ADAPTER.set(status, value);
+            changed = active.set(value);
 
         } else if (status == RESERVED) {
             if (value) {
@@ -206,7 +245,7 @@ public class DBNConnection extends DBNConnectionBase {
                     LOGGER.warn("Reserving already reserved connection");
                 }
             }
-            changed = RESERVED_STATUS_ADAPTER.set(status, value);
+            changed = reserved.set(value);
         } else {
             changed = super.set(status, value);
             if (changed) statusChanged(status);
@@ -220,9 +259,9 @@ public class DBNConnection extends DBNConnectionBase {
      *                             Data changes                         *
      ********************************************************************/
     public void notifyDataChanges(VirtualFile virtualFile) {
-        if (!isAutoCommit()) {
+        if (!getAutoCommit()) {
             if (dataChanges == null) {
-                dataChanges = new UncommittedChangeBundle();
+                dataChanges = new PendingTransactionBundle();
             }
             dataChanges.notifyChange(virtualFile);
         }
@@ -233,7 +272,7 @@ public class DBNConnection extends DBNConnectionBase {
     }
 
     @Nullable
-    public UncommittedChangeBundle getDataChanges() {
+    public PendingTransactionBundle getDataChanges() {
         return dataChanges;
     }
 

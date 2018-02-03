@@ -40,7 +40,7 @@ public class ExplainPlanResult extends DisposableBase implements ExecutionResult
     private Date timestamp;
     private ExplainPlanEntry root;
     private ConnectionHandlerRef connectionHandlerRef;
-    private DBObjectRef<DBSchema> currentSchemaRef;
+    private DBObjectRef<DBSchema> databaseSchemaRef;
     private String statementText;
     private String resultName;
     private String errorMessage;
@@ -73,7 +73,7 @@ public class ExplainPlanResult extends DisposableBase implements ExecutionResult
         DBLanguagePsiFile file = executablePsiElement.getFile();
         ConnectionHandler connectionHandler = FailsafeUtil.get(file.getConnectionHandler());
         connectionHandlerRef = connectionHandler.getRef();
-        currentSchemaRef = DBObjectRef.from(file.getCurrentSchema());
+        databaseSchemaRef = DBObjectRef.from(file.getDatabaseSchema());
         virtualFile = file.getVirtualFile();
         this.resultName = CommonUtil.nvl(executablePsiElement.createSubjectList(), "Explain Plan");
         this.errorMessage = errorMessage;
@@ -98,14 +98,14 @@ public class ExplainPlanResult extends DisposableBase implements ExecutionResult
         return ConnectionHandlerRef.get(connectionHandlerRef);
     }
 
-    public DBSchema getCurrentSchema() {
-        return DBObjectRef.get(currentSchemaRef);
+    public DBSchema getDatabaseSchema() {
+        return DBObjectRef.get(databaseSchemaRef);
     }
 
     @Override
     public PsiFile createPreviewFile() {
         ConnectionHandler connectionHandler = getConnectionHandler();
-        DBSchema currentSchema = getCurrentSchema();
+        DBSchema currentSchema = getDatabaseSchema();
         DBLanguageDialect languageDialect = connectionHandler.getLanguageDialect(SQLLanguage.INSTANCE);
         return DBLanguagePsiFile.createFromText(getProject(), "preview", languageDialect, statementText, connectionHandler, currentSchema);
     }

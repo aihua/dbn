@@ -1,30 +1,14 @@
 package com.dci.intellij.dbn.execution.common.ui;
 
-import javax.swing.JCheckBox;
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.event.ChangeEvent;
-import javax.swing.event.ChangeListener;
-import java.awt.BorderLayout;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.DisposableProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
-import com.dci.intellij.dbn.common.ui.AutoCommitLabel;
-import com.dci.intellij.dbn.common.ui.DBNForm;
-import com.dci.intellij.dbn.common.ui.DBNFormImpl;
-import com.dci.intellij.dbn.common.ui.ValueSelector;
-import com.dci.intellij.dbn.common.ui.ValueSelectorListener;
-import com.dci.intellij.dbn.common.ui.ValueSelectorOption;
+import com.dci.intellij.dbn.common.ui.*;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
+import com.dci.intellij.dbn.connection.session.DatabaseSessionBundle;
 import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.debugger.DBDebuggerType;
@@ -32,6 +16,17 @@ import com.dci.intellij.dbn.execution.ExecutionOptions;
 import com.dci.intellij.dbn.execution.LocalExecutionInput;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.intellij.openapi.util.Disposer;
+
+import javax.swing.*;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
+import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class ExecutionOptionsForm extends DBNFormImpl<DisposableProjectComponent> {
     private JPanel mainPanel;
@@ -62,9 +57,26 @@ public class ExecutionOptionsForm extends DBNFormImpl<DisposableProjectComponent
         } else {
             targetSchemaLabel.setVisible(true);
             DBSchema targetSchema = executionInput.getTargetSchema();
-            targetSchemaLabel.setText(targetSchema.getName());
-            targetSchemaLabel.setIcon(targetSchema.getIcon());
+            if (targetSchema == null) {
+                targetSessionLabel.setText("No schema selected");
+                targetSessionLabel.setIcon(Icons.DBO_SCHEMA);
+            } else {
+                targetSchemaLabel.setText(targetSchema.getName());
+                targetSchemaLabel.setIcon(targetSchema.getIcon());
+            }
         }
+
+        if (executionInput.isSessionSelectionAllowed()) {
+            targetSessionPanel.add(new SessionSelector(), BorderLayout.CENTER);
+            targetSessionLabel.setVisible(false);
+        } else {
+            targetSessionLabel.setVisible(true);
+            SessionId sessionId = executionInput.getTargetSessionId();
+            DatabaseSession targetSession = connectionHandler.getSessionBundle().getSession(sessionId);
+            targetSessionLabel.setText(targetSession.getName());
+            targetSessionLabel.setIcon(targetSession.getIcon());
+        }
+
         connectionLabel.setText(connectionHandler.getPresentableText());
         connectionLabel.setIcon(connectionHandler.getIcon());
         autoCommitLabel.setConnectionHandler(connectionHandler);
@@ -140,17 +152,21 @@ public class ExecutionOptionsForm extends DBNFormImpl<DisposableProjectComponent
         @Override
         public List<DBSchema> loadValues() {
             ConnectionHandler connectionHandler = executionInput.getConnectionHandler();
-            return connectionHandler.getObjectBundle().getSchemas();
+            if (connectionHandler == null) {
+                return Collections.emptyList();
+            } else {
+                return connectionHandler.getObjectBundle().getSchemas();
+            }
         }
     }
 
     private class SessionSelector extends ValueSelector<DatabaseSession> {
         public SessionSelector() {
-            super(Icons.SESSION_CUSTOM, "Select Session...", getExecutionInput().getSession(), true, ValueSelectorOption.HIDE_DESCRIPTION);
+            super(Icons.SESSION_CUSTOM, "Select Session...", getTargetSession(), true, ValueSelectorOption.HIDE_DESCRIPTION);
             addListener(new ValueSelectorListener<DatabaseSession>() {
                 @Override
                 public void selectionChanged(DatabaseSession oldValue, DatabaseSession newValue) {
-                    executionInput.setSession(newValue);
+                    executionInput.setTargetSessionId(newValue.getId());
                     notifyChangeListeners();
                 }
             });
@@ -158,7 +174,8 @@ public class ExecutionOptionsForm extends DBNFormImpl<DisposableProjectComponent
 
         @Override
         public List<DatabaseSession> loadValues() {
-            return getConnectionHandler().getSessionBundle().getSessions();
+            DatabaseSessionBundle sessionBundle = getConnectionHandler().getSessionBundle();
+            return sessionBundle.getSessions();
         }
     }
 
@@ -169,6 +186,11 @@ public class ExecutionOptionsForm extends DBNFormImpl<DisposableProjectComponent
     public ConnectionHandler getConnectionHandler() {
         ConnectionHandler connectionHandler = getExecutionInput().getConnectionHandler();
         return FailsafeUtil.get(connectionHandler);
+    }
+
+    public DatabaseSession getTargetSession() {
+        SessionId sessionId = getExecutionInput().getTargetSessionId();
+        return getConnectionHandler().getSessionBundle().getSession(sessionId);
     }
 
     private ActionListener actionListener = new ActionListener() {

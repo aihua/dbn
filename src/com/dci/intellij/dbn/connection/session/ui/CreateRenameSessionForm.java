@@ -38,14 +38,14 @@ public class CreateRenameSessionForm extends DBNFormImpl<CreateRenameSessionDial
         errorLabel.setIcon(Icons.EXEC_MESSAGES_ERROR);
         errorLabel.setVisible(false);
 
-        DBNHeaderForm headerForm = new DBNHeaderForm(connectionHandler);
+        DBNHeaderForm headerForm = new DBNHeaderForm(connectionHandler, this);
         headerPanel.add(headerForm.getComponent(), BorderLayout.CENTER);
 
         final Set<String> sessionNames = connectionHandler.getSessionBundle().getSessionNames();
 
         String name;
         if (session == null) {
-            name = connectionHandler.getName() + " 1";
+            name = "Session 1";
             while (sessionNames.contains(name)) {
                 name = NamingUtil.getNextNumberedName(name, true);
             }
@@ -95,6 +95,10 @@ public class CreateRenameSessionForm extends DBNFormImpl<CreateRenameSessionDial
 
     public DatabaseSession getSession() {
         return session;
+    }
+
+    public void setSession(DatabaseSession session) {
+        this.session = session;
     }
 
     @Override

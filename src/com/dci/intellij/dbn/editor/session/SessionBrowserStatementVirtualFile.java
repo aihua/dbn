@@ -13,8 +13,7 @@ import org.jetbrains.annotations.Nullable;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ConnectionId;
-import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingProvider;
+import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
 import com.dci.intellij.dbn.language.sql.SQLFileType;
 import com.dci.intellij.dbn.object.DBSchema;
@@ -29,7 +28,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
 import com.intellij.util.LocalTimeCounter;
 
-public class SessionBrowserStatementVirtualFile extends DBVirtualFileImpl implements DBParseableVirtualFile, FileConnectionMappingProvider {
+public class SessionBrowserStatementVirtualFile extends DBVirtualFileImpl implements DBParseableVirtualFile {
     private long modificationTimestamp = LocalTimeCounter.currentTime();
     private CharSequence content = "";
     private SessionBrowser sessionBrowser;
@@ -79,25 +78,19 @@ public class SessionBrowserStatementVirtualFile extends DBVirtualFileImpl implem
         return FailsafeUtil.get(connectionHandler);
     }
 
-    @NotNull
-    @Override
-    public ConnectionId getConnectionId() {
-        return sessionBrowser == null ? ConnectionId.DISPOSED_CONNECTION : sessionBrowser.getConnectionHandler().getId();
-    }
-
     @Nullable
     @Override
-    public ConnectionHandler getActiveConnection() {
-        return getConnectionHandler();
-    }
-
-    @Nullable
-    @Override
-    public DBSchema getCurrentSchema() {
+    public DBSchema getDatabaseSchema() {
         return DBObjectRef.get(schemaRef);
     }
 
-    public void setCurrentSchema(DBSchema schema) {
+    @Nullable
+    @Override
+    public DatabaseSession getDatabaseSession() {
+        return getConnectionHandler().getSessionBundle().getPoolSession();
+    }
+
+    public void setDatabaseSchema(DBSchema schema) {
         this.schemaRef = DBObjectRef.from(schema);
     }
 

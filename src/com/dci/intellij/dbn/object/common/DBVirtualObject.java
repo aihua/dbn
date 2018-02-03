@@ -7,8 +7,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
+import com.dci.intellij.dbn.common.content.DynamicContentStatus;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoader;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.property.BasicProperty;
@@ -69,6 +71,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
     private DBObjectType objectType;
     private BasePsiElement underlyingPsiElement;
     private BasePsiElement relevantPsiElement;
+    private boolean loadingChildren;
 
     private BasicProperty<Boolean> valid = new BasicProperty<Boolean>(true) {
         @Override
@@ -90,7 +93,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
     };
 
     public DBVirtualObject(DBObjectType objectType, BasePsiElement psiElement) {
-        super(psiElement.getActiveConnection(), psiElement.getText());
+        super(psiElement.getConnectionHandler(), psiElement.getText());
 
         underlyingPsiElement = psiElement;
         relevantPsiElement = psiElement;
@@ -158,14 +161,33 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
 
     @NotNull
     public List<DBObject> getChildObjects(DBObjectType objectType) {
-        return getChildObjectList(objectType).getObjects();
+        DBObjectList<DBObject> childObjectList = getChildObjectList(objectType);
+        return childObjectList == null ? Collections.<DBObject>emptyList() : childObjectList.getObjects();
     }
 
     public DBObject getChildObject(DBObjectType objectType, String name, int overload, boolean lookupHidden) {
-        return getChildObjectList(objectType).getObject(name, overload);
+        DBObjectList<DBObject> childObjectList = getChildObjectList(objectType);
+        return childObjectList == null ? null : childObjectList.getObject(name, overload);
     }
 
-    public synchronized DBObjectList<DBObject> getChildObjectList(DBObjectType objectType) {
+    @Nullable
+    public DBObjectList<DBObject> getChildObjectList(DBObjectType objectType) {
+        if (!loadingChildren) {
+            synchronized (this) {
+                if (!loadingChildren) {
+                    try {
+                        loadingChildren = true;
+                        return loadChildObjectList(objectType);
+                    } finally {
+                        loadingChildren = false;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private DBObjectList<DBObject> loadChildObjectList(DBObjectType objectType) {
         DBObjectListContainer childObjects = initChildObjects();
         DBObjectList<DBObject> objectList = childObjects.getObjectList(objectType);
         if (objectList != null) {
@@ -178,7 +200,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
         }
 
         if (objectList == null) {
-            objectList = childObjects.createObjectList(objectType, this, DynamicContentLoader.VOID_CONTENT_LOADER, false, false);
+            objectList = childObjects.createObjectList(objectType, this, DynamicContentLoader.VOID_CONTENT_LOADER, DynamicContentStatus.CONCURRENT);
         }
 
         if (objectList.size() == 0) {
@@ -244,7 +266,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
     @NotNull
     public ConnectionHandler getConnectionHandler() {
         DBLanguagePsiFile file = underlyingPsiElement.getFile();
-        ConnectionHandler connectionHandler = file == null ? null : file.getActiveConnection();
+        ConnectionHandler connectionHandler = file == null ? null : file.getConnectionHandler();
         if (connectionHandler == null) {
             ConnectionManager connectionManager = ConnectionManager.getInstance(getProject());
             return connectionManager.getConnectionBundle().getVirtualConnection(ConnectionId.VIRTUAL_ORACLE_CONNECTION);

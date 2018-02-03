@@ -7,7 +7,6 @@ import com.dci.intellij.dbn.data.type.DBDataType;
 import com.dci.intellij.dbn.editor.data.model.DatasetEditorModelCell;
 import com.dci.intellij.dbn.editor.data.options.DataEditorPopupSettings;
 import com.dci.intellij.dbn.editor.data.ui.table.DatasetEditorTable;
-import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 
 import javax.swing.*;
@@ -119,7 +118,7 @@ public class DatasetTableCellEditorWithPopup extends DatasetTableCellEditor {
      ********************************************************/
 
     private static class CustomTextFieldWithPopup extends TextFieldWithPopup {
-        protected static final EmptyBorder BUTTON_INSIDE_BORDER = JBUI.Borders.empty(0, 2);
+        protected static final EmptyBorder BUTTON_INSIDE_BORDER = new EmptyBorder(0, 2, 0, 2);
         protected static final CompoundBorder BUTTON_BORDER = new CompoundBorder(BUTTON_OUTSIDE_BORDER, new CompoundBorder(BUTTON_LINE_BORDER, BUTTON_INSIDE_BORDER));
 
         private DatasetEditorTable table;

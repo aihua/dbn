@@ -18,11 +18,11 @@ import com.intellij.openapi.ui.popup.ComponentPopupBuilder;
 import com.intellij.openapi.ui.popup.JBPopup;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.ui.DocumentAdapter;
-import com.intellij.util.ui.JBUI;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import java.awt.*;
 import java.awt.event.FocusEvent;
@@ -40,7 +40,7 @@ public class TextEditorPopupProviderForm extends TextFieldPopupProviderForm {
 
     public TextEditorPopupProviderForm(TextFieldWithPopup textField, boolean autoPopup) {
         super(textField, autoPopup, true);
-        editorTextArea.setBorder(JBUI.Borders.empty(4));
+        editorTextArea.setBorder(new EmptyBorder(4, 4, 4, 4));
         editorTextArea.addKeyListener(this);
         editorTextArea.setWrapStyleWord(true);
         Color bgColor = TextAttributesUtil.getSimpleTextAttributes(DataGridTextAttributesKeys.DEFAULT_PLAIN_DATA).getBgColor();

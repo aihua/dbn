@@ -9,10 +9,10 @@ import com.dci.intellij.dbn.execution.script.ScriptExecutionManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.TableUtil;
-import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
@@ -126,7 +126,7 @@ public class CmdLineInterfacesTable extends DBNTable<CmdLineInterfacesTableModel
 
     public Component prepareEditor(TableCellEditor editor, int rowIndex, int columnIndex) {
         final JTextField textField = (JTextField) super.prepareEditor(editor, rowIndex, columnIndex);
-        textField.setBorder(JBUI.Borders.emptyLeft(3));
+        textField.setBorder(new EmptyBorder(0,3,0,0));
 
         new SimpleLaterInvocator() {
             @Override

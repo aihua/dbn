@@ -19,7 +19,6 @@ import com.intellij.ui.Gray;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.RoundedLineBorder;
 import com.intellij.util.IconUtil;
-import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -27,6 +26,7 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
+import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
 import javax.swing.plaf.InsetsUIResource;
 import javax.swing.plaf.UIResource;
@@ -81,8 +81,8 @@ public abstract class ValueSelector<T extends Presentable> extends JPanel{
             defaultBorder = new ValueSelectorBorder(this);
             focusBorder = defaultBorder;
         } else {
-            insideBorder = JBUI.Borders.empty(3, 5);
-            insideBorderFocused = JBUI.Borders.empty(2, 4);
+            insideBorder = new EmptyBorder(3, 5, 3, 5);
+            insideBorderFocused = new EmptyBorder(2, 4, 2, 4);
 
             defaultBorder = insideBorder;
             focusBorder = new CompoundBorder(new RoundedLineBorder(new JBColor(Gray._190, Gray._55), 3), insideBorderFocused);

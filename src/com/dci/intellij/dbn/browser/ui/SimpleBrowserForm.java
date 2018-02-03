@@ -11,9 +11,9 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionManager;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.util.IncorrectOperationException;
-import com.intellij.util.ui.JBUI;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 
 public class SimpleBrowserForm extends DatabaseBrowserForm{
     private JPanel mainPanel;
@@ -32,7 +32,7 @@ public class SimpleBrowserForm extends DatabaseBrowserForm{
         super(parentComponent);
         browserTree = new DatabaseBrowserTree(treeModel);
         browserScrollPane.setViewportView(browserTree);
-        browserScrollPane.setBorder(JBUI.Borders.emptyTop(1));
+        browserScrollPane.setBorder(new EmptyBorder(1,0,0,0));
         ToolTipManager.sharedInstance().registerComponent(browserTree);
 
         EventUtil.subscribe(getProject(), this, ObjectDetailSettingsListener.TOPIC, objectDetailSettingsListener);

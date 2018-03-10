@@ -39,7 +39,6 @@ import com.intellij.openapi.project.DumbAwareAction;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.ui.popup.ListPopup;
-import com.intellij.openapi.util.Condition;
 import com.intellij.openapi.vfs.*;
 import com.intellij.util.IncorrectOperationException;
 import gnu.trove.THashSet;
@@ -433,18 +432,8 @@ public class FileConnectionMappingManager extends VirtualFileAdapter implements 
                 "Select Connection",
                 actionGroup,
                 SimpleDataContext.getProjectContext(null),
-                false,
-                true,
-                false,
-                null,
-                1000,
-                new Condition<AnAction>() {
-                    @Override
-                    public boolean value(AnAction anAction) {
-                        SelectConnectionAction selectConnectionAction = (SelectConnectionAction) anAction;
-                        return selectConnectionAction.isSelected();
-                    }
-                });
+                JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
+                true);
 
         popupBuilder.showCenteredInCurrentWindow(project);
     }
@@ -532,18 +521,8 @@ public class FileConnectionMappingManager extends VirtualFileAdapter implements 
                         "Select Schema",
                         actionGroup,
                         SimpleDataContext.getProjectContext(null),
-                        false,
-                        true,
-                        false,
-                        null,
-                        1000,
-                        new Condition<AnAction>() {
-                            @Override
-                            public boolean value(AnAction anAction) {
-                                SelectSchemaAction selectSchemaAction = (SelectSchemaAction) anAction;
-                                return selectSchemaAction.isSelected();
-                            }
-                        });
+                        JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
+                        true);
 
                 popupBuilder.showCenteredInCurrentWindow(getProject());
             }
@@ -606,21 +585,8 @@ public class FileConnectionMappingManager extends VirtualFileAdapter implements 
                         "Select Session",
                         actionGroup,
                         SimpleDataContext.getProjectContext(null),
-                        false,
-                        true,
-                        false,
-                        null,
-                        1000,
-                        new Condition<AnAction>() {
-                            @Override
-                            public boolean value(AnAction anAction) {
-                                if (anAction instanceof SessionSelectAction) {
-                                    SessionSelectAction sessionSelectAction = (SessionSelectAction) anAction;
-                                    return sessionSelectAction.isSelected();
-                                }
-                                return false;
-                            }
-                        });
+                        JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
+                        true);
 
                 popupBuilder.showCenteredInCurrentWindow(getProject());
             }

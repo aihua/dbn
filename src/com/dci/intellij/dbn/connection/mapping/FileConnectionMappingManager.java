@@ -1,13 +1,5 @@
 package com.dci.intellij.dbn.connection.mapping;
 
-import java.lang.ref.WeakReference;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import org.jdom.Element;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.list.FiltrableList;
@@ -15,18 +7,8 @@ import com.dci.intellij.dbn.common.message.MessageCallback;
 import com.dci.intellij.dbn.common.thread.RunnableTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.SimpleTask;
-import com.dci.intellij.dbn.common.util.ActionUtil;
-import com.dci.intellij.dbn.common.util.DocumentUtil;
-import com.dci.intellij.dbn.common.util.MessageUtil;
-import com.dci.intellij.dbn.common.util.StringUtil;
-import com.dci.intellij.dbn.common.util.VirtualFileUtil;
-import com.dci.intellij.dbn.connection.ConnectionAction;
-import com.dci.intellij.dbn.connection.ConnectionBundle;
-import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
-import com.dci.intellij.dbn.connection.ConnectionId;
-import com.dci.intellij.dbn.connection.ConnectionManager;
-import com.dci.intellij.dbn.connection.SessionId;
+import com.dci.intellij.dbn.common.util.*;
+import com.dci.intellij.dbn.connection.*;
 import com.dci.intellij.dbn.connection.action.AbstractConnectionAction;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
@@ -46,12 +28,7 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.actionSystem.impl.SimpleDataContext;
-import com.intellij.openapi.components.PersistentStateComponent;
-import com.intellij.openapi.components.ProjectComponent;
-import com.intellij.openapi.components.State;
-import com.intellij.openapi.components.Storage;
-import com.intellij.openapi.components.StoragePathMacros;
-import com.intellij.openapi.components.StorageScheme;
+import com.intellij.openapi.components.*;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
@@ -63,14 +40,18 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.ui.popup.ListPopup;
 import com.intellij.openapi.util.Condition;
-import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.openapi.vfs.VirtualFileAdapter;
-import com.intellij.openapi.vfs.VirtualFileEvent;
-import com.intellij.openapi.vfs.VirtualFileManager;
-import com.intellij.openapi.vfs.VirtualFileMoveEvent;
-import com.intellij.openapi.vfs.VirtualFilePropertyEvent;
+import com.intellij.openapi.vfs.*;
 import com.intellij.util.IncorrectOperationException;
 import gnu.trove.THashSet;
+import org.jdom.Element;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
 import static com.dci.intellij.dbn.common.action.DBNDataKeys.*;
 
 @State(
@@ -452,8 +433,9 @@ public class FileConnectionMappingManager extends VirtualFileAdapter implements 
                 "Select Connection",
                 actionGroup,
                 SimpleDataContext.getProjectContext(null),
-                JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
+                false,
                 true,
+                false,
                 null,
                 1000,
                 new Condition<AnAction>() {
@@ -462,8 +444,7 @@ public class FileConnectionMappingManager extends VirtualFileAdapter implements 
                         SelectConnectionAction selectConnectionAction = (SelectConnectionAction) anAction;
                         return selectConnectionAction.isSelected();
                     }
-                },
-                null);
+                });
 
         popupBuilder.showCenteredInCurrentWindow(project);
     }
@@ -551,8 +532,9 @@ public class FileConnectionMappingManager extends VirtualFileAdapter implements 
                         "Select Schema",
                         actionGroup,
                         SimpleDataContext.getProjectContext(null),
-                        JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
+                        false,
                         true,
+                        false,
                         null,
                         1000,
                         new Condition<AnAction>() {
@@ -561,8 +543,7 @@ public class FileConnectionMappingManager extends VirtualFileAdapter implements 
                                 SelectSchemaAction selectSchemaAction = (SelectSchemaAction) anAction;
                                 return selectSchemaAction.isSelected();
                             }
-                        },
-                        null);
+                        });
 
                 popupBuilder.showCenteredInCurrentWindow(getProject());
             }
@@ -625,8 +606,9 @@ public class FileConnectionMappingManager extends VirtualFileAdapter implements 
                         "Select Session",
                         actionGroup,
                         SimpleDataContext.getProjectContext(null),
-                        JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
+                        false,
                         true,
+                        false,
                         null,
                         1000,
                         new Condition<AnAction>() {
@@ -638,8 +620,7 @@ public class FileConnectionMappingManager extends VirtualFileAdapter implements 
                                 }
                                 return false;
                             }
-                        },
-                        null);
+                        });
 
                 popupBuilder.showCenteredInCurrentWindow(getProject());
             }

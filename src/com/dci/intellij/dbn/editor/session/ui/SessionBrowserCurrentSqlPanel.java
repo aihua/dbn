@@ -9,6 +9,7 @@ import org.jetbrains.annotations.NotNull;
 
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.compatibility.CompatibilityUtil;
+import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
@@ -51,6 +52,8 @@ public class SessionBrowserCurrentSqlPanel extends DBNFormImpl{
     private Document document;
     private EditorEx viewer;
     private SessionBrowser sessionBrowser;
+    private Object selectedSessionId;
+
 
     public SessionBrowserCurrentSqlPanel(SessionBrowser sessionBrowser) {
         this.sessionBrowser = sessionBrowser;
@@ -78,28 +81,41 @@ public class SessionBrowserCurrentSqlPanel extends DBNFormImpl{
         SessionBrowserTable editorTable = sessionBrowser.getEditorTable();
         if (editorTable.getSelectedRowCount() == 1) {
             SessionBrowserModelRow selectedRow = editorTable.getModel().getRowAtIndex(editorTable.getSelectedRow());
-            final Object sessionId = selectedRow.getSessionId();
-            final String schemaName = selectedRow.getSchema();
-            final Project project = sessionBrowser.getProject();
-            new BackgroundTask(project, "Loading session current SQL", true) {
-                @Override
-                protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
-                    ConnectionHandler connectionHandler = getConnectionHandler();
-                    DBSchema schema = null;
-                    if (StringUtil.isNotEmpty(schemaName)) {
-                        schema = connectionHandler.getObjectBundle().getSchema(schemaName);
-                    }
+            if (selectedRow != null) {
+                setPreviewText("-- Loading...");
+                selectedSessionId = selectedRow.getSessionId();
+                final Object sessionId = selectedSessionId;
+                final String schemaName = selectedRow.getSchema();
+                final Project project = sessionBrowser.getProject();
+                new BackgroundTask(project, "Loading session current SQL", true) {
+                    @Override
+                    protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
+                        ConnectionHandler connectionHandler = getConnectionHandler();
+                        DBSchema schema = null;
+                        if (StringUtil.isNotEmpty(schemaName)) {
+                            schema = connectionHandler.getObjectBundle().getSchema(schemaName);
+                        }
 
-                    SessionBrowserManager sessionBrowserManager = SessionBrowserManager.getInstance(project);
-                    String sql = sessionBrowserManager.loadSessionCurrentSql(connectionHandler, sessionId);
-                    if (sessionId.equals(sessionBrowser.getSelectedSessionId())) {
+                        checkCancelled(sessionId);
+                        SessionBrowserManager sessionBrowserManager = SessionBrowserManager.getInstance(project);
+                        String sql = sessionBrowserManager.loadSessionCurrentSql(connectionHandler, sessionId);
+
+                        checkCancelled(sessionId);
                         setDatabaseSchema(schema);
                         setPreviewText(sql.replace("\r\n", "\n"));
                     }
-                }
-            }.start();
+                }.start();
+            } else {
+                setPreviewText("");
+            }
         } else {
             setPreviewText("");
+        }
+    }
+
+    private void checkCancelled(Object sessionId) {
+        if (selectedSessionId == null || !selectedSessionId.equals(sessionId)) {
+            throw AlreadyDisposedException.INSTANCE;
         }
     }
 

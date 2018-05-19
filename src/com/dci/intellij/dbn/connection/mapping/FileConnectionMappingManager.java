@@ -1,5 +1,14 @@
 package com.dci.intellij.dbn.connection.mapping;
 
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import org.jdom.Element;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.list.FiltrableList;
@@ -7,8 +16,18 @@ import com.dci.intellij.dbn.common.message.MessageCallback;
 import com.dci.intellij.dbn.common.thread.RunnableTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.SimpleTask;
-import com.dci.intellij.dbn.common.util.*;
-import com.dci.intellij.dbn.connection.*;
+import com.dci.intellij.dbn.common.util.ActionUtil;
+import com.dci.intellij.dbn.common.util.DocumentUtil;
+import com.dci.intellij.dbn.common.util.MessageUtil;
+import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.VirtualFileUtil;
+import com.dci.intellij.dbn.connection.ConnectionAction;
+import com.dci.intellij.dbn.connection.ConnectionBundle;
+import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
+import com.dci.intellij.dbn.connection.ConnectionId;
+import com.dci.intellij.dbn.connection.ConnectionManager;
+import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.action.AbstractConnectionAction;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
@@ -28,7 +47,10 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.actionSystem.impl.SimpleDataContext;
-import com.intellij.openapi.components.*;
+import com.intellij.openapi.components.PersistentStateComponent;
+import com.intellij.openapi.components.ProjectComponent;
+import com.intellij.openapi.components.State;
+import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
@@ -39,27 +61,25 @@ import com.intellij.openapi.project.DumbAwareAction;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.ui.popup.ListPopup;
+import com.intellij.openapi.util.Condition;
+import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.vfs.VirtualFileAdapter;
+import com.intellij.openapi.vfs.VirtualFileEvent;
+import com.intellij.openapi.vfs.VirtualFileManager;
+import com.intellij.openapi.vfs.VirtualFileMoveEvent;
+import com.intellij.openapi.vfs.VirtualFilePropertyEvent;
 import com.intellij.openapi.vfs.*;
 import com.intellij.util.IncorrectOperationException;
 import gnu.trove.THashSet;
-import org.jdom.Element;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.lang.ref.WeakReference;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-
 import static com.dci.intellij.dbn.common.action.DBNDataKeys.*;
 
 @State(
-    name = "DBNavigator.Project.FileConnectionMappingManager",
-    storages = {
-        @Storage(file = StoragePathMacros.PROJECT_CONFIG_DIR + "/dbnavigator.xml", scheme = StorageScheme.DIRECTORY_BASED),
-        @Storage(file = StoragePathMacros.PROJECT_FILE)}
+    name = FileConnectionMappingManager.COMPONENT_NAME,
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class FileConnectionMappingManager extends VirtualFileAdapter implements ProjectComponent, PersistentStateComponent<Element> {
+    public static final String COMPONENT_NAME = "DBNavigator.Project.FileConnectionMappingManager";
+
     private Project project;
     private Set<FileConnectionMapping> mappings = new THashSet<FileConnectionMapping>();
 
@@ -410,7 +430,7 @@ public class FileConnectionMappingManager extends VirtualFileAdapter implements 
         DefaultActionGroup actionGroup = new DefaultActionGroup();
         if (connectionHandlers.size() > 0) {
             for (ConnectionHandler connectionHandler : connectionHandlers) {
-                SelectConnectionAction connectionAction = new SelectConnectionAction(connectionHandler, psiFile, promptSchemaSelection, callback);
+                ConnectionSelectAction connectionAction = new ConnectionSelectAction(connectionHandler, psiFile, promptSchemaSelection, callback);
                 actionGroup.add(connectionAction);
             }
         }
@@ -418,14 +438,14 @@ public class FileConnectionMappingManager extends VirtualFileAdapter implements 
         if (showVirtualConnections) {
             actionGroup.addSeparator();
             for (ConnectionHandler virtualConnectionHandler : connectionBundle.getVirtualConnections()) {
-                SelectConnectionAction connectionAction = new SelectConnectionAction(virtualConnectionHandler, psiFile, promptSchemaSelection, callback);
+                ConnectionSelectAction connectionAction = new ConnectionSelectAction(virtualConnectionHandler, psiFile, promptSchemaSelection, callback);
                 actionGroup.add(connectionAction);
             }
         }
 
         if (showCreateOption) {
             actionGroup.addSeparator();
-            actionGroup.add(new SetupConnectionAction());
+            actionGroup.add(new ConnectionSetupAction());
         }
 
         ListPopup popupBuilder = JBPopupFactory.getInstance().createActionGroupPopup(
@@ -439,12 +459,12 @@ public class FileConnectionMappingManager extends VirtualFileAdapter implements 
     }
 
 
-    private class SelectConnectionAction extends AbstractConnectionAction {
+    private class ConnectionSelectAction extends AbstractConnectionAction {
         private WeakReference<DBLanguagePsiFile> fileRef;
         private SimpleTask callback;
         private boolean promptSchemaSelection = false;
 
-        private SelectConnectionAction(ConnectionHandler connectionHandler, DBLanguagePsiFile file, boolean promptSchemaSelection, SimpleTask callback) {
+        private ConnectionSelectAction(ConnectionHandler connectionHandler, DBLanguagePsiFile file, boolean promptSchemaSelection, SimpleTask callback) {
             super(connectionHandler.getName(), null, connectionHandler.getIcon(), connectionHandler);
             this.fileRef = new WeakReference<DBLanguagePsiFile>(file);
             this.callback = callback;
@@ -484,8 +504,8 @@ public class FileConnectionMappingManager extends VirtualFileAdapter implements 
         }
     }
 
-    private class SetupConnectionAction extends AnAction {
-        private SetupConnectionAction() {
+    private class ConnectionSetupAction extends AnAction {
+        private ConnectionSetupAction() {
             super("Setup New Connection", null, Icons.CONNECTION_NEW);
         }
 
@@ -512,7 +532,7 @@ public class FileConnectionMappingManager extends VirtualFileAdapter implements 
                 if (!connectionHandler.isVirtual() && !connectionHandler.isDisposed()) {
                     List<DBSchema> schemas = connectionHandler.getObjectBundle().getSchemas();
                     for (DBSchema schema  :schemas) {
-                        SelectSchemaAction schemaAction = new SelectSchemaAction(psiFile, schema, callback);
+                        SchemaSelectAction schemaAction = new SchemaSelectAction(psiFile, schema, callback);
                         actionGroup.add(schemaAction);
                     }
                 }
@@ -530,11 +550,11 @@ public class FileConnectionMappingManager extends VirtualFileAdapter implements 
     }
 
 
-    private class SelectSchemaAction extends AnObjectAction<DBSchema> {
+    private class SchemaSelectAction extends AnObjectAction<DBSchema> {
         private WeakReference<DBLanguagePsiFile> fileRef;
         private RunnableTask callback;
 
-        private SelectSchemaAction(DBLanguagePsiFile file, DBSchema schema, RunnableTask callback) {
+        private SchemaSelectAction(DBLanguagePsiFile file, DBSchema schema, RunnableTask callback) {
             super(schema);
             this.fileRef = new WeakReference<DBLanguagePsiFile>(file);
             this.callback = callback;
@@ -701,7 +721,7 @@ public class FileConnectionMappingManager extends VirtualFileAdapter implements 
 
     @NotNull
     public String getComponentName() {
-        return "DBNavigator.Project.FileConnectionMappingManager";
+        return COMPONENT_NAME;
     }
 
     public void projectOpened() {}

@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -338,20 +339,35 @@ public class ConnectionPool extends DisposableBase implements Disposable {
         public void run() {
             for (WeakReference<ConnectionPool> connectionPoolRef : connectionPools) {
                 ConnectionPool connectionPool = connectionPoolRef.get();
-                if (connectionPool != null) {
-                    ConnectionDetailSettings detailSettings = connectionPool.getConnectionHandler().getSettings().getDetailSettings();
-                    long lastAccessTimestamp = connectionPool.getLastAccessTimestamp();
-                    if (TimeUtil.isOlderThan(lastAccessTimestamp, detailSettings.getIdleTimeToDisconnectPool())) {
-                        // close connections only if pool is passive
-                        for (DBNConnection connection : connectionPool.poolConnections) {
-                            if (!connection.isIdle()) return;
-                        }
+                if (connectionPool != null && !connectionPool.poolConnections.isEmpty()) {
+                    try {
+                        ConnectionHandler connectionHandler = connectionPool.getConnectionHandler();
+                        ConnectionHandlerStatusHolder status = connectionHandler.getConnectionStatus();
+                        if (!status.is(ConnectionHandlerStatus.CLEANING)) {
+                            try {
+                                status.set(ConnectionHandlerStatus.CLEANING, true);
 
-                        for (DBNConnection connection : connectionPool.poolConnections) {
-                            ConnectionUtil.close(connection);
+                                ConnectionDetailSettings detailSettings = connectionHandler.getSettings().getDetailSettings();
+                                long lastAccessTimestamp = connectionPool.getLastAccessTimestamp();
+                                if (TimeUtil.isOlderThan(lastAccessTimestamp, detailSettings.getIdleTimeToDisconnectPool(), TimeUnit.MINUTES)) {
+                                    // close connections only if pool is passive
+                                    for (DBNConnection connection : connectionPool.poolConnections) {
+                                        if (!connection.isIdle()) return;
+                                    }
+
+                                    List<DBNConnection> poolConnections = new ArrayList<>(connectionPool.poolConnections);
+                                    connectionPool.poolConnections.clear();
+
+                                    for (DBNConnection connection : poolConnections) {
+                                        ConnectionUtil.close(connection);
+                                    }
+                                }
+
+                            } finally {
+                                status.set(ConnectionHandlerStatus.CLEANING, false);
+                            }
                         }
-                        connectionPool.poolConnections.clear();
-                    }
+                    } catch (Exception ignore) {}
                 }
             }
         }
@@ -363,7 +379,7 @@ public class ConnectionPool extends DisposableBase implements Disposable {
 
     private static ConnectionPoolCleanTask POOL_CLEANER_TASK = new ConnectionPoolCleanTask();
     static {
-        Timer poolCleaner = new Timer("DBN - Connection Pool Cleaner");
+        Timer poolCleaner = new Timer("DBN - Idle Connection Pool Cleaner");
         poolCleaner.schedule(POOL_CLEANER_TASK, TimeUtil.ONE_MINUTE, TimeUtil.ONE_MINUTE);
     }
 }

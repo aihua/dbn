@@ -1,14 +1,5 @@
 package com.dci.intellij.dbn.editor.data;
 
-import java.awt.Component;
-import java.awt.event.InputEvent;
-import java.awt.event.MouseEvent;
-import java.sql.SQLException;
-import org.jdom.Element;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
@@ -35,20 +26,26 @@ import com.intellij.openapi.actionSystem.ActionGroup;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
-import com.intellij.openapi.fileEditor.FileEditor;
-import com.intellij.openapi.fileEditor.FileEditorManager;
-import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
-import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
-import com.intellij.openapi.fileEditor.FileEditorManagerListener;
+import com.intellij.openapi.fileEditor.*;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.ui.popup.ListPopup;
 import com.intellij.openapi.vfs.VirtualFile;
+import org.jdom.Element;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.awt.*;
+import java.awt.event.InputEvent;
+import java.awt.event.MouseEvent;
+import java.sql.SQLException;
+
 import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.*;
 
 @State(
     name = DatasetEditorManager.COMPONENT_NAME,
-    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
 )
 public class DatasetEditorManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.DataEditorManager";

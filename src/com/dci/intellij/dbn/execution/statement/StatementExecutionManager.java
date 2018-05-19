@@ -1,19 +1,5 @@
 package com.dci.intellij.dbn.execution.statement;
 
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicInteger;
-import org.jdom.Element;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
@@ -49,11 +35,7 @@ import com.dci.intellij.dbn.execution.statement.variables.StatementExecutionVari
 import com.dci.intellij.dbn.execution.statement.variables.ui.StatementExecutionInputsDialog;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.psi.BasePsiElement.MatchType;
-import com.dci.intellij.dbn.language.common.psi.ChameleonPsiElement;
-import com.dci.intellij.dbn.language.common.psi.ExecVariablePsiElement;
-import com.dci.intellij.dbn.language.common.psi.ExecutablePsiElement;
-import com.dci.intellij.dbn.language.common.psi.PsiUtil;
-import com.dci.intellij.dbn.language.common.psi.RootPsiElement;
+import com.dci.intellij.dbn.language.common.psi.*;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
@@ -72,11 +54,21 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.impl.PsiDocumentTransactionListener;
 import gnu.trove.THashSet;
+import org.jdom.Element;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.sql.SQLException;
+import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static com.dci.intellij.dbn.execution.ExecutionStatus.*;
 
 @State(
     name = StatementExecutionManager.COMPONENT_NAME,
-    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
 )
 public class StatementExecutionManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.StatementExecutionManager";

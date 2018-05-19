@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.execution;
 
-import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
@@ -21,6 +20,8 @@ import com.dci.intellij.dbn.execution.statement.result.StatementExecutionResult;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
+import com.intellij.openapi.components.StoragePathMacros;
+import com.intellij.openapi.components.StorageScheme;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowAnchor;
@@ -37,7 +38,9 @@ import java.util.List;
 
 @State(
     name = ExecutionManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+        storages = {
+                @Storage(file = StoragePathMacros.PROJECT_CONFIG_DIR + "/dbnavigator.xml", scheme = StorageScheme.DIRECTORY_BASED),
+                @Storage(file = StoragePathMacros.PROJECT_FILE)}
 )
 public class ExecutionManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.ExecutionManager";

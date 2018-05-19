@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.editor.session;
 
-import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.notification.NotificationUtil;
@@ -27,6 +26,8 @@ import com.dci.intellij.dbn.vfs.DBSessionBrowserVirtualFile;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
+import com.intellij.openapi.components.StoragePathMacros;
+import com.intellij.openapi.components.StorageScheme;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
@@ -42,11 +43,18 @@ import org.jetbrains.annotations.Nullable;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 @State(
     name = SessionBrowserManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+        storages = {
+                @Storage(file = StoragePathMacros.PROJECT_CONFIG_DIR + "/dbnavigator.xml", scheme = StorageScheme.DIRECTORY_BASED),
+                @Storage(file = StoragePathMacros.PROJECT_FILE)}
 )
 public class SessionBrowserManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
 

@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.options;
 
-import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.browser.options.DatabaseBrowserSettings;
 import com.dci.intellij.dbn.code.common.completion.options.CodeCompletionSettings;
 import com.dci.intellij.dbn.code.common.style.options.ProjectCodeStyleSettings;
@@ -28,6 +27,8 @@ import com.dci.intellij.dbn.options.ui.ProjectSettingsDialog;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
+import com.intellij.openapi.components.StoragePathMacros;
+import com.intellij.openapi.components.StorageScheme;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManager;
 import org.jdom.Element;
@@ -38,7 +39,9 @@ import java.util.List;
 
 @State(
     name = ProjectSettingsManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+        storages = {
+                @Storage(file = StoragePathMacros.PROJECT_CONFIG_DIR + "/dbnavigator.xml", scheme = StorageScheme.DIRECTORY_BASED),
+                @Storage(file = StoragePathMacros.PROJECT_FILE)}
 )
 public class ProjectSettingsManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.Settings";

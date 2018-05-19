@@ -1,19 +1,5 @@
 package com.dci.intellij.dbn.ddl;
 
-import javax.swing.JList;
-import javax.swing.ListSelectionModel;
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import org.jdom.Element;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
@@ -51,18 +37,20 @@ import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.SelectFromListDialog;
-import com.intellij.openapi.vfs.LocalFileSystem;
-import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.openapi.vfs.VirtualFileCopyEvent;
-import com.intellij.openapi.vfs.VirtualFileEvent;
-import com.intellij.openapi.vfs.VirtualFileListener;
-import com.intellij.openapi.vfs.VirtualFileManager;
-import com.intellij.openapi.vfs.VirtualFileMoveEvent;
-import com.intellij.openapi.vfs.VirtualFilePropertyEvent;
+import com.intellij.openapi.vfs.*;
+import org.jdom.Element;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import javax.swing.*;
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
 
 @State(
     name = DDLFileAttachmentManager.COMPONENT_NAME,
-    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
 )
 public class DDLFileAttachmentManager extends AbstractProjectComponent implements VirtualFileListener, PersistentStateComponent<Element> {
 

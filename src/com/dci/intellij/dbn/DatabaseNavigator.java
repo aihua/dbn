@@ -14,6 +14,7 @@ import com.intellij.openapi.components.ApplicationComponent;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
+import com.intellij.openapi.components.StoragePathMacros;
 import com.intellij.openapi.extensions.PluginId;
 import com.intellij.util.proxy.CommonProxy;
 import org.jdom.Element;
@@ -27,7 +28,7 @@ import java.util.TimerTask;
 
 @State(
     name = DatabaseNavigator.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = {@Storage(file = StoragePathMacros.APP_CONFIG + "/other.xml")}
 )
 public class DatabaseNavigator implements ApplicationComponent, PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Application.Settings";

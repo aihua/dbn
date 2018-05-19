@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.data.export;
 
-import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.Constants;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
@@ -9,11 +8,20 @@ import com.dci.intellij.dbn.common.notification.NotificationUtil;
 import com.dci.intellij.dbn.common.thread.SimpleTask;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.data.export.processor.*;
+import com.dci.intellij.dbn.data.export.processor.CSVDataExportProcessor;
+import com.dci.intellij.dbn.data.export.processor.CustomDataExportProcessor;
+import com.dci.intellij.dbn.data.export.processor.DataExportProcessor;
+import com.dci.intellij.dbn.data.export.processor.ExcelDataExportProcessor;
+import com.dci.intellij.dbn.data.export.processor.ExcelXDataExportProcessor;
+import com.dci.intellij.dbn.data.export.processor.HTMLDataExportProcessor;
+import com.dci.intellij.dbn.data.export.processor.SQLDataExportProcessor;
+import com.dci.intellij.dbn.data.export.processor.XMLDataExportProcessor;
 import com.dci.intellij.dbn.data.grid.ui.table.sortable.SortableTable;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
+import com.intellij.openapi.components.StoragePathMacros;
+import com.intellij.openapi.components.StorageScheme;
 import com.intellij.openapi.project.Project;
 import org.jdom.Element;
 import org.jetbrains.annotations.NonNls;
@@ -26,7 +34,9 @@ import java.io.IOException;
 
 @State(
     name = DataExportManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+        storages = {
+                @Storage(file = StoragePathMacros.PROJECT_CONFIG_DIR + "/dbnavigator.xml", scheme = StorageScheme.DIRECTORY_BASED),
+                @Storage(file = StoragePathMacros.PROJECT_FILE)}
 )
 public class DataExportManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.DataExportManager";

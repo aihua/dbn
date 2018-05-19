@@ -4,6 +4,7 @@ import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
@@ -19,8 +20,6 @@ import com.dci.intellij.dbn.vfs.DBSourceCodeVirtualFile;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
-import com.intellij.openapi.components.StoragePathMacros;
-import com.intellij.openapi.components.StorageScheme;
 import com.intellij.openapi.diff.ActionButtonPresentation;
 import com.intellij.openapi.diff.SimpleContent;
 import com.intellij.openapi.diff.SimpleDiffRequest;
@@ -41,12 +40,13 @@ import com.intellij.diff.merge.MergeResult;
 */
 
 @State(
-        name = "DBNavigator.Project.SourceCodeDiffManager",
-        storages = {
-                @Storage(file = StoragePathMacros.PROJECT_CONFIG_DIR + "/dbnavigator.xml", scheme = StorageScheme.DIRECTORY_BASED),
-                @Storage(file = StoragePathMacros.PROJECT_FILE)}
+    name = SourceCodeDiffManager.COMPONENT_NAME,
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class SourceCodeDiffManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
+
+    public static final String COMPONENT_NAME = "DBNavigator.Project.SourceCodeDiffManager";
+
     protected SourceCodeDiffManager(Project project) {
         super(project);
     }
@@ -217,7 +217,7 @@ public class SourceCodeDiffManager extends AbstractProjectComponent implements P
     @NotNull
     @Override
     public String getComponentName() {
-        return "DBNavigator.Project.SourceCodeDiffManager";
+        return COMPONENT_NAME;
     }
 
     @Nullable

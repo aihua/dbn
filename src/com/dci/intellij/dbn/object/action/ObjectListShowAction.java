@@ -12,6 +12,7 @@ import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.project.DumbAwareAction;
 import com.intellij.openapi.ui.popup.ComponentPopupBuilder;
 import com.intellij.openapi.ui.popup.JBPopup;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
@@ -25,7 +26,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.List;
 
-public abstract class ObjectListShowAction extends AnAction {
+public abstract class ObjectListShowAction extends DumbAwareAction {
     protected DBObjectRef sourceObjectRef;
     protected RelativePoint popupLocation;
 

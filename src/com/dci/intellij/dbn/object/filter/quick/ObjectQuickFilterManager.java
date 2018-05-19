@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.object.filter.quick;
 
-import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.browser.model.BrowserTreeEventListener;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
@@ -19,6 +18,8 @@ import com.dci.intellij.dbn.object.filter.quick.ui.ObjectQuickFilterDialog;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
+import com.intellij.openapi.components.StoragePathMacros;
+import com.intellij.openapi.components.StorageScheme;
 import com.intellij.openapi.project.Project;
 import gnu.trove.THashMap;
 import org.jdom.Element;
@@ -30,7 +31,9 @@ import java.util.Map;
 
 @State(
     name = ObjectQuickFilterManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+        storages = {
+                @Storage(file = StoragePathMacros.PROJECT_CONFIG_DIR + "/dbnavigator.xml", scheme = StorageScheme.DIRECTORY_BASED),
+                @Storage(file = StoragePathMacros.PROJECT_FILE)}
 )
 public class ObjectQuickFilterManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.ObjectQuickFilterManager";

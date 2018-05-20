@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.debugger.jdwp.process;
 
+import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStarter;
 import com.intellij.debugger.impl.DebuggerSession;

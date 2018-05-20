@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.connection.mapping;
 
+import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.list.FiltrableList;

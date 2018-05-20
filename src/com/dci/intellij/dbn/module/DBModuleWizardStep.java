@@ -7,6 +7,8 @@ import com.intellij.openapi.roots.ui.configuration.ModulesProvider;
 
 import javax.swing.Icon;
 
+import javax.swing.*;
+
 
 public abstract class DBModuleWizardStep extends ModuleWizardStep {
     public DBModuleWizardStep(WizardContext wizardContext, ModuleBuilder moduleBuilder, ModulesProvider modulesProvider) {

@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.connection.config.tns;
 
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
+import com.intellij.openapi.vfs.VirtualFile;
 
 import java.io.BufferedReader;
 import java.io.File;

@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.browser;
 
+import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.browser.model.BrowserTreeModel;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.browser.model.TabbedBrowserTreeModel;

@@ -14,7 +14,7 @@ import com.intellij.xdebugger.evaluation.XDebuggerEditorsProvider;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.Icon;
+import javax.swing.*;
 import java.sql.SQLException;
 
 public class DBMethodJdwpDebugProcess extends DBJdwpDebugProcess<MethodExecutionInput> {

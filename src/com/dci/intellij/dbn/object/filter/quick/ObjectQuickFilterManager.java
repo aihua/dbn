@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.object.filter.quick;
 
+import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.browser.model.BrowserTreeEventListener;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;

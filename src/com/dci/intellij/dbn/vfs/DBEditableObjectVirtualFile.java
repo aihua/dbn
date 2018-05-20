@@ -40,6 +40,7 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
 

@@ -70,7 +70,9 @@ import java.util.Arrays;
 import java.util.List;
 
 import static com.dci.intellij.dbn.common.thread.TaskInstruction.START_IN_BACKGROUND;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.*;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.LOADING;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
 
 @State(
     name = SourceCodeManager.COMPONENT_NAME,

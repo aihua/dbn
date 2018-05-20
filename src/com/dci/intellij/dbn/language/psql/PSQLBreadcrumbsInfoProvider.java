@@ -7,7 +7,7 @@ import com.dci.intellij.dbn.language.common.psi.NamedPsiElement;
 import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.intellij.lang.Language;
 import com.intellij.psi.PsiElement;
-import com.intellij.ui.breadcrumbs.BreadcrumbsProvider;
+import com.intellij.xml.breadcrumbs.BreadcrumbsInfoProvider;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

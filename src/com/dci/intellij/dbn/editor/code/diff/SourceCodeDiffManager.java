@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.editor.code.diff;
 
+import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
@@ -21,20 +22,17 @@ import com.intellij.openapi.diff.ActionButtonPresentation;
 import com.intellij.openapi.diff.SimpleContent;
 import com.intellij.openapi.diff.SimpleDiffRequest;
 import com.intellij.openapi.project.Project;
+import com.intellij.util.Consumer;
+import org.jdom.Element;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import static com.dci.intellij.dbn.common.thread.TaskInstruction.CANCELLABLE;
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
-
-/*
-import com.intellij.diff.DiffManager;
-import com.intellij.diff.DiffRequestFactory;
-import com.intellij.diff.InvalidDiffRequestException;
-import com.intellij.diff.merge.MergeRequest;
-import com.intellij.diff.merge.MergeResult;
-*/
 
 @State(
     name = SourceCodeDiffManager.COMPONENT_NAME,

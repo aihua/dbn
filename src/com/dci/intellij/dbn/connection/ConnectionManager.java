@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.connection;
 
+import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.browser.DatabaseBrowserManager;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;

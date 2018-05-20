@@ -7,13 +7,16 @@ import com.dci.intellij.dbn.language.common.psi.NamedPsiElement;
 import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.intellij.lang.Language;
 import com.intellij.psi.PsiElement;
-import com.intellij.xml.breadcrumbs.BreadcrumbsInfoProvider;
+import com.intellij.ui.breadcrumbs.BreadcrumbsProvider;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.Icon;
+import javax.swing.*;
 import java.util.Collections;
 import java.util.List;
+import com.intellij.xml.breadcrumbs.BreadcrumbsInfoProvider;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class PSQLBreadcrumbsInfoProvider extends BreadcrumbsInfoProvider {
 

@@ -3,8 +3,8 @@ package com.dci.intellij.dbn.debugger.jdwp.process;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.notification.NotificationUtil;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
-import com.dci.intellij.dbn.common.thread.ReadActionRunner;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
+import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ConnectionUtil;
@@ -255,7 +255,6 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
                         console.system("Debug session initialized (JDWP)");
                         set(BREAKPOINT_SETTING_ALLOWED, true);
 
-                        initializeResources();
                         initializeBreakpoints();
                         startTargetProgram();
                     }
@@ -268,29 +267,11 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
         }.start();
     }
 
-    private void initializeResources() {
-        new ReadActionRunner() {
-            @Override
-            protected Object run() {
-
-                List<DBMethod> methods = getRunProfile().getMethods();
-                List<XLineBreakpoint<XBreakpointProperties>> breakpoints = DBBreakpointUtil.getDatabaseBreakpoints(getConnectionHandler());
-                getBreakpointHandler().initializeResources(breakpoints, methods);
-                return null;
-            }
-        }.start();
-    }
-
     private void initializeBreakpoints() {
-        new ReadActionRunner() {
-            @Override
-            protected Object run() {
-                console.system("Registering breakpoints");
-                List<XLineBreakpoint<XBreakpointProperties>> breakpoints = DBBreakpointUtil.getDatabaseBreakpoints(getConnectionHandler());
-                getBreakpointHandler().registerBreakpoints(breakpoints);
-                return null;
-            }
-        }.start();
+        console.system("Registering breakpoints");
+        List<DBMethod> methods = getRunProfile().getMethods();
+        List<XLineBreakpoint<XBreakpointProperties>> breakpoints = DBBreakpointUtil.getDatabaseBreakpoints(getConnectionHandler());
+        getBreakpointHandler().registerBreakpoints(breakpoints, methods);
     }
 
     private void overwriteSuspendContext(final @Nullable XSuspendContext suspendContext) {
@@ -397,31 +378,33 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
 
     @Nullable
     public VirtualFile getVirtualFile(Location location) {
-        try {
-            if (location != null) {
-                String sourcePath = location.sourcePath();
+        if (location != null) {
+            String sourcePath = "<NULL>";
+            try {
+                sourcePath = location.sourcePath();
                 StringTokenizer tokenizer = new StringTokenizer(sourcePath, "\\.");
                 tokenizer.nextToken(); // signature
-                tokenizer.nextToken(); // program type
-                String schemaName = tokenizer.nextToken();
-                String programName = tokenizer.nextToken();
-                DBSchema schema = getConnectionHandler().getObjectBundle().getSchema(schemaName);
-                if (schema != null) {
-                    DBProgram program = schema.getProgram(programName);
-                    if (program != null) {
-                        return program.getVirtualFile();
-                    } else {
-                        DBMethod method = schema.getMethod(programName, 0);
-                        if (method != null) {
-                            return method.getVirtualFile();
+                String programType = tokenizer.nextToken();// program type
+                if (!programType.equals("Block")) {
+                    String schemaName = tokenizer.nextToken();
+                    String programName = tokenizer.nextToken();
+                    DBSchema schema = getConnectionHandler().getObjectBundle().getSchema(schemaName);
+                    if (schema != null) {
+                        DBProgram program = schema.getProgram(programName);
+                        if (program != null) {
+                            return program.getVirtualFile();
+                        } else {
+                            DBMethod method = schema.getMethod(programName, 0);
+                            if (method != null) {
+                                return method.getVirtualFile();
+                            }
                         }
                     }
                 }
+            } catch (Exception e) {
+                getConsole().warning("Error evaluating suspend position '" + sourcePath + "': " + CommonUtil.nvl(e.getMessage(), e.getClass().getSimpleName()));
             }
-        } catch (Exception e) {
-            getConsole().error("Error evaluating suspend position: " + e.getMessage());
         }
-
         return null;
     }
 

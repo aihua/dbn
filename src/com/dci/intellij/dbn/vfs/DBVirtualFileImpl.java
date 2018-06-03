@@ -112,7 +112,6 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
         return getFileSystem().extractPresentablePath(getPath());
     }
 
-    @Override
     public boolean enforcePresentableName() {
         return false;
     }

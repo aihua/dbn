@@ -1,4 +1,4 @@
-package com.dci.intellij.dbn.vfs;
+package com.dci.intellij.dbn.vfs.file;
 
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.common.DevNullStreams;
@@ -9,6 +9,7 @@ import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
+import com.dci.intellij.dbn.vfs.DBVirtualFileImpl;
 import com.intellij.ide.navigationToolbar.NavBarPresentation;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.UnknownFileType;
@@ -17,6 +18,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -25,7 +27,7 @@ public class DBObjectVirtualFile<T extends DBObject> extends DBVirtualFileImpl {
     private static final byte[] EMPTY_BYTE_CONTENT = new byte[0];
     protected DBObjectRef<T> objectRef;
 
-    public DBObjectVirtualFile(T object) {
+    public DBObjectVirtualFile(@NotNull T object) {
         super(object.getProject());
         this.objectRef = DBObjectRef.from(object);
         this.name = objectRef.getFileName();
@@ -57,26 +59,24 @@ public class DBObjectVirtualFile<T extends DBObject> extends DBVirtualFileImpl {
     @Override
     public boolean isValid() {
         return super.isValid() && objectRef.get() != null;
-    }    
+    }
+
+    @NotNull
+    @Override
+    public String getPresentablePath() {
+        return getConnectionHandler().getName() + File.separatorChar +
+                getObjectRef().getObjectType().getListName() + File.separatorChar +
+                getObjectRef().getQualifiedName();
+    }
 
     /*********************************************************
      *                     VirtualFile                       *
      *********************************************************/
+
+
     @NotNull
     public FileType getFileType() {
         return UnknownFileType.INSTANCE;
-    }
-
-    @NotNull
-    @Override
-    protected String createPath() {
-        return DatabaseFileSystem.createPath(objectRef);
-    }
-
-    @NotNull
-    @Override
-    protected String createUrl() {
-        return DatabaseFileSystem.createUrl(objectRef);
     }
 
     public boolean isWritable() {

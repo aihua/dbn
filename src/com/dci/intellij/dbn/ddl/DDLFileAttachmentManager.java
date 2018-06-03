@@ -39,6 +39,7 @@ import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.ui.SelectFromListDialog;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.vfs.VirtualFileAdapter;
 import com.intellij.openapi.vfs.VirtualFileEvent;
 import com.intellij.openapi.vfs.VirtualFileListener;
 import com.intellij.openapi.vfs.VirtualFileManager;
@@ -405,7 +406,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
      *               VirtualFileListener            *
      ************************************************/
 
-    private VirtualFileListener virtualFileListener = new VirtualFileListener() {
+    private VirtualFileListener virtualFileListener = new VirtualFileAdapter() {
         @Override
         public void fileDeleted(@NotNull VirtualFileEvent event) {
             DBObjectRef<DBSchemaObject> objectRef = mappings.get(event.getFile().getPath());

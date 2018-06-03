@@ -1,4 +1,4 @@
-package com.dci.intellij.dbn.vfs;
+package com.dci.intellij.dbn.vfs.file;
 
 import com.dci.intellij.dbn.common.DevNullStreams;
 import com.dci.intellij.dbn.common.util.NamingUtil;
@@ -10,6 +10,7 @@ import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBObjectBundle;
 import com.dci.intellij.dbn.object.common.DBObjectPsiFacade;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
+import com.dci.intellij.dbn.vfs.DBVirtualFileImpl;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.UnknownFileType;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -74,18 +75,6 @@ public class DBObjectListVirtualFile<T extends DBObjectList> extends DBVirtualFi
     @NotNull
     public FileType getFileType() {
         return UnknownFileType.INSTANCE;
-    }
-
-    @NotNull
-    @Override
-    protected String createPath() {
-        return DatabaseFileSystem.createPath(objectList);
-    }
-
-    @NotNull
-    @Override
-    protected String createUrl() {
-        return DatabaseFileSystem.createUrl(objectList);
     }
 
     public boolean isWritable() {

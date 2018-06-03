@@ -1,27 +1,24 @@
 package com.dci.intellij.dbn.connection.resource.ui;
 
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.ui.table.DBNTableModel;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
-import com.dci.intellij.dbn.connection.ConnectionType;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.transaction.PendingTransaction;
 import com.dci.intellij.dbn.connection.transaction.PendingTransactionBundle;
 import com.intellij.openapi.project.Project;
-import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.swing.event.TableModelListener;
-import java.util.List;
 
-public class ResourceMonitorTableModel extends DisposableBase implements DBNTableModel {
+public class ResourceMonitorTransactionsTableModel extends DisposableBase implements DBNTableModel {
     private ConnectionHandlerRef connectionHandlerRef;
-    private List<DBNConnection> connections;
+    private DBNConnection connection;
 
-    public ResourceMonitorTableModel(ConnectionHandler connectionHandler) {
+    public ResourceMonitorTransactionsTableModel(ConnectionHandler connectionHandler, @Nullable DBNConnection connection) {
         this.connectionHandlerRef = connectionHandler.getRef();
-        connections = connectionHandler.getConnections(ConnectionType.MAIN, ConnectionType.SESSION);
+        this.connection = connection;
     }
 
     public ConnectionHandler getConnectionHandler() {
@@ -32,30 +29,23 @@ public class ResourceMonitorTableModel extends DisposableBase implements DBNTabl
         return getConnectionHandler().getProject();
     }
 
-    @NotNull
-    public List<DBNConnection> getConnections() {
-        return FailsafeUtil.get(connections);
+    public DBNConnection getConnection() {
+        return connection;
     }
 
     public int getRowCount() {
-        int count = 0;
-        for (DBNConnection connection : getConnections()) {
-            PendingTransactionBundle dataChanges = connection.getDataChanges();
-            count += dataChanges == null ? 0 : dataChanges.size();
-        }
-
-        return count;
+        PendingTransactionBundle dataChanges = connection == null ? null : connection.getDataChanges();
+        return dataChanges == null ? 0 : dataChanges.size();
     }
 
     public int getColumnCount() {
-        return 3;
+        return 2;
     }
 
     public String getColumnName(int columnIndex) {
         return
-            columnIndex == 0 ? "Connection" :
-            columnIndex == 1 ? "Source" :
-            columnIndex == 2 ? "Details" : null ;
+            columnIndex == 0 ? "Source" :
+            columnIndex == 1 ? "Details" : null ;
     }
 
     public Class<?> getColumnClass(int columnIndex) {
@@ -67,16 +57,10 @@ public class ResourceMonitorTableModel extends DisposableBase implements DBNTabl
     }
 
     public Object getValueAt(int rowIndex, int columnIndex) {
-        int count = 0;
-        for (DBNConnection connection : getConnections()) {
-            PendingTransactionBundle dataChanges = connection.getDataChanges();
-            int size = dataChanges == null ? 0 : dataChanges.size();
-            count += size;
-            if (dataChanges != null && count > rowIndex) {
-                return dataChanges.getEntries().get(count - size + rowIndex);
-            }
+        PendingTransactionBundle dataChanges = connection == null ? null : connection.getDataChanges();
+        if (dataChanges != null) {
+            return dataChanges.getEntries().get(rowIndex);
         }
-
         return null;
     }
 
@@ -90,8 +74,7 @@ public class ResourceMonitorTableModel extends DisposableBase implements DBNTabl
     public void dispose() {
         if (!isDisposed()) {
             super.dispose();
-            connections.clear();
-            connections = null;
+            connection = null;
         }
 
     }

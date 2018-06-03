@@ -73,15 +73,15 @@ public class DatabaseSessionBundle extends DisposableBase implements Disposable{
                 return session;
             }
         }
-        throw new IllegalArgumentException("Unknown session id " + id);
+        return mainSession;
     }
 
-    public void addSession(SessionId id, String name) {
+    void addSession(SessionId id, String name) {
         sessions.add(new DatabaseSession(id, name, getConnectionHandler()));
         Collections.sort(sessions);
     }
 
-    public DatabaseSession createSession(String name) {
+    DatabaseSession createSession(String name) {
         ConnectionHandler connectionHandler = getConnectionHandler();
         DatabaseSession session = new DatabaseSession(null, name, connectionHandler);
         sessions.add(session);
@@ -89,7 +89,7 @@ public class DatabaseSessionBundle extends DisposableBase implements Disposable{
         return session;
     }
 
-    public void removeSession(SessionId id) {
+    void deleteSession(SessionId id) {
         DatabaseSession session = getSession(id);
         sessions.remove(session);
         DisposerUtil.dispose(session);
@@ -100,7 +100,7 @@ public class DatabaseSessionBundle extends DisposableBase implements Disposable{
         DisposerUtil.dispose(sessions);
     }
 
-    public void renameSession(String oldName, String newName) {
+    void renameSession(String oldName, String newName) {
         DatabaseSession session = getSession(oldName);
         if (session != null) {
             session.setName(newName);

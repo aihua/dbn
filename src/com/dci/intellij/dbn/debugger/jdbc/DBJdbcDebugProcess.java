@@ -190,7 +190,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
                     synchronizeSession();
                 } catch (SQLException e) {
                     set(SESSION_INITIALIZATION_THREW_EXCEPTION, true);
-                    NotificationUtil.sendErrorNotification(getProject(), "Error initializing debug environment.", e.getMessage());
+                    console.error("Error initializing debug environment\n" + e.getMessage());
                     session.stop();
                 }
             }
@@ -495,8 +495,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
                     }
                 }
             } catch (SQLException e) {
-                NotificationUtil.sendErrorNotification(project, "Error suspending debugger session.", e.getMessage());
-                //showErrorDialog(e);
+                console.error("Error suspending debugger session: " + e.getMessage());
             }
 
             DBJdbcDebugSuspendContext suspendContext = new DBJdbcDebugSuspendContext(this);
@@ -549,8 +548,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
                 }
             }
         } catch (SQLException e) {
-            NotificationUtil.sendErrorNotification(getProject(), "Error stopping debugger session.", e.getMessage());
-            //showErrorDialog(e);
+            console.error("Error stopping debugger session: " + e.getMessage());
         }
     }
 

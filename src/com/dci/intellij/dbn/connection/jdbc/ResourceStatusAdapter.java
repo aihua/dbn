@@ -20,8 +20,8 @@ public abstract class ResourceStatusAdapter<T extends Resource> {
     private final ResourceStatus current;
     private final ResourceStatus changing;
     private final ResourceStatus checking;
-    private long checkTimestamp;
-    private long checkInterval;
+    private final long checkInterval;
+    protected long checkTimestamp;
 
     ResourceStatusAdapter(T resource, ResourceStatus current, ResourceStatus changing, ResourceStatus checking) {
         this(resource, current, changing, checking, 0);

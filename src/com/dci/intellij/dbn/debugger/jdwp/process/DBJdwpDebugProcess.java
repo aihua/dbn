@@ -352,8 +352,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends XDebu
                     debuggerInterface.disconnectJdwpSession(targetConnection);
 
                 } catch (final SQLException e) {
-                    NotificationUtil.sendErrorNotification(getProject(), "Error stopping debugger.", e.getMessage());
-                    //showErrorDialog(e);
+                    console.error("Error stopping debugger: " + e.getMessage());
                 } finally {
                     DBRunConfig<T> runProfile = getRunProfile();
                     if (runProfile != null && runProfile.getCategory() != DBRunConfigCategory.CUSTOM) {

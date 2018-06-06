@@ -7,6 +7,7 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerStatusHolder;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionType;
+import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.transaction.PendingTransactionBundle;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -27,9 +28,9 @@ public class DBNConnection extends DBNConnectionBase {
     private static final Logger LOGGER = LoggerFactory.createLogger();
     private ConnectionType type;
     private ConnectionId id;
-    private String sessionName;
+    private SessionId sessionId;
 
-    private long lastAccess;
+    private long lastAccess = System.currentTimeMillis();
     private Set<DBNStatement> statements = new HashSet<DBNStatement>();
     private PendingTransactionBundle dataChanges;
 
@@ -54,7 +55,8 @@ public class DBNConnection extends DBNConnectionBase {
                     ResourceStatus.INVALID,
                     ResourceStatus.INVALID_SETTING,
                     ResourceStatus.INVALID_CHECKING,
-                    TimeUtil.THIRTY_SECONDS) {
+                    0,
+                    true) { // true is terminal status
                 @Override
                 protected void changeInner(boolean value) throws SQLException {
                 }
@@ -70,7 +72,8 @@ public class DBNConnection extends DBNConnectionBase {
                     ResourceStatus.AUTO_COMMIT,
                     ResourceStatus.AUTO_COMMIT_SETTING,
                     ResourceStatus.AUTO_COMMIT_CHECKING,
-                    TimeUtil.FIVE_MINUTES) {
+                    0,
+                    false) { // no terminal status
                 @Override
                 protected void changeInner(boolean value) throws SQLException {
                     inner.setAutoCommit(value);
@@ -80,22 +83,17 @@ public class DBNConnection extends DBNConnectionBase {
                 protected boolean checkInner() throws SQLException {
                     return inner.getAutoCommit();
                 }
-
-                @Override
-                protected void fail() {
-                    checkTimestamp = 0;
-                    // do not set the status if check failed
-                }
             };
 
-    public DBNConnection(Connection connection, ConnectionType type, ConnectionId id) {
+    public DBNConnection(Connection connection, ConnectionType type, ConnectionId id, SessionId sessionId) {
         super(connection);
         this.type = type;
         this.id = id;
-        this.sessionName = type.getName();
+        this.sessionId = sessionId;
     }
 
     protected <S extends Statement> S wrap(S statement) {
+        updateLastAccess();
         if (statement instanceof CallableStatement) {
             CallableStatement callableStatement = (CallableStatement) statement;
             statement = (S) new DBNCallableStatement(callableStatement, this);
@@ -131,6 +129,12 @@ public class DBNConnection extends DBNConnectionBase {
     }
 
     @Override
+    public boolean isClosed() {
+        // skip checking "closed" on active connections
+        return !isActive() && super.isClosed();
+    }
+
+    @Override
     public void closeInner() throws SQLException {
         inner.close();
     }
@@ -143,17 +147,20 @@ public class DBNConnection extends DBNConnectionBase {
         return type;
     }
 
-
-    public String getSessionName() {
-        return sessionName;
-    }
-
-    public void setSessionName(String sessionName) {
-        this.sessionName = sessionName;
+    public SessionId getSessionId() {
+        return sessionId;
     }
 
     public boolean isPoolConnection() {
         return type == ConnectionType.POOL;
+    }
+
+    public boolean isDebugConnection() {
+        return type == ConnectionType.DEBUG;
+    }
+
+    public boolean isDebuggerConnection() {
+        return type == ConnectionType.DEBUGGER;
     }
 
     public boolean isMainConnection() {
@@ -194,7 +201,7 @@ public class DBNConnection extends DBNConnectionBase {
      *                        Transaction                               *
      ********************************************************************/
     @Override
-    public void setAutoCommit(boolean autoCommit) throws SQLException {
+    public void setAutoCommit(boolean autoCommit) {
         this.autoCommit.change(autoCommit);
     }
 
@@ -205,20 +212,24 @@ public class DBNConnection extends DBNConnectionBase {
 
     @Override
     public void commit() throws SQLException {
-        super.commit();
         updateLastAccess();
+
+        super.commit();
         resetDataChanges();
     }
 
     @Override
     public void rollback() throws SQLException {
-        super.rollback();
         updateLastAccess();
+
+        super.rollback();
         resetDataChanges();
     }
 
     @Override
     public void close() {
+        updateLastAccess();
+
         super.close();
         resetDataChanges();
     }

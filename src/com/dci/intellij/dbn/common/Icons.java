@@ -48,7 +48,7 @@ public class Icons {
     public static final Icon ACTION_EXPAND_ALL = load("/img/action/ExpandAll.png");
     public static final Icon ACTION_GROUP = load("/img/action/Group.png");
     public static final Icon ACTION_DELETE = load("/img/action/Delete.png");
-    public static final Icon ACTION_CLOSE = ACTION_DELETE;
+    public static final Icon ACTION_CLOSE = load("/img/action/Close.png");
     public static final Icon ACTION_UP_DOWN = load("/img/action/UpDown.png");
     public static final Icon ACTION_REFRESH = load("/img/action/Synchronize.png");
     public static final Icon ACTION_TIMED_REFRESH = load("/img/action/TimedSynchronize.png");
@@ -293,6 +293,9 @@ public class Icons {
     public static final Icon SESSION_POOL                 = load("/img/connection/SessionPool.png");
     public static final Icon SESSION_POOL_CONNECTED       = load("/img/connection/SessionPoolConnected.png");
     public static final Icon SESSION_POOL_TRANSACTIONAL   = load("/img/connection/SessionPoolTransactional.png");
+    public static final Icon SESSION_DEBUG                = load("/img/connection/SessionDebug.png");
+    public static final Icon SESSION_DEBUG_CONNECTED      = load("/img/connection/SessionDebugConnected.png");
+    public static final Icon SESSION_DEBUG_TRANSACTIONAL  = load("/img/connection/SessionDebugTransactional.png");
 
 
     public static final Icon DB_ORACLE            = load("/img/database/Oracle.png");

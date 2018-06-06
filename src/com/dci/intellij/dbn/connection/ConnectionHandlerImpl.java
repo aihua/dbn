@@ -25,6 +25,7 @@ import com.dci.intellij.dbn.connection.config.ConnectionSettings;
 import com.dci.intellij.dbn.connection.console.DatabaseConsoleBundle;
 import com.dci.intellij.dbn.connection.info.ConnectionInfo;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
+import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.connection.session.DatabaseSessionBundle;
 import com.dci.intellij.dbn.connection.transaction.TransactionAction;
 import com.dci.intellij.dbn.database.DatabaseFeature;
@@ -122,6 +123,17 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     @Nullable
     public ConnectionInfo getConnectionInfo() {
         return connectionInfo;
+    }
+
+    @Override
+    @NotNull
+    public String getConnectionName(@Nullable DBNConnection connection) {
+        if (connection == null) {
+            return getName();
+        } else {
+            DatabaseSession session = sessionBundle.getSession(connection.getSessionId());
+            return getName() + " (" + session.getName() + ")";
+        }
     }
 
     @Override
@@ -326,8 +338,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     }
 
     @Override
-    public void setAutoCommit(boolean autoCommit) throws SQLException {
-        getConnectionPool().setAutoCommit(autoCommit);
+    public void setAutoCommit(boolean autoCommit) {
         connectionSettings.getPropertiesSettings().setEnableAutoCommit(autoCommit);
     }
 
@@ -387,6 +398,21 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
         return getConnectionPool().ensureMainConnection();
     }
 
+    @Override
+    @NotNull
+    public DBNConnection getDebugConnection(@Nullable DBSchema schema) throws SQLException {
+        assertCanConnect();
+        DBNConnection connection = getConnectionPool().ensureDebugConnection();
+        return setCurrentSchema(connection, schema);
+    }
+
+    @Override
+    @NotNull
+    public DBNConnection getDebuggerConnection() throws SQLException {
+        assertCanConnect();
+        return getConnectionPool().ensureDebuggerConnection();
+    }
+
     @NotNull
     public DBNConnection getPoolConnection(boolean readonly) throws SQLException {
         assertCanConnect();
@@ -396,21 +422,13 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     @NotNull
     public DBNConnection getMainConnection(@Nullable DBSchema schema) throws SQLException {
         DBNConnection connection = getMainConnection();
-        if (schema != null && !schema.isPublicSchema() && DatabaseFeature.CURRENT_SCHEMA.isSupported(this)) {
-            DatabaseMetadataInterface metadataInterface = getInterfaceProvider().getMetadataInterface();
-            metadataInterface.setCurrentSchema(schema.getQuotedName(false), connection);
-        }
-        return connection;
+        return setCurrentSchema(connection, schema);
     }
 
     @NotNull
     public DBNConnection getPoolConnection(@Nullable DBSchema schema, boolean readonly) throws SQLException {
         DBNConnection connection = getPoolConnection(readonly);
-        //if (!schema.isPublicSchema()) {
-        setCurrentSchema(connection, schema);
-
-        //}
-        return connection;
+        return setCurrentSchema(connection, schema);
     }
 
     @NotNull
@@ -423,7 +441,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     }
 
     protected DBNConnection setCurrentSchema(DBNConnection connection, @Nullable DBSchema schema) throws SQLException {
-        if (schema != null && DatabaseFeature.CURRENT_SCHEMA.isSupported(this)) {
+        if (schema != null && /*!schema.isPublicSchema() && */DatabaseFeature.CURRENT_SCHEMA.isSupported(this)) {
             DatabaseMetadataInterface metadataInterface = getInterfaceProvider().getMetadataInterface();
             metadataInterface.setCurrentSchema(schema.getQuotedName(false), connection);
         }

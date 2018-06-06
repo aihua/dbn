@@ -5,6 +5,8 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingManager;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.connection.session.DatabaseSessionBundle;
+import com.dci.intellij.dbn.vfs.DBConsoleType;
+import com.dci.intellij.dbn.vfs.file.DBConsoleVirtualFile;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.actionSystem.Presentation;
@@ -31,23 +33,39 @@ public class SessionSelectComboBoxAction extends DBNComboBoxAction implements Du
             ConnectionHandler connectionHandler = FileConnectionMappingManager.getInstance(project).getConnectionHandler(virtualFile);
             if (connectionHandler != null && !connectionHandler.isVirtual() && !connectionHandler.isDisposed()) {
                 DatabaseSessionBundle sessionBundle = connectionHandler.getSessionBundle();
-                actionGroup.add(new SessionSelectAction(sessionBundle.getMainSession()));
-                actionGroup.add(new SessionSelectAction(sessionBundle.getPoolSession()));
-                List<DatabaseSession> sessions = sessionBundle.getSessions();
-                if (sessions.size() > 0) {
-                    //actionGroup.addSeparator();
-                    for (DatabaseSession session : sessions){
-                        if (session.isCustom()) {
-                            actionGroup.add(new SessionSelectAction(session));
+
+                if (isDebugConsole(virtualFile)) {
+                    actionGroup.add(new SessionSelectAction(sessionBundle.getDebugSession()));
+                } else {
+                    actionGroup.add(new SessionSelectAction(sessionBundle.getMainSession()));
+                    actionGroup.add(new SessionSelectAction(sessionBundle.getPoolSession()));
+                    List<DatabaseSession> sessions = sessionBundle.getSessions();
+                    if (sessions.size() > 0) {
+                        //actionGroup.addSeparator();
+                        for (DatabaseSession session : sessions){
+                            if (session.isCustom()) {
+                                actionGroup.add(new SessionSelectAction(session));
+                            }
                         }
                     }
+                    actionGroup.addSeparator();
+                    actionGroup.add(new SessionCreateAction(connectionHandler));
+                    actionGroup.add(new SessionDisableAction(connectionHandler));
                 }
-                actionGroup.addSeparator();
-                actionGroup.add(new SessionCreateAction(connectionHandler));
-                actionGroup.add(new SessionDisableAction(connectionHandler));
             }
         }
         return actionGroup;
+    }
+
+    private boolean isDebugConsole(VirtualFile virtualFile) {
+        boolean isDebugConsole = false;
+        if (virtualFile instanceof DBConsoleVirtualFile) {
+            DBConsoleVirtualFile consoleVirtualFile = (DBConsoleVirtualFile) virtualFile;
+            if (consoleVirtualFile.getType() == DBConsoleType.DEBUG) {
+                isDebugConsole = true;
+            }
+        }
+        return isDebugConsole;
     }
 
     public void update(AnActionEvent e) {
@@ -64,11 +82,17 @@ public class SessionSelectComboBoxAction extends DBNComboBoxAction implements Du
             ConnectionHandler connectionHandler = mappingManager.getConnectionHandler(virtualFile);
             visible = connectionHandler != null && !connectionHandler.isVirtual() && connectionHandler.getSettings().getDetailSettings().isEnableSessionManagement();
             if (visible) {
-                DatabaseSession session = mappingManager.getDatabaseSession(virtualFile);
-                if (session != null) {
-                    text = session.getName();
-                    icon = session.getIcon();
-                    enabled = true;
+                if (isDebugConsole(virtualFile)) {
+                    DatabaseSession debugSession = connectionHandler.getSessionBundle().getDebugSession();
+                    text = debugSession.getName();
+                    icon = debugSession.getIcon();
+                    enabled = false;
+                } else {
+                    DatabaseSession session = mappingManager.getDatabaseSession(virtualFile);
+                    if (session != null) {
+                        text = session.getName();
+                        icon = session.getIcon();
+                        enabled = true;
 /*
                     // TODO allow selecting "hot" session?
                     DatabaseSession databaseSession = mappingManager.getDatabaseSession(virtualFile);
@@ -81,6 +105,7 @@ public class SessionSelectComboBoxAction extends DBNComboBoxAction implements Du
                     }
 */
 
+                    }
                 }
             }
         }

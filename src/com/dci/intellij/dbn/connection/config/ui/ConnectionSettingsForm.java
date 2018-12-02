@@ -14,14 +14,7 @@ import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionManager;
 import com.dci.intellij.dbn.connection.ConnectivityStatus;
 import com.dci.intellij.dbn.connection.DatabaseType;
-import com.dci.intellij.dbn.connection.config.ConnectionBundleSettings;
-import com.dci.intellij.dbn.connection.config.ConnectionConfigType;
-import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
-import com.dci.intellij.dbn.connection.config.ConnectionDetailSettings;
-import com.dci.intellij.dbn.connection.config.ConnectionFilterSettings;
-import com.dci.intellij.dbn.connection.config.ConnectionPropertiesSettings;
-import com.dci.intellij.dbn.connection.config.ConnectionSettings;
-import com.dci.intellij.dbn.connection.config.ConnectionSshTunnelSettings;
+import com.dci.intellij.dbn.connection.config.*;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBColor;
@@ -56,17 +49,22 @@ public class ConnectionSettingsForm extends CompositeConfigurationEditorForm<Con
         connectionTabInfo.setText("Database");
         configTabbedPane.addTab(connectionTabInfo);
 
+        if (databaseSettings.getConfigType() == ConnectionConfigType.BASIC) {
+            ConnectionSslSettings sslSettings = connectionSettings.getSslSettings();
+            TabInfo sslTabInfo = new TabInfo(new JBScrollPane(sslSettings.createComponent()));
+            sslTabInfo.setText("SSL");
+            configTabbedPane.addTab(sslTabInfo);
+
+            ConnectionSshTunnelSettings sshTunnelSettings = connectionSettings.getSshTunnelSettings();
+            TabInfo sshTunnelTabInfo = new TabInfo(new JBScrollPane(sshTunnelSettings.createComponent()));
+            sshTunnelTabInfo.setText("SSH Tunnel");
+            configTabbedPane.addTab(sshTunnelTabInfo);
+        }
+
         ConnectionPropertiesSettings propertiesSettings = connectionSettings.getPropertiesSettings();
         TabInfo propertiesTabInfo = new TabInfo(new JBScrollPane(propertiesSettings.createComponent()));
         propertiesTabInfo.setText("Properties");
         configTabbedPane.addTab(propertiesTabInfo);
-
-        if (databaseSettings.getConfigType() == ConnectionConfigType.BASIC) {
-            ConnectionSshTunnelSettings sshTunnelSettings = connectionSettings.getSshTunnelSettings();
-            TabInfo sshTunnelTabInfo = new TabInfo(new JBScrollPane(sshTunnelSettings.createComponent()));
-            sshTunnelTabInfo.setText("SSH");
-            configTabbedPane.addTab(sshTunnelTabInfo);
-        }
 
         ConnectionDetailSettings detailSettings = connectionSettings.getDetailSettings();
         TabInfo detailsTabInfo = new TabInfo(new JBScrollPane(detailSettings.createComponent()));
@@ -121,6 +119,11 @@ public class ConnectionSettingsForm extends CompositeConfigurationEditorForm<Con
         ConnectionSshTunnelSettingsForm sshTunnelSettingsForm = configuration.getSshTunnelSettings().getSettingsEditor();
         if (sshTunnelSettingsForm != null) {
             sshTunnelSettingsForm.applyFormChanges(clone.getSshTunnelSettings());
+        }
+
+        ConnectionSslSettingsForm sslSettingsForm = configuration.getSslSettings().getSettingsEditor();
+        if (sslSettingsForm != null) {
+            sslSettingsForm.applyFormChanges(clone.getSslSettings());
         }
 
         ConnectionDetailSettingsForm detailSettingsForm = configuration.getDetailSettings().getSettingsEditor();
@@ -202,21 +205,18 @@ public class ConnectionSettingsForm extends CompositeConfigurationEditorForm<Con
         return mainPanel;
     }
 
-    ConnectionPresentationChangeListener connectionPresentationChangeListener = new ConnectionPresentationChangeListener() {
+    private ConnectionPresentationChangeListener connectionPresentationChangeListener = new ConnectionPresentationChangeListener() {
         @Override
         public void presentationChanged(final String name, final Icon icon, final Color color, final ConnectionId connectionId, DatabaseType databaseType) {
-            new SimpleLaterInvocator() {
-                @Override
-                protected void execute() {
-                    ConnectionSettings configuration = getConfiguration();
-                    if (configuration != null && configuration.getConnectionId().equals(connectionId)) {
-                        if (name != null) headerForm.setTitle(name);
-                        if (icon != null) headerForm.setIcon(icon);
-                        if (color != null) headerForm.setBackground(color); else headerForm.setBackground(UIUtil.getPanelBackground());
-                        //if (databaseType != null) databaseIconLabel.setIcon(databaseType.getLargeIcon());
-                    }
+            SimpleLaterInvocator.invoke(() -> {
+                ConnectionSettings configuration = getConfiguration();
+                if (configuration.getConnectionId().equals(connectionId)) {
+                    if (name != null) headerForm.setTitle(name);
+                    if (icon != null) headerForm.setIcon(icon);
+                    if (color != null) headerForm.setBackground(color); else headerForm.setBackground(UIUtil.getPanelBackground());
+                    //if (databaseType != null) databaseIconLabel.setIcon(databaseType.getLargeIcon());
                 }
-            }.start();
+            });
         }
     };
 

@@ -13,10 +13,7 @@ import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.EditorUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
-import com.dci.intellij.dbn.connection.ConnectionAction;
-import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ConnectionProvider;
-import com.dci.intellij.dbn.connection.SessionId;
+import com.dci.intellij.dbn.connection.*;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingManager;
 import com.dci.intellij.dbn.debugger.DBDebuggerType;
@@ -35,11 +32,7 @@ import com.dci.intellij.dbn.execution.statement.variables.StatementExecutionVari
 import com.dci.intellij.dbn.execution.statement.variables.ui.StatementExecutionInputsDialog;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.psi.BasePsiElement.MatchType;
-import com.dci.intellij.dbn.language.common.psi.ChameleonPsiElement;
-import com.dci.intellij.dbn.language.common.psi.ExecVariablePsiElement;
-import com.dci.intellij.dbn.language.common.psi.ExecutablePsiElement;
-import com.dci.intellij.dbn.language.common.psi.PsiUtil;
-import com.dci.intellij.dbn.language.common.psi.RootPsiElement;
+import com.dci.intellij.dbn.language.common.psi.*;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
@@ -50,7 +43,6 @@ import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
-import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -64,18 +56,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.dci.intellij.dbn.execution.ExecutionStatus.EXECUTING;
-import static com.dci.intellij.dbn.execution.ExecutionStatus.PROMPTED;
-import static com.dci.intellij.dbn.execution.ExecutionStatus.QUEUED;
+import static com.dci.intellij.dbn.execution.ExecutionStatus.*;
 
 @State(
     name = StatementExecutionManager.COMPONENT_NAME,
@@ -86,9 +71,9 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
 
     private static final String[] OPTIONS_MULTIPLE_STATEMENT_EXEC = new String[]{"Execute All", "Execute All from Caret", "Cancel"};
 
-    private final Map<FileEditor, List<StatementExecutionProcessor>> fileExecutionProcessors = new HashMap<FileEditor, List<StatementExecutionProcessor>>();
+    private final Map<FileEditor, List<StatementExecutionProcessor>> fileExecutionProcessors = new HashMap<>();
+
     private final StatementExecutionVariablesCache variablesCache;
-    private Map<SessionId, StatementExecutionQueue> executionQueues = new HashMap<SessionId, StatementExecutionQueue>();
 
     private static final AtomicInteger RESULT_SEQUENCE = new AtomicInteger(0);
 
@@ -99,23 +84,11 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
         EventUtil.subscribe(project, this, FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorManagerListener);
     }
 
-    public StatementExecutionQueue getExecutionQueue(SessionId sessionId) {
-        StatementExecutionQueue executionQueue = executionQueues.get(sessionId);
-        if (executionQueue == null) {
-            synchronized (this) {
-                executionQueue = executionQueues.get(sessionId);
-                if (executionQueue == null) {
-                    executionQueue = new StatementExecutionQueue(StatementExecutionManager.this) {
-                        @Override
-                        protected void execute(StatementExecutionProcessor processor) {
-                            process(processor);
-                        }
-                    };
-                    executionQueues.put(sessionId, executionQueue);
-                }
-            }
-        }
-        return executionQueue;
+    public StatementExecutionQueue getExecutionQueue(ConnectionId connectionId, SessionId sessionId) {
+        ConnectionManager connectionManager = ConnectionManager.getInstance(getProject());
+        ConnectionHandler connectionHandler = connectionManager.getConnectionHandler(connectionId);
+        connectionHandler = FailsafeUtil.get(connectionHandler);
+        return connectionHandler.getExecutionQueue(sessionId);
     }
 
     public static StatementExecutionManager getInstance(@NotNull Project project) {
@@ -176,7 +149,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
             List<StatementExecutionProcessor> removeList = null;
             for (StatementExecutionProcessor executionProcessor : executionProcessors) {
                 if (executionProcessor.getCachedExecutable() == null) {
-                    if (removeList == null) removeList = new ArrayList<StatementExecutionProcessor>();
+                    if (removeList == null) removeList = new ArrayList<>();
                     removeList.add(executionProcessor);
                 }
             }
@@ -191,7 +164,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     private List<StatementExecutionProcessor> getExecutionProcessors(FileEditor textEditor) {
         List<StatementExecutionProcessor> executionProcessors = fileExecutionProcessors.get(textEditor);
         if (executionProcessors == null) {
-            executionProcessors = new CopyOnWriteArrayList<StatementExecutionProcessor>();
+            executionProcessors = new CopyOnWriteArrayList<>();
             fileExecutionProcessors.put(textEditor, executionProcessors);
         }
         return executionProcessors;
@@ -255,56 +228,44 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     }
 
     private void executeStatements(final List<StatementExecutionProcessor> executionProcessors, final VirtualFile virtualFile) {
-        final int size = executionProcessors.size();
-        if (size > 0) {
-            final FileConnectionMappingManager connectionMappingManager = FileConnectionMappingManager.getInstance(getProject());
-            ConnectionProvider connectionProvider = new ConnectionProvider() {
-                @Nullable
-                @Override
-                public ConnectionHandler getConnectionHandler() {
-                    return connectionMappingManager.getConnectionHandler(virtualFile);
-                }
-            };
-
-            ConnectionAction executionTask = new ConnectionAction("the statement execution", connectionProvider) {
-                @Override
-                protected void execute() {
-                    SimpleTask executionCallback = new SimpleTask() {
-                        @Override
-                        protected void execute() {
-                            for (final StatementExecutionProcessor executionProcessor : executionProcessors) {
-                                ExecutionContext context = executionProcessor.getExecutionContext();
-                                StatementExecutionInput executionInput = executionProcessor.getExecutionInput();
-                                SessionId sessionId = executionInput.getTargetSessionId();
-                                if (context.isNot(EXECUTING) && context.isNot(QUEUED)) {
-                                    if (sessionId == SessionId.POOL) {
-                                        new BackgroundTask(getProject(), "Executing statement", true, true) {
-                                            @Override
-                                            protected void execute(@NotNull ProgressIndicator progressIndicator) {
-                                                process(executionProcessor);
-                                            }
-                                        }.start();
-                                    } else {
-                                        StatementExecutionQueue executionQueue = getExecutionQueue(sessionId);
-                                        if (!executionQueue.contains(executionProcessor)) {
-                                            executionQueue.queue(executionProcessor);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    };
-
-                    promptExecutionDialogs(executionProcessors, DBDebuggerType.NONE, executionCallback);
-                }
-            };
+        if (executionProcessors.size() > 0) {
+            Project project = getProject();
+            FileConnectionMappingManager connectionMappingManager = FileConnectionMappingManager.getInstance(project);
 
             DBLanguagePsiFile file =  executionProcessors.get(0).getPsiFile();
-            connectionMappingManager.selectConnectionAndSchema(file, executionTask);
+            connectionMappingManager.selectConnectionAndSchema(file,
+                    ConnectionAction.create(
+                            "the statement execution",
+                            () -> connectionMappingManager.getConnectionHandler(virtualFile),
+                            (Integer) null,
+                            action -> promptExecutionDialogs(
+                                    executionProcessors,
+                                    DBDebuggerType.NONE,
+                                    SimpleTask.create(task -> {
+                                        for (StatementExecutionProcessor executionProcessor : executionProcessors) {
+                                            ExecutionContext context = executionProcessor.getExecutionContext();
+                                            StatementExecutionInput executionInput = executionProcessor.getExecutionInput();
+                                            SessionId sessionId = executionInput.getTargetSessionId();
+                                            ConnectionId connectionId = executionInput.getConnectionHandlerId();
+                                            if (context.isNot(EXECUTING) && context.isNot(QUEUED)) {
+                                                if (sessionId == SessionId.POOL) {
+                                                    BackgroundTask.invoke(
+                                                            project,
+                                                            "Executing statement", true, true,
+                                                            (backgroundTask, progress) -> process(executionProcessor));
+                                                } else {
+                                                    StatementExecutionQueue executionQueue = getExecutionQueue(connectionId, sessionId);
+                                                    if (!executionQueue.contains(executionProcessor)) {
+                                                        executionQueue.queue(executionProcessor);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }))));
         }
     }
 
-    private void process(StatementExecutionProcessor executionProcessor) {
+    public void process(StatementExecutionProcessor executionProcessor) {
         try {
             StatementExecutionInput executionInput = executionProcessor.getExecutionInput();
             DBSchema schema = executionInput.getTargetSchema();
@@ -353,19 +314,15 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     }
 
     private void promptExecutionDialogs(@NotNull final List<StatementExecutionProcessor> processors, final DBDebuggerType debuggerType, @NotNull final RunnableTask callback) {
-        new SimpleLaterInvocator() {
-            @Override
-            protected void execute() {
-                if (promptExecutionDialogs(processors, debuggerType)) {
-                    callback.start();
-                }
+        SimpleLaterInvocator.invoke(() -> {
+            if (promptExecutionDialogs(processors, debuggerType)) {
+                callback.start();
             }
-        }.start();
-
+        });
     }
 
     private boolean promptExecutionDialogs(@NotNull List<StatementExecutionProcessor> executionProcessors, DBDebuggerType debuggerType) {
-        Map<String, StatementExecutionVariable> variableCache = new HashMap<String, StatementExecutionVariable>();
+        Map<String, StatementExecutionVariable> variableCache = new HashMap<>();
         boolean reuseVariables = false;
         boolean bulkExecution = executionProcessors.size() > 1;
 
@@ -374,7 +331,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
         for (StatementExecutionProcessor executionProcessor : executionProcessors) {
             executionProcessor.initExecutionInput(bulkExecution);
             StatementExecutionInput executionInput = executionProcessor.getExecutionInput();
-            Set<ExecVariablePsiElement> bucket = new THashSet<ExecVariablePsiElement>();
+            Set<ExecVariablePsiElement> bucket = new THashSet<>();
             ExecutablePsiElement executablePsiElement = executionInput.getExecutablePsiElement();
             if (executablePsiElement != null) {
                 executablePsiElement.collectExecVariablePsiElements(bucket);
@@ -429,18 +386,15 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     public void promptPendingTransactionDialog(final StatementExecutionProcessor executionProcessor) {
         final ExecutionContext context = executionProcessor.getExecutionContext();
         context.set(PROMPTED, true);
-        new SimpleLaterInvocator() {
-            @Override
-            protected void execute() {
-                try {
-                    PendingTransactionDialog dialog = new PendingTransactionDialog(executionProcessor);
-                    dialog.show();
-                } finally {
-                    executionProcessor.postExecute();
-                    context.set(PROMPTED, false);
-                }
+        SimpleLaterInvocator.invoke(() -> {
+            try {
+                PendingTransactionDialog dialog = new PendingTransactionDialog(executionProcessor);
+                dialog.show();
+            } finally {
+                executionProcessor.postExecute();
+                context.set(PROMPTED, false);
             }
-        }.start();
+        });
     }
 
     @Nullable
@@ -461,8 +415,8 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
         return null;
     }
 
-    public List<StatementExecutionProcessor> getExecutionProcessorsFromOffset(FileEditor fileEditor, int offset) {
-        List<StatementExecutionProcessor> executionProcessors = new ArrayList<StatementExecutionProcessor>();
+    private List<StatementExecutionProcessor> getExecutionProcessorsFromOffset(FileEditor fileEditor, int offset) {
+        List<StatementExecutionProcessor> executionProcessors = new ArrayList<>();
         Editor editor = EditorUtil.getEditor(fileEditor);
 
         if (editor != null) {
@@ -539,9 +493,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     }
 
     @Override
-    public void loadState(Element element) {
-        if (element != null) {
-            variablesCache.readState(element);
-        }
+    public void loadState(@NotNull Element element) {
+        variablesCache.readState(element);
     }
 }

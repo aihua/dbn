@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.debugger.jdbc.config.ui;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.action.GroupPopupAction;
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.SimpleTask;
@@ -25,7 +26,6 @@ import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.intellij.openapi.actionSystem.ActionToolbar;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.util.Disposer;
@@ -67,7 +67,7 @@ public class DBMethodJdbcRunConfigEditorForm extends DBProgramRunConfigurationEd
     }
 
     public class SelectMethodAction extends GroupPopupAction {
-        public SelectMethodAction()  {
+        SelectMethodAction()  {
             super("Select method", "Select method", Icons.DBO_METHOD);
         }
 
@@ -81,52 +81,44 @@ public class DBMethodJdbcRunConfigEditorForm extends DBProgramRunConfigurationEd
     }
 
     public class OpenMethodBrowserAction extends AnAction {
-        public OpenMethodBrowserAction() {
+        OpenMethodBrowserAction() {
             super("Method Browser");
         }
 
         @Override
         public void actionPerformed(@NotNull AnActionEvent e) {
-            final Project project = ActionUtil.getProject(e);
-            if (project != null) {
-                BackgroundTask backgroundTask = new BackgroundTask(project, "Loading executable elements", false) {
-                    @Override
-                    protected void execute(@NotNull ProgressIndicator progressIndicator) {
-                        final MethodExecutionManager executionManager = MethodExecutionManager.getInstance(project);
-                        final MethodBrowserSettings settings = executionManager.getBrowserSettings();
-                        MethodExecutionInput executionInput = getExecutionInput();
-                        DBMethod currentMethod = executionInput == null ? null : executionInput.getMethod();
-                        if (currentMethod != null) {
-                            settings.setConnectionHandler(currentMethod.getConnectionHandler());
-                            settings.setSchema(currentMethod.getSchema());
-                            settings.setMethod(currentMethod);
+            Project project = ActionUtil.ensureProject(e);
+            BackgroundTask.invoke(project, "Loading executable elements", false, false, (task, progress) -> {
+                MethodExecutionManager executionManager = MethodExecutionManager.getInstance(project);
+                MethodBrowserSettings settings = executionManager.getBrowserSettings();
+                MethodExecutionInput executionInput = getExecutionInput();
+                DBMethod currentMethod = executionInput == null ? null : executionInput.getMethod();
+                if (currentMethod != null) {
+                    settings.setConnectionHandler(currentMethod.getConnectionHandler());
+                    settings.setSchema(currentMethod.getSchema());
+                    settings.setMethod(currentMethod);
+                }
+
+                ObjectTreeModel objectTreeModel = new ObjectTreeModel(settings.getSchema(), settings.getVisibleObjectTypes(), settings.getMethod());
+
+                SimpleLaterInvocator.invoke(() -> {
+                    FailsafeUtil.check(project);
+                    MethodExecutionBrowserDialog browserDialog = new MethodExecutionBrowserDialog(project, objectTreeModel, true);
+                    browserDialog.show();
+                    if (browserDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
+                        DBMethod method = browserDialog.getSelectedMethod();
+                        MethodExecutionInput methodExecutionInput = executionManager.getExecutionInput(method);
+                        if (methodExecutionInput != null) {
+                            setExecutionInput(methodExecutionInput, true);
                         }
-
-                        final ObjectTreeModel objectTreeModel = new ObjectTreeModel(settings.getSchema(), settings.getVisibleObjectTypes(), settings.getMethod());
-
-                        new SimpleLaterInvocator() {
-                            @Override
-                            protected void execute() {
-                                final MethodExecutionBrowserDialog browserDialog = new MethodExecutionBrowserDialog(project, objectTreeModel, true);
-                                browserDialog.show();
-                                if (browserDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
-                                    DBMethod method = browserDialog.getSelectedMethod();
-                                    MethodExecutionInput methodExecutionInput = executionManager.getExecutionInput(method);
-                                    if (methodExecutionInput != null) {
-                                        setExecutionInput(methodExecutionInput, true);
-                                    }
-                                }
-                            }
-                        }.start();
-
                     }
-                };
-                backgroundTask.start();
-            }
+                });
+
+            });
         }
     }
     public class OpenMethodHistoryAction extends AnAction {
-        public OpenMethodHistoryAction() {
+        OpenMethodHistoryAction() {
             super("Execution History", null, Icons.METHOD_EXECUTION_HISTORY);
         }
 

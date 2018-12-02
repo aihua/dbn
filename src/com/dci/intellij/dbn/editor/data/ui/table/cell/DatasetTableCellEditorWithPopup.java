@@ -61,13 +61,12 @@ public class DatasetTableCellEditorWithPopup extends DatasetTableCellEditor {
     private boolean showAutoPopup() {
         DataEditorPopupSettings settings = this.settings.getPopupSettings();
         DBDataType dataType = getCell().getColumnInfo().getDataType();
-        if (dataType != null) {
-            long dataLength = dataType.getLength();
-            if (!isEditable()) return true;
-            if (settings.isActive() && (settings.getDataLengthThreshold() < dataLength || dataLength == 0)) {
-                if (settings.isActiveIfEmpty() || getTextField().getText().length() > 0) {
-                    return true;
-                }
+        long dataLength = dataType.getLength();
+        if (!isEditable()) {
+            return true;
+        } else  if (settings.isActive() && (settings.getDataLengthThreshold() < dataLength || dataLength == 0)) {
+            if (settings.isActiveIfEmpty() || getTextField().getText().length() > 0) {
+                return true;
             }
         }
         return false;
@@ -118,26 +117,28 @@ public class DatasetTableCellEditorWithPopup extends DatasetTableCellEditor {
      *                  TextFieldWithPopup                  *
      ********************************************************/
 
-    private static class CustomTextFieldWithPopup extends TextFieldWithPopup {
+    private static class CustomTextFieldWithPopup extends TextFieldWithPopup<JTable> {
         protected static final EmptyBorder BUTTON_INSIDE_BORDER = JBUI.Borders.empty(0, 2);
         protected static final CompoundBorder BUTTON_BORDER = new CompoundBorder(BUTTON_OUTSIDE_BORDER, new CompoundBorder(BUTTON_LINE_BORDER, BUTTON_INSIDE_BORDER));
 
-        private DatasetEditorTable table;
-
         private CustomTextFieldWithPopup(DatasetEditorTable table) {
-            super(table.getProject());
-            this.table = table;
+            super(table.getProject(), table);
             setBackground(table.getBackground());
         }
 
         @Override
         public void customizeTextField(JTextField textField) {
             textField.setBorder(Borders.EMPTY_BORDER);
+            textField.setMargin(JBUI.emptyInsets());
+            JTable table = getParentComponent();
+            textField.setPreferredSize(new Dimension(textField.getPreferredSize().width, table.getRowHeight()));
             //textField.setBorder(new CompoundBorder(new LineBorder(Color.BLACK), new EmptyBorder(new Insets(1, 1, 1, 1))));
         }
 
         @Override
         public void customizeButton(final JLabel button) {
+            final JTable table = getParentComponent();
+
             button.setBorder(BUTTON_BORDER);
             button.setBackground(UIUtil.getTableBackground());
             button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));

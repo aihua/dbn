@@ -1,18 +1,9 @@
 package com.dci.intellij.dbn.vfs;
 
 import com.dci.intellij.dbn.browser.DatabaseBrowserManager;
-import com.dci.intellij.dbn.common.thread.BackgroundTask;
-import com.dci.intellij.dbn.common.thread.ReadActionRunner;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
-import com.dci.intellij.dbn.common.thread.TaskInstruction;
-import com.dci.intellij.dbn.common.thread.TaskInstructions;
+import com.dci.intellij.dbn.common.thread.*;
 import com.dci.intellij.dbn.common.util.EditorUtil;
-import com.dci.intellij.dbn.connection.ConnectionAction;
-import com.dci.intellij.dbn.connection.ConnectionCache;
-import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ConnectionId;
-import com.dci.intellij.dbn.connection.ConnectionManager;
-import com.dci.intellij.dbn.connection.GenericDatabaseElement;
+import com.dci.intellij.dbn.connection.*;
 import com.dci.intellij.dbn.connection.config.ConnectionDetailSettings;
 import com.dci.intellij.dbn.ddl.DDLFileType;
 import com.dci.intellij.dbn.editor.DBContentType;
@@ -29,15 +20,7 @@ import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
-import com.dci.intellij.dbn.vfs.file.DBConnectionVirtualFile;
-import com.dci.intellij.dbn.vfs.file.DBConsoleVirtualFile;
-import com.dci.intellij.dbn.vfs.file.DBContentVirtualFile;
-import com.dci.intellij.dbn.vfs.file.DBDatasetFilterVirtualFile;
-import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
-import com.dci.intellij.dbn.vfs.file.DBObjectListVirtualFile;
-import com.dci.intellij.dbn.vfs.file.DBObjectVirtualFile;
-import com.dci.intellij.dbn.vfs.file.DBSessionBrowserVirtualFile;
-import com.dci.intellij.dbn.vfs.file.DBSessionStatementVirtualFile;
+import com.dci.intellij.dbn.vfs.file.*;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.ApplicationComponent;
 import com.intellij.openapi.fileEditor.FileEditor;
@@ -57,13 +40,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.CONSOLES;
-import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.DATASET_FILTERS;
-import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.OBJECTS;
-import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.OBJECT_CONTENTS;
-import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.SESSION_BROWSERS;
-import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.SESSION_STATEMENTS;
-import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.values;
+import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.*;
 
 public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysicalFileSystem, */ApplicationComponent {
     public static final String PS = "/";
@@ -101,7 +78,7 @@ public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysic
     }
 
     static final IOException READONLY_FILE_SYSTEM = new IOException("Operation not supported");
-    private Map<DBObjectRef, DBEditableObjectVirtualFile> filesCache = new HashMap<DBObjectRef, DBEditableObjectVirtualFile>();
+    private Map<DBObjectRef, DBEditableObjectVirtualFile> filesCache = new HashMap<>();
 
     public DatabaseFileSystem() {
     }
@@ -433,49 +410,44 @@ public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysic
         openEditor(object, editorProviderId, false, focusEditor);
     }
 
-    public void openEditor(final DBObject object, @Nullable final EditorProviderId editorProviderId, final boolean scrollBrowser, final boolean focusEditor) {
-        new ConnectionAction("opening the object editor", object, new TaskInstructions("Opening editor", TaskInstruction.CANCELLABLE)) {
-            @Override
-            protected void execute() {
-                EditorProviderId providerId = editorProviderId;
-                if (editorProviderId == null) {
-                    EditorStateManager editorStateManager = EditorStateManager.getInstance(getProject());
-                    providerId = editorStateManager.getEditorProvider(object.getObjectType());
-                }
-
-                if (object.is(DBObjectProperty.SCHEMA_OBJECT)) {
-                    DBObjectListContainer childObjects = object.getChildObjects();
-                    if (childObjects != null) childObjects.load();
-
-                    openSchemaObject((DBSchemaObject) object, providerId, scrollBrowser, focusEditor);
-
-                } else if (object.getParentObject().is(DBObjectProperty.SCHEMA_OBJECT)) {
-                    DBObjectListContainer childObjects = object.getParentObject().getChildObjects();
-                    if (childObjects != null) childObjects.load();
-                    openChildObject(object, providerId, scrollBrowser, focusEditor);
-                }
+    public void openEditor(DBObject object, @Nullable EditorProviderId editorProviderId, boolean scrollBrowser, boolean focusEditor) {
+        TaskInstructions instructions = new TaskInstructions("Opening editor", TaskInstruction.CANCELLABLE);
+        ConnectionAction.invoke("opening the object editor", object, instructions, action -> {
+            EditorProviderId providerId = editorProviderId;
+            if (editorProviderId == null) {
+                EditorStateManager editorStateManager = EditorStateManager.getInstance(object.getProject());
+                providerId = editorStateManager.getEditorProvider(object.getObjectType());
             }
-        }.start();
+
+            if (object.is(DBObjectProperty.SCHEMA_OBJECT)) {
+                DBObjectListContainer childObjects = object.getChildObjects();
+                if (childObjects != null) childObjects.load();
+
+                openSchemaObject((DBSchemaObject) object, providerId, scrollBrowser, focusEditor);
+
+            } else if (object.getParentObject().is(DBObjectProperty.SCHEMA_OBJECT)) {
+                DBObjectListContainer childObjects = object.getParentObject().getChildObjects();
+                if (childObjects != null) childObjects.load();
+                openChildObject(object, providerId, scrollBrowser, focusEditor);
+            }
+        });
     }
 
     private void openSchemaObject(final DBSchemaObject object, final EditorProviderId editorProviderId, final boolean scrollBrowser, final boolean focusEditor) {
         final DBEditableObjectVirtualFile databaseFile = findOrCreateDatabaseFile(object);
         databaseFile.setSelectedEditorProviderId(editorProviderId);
         if (!BackgroundTask.isProcessCancelled()) {
-            new SimpleLaterInvocator() {
-                @Override
-                protected void execute() {
-                    if (isFileOpened(object) || databaseFile.preOpen()) {
-                        DatabaseBrowserManager.AUTOSCROLL_FROM_EDITOR.set(scrollBrowser);
-                        Project project = object.getProject();
-                        FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
-                        fileEditorManager.openFile(databaseFile, focusEditor);
-                        NavigationInstruction navigationInstruction = focusEditor ? NavigationInstruction.FOCUS_SCROLL : NavigationInstruction.SCROLL;
-                        EditorUtil.selectEditor(project, null, databaseFile, editorProviderId, navigationInstruction);
-                        DatabaseBrowserManager.AUTOSCROLL_FROM_EDITOR.set(true);
-                    }
+            SimpleLaterInvocator.invoke(() -> {
+                if (isFileOpened(object) || databaseFile.preOpen()) {
+                    DatabaseBrowserManager.AUTOSCROLL_FROM_EDITOR.set(scrollBrowser);
+                    Project project = object.getProject();
+                    FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
+                    fileEditorManager.openFile(databaseFile, focusEditor);
+                    NavigationInstruction navigationInstruction = focusEditor ? NavigationInstruction.FOCUS_SCROLL : NavigationInstruction.SCROLL;
+                    EditorUtil.selectEditor(project, null, databaseFile, editorProviderId, navigationInstruction);
+                    DatabaseBrowserManager.AUTOSCROLL_FROM_EDITOR.set(true);
                 }
-            }.start();
+            });
         }
     }
 
@@ -486,27 +458,23 @@ public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysic
         SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
         sourceCodeManager.ensureSourcesLoaded(schemaObject);
         if (!BackgroundTask.isProcessCancelled()) {
-            new SimpleLaterInvocator() {
-                @Override
-                protected void execute() {
-                    if (isFileOpened(schemaObject) || databaseFile.preOpen()) {
-                        DatabaseBrowserManager.AUTOSCROLL_FROM_EDITOR.set(scrollBrowser);
-                        FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
-                        FileEditor[] fileEditors = fileEditorManager.openFile(databaseFile, focusEditor);
-                        for (FileEditor fileEditor : fileEditors) {
-                            if (fileEditor instanceof SourceCodeMainEditor) {
-                                SourceCodeMainEditor sourceCodeEditor = (SourceCodeMainEditor) fileEditor;
-                                NavigationInstruction navigationInstruction = focusEditor ? NavigationInstruction.FOCUS_SCROLL : NavigationInstruction.SCROLL;
-                                EditorUtil.selectEditor(project, fileEditor, databaseFile, editorProviderId, navigationInstruction);
-                                sourceCodeEditor.navigateTo(object);
-                                break;
-                            }
+            SimpleLaterInvocator.invoke(() -> {
+                if (isFileOpened(schemaObject) || databaseFile.preOpen()) {
+                    DatabaseBrowserManager.AUTOSCROLL_FROM_EDITOR.set(scrollBrowser);
+                    FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
+                    FileEditor[] fileEditors = fileEditorManager.openFile(databaseFile, focusEditor);
+                    for (FileEditor fileEditor : fileEditors) {
+                        if (fileEditor instanceof SourceCodeMainEditor) {
+                            SourceCodeMainEditor sourceCodeEditor = (SourceCodeMainEditor) fileEditor;
+                            NavigationInstruction navigationInstruction = focusEditor ? NavigationInstruction.FOCUS_SCROLL : NavigationInstruction.SCROLL;
+                            EditorUtil.selectEditor(project, fileEditor, databaseFile, editorProviderId, navigationInstruction);
+                            sourceCodeEditor.navigateTo(object);
+                            break;
                         }
-                        DatabaseBrowserManager.AUTOSCROLL_FROM_EDITOR.set(true);
                     }
-
+                    DatabaseBrowserManager.AUTOSCROLL_FROM_EDITOR.set(true);
                 }
-            }.start();
+            });
         }
     }
 
@@ -527,7 +495,7 @@ public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysic
         }
     }
 
-    public void clearCachedFiles(Project project) {
+    void clearCachedFiles(Project project) {
         Iterator<DBObjectRef> objectRefs = filesCache.keySet().iterator();
         while (objectRefs.hasNext()) {
             DBObjectRef objectRef = objectRefs.next();

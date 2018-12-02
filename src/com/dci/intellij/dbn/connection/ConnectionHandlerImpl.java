@@ -11,12 +11,13 @@ import com.dci.intellij.dbn.common.dispose.DisposableBase;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.filter.Filter;
+import com.dci.intellij.dbn.common.latent.DisposableLatent;
+import com.dci.intellij.dbn.common.latent.Latent;
+import com.dci.intellij.dbn.common.latent.MapLatent;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.ui.tree.TreeEventType;
 import com.dci.intellij.dbn.common.util.CommonUtil;
-import com.dci.intellij.dbn.common.util.DisposableLazyValue;
 import com.dci.intellij.dbn.common.util.EventUtil;
-import com.dci.intellij.dbn.common.util.LazyValue;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
@@ -32,6 +33,9 @@ import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.database.DatabaseInterface;
 import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
 import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
+import com.dci.intellij.dbn.execution.statement.StatementExecutionManager;
+import com.dci.intellij.dbn.execution.statement.StatementExecutionQueue;
+import com.dci.intellij.dbn.execution.statement.processor.StatementExecutionProcessor;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
 import com.dci.intellij.dbn.navigation.psi.DBConnectionPsiDirectory;
@@ -41,7 +45,6 @@ import com.dci.intellij.dbn.object.common.DBObjectBundleImpl;
 import com.dci.intellij.dbn.vfs.file.DBSessionBrowserVirtualFile;
 import com.intellij.lang.Language;
 import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.psi.PsiDirectory;
@@ -65,7 +68,13 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     private DatabaseInterfaceProvider interfaceProvider;
     private DatabaseConsoleBundle consoleBundle;
     private DatabaseSessionBundle sessionBundle;
-    private DBSessionBrowserVirtualFile sessionBrowserFile;
+    private Latent<DBSessionBrowserVirtualFile> sessionBrowserFile = Latent.create(() -> {
+        FailsafeUtil.check(ConnectionHandlerImpl.this);
+        DBSessionBrowserVirtualFile sessionBrowserFile = new DBSessionBrowserVirtualFile(this);
+        Disposer.register(ConnectionHandlerImpl.this, sessionBrowserFile);
+        return sessionBrowserFile;
+    });
+
     private ConnectionInstructions instructions = new ConnectionInstructions();
 
     private boolean enabled;
@@ -73,6 +82,16 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     private AuthenticationInfo temporaryAuthenticationInfo = new AuthenticationInfo();
     private ConnectionInfo connectionInfo;
     private Cache metaDataCache = new Cache(TimeUtil.ONE_MINUTE);
+
+    private MapLatent<SessionId, StatementExecutionQueue> executionQueues = MapLatent.create(key -> {
+        return new StatementExecutionQueue(ConnectionHandlerImpl.this) {
+            @Override
+            protected void execute(StatementExecutionProcessor processor) {
+                StatementExecutionManager statementExecutionManager = StatementExecutionManager.getInstance(getProject());
+                statementExecutionManager.process(processor);
+            }
+        };
+    });
 
     private DBConnectionPsiDirectory psiDirectory;
 
@@ -83,15 +102,10 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
 
     private Set<TransactionAction> pendingActions = new HashSet<TransactionAction>();
 
-    private LazyValue<DBObjectBundle> objectBundle = new DisposableLazyValue<DBObjectBundle>(this) {
-        @Override
-        protected DBObjectBundle load() {
-            return new DBObjectBundleImpl(ConnectionHandlerImpl.this, connectionBundle);
-        }
-    };
+    private Latent<DBObjectBundle> objectBundle = DisposableLatent.create(this, () -> new DBObjectBundleImpl(ConnectionHandlerImpl.this, connectionBundle));
 
 
-    public ConnectionHandlerImpl(ConnectionBundle connectionBundle, ConnectionSettings connectionSettings) {
+    ConnectionHandlerImpl(ConnectionBundle connectionBundle, ConnectionSettings connectionSettings) {
         this.connectionBundle = connectionBundle;
         this.connectionSettings = connectionSettings;
         this.enabled = connectionSettings.isActive();
@@ -128,7 +142,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     @Override
     @NotNull
     public String getConnectionName(@Nullable DBNConnection connection) {
-        if (connection == null) {
+        if (connection == null || sessionBundle == null) {
             return getName();
         } else {
             DatabaseSession session = sessionBundle.getSession(connection.getSessionId());
@@ -217,16 +231,13 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     @Override
     @NotNull
     public DBSessionBrowserVirtualFile getSessionBrowserFile() {
-        if (sessionBrowserFile == null) {
-            synchronized (this) {
-                if (sessionBrowserFile == null) {
-                    FailsafeUtil.check(this);
-                    sessionBrowserFile = new DBSessionBrowserVirtualFile(this);
-                    Disposer.register(this, sessionBrowserFile);
-                }
-            }
-        }
-        return sessionBrowserFile;
+        return sessionBrowserFile.get();
+    }
+
+    @Override
+    @NotNull
+    public StatementExecutionQueue getExecutionQueue(SessionId sessionId) {
+        return executionQueues.get(sessionId);
     }
 
     @Override
@@ -440,7 +451,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
         return setCurrentSchema(connection, schema);
     }
 
-    protected DBNConnection setCurrentSchema(DBNConnection connection, @Nullable DBSchema schema) throws SQLException {
+    private DBNConnection setCurrentSchema(DBNConnection connection, @Nullable DBSchema schema) throws SQLException {
         if (schema != null && /*!schema.isPublicSchema() && */DatabaseFeature.CURRENT_SCHEMA.isSupported(this)) {
             DatabaseMetadataInterface metadataInterface = getInterfaceProvider().getMetadataInterface();
             metadataInterface.setCurrentSchema(schema.getQuotedName(false), connection);
@@ -514,13 +525,13 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
         return asc ? ASC_COMPARATOR : DESC_COMPARATOR;
     }
 
-    public static final Comparator<ConnectionHandler> ASC_COMPARATOR = new Comparator<ConnectionHandler>() {
+    private static final Comparator<ConnectionHandler> ASC_COMPARATOR = new Comparator<ConnectionHandler>() {
         public int compare(ConnectionHandler connection1, ConnectionHandler connection2) {
             return connection1.getPresentableText().toLowerCase().compareTo(connection2.getPresentableText().toLowerCase());
         }
     };
 
-    public static final Comparator<ConnectionHandler> DESC_COMPARATOR = new Comparator<ConnectionHandler>() {
+    private static final Comparator<ConnectionHandler> DESC_COMPARATOR = new Comparator<ConnectionHandler>() {
         public int compare(ConnectionHandler connection1, ConnectionHandler connection2) {
             return connection2.getPresentableText().toLowerCase().compareTo(connection1.getPresentableText().toLowerCase());
         }
@@ -597,16 +608,13 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
             connectionPool.closeConnections();
 
             final Project project = getProject();
-            new BackgroundTask(getProject(), "Trying to connect to " + getName(), false) {
-                @Override
-                protected void execute(@NotNull ProgressIndicator progressIndicator) {
-                    ConnectionManager.testConnection(ConnectionHandlerImpl.this, false, false);
-                    //fixme check if the connection is pointing to a new database and reload if this is the case
-                    //objectBundle.checkForDatabaseChange();
+            BackgroundTask.invoke(getProject(), "Trying to connect to " + getName(), false, false, (task, progress) -> {
+                ConnectionManager.testConnection(ConnectionHandlerImpl.this, false, false);
+                //fixme check if the connection is pointing to a new database and reload if this is the case
+                //objectBundle.checkForDatabaseChange();
 
-                    EventUtil.notify(project, BrowserTreeEventListener.TOPIC).nodeChanged(getObjectBundle(), TreeEventType.NODES_CHANGED);
-                }
-            }.start();
+                EventUtil.notify(project, BrowserTreeEventListener.TOPIC).nodeChanged(getObjectBundle(), TreeEventType.NODES_CHANGED);
+            });
         }
     }
 }

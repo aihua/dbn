@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.common.content.dependency.ContentDependencyAdapter;
 import com.dci.intellij.dbn.common.content.dependency.VoidContentDependencyAdapter;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoadException;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoader;
+import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.filter.Filter;
@@ -15,25 +16,17 @@ import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.GenericDatabaseElement;
 import com.dci.intellij.dbn.object.common.DBVirtualObject;
-import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.util.Disposer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
+import java.util.*;
 
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.DIRTY;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.INDEXED;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.LOADED;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.LOADING;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.LOADING_IN_BACKGROUND;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.*;
 
 public abstract class DynamicContentImpl<T extends DynamicContentElement> extends PropertyHolderImpl<DynamicContentStatus> implements DynamicContent<T> {
     protected static final List EMPTY_CONTENT = Collections.unmodifiableList(new ArrayList(0));
+    protected static final List EMPTY_DISPOSED_CONTENT = Collections.unmodifiableList(new ArrayList(0));
     protected static final List EMPTY_UNTOUCHED_CONTENT = Collections.unmodifiableList(new ArrayList(0));
 
     private long changeTimestamp = 0;
@@ -196,18 +189,15 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
                     set(LOADING_IN_BACKGROUND, true);
                     ConnectionHandler connectionHandler = getConnectionHandler();
                     String connectionString = " (" + connectionHandler.getName() + ')';
-                    new BackgroundTask(getProject(), "Loading data dictionary" + connectionString, true) {
-                        @Override
-                        protected void execute(@NotNull ProgressIndicator progressIndicator) {
-                            try {
-                                DatabaseLoadMonitor.startBackgroundLoad();
-                                load(force);
-                            } finally {
-                                DatabaseLoadMonitor.endBackgroundLoad();
-                                set(LOADING_IN_BACKGROUND, false);
-                            }
+                    BackgroundTask.invoke(getProject(), "Loading data dictionary" + connectionString, true, false, (task, progress) -> {
+                        try {
+                            DatabaseLoadMonitor.startBackgroundLoad();
+                            load(force);
+                        } finally {
+                            DatabaseLoadMonitor.endBackgroundLoad();
+                            set(LOADING_IN_BACKGROUND, false);
                         }
-                    }.start();
+                    });
                 }
             }
         }
@@ -400,18 +390,30 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
         return false;
     }
 
+    @Override
+    public boolean isDisposed() {
+        return is(DISPOSED);
+    }
+
     public void dispose() {
         if (!isDisposed()) {
-            super.dispose();
+            set(DISPOSED, true);
             if (elements != EMPTY_CONTENT && elements != EMPTY_UNTOUCHED_CONTENT) {
-                if (dependencyAdapter.isSubContent())
-                    elements.clear(); else
+                if (!dependencyAdapter.isSubContent()) {
                     DisposerUtil.dispose(elements);
+                }
+                elements = EMPTY_DISPOSED_CONTENT;
             }
             CollectionUtil.clearMap(index);
             Disposer.dispose(dependencyAdapter);
             dependencyAdapter = VoidContentDependencyAdapter.INSTANCE;
+            loader = DynamicContentLoader.VOID_CONTENT_LOADER;
             parent = null;
         }
+    }
+
+    @Override
+    public final void checkDisposed() {
+        if (isDisposed()) throw AlreadyDisposedException.INSTANCE;
     }
 }

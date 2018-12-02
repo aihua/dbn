@@ -7,8 +7,7 @@ public abstract class AbstractTask<T> extends Traceable implements RunnableTask<
 
     private boolean cancelled;
 
-    public AbstractTask() {
-    }
+    protected AbstractTask() {}
 
     @Override
     public final T getData() {
@@ -24,7 +23,7 @@ public abstract class AbstractTask<T> extends Traceable implements RunnableTask<
         cancelled = true;
     }
 
-    protected boolean isCancelled() {
+    public boolean isCancelled() {
         return cancelled;
     }
 }

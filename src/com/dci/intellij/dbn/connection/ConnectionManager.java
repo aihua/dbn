@@ -11,11 +11,7 @@ import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.ide.IdeMonitor;
 import com.dci.intellij.dbn.common.message.MessageCallback;
 import com.dci.intellij.dbn.common.option.InteractiveOptionHandler;
-import com.dci.intellij.dbn.common.thread.BackgroundTask;
-import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
-import com.dci.intellij.dbn.common.thread.ModalTask;
-import com.dci.intellij.dbn.common.thread.RunnableTask;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
+import com.dci.intellij.dbn.common.thread.*;
 import com.dci.intellij.dbn.common.util.EditorUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
@@ -126,15 +122,14 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     private ConnectionSettingsListener connectionSettingsListener = new ConnectionSettingsAdapter() {
         @Override
         public void connectionChanged(ConnectionId connectionId) {
-            final ConnectionHandler connectionHandler = getConnectionHandler(connectionId);
+            ConnectionHandler connectionHandler = getConnectionHandler(connectionId);
             if (connectionHandler != null) {
-                new BackgroundTask(getProject(), "Refreshing database objects", true, true) {
-                    @Override
-                    protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
-                        connectionHandler.getConnectionPool().closeConnections();
-                        connectionHandler.getObjectBundle().getObjectListContainer().reload();
-                    }
-                }.start();
+                Project project = getProject();
+                String taskTitle = "Refreshing database objects";
+                BackgroundTask.invoke(project, taskTitle, true, true, (task, progress) -> {
+                    connectionHandler.getConnectionPool().closeConnections();
+                    connectionHandler.getObjectBundle().getObjectListContainer().reload();
+                });
             }
         }
     };
@@ -256,12 +251,12 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
         }
     }
 
-    public static void promptDatabaseInitDialog(ConnectionHandler connectionHandler, MessageCallback callback) {
+    static void promptDatabaseInitDialog(ConnectionHandler connectionHandler, MessageCallback callback) {
         ConnectionDatabaseSettings databaseSettings = connectionHandler.getSettings().getDatabaseSettings();
         promptDatabaseInitDialog(databaseSettings, callback);
     }
 
-    public static void promptDatabaseInitDialog(ConnectionDatabaseSettings databaseSettings, MessageCallback callback) {
+    private static void promptDatabaseInitDialog(ConnectionDatabaseSettings databaseSettings, MessageCallback callback) {
         DatabaseInfo databaseInfo = databaseSettings.getDatabaseInfo();
         if (databaseInfo.getUrlType() == DatabaseUrlType.FILE) {
             String file = databaseInfo.getFiles().getMainFile().getPath();
@@ -279,7 +274,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
         }
     }
 
-    public static void promptConnectDialog(ConnectionHandler connectionHandler, @Nullable String actionDesc, MessageCallback callback) {
+    static void promptConnectDialog(ConnectionHandler connectionHandler, @Nullable String actionDesc, MessageCallback callback) {
         MessageUtil.showInfoDialog(
                 connectionHandler.getProject(),
                 "Not connected to database",
@@ -289,7 +284,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
                 callback);
     }
 
-    public static void showErrorConnectionMessage(Project project, String connectionName, Throwable e) {
+    static void showErrorConnectionMessage(Project project, String connectionName, Throwable e) {
         MessageUtil.showErrorDialog(
                 project,
                 "Connection error",
@@ -311,28 +306,22 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     }
 
     public static void showConnectionInfoDialog(final ConnectionHandler connectionHandler) {
-        new ConditionalLaterInvocator() {
-            @Override
-            protected void execute() {
-                ConnectionInfoDialog infoDialog = new ConnectionInfoDialog(connectionHandler);
-                infoDialog.setModal(true);
-                infoDialog.show();
-            }
-        }.start();
+        ConditionalLaterInvocator.invoke(() -> {
+            ConnectionInfoDialog infoDialog = new ConnectionInfoDialog(connectionHandler);
+            infoDialog.setModal(true);
+            infoDialog.show();
+        });
     }
 
     private static void showConnectionInfoDialog(final ConnectionInfo connectionInfo, final String connectionName, final EnvironmentType environmentType) {
-        new SimpleLaterInvocator() {
-            @Override
-            protected void execute() {
-                ConnectionInfoDialog infoDialog = new ConnectionInfoDialog(null, connectionInfo, connectionName, environmentType);
-                infoDialog.setModal(true);
-                infoDialog.show();
-            }
-        }.start();
+        SimpleLaterInvocator.invoke(() -> {
+            ConnectionInfoDialog infoDialog = new ConnectionInfoDialog(null, connectionInfo, connectionName, environmentType);
+            infoDialog.setModal(true);
+            infoDialog.show();
+        });
     }
 
-    public static void promptAuthenticationDialog(@Nullable ConnectionHandler connectionHandler, @NotNull AuthenticationInfo authenticationInfo, RunnableTask<AuthenticationInfo> callback) {
+    static void promptAuthenticationDialog(@Nullable ConnectionHandler connectionHandler, @NotNull AuthenticationInfo authenticationInfo, RunnableTask<AuthenticationInfo> callback) {
         ConnectionAuthenticationDialog passwordDialog = new ConnectionAuthenticationDialog(null, connectionHandler, authenticationInfo);
         passwordDialog.show();
         if (passwordDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
@@ -439,13 +428,10 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
                     if (idleMinutes > idleMinutesToDisconnect) {
                         if (connection.hasDataChanges()) {
                             connection.set(ResourceStatus.RESOLVING_TRANSACTION, true);
-                            new SimpleLaterInvocator() {
-                                @Override
-                                protected void execute() {
-                                    IdleConnectionDialog idleConnectionDialog = new IdleConnectionDialog(connectionHandler, connection);
-                                    idleConnectionDialog.show();
-                                }
-                            }.start();
+                            SimpleLaterInvocator.invoke(() -> {
+                                IdleConnectionDialog idleConnectionDialog = new IdleConnectionDialog(connectionHandler, connection);
+                                idleConnectionDialog.show();
+                            });
                         } else {
                             transactionManager.execute(connectionHandler, connection, false, TransactionAction.DISCONNECT_IDLE);
                         }
@@ -459,32 +445,24 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     void disposeConnections(@NotNull final List<ConnectionHandler> connectionHandlers) {
         if (connectionHandlers.size() > 0) {
             final Project project = getProject();
-            new ConditionalLaterInvocator() {
-                @Override
-                protected void execute() {
-                    List<ConnectionId> connectionIds = new ArrayList<ConnectionId>();
-                    for (ConnectionHandler connectionHandler : connectionHandlers) {
-                        connectionIds.add(connectionHandler.getId());
-                    }
-
-                    ExecutionManager executionManager = ExecutionManager.getInstance(project);
-                    executionManager.closeExecutionResults(connectionIds);
-
-                    DatabaseFileManager databaseFileManager = DatabaseFileManager.getInstance(project);
-                    databaseFileManager.closeDatabaseFiles(connectionIds);
-
-                    MethodExecutionManager methodExecutionManager = MethodExecutionManager.getInstance(project);
-                    methodExecutionManager.cleanupExecutionHistory(connectionIds);
-
-                    new BackgroundTask(project, "Cleaning up connections", true) {
-                        @Override
-                        protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
-                            DisposerUtil.dispose(connectionHandlers);
-                        }
-                    }.start();
-
+            ConditionalLaterInvocator.invoke(() -> {
+                List<ConnectionId> connectionIds = new ArrayList<>();
+                for (ConnectionHandler connectionHandler : connectionHandlers) {
+                    connectionIds.add(connectionHandler.getId());
                 }
-            }.start();
+
+                ExecutionManager executionManager = ExecutionManager.getInstance(project);
+                executionManager.closeExecutionResults(connectionIds);
+
+                DatabaseFileManager databaseFileManager = DatabaseFileManager.getInstance(project);
+                databaseFileManager.closeDatabaseFiles(connectionIds);
+
+                MethodExecutionManager methodExecutionManager = MethodExecutionManager.getInstance(project);
+                methodExecutionManager.cleanupExecutionHistory(connectionIds);
+
+                String taskTitle = "Cleaning up connections";
+                BackgroundTask.invoke(project, taskTitle, true, false, (task, progress) -> DisposerUtil.dispose(connectionHandlers));
+            });
         }
     }
 
@@ -502,7 +480,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
         return true;//canClose(null, closeApplicationRunnable);
     }
 
-    boolean canClose(Project project, Runnable successCallback) {
+    private boolean canClose(Project project, Runnable successCallback) {
         if (project == getProject() && hasUncommittedChanges()) {
             TransactionManagerSettings transactionManagerSettings = DatabaseTransactionManager.getInstance(project).getTransactionManagerSettings();
             InteractiveOptionHandler<TransactionOption> closeProjectOptionHandler = transactionManagerSettings.getCloseProject();
@@ -535,5 +513,5 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
         return null;
     }
 
-    public void loadState(Element element) {}
+    public void loadState(@NotNull Element element) {}
 }

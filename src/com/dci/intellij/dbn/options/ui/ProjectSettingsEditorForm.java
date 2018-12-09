@@ -4,7 +4,6 @@ import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.browser.options.DatabaseBrowserSettings;
 import com.dci.intellij.dbn.code.common.completion.options.CodeCompletionSettings;
 import com.dci.intellij.dbn.common.Icons;
-import com.dci.intellij.dbn.common.notification.NotificationUtil;
 import com.dci.intellij.dbn.common.options.Configuration;
 import com.dci.intellij.dbn.common.options.ui.CompositeConfigurationEditorForm;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
@@ -25,6 +24,7 @@ import com.dci.intellij.dbn.navigation.options.NavigationSettings;
 import com.dci.intellij.dbn.options.ConfigId;
 import com.dci.intellij.dbn.options.ProjectSettings;
 import com.dci.intellij.dbn.options.general.GeneralProjectSettings;
+import com.intellij.ide.plugins.*;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManagerMain;
 import com.intellij.ide.plugins.PluginNode;
@@ -33,6 +33,7 @@ import com.intellij.openapi.application.ex.ApplicationInfoEx;
 import com.intellij.openapi.application.impl.ApplicationInfoImpl;
 import com.intellij.openapi.editor.colors.EditorColors;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
+import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
@@ -108,52 +109,43 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
             label.addHyperlinkListener(new HyperlinkAdapter() {
                 @Override
                 protected void hyperlinkActivated(HyperlinkEvent e) {
+
                     if (dialog != null) dialog.doCancelAction();
 
-                    final Project project = generalSettings.getProject();
-                    new BackgroundTask(project, "Updating plugin", false) {
-                        @Override
-                        protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
-                            try {
-                                final List<PluginNode> updateDescriptors = new ArrayList<PluginNode>();
-                                final List<IdeaPluginDescriptor> descriptors = RepositoryHelper.loadPluginsFromRepository(null);
-                                if (descriptors != null) {
-                                    for (IdeaPluginDescriptor descriptor : descriptors) {
-                                        if (descriptor.getPluginId().toString().equals(DatabaseNavigator.DBN_PLUGIN_ID)) {
-                                            PluginNode pluginNode = new PluginNode(descriptor.getPluginId());
-                                            pluginNode.setName(descriptor.getName());
-                                            pluginNode.setSize("-1");
-                                            ApplicationInfoEx appInfo = ApplicationInfoImpl.getShadowInstance();
-                                            String url = appInfo.getPluginsListUrl() + "?build=" + appInfo.getApiVersion();
-                                            pluginNode.setRepositoryName(url);
-                                            updateDescriptors.add(pluginNode);
-                                            break;
-                                        }
+                    Project project = generalSettings.getProject();
+
+                    BackgroundTask.invoke(project, "Updating plugin", false, false, (task, progress) -> {
+                        try {
+                            List<PluginNode> updateDescriptors = new ArrayList<>();
+                            List<IdeaPluginDescriptor> descriptors = RepositoryHelper.loadCachedPlugins();
+                            List<PluginId> pluginIds = new ArrayList<>();
+                            if (descriptors != null) {
+                                for (IdeaPluginDescriptor descriptor : descriptors) {
+                                    pluginIds.add(descriptor.getPluginId());
+                                    if (descriptor.getPluginId().toString().equals(DatabaseNavigator.DBN_PLUGIN_ID)) {
+                                        PluginNode pluginNode = new PluginNode(descriptor.getPluginId());
+                                        pluginNode.setName(descriptor.getName());
+                                        pluginNode.setSize("-1");
+                                        pluginNode.setRepositoryName(PluginInstaller.UNKNOWN_HOST_MARKER);
+                                        updateDescriptors.add(pluginNode);
                                     }
                                 }
+                            }
 
-                                new SimpleLaterInvocator() {
-                                    @Override
-                                    protected void execute() {
-                                        try {
-                                            PluginManagerMain.downloadPlugins(updateDescriptors, descriptors, new Runnable() {
-                                                @Override
-                                                public void run() {
-                                                    PluginManagerMain.notifyPluginsWereUpdated("Database Navigator Plugin", project);
-                                                }
-                                            }, null);
-                                        } catch (IOException e1) {
-                                            NotificationUtil.sendErrorNotification(project, "Update Error", "Error updating DBN plugin: " + e1.getMessage());
+                            SimpleLaterInvocator.invoke(() -> {
+                                try {
+                                    PluginManagerMain.downloadPlugins(updateDescriptors, descriptors, () -> PluginManagerMain.notifyPluginsWereUpdated("Database Navigator Plugin", project), null);
+                                } catch (IOException e1) {
+                                    sendErrorNotification( "Update Error", "Error updating DBN plugin: " + e1.getMessage());
                                         }
                                         //UpdateChecker.updateAndShowResult(generalSettings.getProject(), UpdateSettings.getInstance());
 
-                                    }
-                                }.start();
-                            } catch (Exception ex) {
-                                NotificationUtil.sendErrorNotification(project, "Update Error", "Error updating DBN plugin: " + ex.getMessage());
-                            }
+                            });
+                        } catch (Exception ex) {
+                            sendErrorNotification("Update Error", "Error updating DBN plugin: " + ex.getMessage());
                         }
-                    }.start();
+
+                    });
                 }
             });
             pluginUpdateLinkPanel.add(label, BorderLayout.WEST);
@@ -184,7 +176,7 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
         return mainPanel;
     }
 
-    public void focusConnectionSettings(@Nullable ConnectionId connectionId) {
+    void focusConnectionSettings(@Nullable ConnectionId connectionId) {
         ConnectionBundleSettings connectionSettings = getConfiguration().getConnectionSettings();
         ConnectionBundleSettingsForm settingsEditor = connectionSettings.getSettingsEditor();
         if (settingsEditor != null) {
@@ -193,7 +185,7 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
         }
     }
 
-    public void focusSettingsEditor(ConfigId configId) {
+    void focusSettingsEditor(ConfigId configId) {
         Configuration configuration = getConfiguration().getConfiguration(configId);
         if (configuration != null) {
             ConfigurationEditorForm settingsEditor = configuration.getSettingsEditor();
@@ -201,7 +193,9 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
                 JComponent component = settingsEditor.getComponent();
                 if (component != null) {
                     TabInfo tabInfo = getTabInfo(component);
-                    configurationTabs.select(tabInfo, true);
+                    if (tabInfo != null) {
+                        configurationTabs.select(tabInfo, true);
+                    }
                 }
             }
         }

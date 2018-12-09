@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.connection.mapping;
 
 import com.dci.intellij.dbn.common.state.PersistentStateElement;
 import com.dci.intellij.dbn.common.util.CommonUtil;
+import com.dci.intellij.dbn.common.util.VirtualFileUtil;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.SessionId;
 import org.jdom.Element;
@@ -53,13 +54,34 @@ public class FileConnectionMapping implements PersistentStateElement<Element> {
         this.schemaName = schemaName;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof FileConnectionMapping)) return false;
+
+        FileConnectionMapping that = (FileConnectionMapping) o;
+
+        return fileUrl.equals(that.fileUrl);
+    }
+
+    @Override
+    public int hashCode() {
+        return fileUrl.hashCode();
+    }
+
     /*********************************************
      *            PersistentStateElement         *
      *********************************************/
     public void readState(Element element) {
         fileUrl = element.getAttributeValue("file-url");
-        // fixme remove this backward compatibility 
-        if (fileUrl == null) fileUrl = element.getAttributeValue("file-path");
+
+        if (fileUrl == null) {
+            // TODO backward compatibility. Do cleanup
+            fileUrl = element.getAttributeValue("file-path");
+        }
+
+        fileUrl = VirtualFileUtil.ensureFileUrl(fileUrl);
+
         connectionId = ConnectionId.get(element.getAttributeValue("connection-id"));
         sessionId = CommonUtil.nvl(SessionId.get(element.getAttributeValue("session-id")), sessionId);
         schemaName = element.getAttributeValue("current-schema");

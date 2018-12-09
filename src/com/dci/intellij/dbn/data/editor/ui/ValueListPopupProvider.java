@@ -9,14 +9,8 @@ import com.dci.intellij.dbn.common.ui.KeyUtil;
 import com.dci.intellij.dbn.common.util.ActionUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.intellij.ide.DataManager;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.DefaultActionGroup;
-import com.intellij.openapi.actionSystem.IdeActions;
-import com.intellij.openapi.actionSystem.Presentation;
-import com.intellij.openapi.actionSystem.Shortcut;
+import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.keymap.KeymapUtil;
-import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.ui.popup.JBPopup;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.ui.popup.PopupStep;
@@ -36,12 +30,12 @@ public class ValueListPopupProvider implements TextFieldPopupProvider{
 
     private boolean autoPopup;
     private boolean enabled = true;
-    private boolean buttonVisible = true;
+    private boolean buttonVisible;
     private JLabel button;
 
     private JBPopup popup;
 
-    public ValueListPopupProvider(TextFieldWithPopup editorComponent, ListPopupValuesProvider valuesProvider, boolean autoPopup, boolean buttonVisible) {
+    ValueListPopupProvider(TextFieldWithPopup editorComponent, ListPopupValuesProvider valuesProvider, boolean autoPopup, boolean buttonVisible) {
         this.editorComponent = editorComponent;
         this.valuesProvider = valuesProvider;
         this.autoPopup = autoPopup;
@@ -95,32 +89,25 @@ public class ValueListPopupProvider implements TextFieldPopupProvider{
             if (isPreparingPopup) return;
 
             isPreparingPopup = true;
-            new BackgroundTask(editorComponent.getProject(), "Loading " + getDescription(), false, true) {
-                @Override
-                protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
-                    // load the values
-                    getValues();
-                    getSecondaryValues();
-                    if (progressIndicator.isCanceled()) {
-                        isPreparingPopup = false;
-                        return;
-                    }
-
-                    new SimpleLaterInvocator(){
-                         @Override
-                        protected void execute() {
-                            try {
-                                if (!isShowingPopup()) {
-                                    doShowPopup();
-                                }
-                            } finally {
-                                isPreparingPopup = false;
-                            }
-                        }
-                    }.start();
-
+            BackgroundTask.invoke(editorComponent.getProject(), "Loading " + getDescription(), false, true, (task, progress) -> {
+                // load the values
+                getValues();
+                getSecondaryValues();
+                if (progress.isCanceled()) {
+                    isPreparingPopup = false;
+                    return;
                 }
-            }.start();
+
+                SimpleLaterInvocator.invoke(() -> {
+                    try {
+                        if (!isShowingPopup()) {
+                            doShowPopup();
+                        }
+                    } finally {
+                        isPreparingPopup = false;
+                    }
+                });
+            });
         } else {
             doShowPopup();
         }
@@ -218,17 +205,17 @@ public class ValueListPopupProvider implements TextFieldPopupProvider{
     private class ValueSelectAction extends AnAction {
         private String value;
 
-        public ValueSelectAction(String value) {
+        ValueSelectAction(String value) {
             this.value = value;
         }
 
         @Override
-        public void actionPerformed(AnActionEvent e) {
+        public void actionPerformed(@NotNull AnActionEvent e) {
             editorComponent.setText(value);
         }
 
         @Override
-        public void update(AnActionEvent e) {
+        public void update(@NotNull AnActionEvent e) {
             Presentation presentation = e.getPresentation();
             presentation.setText(value, false);
         }

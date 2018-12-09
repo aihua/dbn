@@ -7,27 +7,29 @@ import com.dci.intellij.dbn.browser.options.listener.ObjectDetailSettingsListene
 import com.dci.intellij.dbn.common.options.SettingsChangeNotifier;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorUtil;
-import com.dci.intellij.dbn.common.ui.DBNComboBox;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
 
 import javax.swing.*;
 
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.getSelection;
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.initComboBox;
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.setSelection;
 import static com.dci.intellij.dbn.common.ui.GUIUtil.updateBorderTitleForeground;
 
 public class DatabaseBrowserGeneralSettingsForm extends ConfigurationEditorForm<DatabaseBrowserGeneralSettings> {
     private JPanel mainPanel;
     private JTextField navigationHistorySizeTextField;
     private JCheckBox showObjectDetailsCheckBox;
-    private DBNComboBox<BrowserDisplayMode> browserTypeComboBox;
+    private JComboBox<BrowserDisplayMode> browserTypeComboBox;
 
 
     public DatabaseBrowserGeneralSettingsForm(DatabaseBrowserGeneralSettings configuration) {
         super(configuration);
         updateBorderTitleForeground(mainPanel);
 
-        browserTypeComboBox.setValues(
+        initComboBox(browserTypeComboBox,
                 BrowserDisplayMode.SIMPLE,
                 BrowserDisplayMode.TABBED);
 
@@ -45,7 +47,7 @@ public class DatabaseBrowserGeneralSettingsForm extends ConfigurationEditorForm<
 
         final boolean repaintTree = configuration.isModified();
         
-        final BrowserDisplayMode displayMode = browserTypeComboBox.getSelectedValue();
+        final BrowserDisplayMode displayMode = getSelection(browserTypeComboBox);
         final boolean displayModeChanged = configuration.getDisplayMode() != displayMode;
         configuration.setDisplayMode(displayMode);
 
@@ -55,23 +57,20 @@ public class DatabaseBrowserGeneralSettingsForm extends ConfigurationEditorForm<
 
         final Project project = configuration.getProject();
 
-        new SettingsChangeNotifier() {
-            @Override
-            public void notifyChanges() {
-                if (displayModeChanged) {
-                    DisplayModeSettingsListener listener = EventUtil.notify(project, DisplayModeSettingsListener.TOPIC);
-                    listener.displayModeChanged(displayMode);
-                } else if (repaintTree) {
-                    ObjectDetailSettingsListener listener = EventUtil.notify(project, ObjectDetailSettingsListener.TOPIC);
-                    listener.displayDetailsChanged();
-                }
+        SettingsChangeNotifier.register(() -> {
+            if (displayModeChanged) {
+                DisplayModeSettingsListener listener = EventUtil.notify(project, DisplayModeSettingsListener.TOPIC);
+                listener.displayModeChanged(displayMode);
+            } else if (repaintTree) {
+                ObjectDetailSettingsListener listener = EventUtil.notify(project, ObjectDetailSettingsListener.TOPIC);
+                listener.displayDetailsChanged();
             }
-        };
+        });
     }
 
     public void resetFormChanges() {
         DatabaseBrowserGeneralSettings configuration = getConfiguration();
-        browserTypeComboBox.setSelectedValue(configuration.getDisplayMode());
+        setSelection(browserTypeComboBox, configuration.getDisplayMode());
 
         configuration.getNavigationHistorySize().from(navigationHistorySizeTextField);
         configuration.getShowObjectDetails().from(showObjectDetailsCheckBox);

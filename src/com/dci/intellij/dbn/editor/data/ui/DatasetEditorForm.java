@@ -1,13 +1,14 @@
 package com.dci.intellij.dbn.editor.data.ui;
 
 import com.dci.intellij.dbn.common.Icons;
+import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.latent.DisposableLatent;
+import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
 import com.dci.intellij.dbn.common.ui.AutoCommitLabel;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.util.ActionUtil;
-import com.dci.intellij.dbn.common.util.DisposableLazyValue;
-import com.dci.intellij.dbn.common.util.LazyValue;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.data.find.DataSearchComponent;
@@ -52,14 +53,11 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
     private DatasetEditorTable datasetEditorTable;
     private DatasetEditor datasetEditor;
 
-    private LazyValue<DataSearchComponent> dataSearchComponent = new DisposableLazyValue<DataSearchComponent>(this) {
-        @Override
-        protected DataSearchComponent load() {
-            DataSearchComponent dataSearchComponent = new DataSearchComponent(DatasetEditorForm.this);
-            searchPanel.add(dataSearchComponent, BorderLayout.CENTER);
-            return dataSearchComponent;
-        }
-    };
+    private Latent<DataSearchComponent> dataSearchComponent = DisposableLatent.create(this, () -> {
+        DataSearchComponent dataSearchComponent = new DataSearchComponent(DatasetEditorForm.this);
+        searchPanel.add(dataSearchComponent, BorderLayout.CENTER);
+        return dataSearchComponent;
+    });
 
 
     public DatasetEditorForm(DatasetEditor datasetEditor) {
@@ -106,13 +104,15 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
 
     public DatasetEditorTable beforeRebuild() throws SQLException {
         DatasetEditorTable oldEditorTable = getEditorTable();
+        DatasetEditor datasetEditor = getDatasetEditor();
         datasetEditorTable = new DatasetEditorTable(datasetEditor);
         Disposer.register(this, datasetEditorTable);
+
 
         DataGridSettings dataGridSettings = DataGridSettings.getInstance(getProject());
         DataGridTrackingColumnSettings trackingColumnSettings = dataGridSettings.getTrackingColumnSettings();
 
-        List<TableColumn> hiddenColumns = new ArrayList<TableColumn>();
+        List<TableColumn> hiddenColumns = new ArrayList<>();
         for (DatasetColumnState columnState : datasetEditor.getColumnSetup().getColumnStates()) {
 
             if (!columnState.isVisible() || !trackingColumnSettings.isColumnVisible(columnState.getName())) {
@@ -129,18 +129,14 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
 
     public void afterRebuild(final DatasetEditorTable oldEditorTable) {
         if (oldEditorTable != null) {
-            new ConditionalLaterInvocator(){
-                @Override
-                protected void execute() {
-                    if (!isDisposed()) {
-                        datasetTableScrollPane.setViewportView(datasetEditorTable);
-                        datasetEditorTable.initTableGutter();
-                        datasetEditorTable.updateBackground(false);
+            ConditionalLaterInvocator.invoke(() -> {
+                DatasetEditorTable datasetEditorTable = getEditorTable();
+                datasetTableScrollPane.setViewportView(datasetEditorTable);
+                datasetEditorTable.initTableGutter();
+                datasetEditorTable.updateBackground(false);
 
-                        Disposer.dispose(oldEditorTable);
-                    }
-                }
-            }.start();
+                DisposerUtil.disposeInBackground(oldEditorTable);
+            });
         }
     }
 
@@ -159,21 +155,11 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
     }
 
     public void showLoadingHint() {
-        new ConditionalLaterInvocator() {
-            @Override
-            protected void execute() {
-                loadingDataPanel.setVisible(true);
-            }
-        }.start();
+        ConditionalLaterInvocator.invoke(() -> loadingDataPanel.setVisible(true));
     }
 
     public void hideLoadingHint() {
-        new ConditionalLaterInvocator() {
-            @Override
-            protected void execute() {
-                loadingDataPanel.setVisible(false);
-            }
-        }.start();
+        ConditionalLaterInvocator.invoke(() -> loadingDataPanel.setVisible(false));
     }
 
     @NotNull
@@ -252,17 +238,17 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
     }
 
     private class CancelLoadingAction extends AnAction {
-        public CancelLoadingAction() {
+        CancelLoadingAction() {
             super("Cancel", null, Icons.DATA_EDITOR_STOP_LOADING);
         }
 
         @Override
-        public void actionPerformed(AnActionEvent e) {
+        public void actionPerformed(@NotNull AnActionEvent e) {
             getEditorTable().getModel().cancelDataLoad();
         }
 
         @Override
-        public void update(AnActionEvent e) {
+        public void update(@NotNull AnActionEvent e) {
             e.getPresentation().setEnabled(!getEditorTable().getModel().isLoadCancelled());
         }
     }

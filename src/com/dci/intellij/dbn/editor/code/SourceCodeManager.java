@@ -1,5 +1,18 @@
 package com.dci.intellij.dbn.editor.code;
 
+import static com.dci.intellij.dbn.common.thread.TaskInstruction.START_IN_BACKGROUND;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.*;
+
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import org.jdom.Element;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
@@ -10,16 +23,11 @@ import com.dci.intellij.dbn.common.environment.options.listener.EnvironmentManag
 import com.dci.intellij.dbn.common.ide.IdeMonitor;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.message.MessageCallback;
-import com.dci.intellij.dbn.common.notification.NotificationUtil;
 import com.dci.intellij.dbn.common.option.InteractiveOptionHandler;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.SynchronizedTask;
 import com.dci.intellij.dbn.common.thread.TaskInstructions;
-import com.dci.intellij.dbn.common.util.DocumentUtil;
-import com.dci.intellij.dbn.common.util.EditorUtil;
-import com.dci.intellij.dbn.common.util.EventUtil;
-import com.dci.intellij.dbn.common.util.MessageUtil;
-import com.dci.intellij.dbn.common.util.NamingUtil;
+import com.dci.intellij.dbn.common.util.*;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
@@ -57,32 +65,13 @@ import com.intellij.openapi.components.StoragePathMacros;
 import com.intellij.openapi.components.StorageScheme;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.actionSystem.EditorActionManager;
-import com.intellij.openapi.fileEditor.FileEditor;
-import com.intellij.openapi.fileEditor.FileEditorManager;
-import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
-import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
-import com.intellij.openapi.fileEditor.FileEditorManagerListener;
-import com.intellij.openapi.progress.ProgressIndicator;
+import com.intellij.openapi.fileEditor.*;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManager;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import com.intellij.util.text.DateFormatUtil;
-import org.jdom.Element;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import static com.dci.intellij.dbn.common.thread.TaskInstruction.START_IN_BACKGROUND;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.LOADING;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
 
 @State(
     name = SourceCodeManager.COMPONENT_NAME,
@@ -124,12 +113,8 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
                             "The " + schemaObject.getQualifiedNameWithType() + " has been updated in database. You have unsaved changes in the object editor.\n" +
                                     "Do you want to discard the changes and reload the updated database version?",
                             new String[]{"Reload", "Keep changes"}, 0,
-                            new MessageCallback(0) {
-                                @Override
-                                protected void execute() {
-                                    reloadAndUpdateEditors(databaseFile, false);
-                                }
-                            });
+                            MessageCallback.create(0, () ->
+                                    reloadAndUpdateEditors(databaseFile, false)));
                 } else {
                     reloadAndUpdateEditors(databaseFile, true);
                 }
@@ -171,15 +156,12 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
     private void reloadAndUpdateEditors(final DBEditableObjectVirtualFile databaseFile, boolean startInBackground) {
         Project project = getProject();
         if (databaseFile.isContentLoaded()) {
-            new BackgroundTask(project, "Reloading object source code", startInBackground) {
-                @Override
-                protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
-                    List<DBSourceCodeVirtualFile> sourceCodeFiles = databaseFile.getSourceCodeFiles();
-                    for (DBSourceCodeVirtualFile sourceCodeFile : sourceCodeFiles) {
-                        loadSourceCode(sourceCodeFile, true);
-                    }
+            BackgroundTask.invoke(project, "Reloading object source code", startInBackground, false, (task, progress) -> {
+                List<DBSourceCodeVirtualFile> sourceCodeFiles = databaseFile.getSourceCodeFiles();
+                for (DBSourceCodeVirtualFile sourceCodeFile : sourceCodeFiles) {
+                    loadSourceCode(sourceCodeFile, true);
                 }
-            }.start();
+            });
         }
     }
 
@@ -210,7 +192,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
                     } catch (SQLException e) {
                         sourceCodeFile.setSourceLoadError(e.getMessage());
                         sourceCodeFile.set(MODIFIED, false);
-                        NotificationUtil.sendErrorNotification(project, "Source Load Error", "Could not load sourcecode for " + object.getQualifiedNameWithType() + " from database. Cause: " + e.getMessage());
+                        sendErrorNotification("Source Load Error", "Could not load sourcecode for " + object.getQualifiedNameWithType() + " from database. Cause: " + e.getMessage());
                     } finally {
                         sourceCodeFile.set(LOADING, false);
                         EventUtil.notify(project, SourceCodeManagerListener.TOPIC).sourceCodeLoaded(sourceCodeFile, initialLoad);
@@ -253,25 +235,22 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
                                 "The " + object.getQualifiedNameWithType() +
                                         " was changed in database by another user " + presentableChangeTime + "." +
                                         "\nYou must merge the changes before saving.";
-                        BackgroundTask<Integer> openMergeDialogTask = new BackgroundTask<Integer>(project, "Loading database source code", false) {
-                            @Override
-                            protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
-                                if (getData() == 0) {
-                                    try {
-                                        SourceCodeContent sourceCodeContent = loadSourceFromDatabase(object, contentType);
-                                        String databaseContent = sourceCodeContent.getText().toString();
-                                        SourceCodeDiffManager diffManager = SourceCodeDiffManager.getInstance(project);
-                                        diffManager.openCodeMergeDialog(databaseContent, sourceCodeFile, fileEditor, MergeAction.SAVE);
-                                    } catch (SQLException e) {
-                                        MessageUtil.showErrorDialog(project, "Could not load database sources.", e);
-                                    }
-                                } else {
-                                    sourceCodeFile.set(SAVING, false);
-                                }
-                            }
 
-                        };
-                        MessageUtil.showWarningDialog(project, "Version conflict", message, new String[]{"Merge Changes", "Cancel"}, 0, openMergeDialogTask);
+                        MessageUtil.showWarningDialog(project, "Version conflict", message, new String[]{"Merge Changes", "Cancel"}, 0,
+                                BackgroundTask.create(project, "Loading database source code", false, false, (task, progress) -> {
+                                    if (task.getData() == 0) {
+                                        try {
+                                            SourceCodeContent sourceCodeContent = loadSourceFromDatabase(object, contentType);
+                                            String databaseContent = sourceCodeContent.getText().toString();
+                                            SourceCodeDiffManager diffManager = SourceCodeDiffManager.getInstance(project);
+                                            diffManager.openCodeMergeDialog(databaseContent, sourceCodeFile, fileEditor, MergeAction.SAVE);
+                                        } catch (SQLException e) {
+                                            MessageUtil.showErrorDialog(project, "Could not load database sources.", e);
+                                        }
+                                    } else {
+                                        sourceCodeFile.set(SAVING, false);
+                                    }
+                                }));
 
                     } else {
                         storeSourceToDatabase(sourceCodeFile, fileEditor, successCallback);
@@ -393,23 +372,18 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
     }
 
     public void storeSourceToDatabase(final DBSourceCodeVirtualFile sourceCodeFile, @Nullable final SourceCodeEditor fileEditor, @Nullable final Runnable successCallback) {
-        final DBSchemaObject object = sourceCodeFile.getObject();
-        final Project project = getProject();
-        new BackgroundTask(project, "Saving sources to database", false) {
-            @Override
-            protected void execute(@NotNull ProgressIndicator indicator) {
-                try {
-                    sourceCodeFile.saveSourceToDatabase();
-                    EventUtil.notify(project, SourceCodeManagerListener.TOPIC).sourceCodeSaved(sourceCodeFile, fileEditor);
-                } catch (SQLException e) {
-                    MessageUtil.showErrorDialog(project, "Could not save changes to database.", e);
-                } finally {
-                    sourceCodeFile.set(SAVING, false);
-                }
-                if (successCallback != null) successCallback.run();
-
+        Project project = getProject();
+        BackgroundTask.invoke(project, "Saving sources to database", false, false, (task, progress) -> {
+            try {
+                sourceCodeFile.saveSourceToDatabase();
+                EventUtil.notify(project, SourceCodeManagerListener.TOPIC).sourceCodeSaved(sourceCodeFile, fileEditor);
+            } catch (SQLException e) {
+                MessageUtil.showErrorDialog(project, "Could not save changes to database.", e);
+            } finally {
+                sourceCodeFile.set(SAVING, false);
             }
-        }.start();
+            if (successCallback != null) successCallback.run();
+        });
     }
 
     public BasePsiElement getObjectNavigationElement(DBSchemaObject parentObject, DBContentType contentType, DBObjectType objectType, CharSequence objectName) {
@@ -456,7 +430,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
     }
 
     private boolean canClose(Project project, Runnable successCallback) {
-        List<VirtualFile> openFiles = new ArrayList<VirtualFile>();
+        List<VirtualFile> openFiles = new ArrayList<>();
         if (project == null) {
             ProjectManager projectManager = ProjectManager.getInstance();
             Project[] projects = projectManager.getOpenProjects();
@@ -507,56 +481,56 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
 
     public void loadSourceCode(final DBSourceCodeVirtualFile sourceCodeFile, final boolean force) {
         TaskInstructions taskInstructions = new TaskInstructions("Loading source code for " + sourceCodeFile.getObject().getQualifiedNameWithType(), START_IN_BACKGROUND);
-        new ConnectionAction("loading the source code", sourceCodeFile, taskInstructions) {
-            @Override
-            protected void execute() {
-                loadSourceFromDatabase(sourceCodeFile, force);
-            }
-        }.start();
+        ConnectionAction.invoke(
+                "loading the source code",
+                sourceCodeFile,
+                taskInstructions,
+                action -> loadSourceFromDatabase(sourceCodeFile, force));
     }
 
     public void saveSourceCode(final DBSourceCodeVirtualFile sourceCodeFile, @Nullable final SourceCodeEditor fileEditor, final Runnable successCallback) {
         TaskInstructions taskInstructions = new TaskInstructions("Saving source code for " + sourceCodeFile.getObject().getQualifiedNameWithType());
-        new ConnectionAction("saving the source code", sourceCodeFile, taskInstructions) {
-            @Override
-            protected void execute() {
-                saveSourceToDatabase(sourceCodeFile, fileEditor, successCallback);
-            }
-        }.start();
+        ConnectionAction.invoke(
+                "saving the source code",
+                sourceCodeFile,
+                taskInstructions,
+                action -> saveSourceToDatabase(sourceCodeFile, fileEditor, successCallback));
     }
 
     public void revertSourceCodeChanges(final DBEditableObjectVirtualFile databaseFile, final Runnable successCallback) {
         TaskInstructions taskInstructions = new TaskInstructions("Loading source code for " + databaseFile.getObject().getQualifiedNameWithType(), START_IN_BACKGROUND);
-        new ConnectionAction("loading the source code", databaseFile, taskInstructions) {
-            @Override
-            protected void execute() {
-                try {
-                    List<DBSourceCodeVirtualFile> sourceCodeFiles = databaseFile.getSourceCodeFiles();
-                    for (DBSourceCodeVirtualFile sourceCodeFile : sourceCodeFiles) {
-                        sourceCodeFile.revertLocalChanges();
+        ConnectionAction.invoke(
+                "loading the source code",
+                databaseFile,
+                taskInstructions,
+                action -> {
+                    try {
+                        List<DBSourceCodeVirtualFile> sourceCodeFiles = databaseFile.getSourceCodeFiles();
+                        for (DBSourceCodeVirtualFile sourceCodeFile : sourceCodeFiles) {
+                            sourceCodeFile.revertLocalChanges();
+                        }
+                    } finally {
+                        if (successCallback != null) {
+                            successCallback.run();
+                        }
                     }
-                } finally {
-                    if (successCallback != null) {
-                        successCallback.run();
-                    }
-                }
-            }
-        }.start();
+                });
     }
 
     public void saveSourceCodeChanges(final DBEditableObjectVirtualFile databaseFile, final Runnable successCallback) {
         TaskInstructions taskInstructions = new TaskInstructions("Saving source code for " + databaseFile.getObject().getQualifiedNameWithType());
-        new ConnectionAction("saving the source code", databaseFile, taskInstructions) {
-            @Override
-            protected void execute() {
-                List<DBSourceCodeVirtualFile> sourceCodeFiles = databaseFile.getSourceCodeFiles();
-                for (DBSourceCodeVirtualFile sourceCodeFile : sourceCodeFiles) {
-                    if (sourceCodeFile.is(MODIFIED)) {
-                        saveSourceToDatabase(sourceCodeFile, null, successCallback);
+        ConnectionAction.invoke(
+                "saving the source code",
+                databaseFile,
+                taskInstructions,
+                action -> {
+                    List<DBSourceCodeVirtualFile> sourceCodeFiles = databaseFile.getSourceCodeFiles();
+                    for (DBSourceCodeVirtualFile sourceCodeFile : sourceCodeFiles) {
+                        if (sourceCodeFile.is(MODIFIED)) {
+                            saveSourceToDatabase(sourceCodeFile, null, successCallback);
+                        }
                     }
-                }
-            }
-        }.start();
+                });
     }
 
     @Override
@@ -585,7 +559,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
     }
 
     @Override
-    public void loadState(Element element) {
+    public void loadState(@NotNull Element element) {
     }
 
     /*********************************************

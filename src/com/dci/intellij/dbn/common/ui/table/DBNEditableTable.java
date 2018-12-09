@@ -50,11 +50,9 @@ public class DBNEditableTable<T extends DBNEditableTableModel> extends DBNTableW
         });
     }
 
-    private ListSelectionListener selectionListener = new ListSelectionListener() {
-        public void valueChanged(ListSelectionEvent e) {
-            if (!e.getValueIsAdjusting() && getSelectedRowCount() == 1) {
-                startCellEditing();
-            }
+    private ListSelectionListener selectionListener = e -> {
+        if (!e.getValueIsAdjusting() && getSelectedRowCount() == 1) {
+            startCellEditing();
         }
     };
 
@@ -93,16 +91,14 @@ public class DBNEditableTable<T extends DBNEditableTableModel> extends DBNTableW
         final Component component = super.prepareEditor(editor, rowIndex, columnIndex);
         if (component instanceof JTextField) {
             final JTextField textField = (JTextField) component;
-            textField.setBorder(Borders.TEXT_FIELD_BORDER);
+            textField.setBorder(Borders.EMPTY_BORDER);
 
             //selectCell(rowIndex, columnIndex);
 
-            new SimpleLaterInvocator() {
-                protected void execute() {
-                    component.requestFocus();
-                    textField.selectAll();
-                }
-            }.start();
+            SimpleLaterInvocator.invoke(() -> {
+                component.requestFocus();
+                textField.selectAll();
+            });
         }
         return component;
     }

@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.navigation.options.ui;
 
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
-import com.dci.intellij.dbn.common.ui.DBNComboBox;
 import com.dci.intellij.dbn.common.ui.KeyUtil;
 import com.dci.intellij.dbn.common.ui.Presentable;
 import com.dci.intellij.dbn.common.ui.list.CheckBoxList;
@@ -15,13 +14,16 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
 
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.getSelection;
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.initComboBox;
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.setSelection;
 import static com.dci.intellij.dbn.common.ui.GUIUtil.updateBorderTitleForeground;
 
 public class ObjectsLookupSettingsForm extends ConfigurationEditorForm<ObjectsLookupSettings> {
     private JPanel mainPanel;
     private JScrollPane lookupObjectsScrollPane;
-    private DBNComboBox<ConnectionOption> connectionComboBox;
-    private DBNComboBox<BehaviorOption> behaviorComboBox;
+    private JComboBox<ConnectionOption> connectionComboBox;
+    private JComboBox<BehaviorOption> behaviorComboBox;
     private CheckBoxList lookupObjectsList;
 
     public ObjectsLookupSettingsForm(ObjectsLookupSettings configuration) {
@@ -31,11 +33,11 @@ public class ObjectsLookupSettingsForm extends ConfigurationEditorForm<ObjectsLo
         border.setTitle("Lookup Objects (" + KeymapUtil.getShortcutsText(shortcuts) + ")");
         updateBorderTitleForeground(mainPanel);
 
-        connectionComboBox.setValues(
+        initComboBox(connectionComboBox,
                 ConnectionOption.PROMPT,
                 ConnectionOption.RECENT);
 
-        behaviorComboBox.setValues(
+        initComboBox(behaviorComboBox,
                 BehaviorOption.LOOKUP,
                 BehaviorOption.LOAD);
 
@@ -50,20 +52,20 @@ public class ObjectsLookupSettingsForm extends ConfigurationEditorForm<ObjectsLo
     public void applyFormChanges() throws ConfigurationException {
         lookupObjectsList.applyChanges();
         ObjectsLookupSettings configuration = getConfiguration();
-        configuration.getForceDatabaseLoad().setValue(behaviorComboBox.getSelectedValue().getValue());
-        configuration.getPromptConnectionSelection().setValue(connectionComboBox.getSelectedValue().getValue());
+        configuration.getForceDatabaseLoad().setValue(getSelection(behaviorComboBox).getValue());
+        configuration.getPromptConnectionSelection().setValue(getSelection(connectionComboBox).getValue());
     }
 
     @Override
     public void resetFormChanges() {
         ObjectsLookupSettings configuration = getConfiguration();
         if (configuration.getForceDatabaseLoad().getValue())
-            behaviorComboBox.setSelectedValue(BehaviorOption.LOAD); else
-            behaviorComboBox.setSelectedValue(BehaviorOption.LOOKUP);
+            setSelection(behaviorComboBox, BehaviorOption.LOAD); else
+            setSelection(behaviorComboBox, BehaviorOption.LOOKUP);
 
         if (configuration.getPromptConnectionSelection().getValue())
-            connectionComboBox.setSelectedValue(ConnectionOption.PROMPT); else
-            connectionComboBox.setSelectedValue(ConnectionOption.RECENT);
+            setSelection(connectionComboBox, ConnectionOption.PROMPT); else
+            setSelection(connectionComboBox, ConnectionOption.RECENT);
     }
 
     public JComponent getComponent() {

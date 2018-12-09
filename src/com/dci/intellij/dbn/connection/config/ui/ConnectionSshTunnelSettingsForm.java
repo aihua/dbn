@@ -2,8 +2,6 @@ package com.dci.intellij.dbn.connection.config.ui;
 
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorUtil;
-import com.dci.intellij.dbn.common.ui.DBNComboBox;
-import com.dci.intellij.dbn.common.ui.ValueSelectorListener;
 import com.dci.intellij.dbn.connection.config.ConnectionSshTunnelSettings;
 import com.dci.intellij.dbn.connection.ssh.SshAuthType;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
@@ -12,9 +10,11 @@ import com.intellij.openapi.ui.TextFieldWithBrowseButton;
 import com.intellij.util.ui.UIUtil;
 
 import javax.swing.*;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.getSelection;
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.initComboBox;
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.setSelection;
 import static com.dci.intellij.dbn.common.ui.GUIUtil.updateBorderTitleForeground;
 
 public class ConnectionSshTunnelSettingsForm extends ConfigurationEditorForm<ConnectionSshTunnelSettings>{
@@ -25,7 +25,7 @@ public class ConnectionSshTunnelSettingsForm extends ConfigurationEditorForm<Con
     private JPasswordField passwordField;
     private JTextField portTextField;
     private JCheckBox activeCheckBox;
-    private DBNComboBox<SshAuthType> authTypeComboBox;
+    private JComboBox<SshAuthType> authTypeComboBox;
     private JPasswordField keyPassphraseField;
     private TextFieldWithBrowseButton keyFileField;
     private JLabel passwordLabel;
@@ -36,15 +36,10 @@ public class ConnectionSshTunnelSettingsForm extends ConfigurationEditorForm<Con
         super(configuration);
 
         updateBorderTitleForeground(sshGroupPanel);
-        authTypeComboBox.setValues(SshAuthType.values());
+        initComboBox(authTypeComboBox, SshAuthType.values());
         resetFormChanges();
 
-        authTypeComboBox.addListener(new ValueSelectorListener<SshAuthType>() {
-            @Override
-            public void selectionChanged(SshAuthType oldValue, SshAuthType newValue) {
-                showHideFields();
-            }
-        });
+        authTypeComboBox.addActionListener(e -> showHideFields());
 
         enableDisableFields();
         showHideFields();
@@ -63,20 +58,18 @@ public class ConnectionSshTunnelSettingsForm extends ConfigurationEditorForm<Con
 
     @Override
     protected ActionListener createActionListener() {
-        return new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                getConfiguration().setModified(true);
-                Object source = e.getSource();
+        return e -> {
+            getConfiguration().setModified(true);
+            Object source = e.getSource();
 
-                if (source == activeCheckBox) {
-                    enableDisableFields();
-                }
+            if (source == activeCheckBox) {
+                enableDisableFields();
             }
         };
     }
 
     private void showHideFields() {
-        boolean isKeyPair = authTypeComboBox.getSelectedValue() == SshAuthType.KEY_PAIR;
+        boolean isKeyPair = getSelection(authTypeComboBox) == SshAuthType.KEY_PAIR;
         passwordField.setVisible(!isKeyPair);
         passwordLabel.setVisible(!isKeyPair);
 
@@ -114,7 +107,7 @@ public class ConnectionSshTunnelSettingsForm extends ConfigurationEditorForm<Con
         ConfigurationEditorUtil.validateIntegerInputValue(portTextField, "Port", enabled, 0, 999999, null);
         configuration.setPort(portTextField.getText());
         configuration.setUser(userTextField.getText());
-        SshAuthType authType = authTypeComboBox.getSelectedValue();
+        SshAuthType authType = getSelection(authTypeComboBox);
 
         boolean isKeyPair = authType == SshAuthType.KEY_PAIR;
         ConfigurationEditorUtil.validateStringInputValue(keyFileField.getTextField(), "Key file", enabled && isKeyPair);
@@ -134,7 +127,7 @@ public class ConnectionSshTunnelSettingsForm extends ConfigurationEditorForm<Con
         portTextField.setText(configuration.getPort());
         userTextField.setText(configuration.getUser());
         passwordField.setText(configuration.getPassword());
-        authTypeComboBox.setSelectedValue(configuration.getAuthType());
+        setSelection(authTypeComboBox, configuration.getAuthType());
         keyFileField.setText(configuration.getKeyFile());
         keyPassphraseField.setText(configuration.getKeyPassphrase());
     }

@@ -14,8 +14,6 @@ import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.KeyEvent;
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
 
 public class DatasetTableCellEditorWithPopup extends DatasetTableCellEditor {
     public DatasetTableCellEditorWithPopup(DatasetEditorTable table) {
@@ -32,22 +30,20 @@ public class DatasetTableCellEditorWithPopup extends DatasetTableCellEditor {
         super.prepareEditor(cell);
 
         // show automatic popup
-        final TextFieldPopupProvider popupProvider = getEditorComponent().getAutoPopupProvider();
+        TextFieldPopupProvider popupProvider = getEditorComponent().getAutoPopupProvider();
         if (popupProvider != null && showAutoPopup()) {
-            Thread popupThread = new Thread() {
-                   public void run() {
-                       try {
-                           sleep(settings.getPopupSettings().getDelay());
-                       } catch (InterruptedException e) {
-                           e.printStackTrace();
-                       }
+            Thread popupThread = new Thread(() -> {
+                try {
+                    Thread.sleep(settings.getPopupSettings().getDelay());
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
 
-                       if (!cell.isDisposed() && cell.isEditing()) {
-                           popupProvider.showPopup();
-                       }
-                   }
-               };
-               popupThread.start();
+                if (!cell.isDisposed() && cell.isEditing()) {
+                    popupProvider.showPopup();
+                }
+            });
+            popupThread.start();
         }
     }
 
@@ -60,13 +56,12 @@ public class DatasetTableCellEditorWithPopup extends DatasetTableCellEditor {
     private boolean showAutoPopup() {
         DataEditorPopupSettings settings = this.settings.getPopupSettings();
         DBDataType dataType = getCell().getColumnInfo().getDataType();
-        if (dataType != null) {
-            long dataLength = dataType.getLength();
-            if (!isEditable()) return true;
-            if (settings.isActive() && (settings.getDataLengthThreshold() < dataLength || dataLength == 0)) {
-                if (settings.isActiveIfEmpty() || getTextField().getText().length() > 0) {
-                    return true;
-                }
+        long dataLength = dataType.getLength();
+        if (!isEditable()) {
+            return true;
+        } else  if (settings.isActive() && (settings.getDataLengthThreshold() < dataLength || dataLength == 0)) {
+            if (settings.isActiveIfEmpty() || getTextField().getText().length() > 0) {
+                return true;
             }
         }
         return false;
@@ -117,45 +112,48 @@ public class DatasetTableCellEditorWithPopup extends DatasetTableCellEditor {
      *                  TextFieldWithPopup                  *
      ********************************************************/
 
-    private static class CustomTextFieldWithPopup extends TextFieldWithPopup {
-        protected static final EmptyBorder BUTTON_INSIDE_BORDER = new EmptyBorder(0, 2, 0, 2);
-        protected static final CompoundBorder BUTTON_BORDER = new CompoundBorder(BUTTON_OUTSIDE_BORDER, new CompoundBorder(BUTTON_LINE_BORDER, BUTTON_INSIDE_BORDER));
-
-        private DatasetEditorTable table;
+    private static class CustomTextFieldWithPopup extends TextFieldWithPopup<JTable> {
+        static final EmptyBorder BUTTON_INSIDE_BORDER = new EmptyBorder(0, 2, 0, 2);
+        static final CompoundBorder BUTTON_BORDER = new CompoundBorder(BUTTON_OUTSIDE_BORDER, new CompoundBorder(BUTTON_LINE_BORDER, BUTTON_INSIDE_BORDER));
 
         private CustomTextFieldWithPopup(DatasetEditorTable table) {
-            super(table.getProject());
-            this.table = table;
+            super(table.getProject(), table);
             setBackground(table.getBackground());
         }
 
         @Override
         public void customizeTextField(JTextField textField) {
             textField.setBorder(Borders.EMPTY_BORDER);
+            textField.setMargin(JBUI.emptyInsets());
+            JTable table = getTableComponent();
+            textField.setPreferredSize(new Dimension(textField.getPreferredSize().width, table.getRowHeight()));
             //textField.setBorder(new CompoundBorder(new LineBorder(Color.BLACK), new EmptyBorder(new Insets(1, 1, 1, 1))));
         }
 
         @Override
         public void customizeButton(final JLabel button) {
+            JTable table = getTableComponent();
+
             button.setBorder(BUTTON_BORDER);
             button.setBackground(UIUtil.getTableBackground());
             button.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             int rowHeight = table.getRowHeight();
             button.setPreferredSize(new Dimension(Math.max(20, rowHeight), rowHeight - 2));
-            button.getParent().setBackground(button.getBackground());
-            table.addPropertyChangeListener(new PropertyChangeListener() {
-                @Override
-                public void propertyChange(PropertyChangeEvent e) {
-                    Object newProperty = e.getNewValue();
-                    if (newProperty instanceof Font) {
-                        int rowHeight = table.getRowHeight();
-                        button.setPreferredSize(new Dimension(Math.max(20, rowHeight), table.getRowHeight() - 2));
-                    }
+            button.getParent().setBackground(getTextField().getBackground());
+            table.addPropertyChangeListener(e -> {
+                Object newProperty = e.getNewValue();
+                if (newProperty instanceof Font) {
+                    int rowHeight1 = table.getRowHeight();
+                    button.setPreferredSize(new Dimension(Math.max(20, rowHeight1), table.getRowHeight() - 2));
                 }
             });
         }
 
-            @Override
+        JTable getTableComponent() {
+            return getParentComponent();
+        }
+
+        @Override
         public void setEditable(boolean editable) {
             super.setEditable(editable);
             setBackground(getTextField().getBackground());

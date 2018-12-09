@@ -4,13 +4,7 @@ import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.ui.Borders;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.util.EventUtil;
-import com.dci.intellij.dbn.connection.ConnectionBundle;
-import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ConnectionHandlerStatus;
-import com.dci.intellij.dbn.connection.ConnectionHandlerStatusListener;
-import com.dci.intellij.dbn.connection.ConnectionId;
-import com.dci.intellij.dbn.connection.ConnectionManager;
-import com.dci.intellij.dbn.connection.ConnectionType;
+import com.dci.intellij.dbn.connection.*;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.transaction.PendingTransactionBundle;
 import com.dci.intellij.dbn.connection.transaction.TransactionAction;
@@ -57,14 +51,19 @@ public class ResourceMonitorForm extends DBNFormImpl<ResourceMonitorDialog> {
 
         Project project = getProject();
         EventUtil.subscribe(project, this, TransactionListener.TOPIC, transactionListener);
-        EventUtil.subscribe(project, this, ConnectionHandlerStatusListener.TOPIC, connectionHandlerStatusListener);
+        EventUtil.subscribe(project, this, ConnectionHandlerStatusListener.TOPIC, (connectionId) -> {
+            connectionsList.revalidate();
+            connectionsList.repaint();
+        });
     }
 
     private void updateListModel() {
+        checkDisposed();
         DefaultListModel<ConnectionHandler> model = new DefaultListModel<ConnectionHandler>();
         ConnectionManager connectionManager = ConnectionManager.getInstance(getProject());
         ConnectionBundle connectionBundle = connectionManager.getConnectionBundle();
         for (ConnectionHandler connectionHandler : connectionBundle.getConnectionHandlers()) {
+            checkDisposed();
             connectionHandlers.add(connectionHandler);
             model.addElement(connectionHandler);
         }
@@ -104,7 +103,7 @@ public class ResourceMonitorForm extends DBNFormImpl<ResourceMonitorDialog> {
         detailsPanel.repaint();
     }
 
-    private class ConnectionListCellRenderer extends ColoredListCellRenderer<ConnectionHandler> {
+    private static class ConnectionListCellRenderer extends ColoredListCellRenderer<ConnectionHandler> {
 
         @Override
         protected void customizeCellRenderer(@NotNull JList list, ConnectionHandler value, int index, boolean selected, boolean hasFocus) {
@@ -137,23 +136,8 @@ public class ResourceMonitorForm extends DBNFormImpl<ResourceMonitorDialog> {
         }
     };
 
-    private ConnectionHandlerStatusListener connectionHandlerStatusListener = new ConnectionHandlerStatusListener() {
-        @Override
-        public void statusChanged(ConnectionId connectionId, ConnectionHandlerStatus status) {
-            connectionsList.revalidate();
-            connectionsList.repaint();
-        }
-    };
-
     private void refreshForm() {
-        new SimpleLaterInvocator() {
-            @Override
-            protected void execute() {
-                if (!isDisposed()) {
-                    updateListModel();
-                }
-            }
-        }.start();
+        SimpleLaterInvocator.invoke(this::updateListModel);
 
     }
 }

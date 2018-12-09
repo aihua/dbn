@@ -1,5 +1,15 @@
 package com.dci.intellij.dbn.debugger;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
+
+import org.jdom.Element;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
@@ -15,15 +25,7 @@ import com.dci.intellij.dbn.database.DatabaseDebuggerInterface;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.database.common.debug.DebuggerVersionInfo;
 import com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointUpdaterFileEditorListener;
-import com.dci.intellij.dbn.debugger.common.config.DBMethodRunConfig;
-import com.dci.intellij.dbn.debugger.common.config.DBMethodRunConfigFactory;
-import com.dci.intellij.dbn.debugger.common.config.DBMethodRunConfigType;
-import com.dci.intellij.dbn.debugger.common.config.DBRunConfig;
-import com.dci.intellij.dbn.debugger.common.config.DBRunConfigCategory;
-import com.dci.intellij.dbn.debugger.common.config.DBRunConfigFactory;
-import com.dci.intellij.dbn.debugger.common.config.DBRunConfigType;
-import com.dci.intellij.dbn.debugger.common.config.DBStatementRunConfig;
-import com.dci.intellij.dbn.debugger.common.config.DBStatementRunConfigType;
+import com.dci.intellij.dbn.debugger.common.config.*;
 import com.dci.intellij.dbn.debugger.jdbc.process.DBMethodJdbcRunner;
 import com.dci.intellij.dbn.debugger.jdbc.process.DBStatementJdbcRunner;
 import com.dci.intellij.dbn.debugger.jdwp.process.DBMethodJdwpRunner;
@@ -45,11 +47,7 @@ import com.dci.intellij.dbn.object.common.status.DBObjectStatus;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatusHolder;
 import com.dci.intellij.dbn.vfs.DBConsoleType;
 import com.dci.intellij.dbn.vfs.file.DBConsoleVirtualFile;
-import com.intellij.execution.ExecutionException;
-import com.intellij.execution.Executor;
-import com.intellij.execution.RunManagerEx;
-import com.intellij.execution.RunnerAndConfigurationSettings;
-import com.intellij.execution.RunnerRegistry;
+import com.intellij.execution.*;
 import com.intellij.execution.configurations.ConfigurationType;
 import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.configurations.RuntimeConfigurationError;
@@ -69,16 +67,6 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.util.containers.ContainerUtil;
 import gnu.trove.THashSet;
-import org.jdom.Element;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Set;
 
 @State(
     name = DatabaseDebuggerManager.COMPONENT_NAME,
@@ -89,10 +77,17 @@ import java.util.Set;
 public class DatabaseDebuggerManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.DebuggerManager";
 
-    public static final String GENERIC_METHOD_RUNNER_HINT = "This is the generic Database Method debug runner. This is used when debugging is invoked on a given method. No specific method information can be specified here.";
-    public static final String GENERIC_STATEMENT_RUNNER_HINT = "This is the generic Database Statement debug runner. This is used when debugging is invoked on a given SQL statement. No specific statement information can be specified here.";
+    public static final String GENERIC_METHOD_RUNNER_HINT =
+            "This is the generic Database Method debug runner. " +
+                    "This is used when debugging is invoked on a given method. " +
+                    "No specific method information can be specified here.";
 
-    private Set<ConnectionHandler> activeDebugSessions = new THashSet<ConnectionHandler>();
+    public static final String GENERIC_STATEMENT_RUNNER_HINT =
+            "This is the generic Database Statement debug runner. " +
+                    "This is used when debugging is invoked on a given SQL statement. " +
+                    "No specific statement information can be specified here.";
+
+    private Set<ConnectionHandler> activeDebugSessions = new THashSet<>();
 
     private DatabaseDebuggerManager(Project project) {
         super(project);
@@ -124,12 +119,12 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
         return true;
     }
 
-    public static DBMethodRunConfigType getMethodConfigurationType() {
+    private static DBMethodRunConfigType getMethodConfigurationType() {
         ConfigurationType[] configurationTypes = Extensions.getExtensions(ConfigurationType.CONFIGURATION_TYPE_EP);
         return ContainerUtil.findInstance(configurationTypes, DBMethodRunConfigType.class);
     }
 
-    public static DBStatementRunConfigType getStatementConfigurationType() {
+    private static DBStatementRunConfigType getStatementConfigurationType() {
         ConfigurationType[] configurationTypes = Extensions.getExtensions(ConfigurationType.CONFIGURATION_TYPE_EP);
         return ContainerUtil.findInstance(configurationTypes, DBStatementRunConfigType.class);
     }
@@ -188,12 +183,12 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
     }
 
     @NotNull
-    public RunnerAndConfigurationSettings getDefaultConfig(DBRunConfigType configurationType, DBDebuggerType debuggerType){
+    private RunnerAndConfigurationSettings getDefaultConfig(DBRunConfigType configurationType, DBDebuggerType debuggerType){
         return FailsafeUtil.get(getDefaultConfig(configurationType, debuggerType, true));
     }
 
     @Nullable
-    public RunnerAndConfigurationSettings getDefaultConfig(DBRunConfigType configurationType, DBDebuggerType debuggerType, boolean create){
+    private RunnerAndConfigurationSettings getDefaultConfig(DBRunConfigType configurationType, DBDebuggerType debuggerType, boolean create){
         Project project = getProject();
         RunManagerEx runManager = (RunManagerEx) RunManagerEx.getInstance(project);
         List<RunnerAndConfigurationSettings> configurationSettings = runManager.getConfigurationSettingsList(configurationType);
@@ -275,21 +270,22 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
                 String runnerId =
                         debuggerType == DBDebuggerType.JDBC ? DBMethodJdbcRunner.RUNNER_ID :
                         debuggerType == DBDebuggerType.JDWP ? DBMethodJdwpRunner.RUNNER_ID : null;
+                if (runnerId != null) {
+                    ProgramRunner programRunner = RunnerRegistry.getInstance().findRunnerById(runnerId);
+                    if (programRunner != null) {
+                        try {
+                            Executor executorInstance = DefaultDebugExecutor.getDebugExecutorInstance();
+                            if (executorInstance == null) {
+                                throw new ExecutionException("Could not resolve debug executor");
+                            }
 
-                ProgramRunner programRunner = RunnerRegistry.getInstance().findRunnerById(runnerId);
-                if (programRunner != null) {
-                    try {
-                        Executor executorInstance = DefaultDebugExecutor.getDebugExecutorInstance();
-                        if (executorInstance == null) {
-                            throw new ExecutionException("Could not resolve debug executor");
+                            ExecutionEnvironment executionEnvironment = new ExecutionEnvironment(executorInstance, programRunner, runConfigurationSetting, project);
+                            programRunner.execute(executionEnvironment);
+                        } catch (ExecutionException e) {
+                            MessageUtil.showErrorDialog(
+                                    project, "Could not start debugger for " + method.getQualifiedName() + ". \n" +
+                                            "Reason: " + e.getMessage());
                         }
-
-                        ExecutionEnvironment executionEnvironment = new ExecutionEnvironment(executorInstance, programRunner, runConfigurationSetting, project);
-                        programRunner.execute(executionEnvironment);
-                    } catch (ExecutionException e) {
-                        MessageUtil.showErrorDialog(
-                                project, "Could not start debugger for " + method.getQualifiedName() + ". \n" +
-                                        "Reason: " + e.getMessage());
                     }
                 }
             }
@@ -336,7 +332,7 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
 
 
 
-    public void startDebugger(final DebuggerStarter debuggerStarter) {
+    private void startDebugger(final DebuggerStarter debuggerStarter) {
         DebuggerTypeOption debuggerTypeOption = getDebuggerSettings().getDebuggerType().resolve();
         DBDebuggerType debuggerType = debuggerTypeOption.getDebuggerType();
         if (debuggerType != null) {
@@ -347,15 +343,15 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
                 ApplicationInfo applicationInfo = ApplicationInfo.getInstance();
                 MessageUtil.showErrorDialog(
                         getProject(), "Unsupported debugger",
-                        debuggerType.name() + " debugging is not supported in \"" + applicationInfo.getVersionName() + " " + applicationInfo.getFullVersion() + "\".\nDo you want to use classic debugger over JDBC instead?",
+                        debuggerType.name() + " debugging is not supported in \"" +
+                            applicationInfo.getVersionName() + " " +
+                                applicationInfo.getFullVersion() + "\".\n" +
+                                "Do you want to use classic debugger over JDBC instead?",
                         new String[]{"Use " + DBDebuggerType.JDBC.getName(), "Cancel"}, 0,
-                        new MessageCallback(0) {
-                            @Override
-                            protected void execute() {
-                                debuggerStarter.setDebuggerType(DBDebuggerType.JDBC);
-                                debuggerStarter.start();
-                            }
-                        });
+                        MessageCallback.create(0, () -> {
+                            debuggerStarter.setDebuggerType(DBDebuggerType.JDBC);
+                            debuggerStarter.start();
+                        }));
             }
 
         }
@@ -364,7 +360,7 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
     private abstract class DebuggerStarter extends ConditionalLaterInvocator<Integer> {
         DBDebuggerType debuggerType;
 
-        public DebuggerStarter() {
+        DebuggerStarter() {
             setData(0);
         }
 
@@ -383,7 +379,7 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
 
     }
 
-    public DebuggerSettings getDebuggerSettings() {
+    private DebuggerSettings getDebuggerSettings() {
         return OperationSettings.getInstance(getProject()).getDebuggerSettings();
     }
 
@@ -391,7 +387,7 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
 
     public List<DBSchemaObject> loadCompileDependencies(List<DBMethod> methods, ProgressIndicator progressIndicator) {
         // TODO improve this logic (currently only drilling one level down in the dependencies)
-        List<DBSchemaObject> compileList = new ArrayList<DBSchemaObject>();
+        List<DBSchemaObject> compileList = new ArrayList<>();
         for (DBMethod method : methods) {
             DBSchemaObject executable = method.getProgram() == null ? method : method.getProgram();
             SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(getProject());
@@ -413,7 +409,7 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
             }
         }
 
-        Collections.sort(compileList, DEPENDENCY_COMPARATOR);
+        compileList.sort(DEPENDENCY_COMPARATOR);
         return compileList;
     }
 
@@ -431,7 +427,7 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
     }
 
     public List<String> getMissingDebugPrivileges(@NotNull ConnectionHandler connectionHandler) {
-        List<String> missingPrivileges = new ArrayList<String>();
+        List<String> missingPrivileges = new ArrayList<>();
         String userName = connectionHandler.getUserName();
         DBUser user = connectionHandler.getObjectBundle().getUser(userName);
 
@@ -448,12 +444,10 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
         return missingPrivileges;
     }
 
-    private static final Comparator<DBSchemaObject> DEPENDENCY_COMPARATOR = new Comparator<DBSchemaObject>() {
-        public int compare(DBSchemaObject schemaObject1, DBSchemaObject schemaObject2) {
-            if (schemaObject1.getReferencedObjects().contains(schemaObject2)) return 1;
-            if (schemaObject2.getReferencedObjects().contains(schemaObject1)) return -1;
-            return 0;
-        }
+    private static final Comparator<DBSchemaObject> DEPENDENCY_COMPARATOR = (schemaObject1, schemaObject2) -> {
+        if (schemaObject1.getReferencedObjects().contains(schemaObject2)) return 1;
+        if (schemaObject2.getReferencedObjects().contains(schemaObject1)) return -1;
+        return 0;
     };
 
     public String getDebuggerVersion(ConnectionHandler connectionHandler) {
@@ -498,7 +492,7 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
     }
 
     @Override
-    public void loadState(Element element) {
+    public void loadState(@NotNull Element element) {
 
     }
 }

@@ -9,7 +9,6 @@ import com.dci.intellij.dbn.execution.statement.processor.StatementExecutionCurs
 import com.dci.intellij.dbn.execution.statement.result.StatementExecutionCursorResult;
 import com.dci.intellij.dbn.execution.statement.variables.StatementExecutionVariablesBundle;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 
@@ -22,24 +21,22 @@ public class ExecutionResultVariablesDialogAction extends AbstractExecutionResul
 
     @Override
     public void actionPerformed(@NotNull AnActionEvent e) {
-        final StatementExecutionCursorResult executionResult = getExecutionResult(e);
+        StatementExecutionCursorResult executionResult = getExecutionResult(e);
         if (executionResult != null) {
-            final StatementExecutionCursorProcessor executionProcessor = executionResult.getExecutionProcessor();
-            final Project project = executionResult.getProject();
+            StatementExecutionCursorProcessor executionProcessor = executionResult.getExecutionProcessor();
+            Project project = executionResult.getProject();
             StatementExecutionManager statementExecutionManager = StatementExecutionManager.getInstance(project);
+            String taskTitle = "Executing " + executionResult.getExecutionProcessor().getStatementName();
             statementExecutionManager.promptExecutionDialog(
                     executionProcessor,
                     DBDebuggerType.NONE,
-                    new BackgroundTask(project, "Executing " + executionResult.getExecutionProcessor().getStatementName(), false, true) {
-                        @Override
-                        protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
-                            try {
-                                executionProcessor.execute();
-                            } catch (SQLException ex) {
-                                NotificationUtil.sendErrorNotification(getProject(), "Error executing statement", ex.getMessage());
-                            }
+                    BackgroundTask.create(project, taskTitle, false, true, (task, progress) -> {
+                        try {
+                            executionProcessor.execute();
+                        } catch (SQLException ex) {
+                            NotificationUtil.sendErrorNotification(project, "Error executing statement", ex.getMessage());
                         }
-                    });
+                    }));
         }
     }
 

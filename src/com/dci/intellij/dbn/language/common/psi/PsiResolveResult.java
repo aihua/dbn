@@ -5,6 +5,7 @@ import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
+import com.dci.intellij.dbn.language.common.PsiElementRef;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBObjectPsiElement;
@@ -13,20 +14,14 @@ import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.ref.WeakReference;
-
-import static com.dci.intellij.dbn.language.common.psi.PsiResolveStatus.CONNECTION_ACTIVE;
-import static com.dci.intellij.dbn.language.common.psi.PsiResolveStatus.CONNECTION_VALID;
-import static com.dci.intellij.dbn.language.common.psi.PsiResolveStatus.NEW;
-import static com.dci.intellij.dbn.language.common.psi.PsiResolveStatus.RESOLVING;
-import static com.dci.intellij.dbn.language.common.psi.PsiResolveStatus.RESOLVING_OBJECT_TYPE;
+import static com.dci.intellij.dbn.language.common.psi.PsiResolveStatus.*;
 
 public class PsiResolveResult extends PropertyHolderImpl<PsiResolveStatus>{
     private ConnectionHandlerRef connectionHandlerRef;
     private DBObjectRef<DBSchema> databaseSchema;
-    private WeakReference<IdentifierPsiElement> element;
-    private WeakReference<BasePsiElement> parent;
-    private WeakReference<PsiElement> referencedElement;
+    private PsiElementRef<IdentifierPsiElement> element;
+    private PsiElementRef<BasePsiElement> parent;
+    private PsiElementRef referencedElement;
     private CharSequence text;
     private long lastResolveInvocation = 0;
     private int scopeTextLength;
@@ -35,17 +30,17 @@ public class PsiResolveResult extends PropertyHolderImpl<PsiResolveStatus>{
 
     PsiResolveResult(IdentifierPsiElement element) {
         this.connectionHandlerRef = ConnectionHandlerRef.from(element.getConnectionHandler());
-        this.element = new WeakReference<IdentifierPsiElement>(element);
+        this.element = new PsiElementRef<>(element);
         set(PsiResolveStatus.NEW, true);
     }
 
     @Override
-    protected PsiResolveStatus[] getProperties() {
+    protected PsiResolveStatus[] properties() {
         return PsiResolveStatus.values();
     }
 
     public void accept(IdentifierPsiElement element) {
-        this.element = new WeakReference<IdentifierPsiElement>(element);
+        this.element = new PsiElementRef<>(element);
     }
 
     public void preResolve(IdentifierPsiElement psiElement) {
@@ -58,7 +53,7 @@ public class PsiResolveResult extends PropertyHolderImpl<PsiResolveStatus>{
         this.parent = null;
         this.connectionHandlerRef = ConnectionHandlerRef.from(connectionHandler);
         this.databaseSchema = DBObjectRef.from(psiElement.getDatabaseSchema());
-        BasePsiElement enclosingScopePsiElement = psiElement.findEnclosingScopePsiElement();
+        BasePsiElement enclosingScopePsiElement = psiElement.getEnclosingScopePsiElement();
         this.scopeTextLength = enclosingScopePsiElement == null ? 0 : enclosingScopePsiElement.getTextLength();
         if (StringUtil.isEmpty(text)) {
             text = "";
@@ -162,7 +157,7 @@ public class PsiResolveResult extends PropertyHolderImpl<PsiResolveStatus>{
     private boolean enclosingScopeChanged() {
         IdentifierPsiElement element = this.element.get();
         if (element != null) {
-            BasePsiElement scopePsiElement = element.findEnclosingScopePsiElement();
+            BasePsiElement scopePsiElement = element.getEnclosingScopePsiElement();
             int scopeTextLength = scopePsiElement == null ? 0 : scopePsiElement.getTextLength();
             return this.scopeTextLength != scopeTextLength;
         }
@@ -215,11 +210,11 @@ public class PsiResolveResult extends PropertyHolderImpl<PsiResolveStatus>{
     }
 
     public void setParent(@Nullable BasePsiElement parent) {
-        this.parent = new WeakReference<BasePsiElement>(parent);
+        this.parent = new PsiElementRef<>(parent);
     }
 
     public void setReferencedElement(PsiElement referencedElement) {
-        this.referencedElement = referencedElement == null ? null : new WeakReference<PsiElement>(referencedElement);
+        this.referencedElement = referencedElement == null ? null : new PsiElementRef(referencedElement);
     }
 
     public int getOverallResolveTrials() {

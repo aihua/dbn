@@ -24,22 +24,19 @@ import com.dci.intellij.dbn.debugger.jdwp.DBJdwpBreakpointHandler;
 import com.dci.intellij.dbn.debugger.jdwp.ManagedThreadCommand;
 import com.dci.intellij.dbn.debugger.jdwp.frame.DBJdwpDebugStackFrame;
 import com.dci.intellij.dbn.debugger.jdwp.frame.DBJdwpDebugSuspendContext;
+import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.execution.ExecutionContext;
 import com.dci.intellij.dbn.execution.ExecutionInput;
 import com.dci.intellij.dbn.object.DBMethod;
 import com.dci.intellij.dbn.object.DBProgram;
 import com.dci.intellij.dbn.object.DBSchema;
+import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
 import com.intellij.debugger.DebuggerManager;
-import com.intellij.debugger.engine.DebugProcessAdapter;
-import com.intellij.debugger.engine.JavaDebugProcess;
-import com.intellij.debugger.engine.JavaStackFrame;
-import com.intellij.debugger.engine.SuspendContext;
-import com.intellij.debugger.engine.SuspendContextImpl;
+import com.intellij.debugger.engine.*;
 import com.intellij.debugger.impl.DebuggerContextImpl;
 import com.intellij.debugger.impl.DebuggerContextListener;
 import com.intellij.debugger.impl.DebuggerSession;
 import com.intellij.execution.process.ProcessHandler;
-import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -60,12 +57,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.StringTokenizer;
 
-import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.BREAKPOINT_SETTING_ALLOWED;
-import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.DEBUGGER_STOPPING;
-import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.SESSION_INITIALIZATION_THREW_EXCEPTION;
-import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.TARGET_EXECUTION_STARTED;
-import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.TARGET_EXECUTION_TERMINATED;
-import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.TARGET_EXECUTION_THREW_EXCEPTION;
+import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.*;
 
 public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaDebugProcess implements DBDebugProcess {
     public static final Key<DBJdwpDebugProcess> KEY = new Key<DBJdwpDebugProcess>("DBNavigator.JdwpDebugProcess");
@@ -105,11 +97,6 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
     @Override
     public boolean is(DBDebugProcessStatus status) {
         return this.status.is(status);
-    }
-
-    @Override
-    public boolean isNot(DBDebugProcessStatus status) {
-        return this.status.isNot(status);
     }
 
     protected boolean shouldSuspend(XSuspendContext suspendContext) {
@@ -215,12 +202,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
             public void sessionPaused() {
                 XSuspendContext suspendContext = session.getSuspendContext();
                 if (!shouldSuspend(suspendContext)) {
-                    new SimpleLaterInvocator() {
-                        @Override
-                        protected void execute() {
-                            session.resume();
-                        }
-                    }.start();
+                    SimpleLaterInvocator.invoke(session::resume);
                 } else {
                     XExecutionStack activeExecutionStack = suspendContext.getActiveExecutionStack();
                     if (activeExecutionStack != null) {
@@ -301,28 +283,25 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
         new ManagedThreadCommand(getDebuggerSession().getProcess()) {
             @Override
             protected void action() throws Exception {
-                new BackgroundTask(getProject(), "Running debugger target program", true, true) {
-                    @Override
-                    protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
-                        T executionInput = getExecutionInput();
-                        progressIndicator.setText("Executing " + (executionInput == null ? " target program" : executionInput.getExecutionContext().getTargetName()));
-                        console.system("Executing target program");
-                        if (is(SESSION_INITIALIZATION_THREW_EXCEPTION)) return;
-                        try {
-                            set(TARGET_EXECUTION_STARTED, true);
-                            executeTarget();
-                        } catch (SQLException e){
-                            set(TARGET_EXECUTION_THREW_EXCEPTION, true);
-                            if (isNot(DEBUGGER_STOPPING)) {
-                                String message = executionInput == null ? "Error executing target program" : "Error executing " + executionInput.getExecutionContext().getTargetName();
-                                console.error(message + ": " + e.getMessage());
-                            }
-                        } finally {
-                            set(TARGET_EXECUTION_TERMINATED, true);
-                            stop();
+                BackgroundTask.invoke(getProject(), "Running debugger target program", true, true, (task, progress) -> {
+                    T executionInput = getExecutionInput();
+                    progress.setText("Executing " + (executionInput == null ? " target program" : executionInput.getExecutionContext().getTargetName()));
+                    console.system("Executing target program");
+                    if (is(SESSION_INITIALIZATION_THREW_EXCEPTION)) return;
+                    try {
+                        set(TARGET_EXECUTION_STARTED, true);
+                        executeTarget();
+                    } catch (SQLException e){
+                        set(TARGET_EXECUTION_THREW_EXCEPTION, true);
+                        if (isNot(DEBUGGER_STOPPING)) {
+                            String message = executionInput == null ? "Error executing target program" : "Error executing " + executionInput.getExecutionContext().getTargetName();
+                            console.error(message + ": " + e.getMessage());
                         }
+                    } finally {
+                        set(TARGET_EXECUTION_TERMINATED, true);
+                        stop();
                     }
-                }.start();
+                });
             }
         }.schedule();
     }
@@ -342,37 +321,34 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
     }
 
     private void stopDebugger() {
-        final Project project = getProject();
-        new BackgroundTask(project, "Stopping debugger", true) {
-            @Override
-            protected void execute(@NotNull ProgressIndicator progressIndicator) {
-                progressIndicator.setText("Stopping debug environment.");
-                T executionInput = getExecutionInput();
-                if (executionInput != null && isNot(TARGET_EXECUTION_TERMINATED)) {
-                    ExecutionContext context = executionInput.getExecutionContext();
-                    ConnectionUtil.cancel(context.getStatement());
-                }
-
-
-                ConnectionHandler connectionHandler = getConnectionHandler();
-                try {
-                    DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
-                    debuggerInterface.disconnectJdwpSession(targetConnection);
-
-                } catch (final SQLException e) {
-                    console.error("Error stopping debugger: " + e.getMessage());
-                } finally {
-                    DBRunConfig<T> runProfile = getRunProfile();
-                    if (runProfile != null && runProfile.getCategory() != DBRunConfigCategory.CUSTOM) {
-                        runProfile.setCanRun(false);
-                    }
-
-                    DatabaseDebuggerManager.getInstance(project).unregisterDebugSession(connectionHandler);
-                    releaseTargetConnection();
-                    console.system("Debugger stopped");
-                }
+        Project project = getProject();
+        BackgroundTask.invoke(project, "Stopping debugger", true, false, (task, progress) -> {
+            progress.setText("Stopping debug environment.");
+            T executionInput = getExecutionInput();
+            if (executionInput != null && isNot(TARGET_EXECUTION_TERMINATED)) {
+                ExecutionContext context = executionInput.getExecutionContext();
+                ConnectionUtil.cancel(context.getStatement());
             }
-        }.start();
+
+
+            ConnectionHandler connectionHandler = getConnectionHandler();
+            try {
+                DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
+                debuggerInterface.disconnectJdwpSession(targetConnection);
+
+            } catch (final SQLException e) {
+                console.error("Error stopping debugger: " + e.getMessage());
+            } finally {
+                DBRunConfig<T> runProfile = getRunProfile();
+                if (runProfile != null && runProfile.getCategory() != DBRunConfigCategory.CUSTOM) {
+                    runProfile.setCanRun(false);
+                }
+
+                DatabaseDebuggerManager.getInstance(project).unregisterDebugSession(connectionHandler);
+                releaseTargetConnection();
+                console.system("Debugger stopped");
+            }
+        });
     }
 
 
@@ -397,11 +373,13 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
                     if (schema != null) {
                         DBProgram program = schema.getProgram(programName);
                         if (program != null) {
-                            return program.getVirtualFile();
+                            DBEditableObjectVirtualFile editableVirtualFile = program.getEditableVirtualFile();
+                            DBContentType contentType = "PackageBody".equals(programType) ? DBContentType.CODE_BODY : DBContentType.CODE_SPEC;
+                            return editableVirtualFile.getContentFile(contentType);
                         } else {
                             DBMethod method = schema.getMethod(programName, 0);
                             if (method != null) {
-                                return method.getVirtualFile();
+                                return method.getEditableVirtualFile().getContentFile(DBContentType.CODE);
                             }
                         }
                     }

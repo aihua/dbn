@@ -4,13 +4,11 @@ import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.Constants;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
-import com.dci.intellij.dbn.common.notification.NotificationUtil;
 import com.dci.intellij.dbn.common.option.InteractiveOptionHandler;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.util.EditorUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ConnectionHandlerStatus;
 import com.dci.intellij.dbn.connection.ConnectionHandlerStatusListener;
 import com.dci.intellij.dbn.connection.ConnectionType;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
@@ -20,7 +18,6 @@ import com.dci.intellij.dbn.connection.transaction.ui.PendingTransactionsDetailD
 import com.dci.intellij.dbn.connection.transaction.ui.PendingTransactionsDialog;
 import com.dci.intellij.dbn.options.ProjectSettingsManager;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManagerListener;
 import com.intellij.openapi.ui.DialogWrapper;
@@ -68,12 +65,10 @@ public class DatabaseTransactionManager extends AbstractProjectComponent impleme
                     executeActions(connectionHandler, connection, actionList);
                 } else {
                     String connectionName = connectionHandler.getConnectionName(connection);
-                    new BackgroundTask(project, "Performing \"" + actionList.get(0).getName() + "\" on connection " + connectionName, background) {
-                        @Override
-                        protected void execute(@NotNull ProgressIndicator indicator) {
-                            executeActions(connectionHandler, connection, actionList);
-                        }
-                    }.start();
+                    String taskTitle = "Performing \"" + actionList.get(0).getName() + "\" on connection " + connectionName;
+                    BackgroundTask.invoke(project, taskTitle, background, false, (task, progress) -> {
+                        executeActions(connectionHandler, connection, actionList);
+                    });
                 }
             }
         }
@@ -101,18 +96,16 @@ public class DatabaseTransactionManager extends AbstractProjectComponent impleme
 
             action.execute(connectionHandler, connection);
             if (action.getNotificationType() != null) {
-                NotificationUtil.sendNotification(
-                        project,
+                sendNotification(
                         action.getNotificationType(),
-                        Constants.DBN_TITLE_PREFIX + action.getName(),
+                        Constants.DBN_TITLE_PREFIX + action.getGroup(),
                         action.getSuccessNotificationMessage(),
                         connectionName);
             }
         } catch (SQLException ex) {
-            NotificationUtil.sendNotification(
-                    project,
+            sendNotification(
                     action.getFailureNotificationType(),
-                    Constants.DBN_TITLE_PREFIX + action.getName(),
+                    Constants.DBN_TITLE_PREFIX + action.getGroup(),
                     action.getFailureNotificationMessage(),
                     connectionName,
                     ex.getMessage());
@@ -124,7 +117,7 @@ public class DatabaseTransactionManager extends AbstractProjectComponent impleme
 
                 if (action.isStatusChange()) {
                     ConnectionHandlerStatusListener statusListener = EventUtil.notify(project, ConnectionHandlerStatusListener.TOPIC);
-                    statusListener.statusChanged(connectionHandler.getId(), ConnectionHandlerStatus.BUSY);
+                    statusListener.statusChanged(connectionHandler.getId());
                 }
                 connectionHandler.getPendingActions().remove(action);
             }

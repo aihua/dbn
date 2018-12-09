@@ -13,12 +13,12 @@ import com.dci.intellij.dbn.browser.ui.DatabaseBrowserTree;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.filter.Filter;
+import com.dci.intellij.dbn.common.latent.DisposableLatent;
+import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.options.setting.BooleanSetting;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
-import com.dci.intellij.dbn.common.util.DisposableLazyValue;
 import com.dci.intellij.dbn.common.util.EventUtil;
-import com.dci.intellij.dbn.common.util.LazyValue;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionManager;
@@ -34,8 +34,10 @@ import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
-import com.intellij.openapi.fileEditor.*;
-import com.intellij.openapi.progress.ProgressIndicator;
+import com.intellij.openapi.fileEditor.FileEditor;
+import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
+import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.ToolWindow;
@@ -61,13 +63,8 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
     private BooleanSetting autoscrollFromEditor = new BooleanSetting("autoscroll-from-editor", true);
     private BooleanSetting autoscrollToEditor   = new BooleanSetting("autoscroll-to-editor", false);
     private BooleanSetting showObjectProperties = new BooleanSetting("show-object-properties", true);
-    public static final ThreadLocal<Boolean> AUTOSCROLL_FROM_EDITOR = new ThreadLocal<Boolean>();
-    private LazyValue<BrowserToolWindowForm> toolWindowForm = new DisposableLazyValue<BrowserToolWindowForm>(this) {
-        @Override
-        protected BrowserToolWindowForm load() {
-            return new BrowserToolWindowForm(getProject());
-        }
-    };
+    public static final ThreadLocal<Boolean> AUTOSCROLL_FROM_EDITOR = new ThreadLocal<>();
+    private Latent<BrowserToolWindowForm> toolWindowForm = DisposableLatent.create(this, () -> new BrowserToolWindowForm(getProject()));
 
     private DatabaseBrowserManager(Project project) {
         super(project);
@@ -125,30 +122,24 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
     }
 
     public void navigateToElement(@Nullable final BrowserTreeNode treeNode, final boolean focus, final boolean scroll) {
-        new SimpleLaterInvocator() {
-            @Override
-            protected void execute() {
-                ToolWindow toolWindow = getBrowserToolWindow();
+        SimpleLaterInvocator.invoke(() -> {
+            ToolWindow toolWindow = getBrowserToolWindow();
 
-                toolWindow.show(null);
-                if (treeNode != null) {
-                    DatabaseBrowserForm browserForm = getToolWindowForm().getBrowserForm();
-                    browserForm.selectElement(treeNode, focus, scroll);
-                }
+            toolWindow.show(null);
+            if (treeNode != null) {
+                DatabaseBrowserForm browserForm = getToolWindowForm().getBrowserForm();
+                browserForm.selectElement(treeNode, focus, scroll);
             }
-        }.start();
+        });
     }
 
-    public void navigateToElement(@Nullable final BrowserTreeNode treeNode, final boolean scroll) {
-        new SimpleLaterInvocator() {
-            @Override
-            protected void execute() {
-                if (treeNode != null) {
-                    DatabaseBrowserForm browserForm = getToolWindowForm().getBrowserForm();
-                    browserForm.selectElement(treeNode, false, scroll);
-                }
+    private void navigateToElement(@Nullable final BrowserTreeNode treeNode, final boolean scroll) {
+        SimpleLaterInvocator.invoke(() -> {
+            if (treeNode != null) {
+                DatabaseBrowserForm browserForm = getToolWindowForm().getBrowserForm();
+                browserForm.selectElement(treeNode, false, scroll);
             }
-        }.start();
+        });
     }
 
     public boolean isVisible() {
@@ -188,12 +179,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
             BrowserToolWindowForm toolWindowForm = browserManager.getToolWindowForm();
             final DatabaseBrowserTree browserTree = toolWindowForm.getBrowserTree(connectionHandler);
             if (browserTree != null && browserTree.getTargetSelection() != null) {
-                new SimpleLaterInvocator() {
-                    @Override
-                    protected void execute() {
-                        browserTree.scrollToSelectedElement();
-                    }
-                }.start();
+                SimpleLaterInvocator.invoke(browserTree::scrollToSelectedElement);
             }
         }
     }
@@ -208,7 +194,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
      **********************************************************/
     private ObjectFilterChangeListener filterChangeListener = new ObjectFilterChangeListener() {
         public void typeFiltersChanged(ConnectionId connectionId) {
-            if (toolWindowForm.isLoaded()) {
+            if (toolWindowForm.loaded()) {
                 ConnectionHandler connectionHandler = getConnectionHandler(connectionId);
                 if (connectionHandler == null) {
                     getToolWindowForm().getBrowserForm().rebuildTree();
@@ -221,7 +207,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
         @Override
         public void nameFiltersChanged(ConnectionId connectionId, @NotNull DBObjectType... objectTypes) {
             ConnectionHandler connectionHandler = getConnectionHandler(connectionId);
-            if (toolWindowForm.isLoaded() && connectionHandler != null && objectTypes.length > 0) {
+            if (toolWindowForm.loaded() && connectionHandler != null && objectTypes.length > 0) {
                 connectionHandler.getObjectBundle().refreshTreeChildren(objectTypes);
             }
         }
@@ -238,7 +224,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
         return browserSettings.getFilterSettings().getObjectTypeFilterSettings().getElementFilter();
     }
 
-    private FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerAdapter() {
+    private FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerListener() {
         public void fileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
             if (scroll()) {
                 if (file instanceof DBEditableObjectVirtualFile) {
@@ -287,7 +273,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
     }
 
     public List<DBObject> getSelectedObjects() {
-        List<DBObject> selectedObjects = new ArrayList<DBObject>();
+        List<DBObject> selectedObjects = new ArrayList<>();
         DatabaseBrowserTree activeBrowserTree = getActiveBrowserTree();
         if (activeBrowserTree != null) {
             TreePath[] selectionPaths = activeBrowserTree.getSelectionPaths();
@@ -319,7 +305,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
     }
 
     @Override
-    public void loadState(final Element element) {
+    public void loadState(@NotNull final Element element) {
         autoscrollToEditor.readConfiguration(element);
         autoscrollFromEditor.readConfiguration(element);
         showObjectProperties.readConfiguration(element);
@@ -342,13 +328,15 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
                 DBObjectList schemas = objectBundle.getObjectListContainer().getObjectList(DBObjectType.SCHEMA);
                 if (schemas != null && schemas.isLoaded()) {
                     for (DBSchema schema : objectBundle.getSchemas()) {
-                        List<DBObjectType> objectTypes = new ArrayList<DBObjectType>();
+                        List<DBObjectType> objectTypes = new ArrayList<>();
                         DBObjectListContainer childObjects = schema.getChildObjects();
                         if (childObjects != null) {
-                            List<DBObjectList<DBObject>> allObjectLists = childObjects.getAllObjectLists();
-                            for (DBObjectList<DBObject> objectList : allObjectLists) {
-                                if (objectList.isLoaded() || objectList.isLoading()) {
-                                    objectTypes.add(objectList.getObjectType());
+                            List<DBObjectList<DBObject>> objectLists = childObjects.getObjectLists();
+                            if (objectLists != null && !objectLists.isEmpty()) {
+                                for (DBObjectList<DBObject> objectList : objectLists) {
+                                    if (objectList.isLoaded() || objectList.isLoading()) {
+                                        objectTypes.add(objectList.getObjectType());
+                                    }
                                 }
                             }
                         }
@@ -388,22 +376,18 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
                         List<Element> schemaElements = connectionElement.getChildren();
                         for (final Element schemaElement : schemaElements) {
                             String schemaName = schemaElement.getAttributeValue("name");
-                            final DBSchema schema = objectBundle.getSchema(schemaName);
-
+                            DBSchema schema = objectBundle.getSchema(schemaName);
                             if (schema != null) {
-                                new BackgroundTask(project, "Loading data dictionary" + connectionString, true) {
-                                    @Override
-                                    protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
-                                        String objectTypesAttr = schemaElement.getAttributeValue("object-types");
-                                        List<DBObjectType> objectTypes = DBObjectType.fromCommaSeparated(objectTypesAttr);
-                                        for (DBObjectType objectType : objectTypes) {
-                                            DBObjectListContainer childObjects = schema.getChildObjects();
-                                            if (childObjects != null) {
-                                                childObjects.loadObjectList(objectType);
-                                            }
+                                BackgroundTask.invoke(project, "Loading data dictionary" + connectionString, true, true, (task, progress) -> {
+                                    String objectTypesAttr = schemaElement.getAttributeValue("object-types");
+                                    List<DBObjectType> objectTypes = DBObjectType.fromCommaSeparated(objectTypesAttr);
+                                    for (DBObjectType objectType : objectTypes) {
+                                        DBObjectListContainer childObjects = schema.getChildObjects();
+                                        if (childObjects != null && !progress.isCanceled()) {
+                                            childObjects.loadObjectList(objectType);
                                         }
                                     }
-                                }.start();
+                                });
                             }
                         }
                     }

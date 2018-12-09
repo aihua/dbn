@@ -1,10 +1,6 @@
 package com.dci.intellij.dbn.editor.data.state.sorting.ui;
 
-import com.dci.intellij.dbn.common.ui.DBNFormImpl;
-import com.dci.intellij.dbn.common.ui.DBNHeaderForm;
-import com.dci.intellij.dbn.common.ui.ValueSelector;
-import com.dci.intellij.dbn.common.ui.ValueSelectorListener;
-import com.dci.intellij.dbn.common.ui.ValueSelectorOption;
+import com.dci.intellij.dbn.common.ui.*;
 import com.dci.intellij.dbn.data.sorting.SortDirection;
 import com.dci.intellij.dbn.data.sorting.SortingInstruction;
 import com.dci.intellij.dbn.data.sorting.SortingState;
@@ -31,7 +27,7 @@ public class DatasetEditorSortingForm extends DBNFormImpl<DatasetEditorSortingDi
     private SortingState sortingState;
 
 
-    public DatasetEditorSortingForm(DatasetEditorSortingDialog parentComponent, DatasetEditor datasetEditor) {
+    DatasetEditorSortingForm(DatasetEditorSortingDialog parentComponent, DatasetEditor datasetEditor) {
         super(parentComponent);
         DBDataset dataset = datasetEditor.getDataset();
         sortingState = datasetEditor.getEditorState().getSortingState();
@@ -41,9 +37,12 @@ public class DatasetEditorSortingForm extends DBNFormImpl<DatasetEditorSortingDi
         sortingInstructionsPanel.setLayout(sortingInstructionsPanelLayout);
 
         for (SortingInstruction sortingInstruction : sortingState.getSortingInstructions()) {
-            DatasetSortingColumnForm sortingInstructionForm = new DatasetSortingColumnForm(this, sortingInstruction.clone());
-            sortingInstructionForms.add(sortingInstructionForm);
-            sortingInstructionsPanel.add(sortingInstructionForm.getComponent());
+            DBColumn column = sortingInstruction.getColumn(dataset);
+            if (column != null) {
+                DatasetSortingColumnForm sortingInstructionForm = new DatasetSortingColumnForm(this, sortingInstruction.clone());
+                sortingInstructionForms.add(sortingInstructionForm);
+                sortingInstructionsPanel.add(sortingInstructionForm.getComponent());
+            }
         }
         updateIndexes();
 
@@ -58,7 +57,7 @@ public class DatasetEditorSortingForm extends DBNFormImpl<DatasetEditorSortingDi
 */
     }
 
-    public List<DatasetSortingColumnForm> getSortingInstructionForms() {
+    List<DatasetSortingColumnForm> getSortingInstructionForms() {
         return sortingInstructionForms;
     }
 
@@ -68,8 +67,8 @@ public class DatasetEditorSortingForm extends DBNFormImpl<DatasetEditorSortingDi
     }
 
     private class ColumnSelector extends ValueSelector<DBColumn> {
-        public ColumnSelector() {
-            super(PlatformIcons.ADD_ICON, "Add Sorting Column...", null, false, ValueSelectorOption.HIDE_DESCRIPTION);
+        ColumnSelector() {
+            super(PlatformIcons.ADD_ICON, "Add Sorting Column...", null, ValueSelectorOption.HIDE_DESCRIPTION);
             addListener(new ValueSelectorListener<DBColumn>() {
                 @Override
                 public void selectionChanged(DBColumn oldValue, DBColumn newValue) {

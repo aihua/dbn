@@ -1,9 +1,18 @@
 package com.dci.intellij.dbn.connection;
 
+import java.lang.ref.WeakReference;
+import java.sql.SQLException;
+import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.common.Constants;
 import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
-import com.dci.intellij.dbn.common.notification.NotificationUtil;
+import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.TimeUtil;
@@ -16,20 +25,8 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.containers.ContainerUtil;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-import java.lang.ref.WeakReference;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.TimeUnit;
-
-public class ConnectionPool extends DisposableBase implements Disposable {
+public class ConnectionPool extends DisposableBase implements NotificationSupport, Disposable {
 
     private static Logger LOGGER = LoggerFactory.createLogger();
     private int peakPoolSize = 0;
@@ -132,26 +129,26 @@ public class ConnectionPool extends DisposableBase implements Disposable {
     @NotNull
     public List<DBNConnection> getConnections(ConnectionType... connectionTypes) {
         ArrayList<DBNConnection> connections = new ArrayList<DBNConnection>();
-        if (isOneOf(ConnectionType.MAIN, connectionTypes) && mainConnection != null) {
+        if (ConnectionType.MAIN.isOneOf(connectionTypes) && mainConnection != null) {
             connections.add(mainConnection);
         }
 
-        if (isOneOf(ConnectionType.DEBUG, connectionTypes) && debugConnection != null) {
+        if (ConnectionType.DEBUG.isOneOf(connectionTypes) && debugConnection != null) {
             connections.add(debugConnection);
         }
 
-        if (isOneOf(ConnectionType.DEBUGGER, connectionTypes) && debuggerConnection != null) {
+        if (ConnectionType.DEBUGGER.isOneOf(connectionTypes) && debuggerConnection != null) {
             connections.add(debuggerConnection);
         }
 
-        if (isOneOf(ConnectionType.TEST, connectionTypes) && testConnection != null) {
+        if (ConnectionType.TEST.isOneOf(connectionTypes) && testConnection != null) {
             connections.add(testConnection);
         }
 
-        if (isOneOf(ConnectionType.POOL, connectionTypes)) {
+        if (ConnectionType.POOL.isOneOf(connectionTypes)) {
             connections.addAll(poolConnections);
         }
-        if (isOneOf(ConnectionType.SESSION, connectionTypes)) {
+        if (ConnectionType.SESSION.isOneOf(connectionTypes)) {
             for (DBNConnection connection : sessionConnections.values()) {
                 if (connection != null) {
                     connections.add(connection);
@@ -159,16 +156,6 @@ public class ConnectionPool extends DisposableBase implements Disposable {
             }
         }
         return connections;
-    }
-
-    private static boolean isOneOf(ConnectionType connectionType, ConnectionType... connectionTypes) {
-        if (connectionTypes == null || connectionTypes.length == 0) return true;
-        for (ConnectionType type : connectionTypes) {
-            if (connectionType == type) {
-                return true;
-            }
-        }
-        return false;
     }
 
     @NotNull
@@ -183,14 +170,13 @@ public class ConnectionPool extends DisposableBase implements Disposable {
                         ConnectionUtil.close(connection);
 
                         connection = ConnectionUtil.connect(connectionHandler, sessionId);
-                        NotificationUtil.sendInfoNotification(
-                                getProject(),
+                        sendInfoNotification(
                                 Constants.DBN_TITLE_PREFIX + "Session",
                                 "Connected to database \"{0}\"",
                                 connectionHandler.getConnectionName(connection));
                     } finally {
                         ConnectionHandlerStatusListener changeListener = EventUtil.notify(getProject(), ConnectionHandlerStatusListener.TOPIC);
-                        changeListener.statusChanged(connectionHandler.getId(), ConnectionHandlerStatus.CONNECTED);
+                        changeListener.statusChanged(connectionHandler.getId());
                     }
                 }
             }
@@ -217,7 +203,7 @@ public class ConnectionPool extends DisposableBase implements Disposable {
     }
 
     @NotNull
-    private Project getProject() {
+    public Project getProject() {
         return getConnectionHandler().getProject();
     }
 
@@ -293,8 +279,7 @@ public class ConnectionPool extends DisposableBase implements Disposable {
 
         if (poolConnections.size() == 0) {
             // Notify first pool connection
-            NotificationUtil.sendInfoNotification(
-                    getProject(),
+            sendInfoNotification(
                     Constants.DBN_TITLE_PREFIX + "Session",
                     "Connected to database \"{0}\"",
                     connectionHandler.getConnectionName(connection));

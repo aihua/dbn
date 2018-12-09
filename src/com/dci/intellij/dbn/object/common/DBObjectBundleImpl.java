@@ -17,9 +17,9 @@ import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.lookup.ConsumerStoppedException;
 import com.dci.intellij.dbn.common.lookup.LookupConsumer;
-import com.dci.intellij.dbn.common.notification.NotificationUtil;
+import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
-import com.dci.intellij.dbn.common.thread.SimpleBackgroundTask;
+import com.dci.intellij.dbn.common.thread.SimpleBackgroundInvocator;
 import com.dci.intellij.dbn.common.ui.tree.TreeEventType;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.common.util.CommonUtil;
@@ -31,45 +31,20 @@ import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.data.type.DBDataType;
 import com.dci.intellij.dbn.data.type.DBNativeDataType;
 import com.dci.intellij.dbn.data.type.DataTypeDefinition;
-import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
-import com.dci.intellij.dbn.database.DatabaseFeature;
-import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
-import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
-import com.dci.intellij.dbn.database.DatabaseObjectIdentifier;
+import com.dci.intellij.dbn.database.*;
 import com.dci.intellij.dbn.editor.code.SourceCodeEditor;
 import com.dci.intellij.dbn.editor.code.SourceCodeManagerAdapter;
 import com.dci.intellij.dbn.editor.code.SourceCodeManagerListener;
 import com.dci.intellij.dbn.execution.compiler.CompileManagerListener;
 import com.dci.intellij.dbn.execution.statement.DataDefinitionChangeListener;
-import com.dci.intellij.dbn.object.DBCharset;
-import com.dci.intellij.dbn.object.DBGrantedPrivilege;
-import com.dci.intellij.dbn.object.DBGrantedRole;
-import com.dci.intellij.dbn.object.DBObjectPrivilege;
-import com.dci.intellij.dbn.object.DBPrivilege;
-import com.dci.intellij.dbn.object.DBRole;
-import com.dci.intellij.dbn.object.DBSchema;
-import com.dci.intellij.dbn.object.DBSynonym;
-import com.dci.intellij.dbn.object.DBSystemPrivilege;
-import com.dci.intellij.dbn.object.DBUser;
+import com.dci.intellij.dbn.object.*;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.dci.intellij.dbn.object.common.list.DBObjectListImpl;
 import com.dci.intellij.dbn.object.common.list.DBObjectRelationListContainer;
-import com.dci.intellij.dbn.object.impl.DBCharsetImpl;
-import com.dci.intellij.dbn.object.impl.DBGrantedPrivilegeImpl;
-import com.dci.intellij.dbn.object.impl.DBGrantedRoleImpl;
-import com.dci.intellij.dbn.object.impl.DBObjectPrivilegeImpl;
-import com.dci.intellij.dbn.object.impl.DBRoleImpl;
-import com.dci.intellij.dbn.object.impl.DBRolePrivilegeRelation;
-import com.dci.intellij.dbn.object.impl.DBRoleRoleRelation;
-import com.dci.intellij.dbn.object.impl.DBSchemaImpl;
-import com.dci.intellij.dbn.object.impl.DBSystemPrivilegeImpl;
-import com.dci.intellij.dbn.object.impl.DBUserImpl;
-import com.dci.intellij.dbn.object.impl.DBUserPrivilegeRelation;
-import com.dci.intellij.dbn.object.impl.DBUserRoleRelation;
+import com.dci.intellij.dbn.object.impl.*;
 import com.dci.intellij.dbn.vfs.file.DBSourceCodeVirtualFile;
 import com.intellij.navigation.ItemPresentation;
-import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -78,15 +53,13 @@ import javax.swing.*;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static com.dci.intellij.dbn.common.content.DynamicContentStatus.INDEXED;
 
-public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectBundle {
+public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectBundle, NotificationSupport {
     private ConnectionHandler connectionHandler;
     private BrowserTreeNode treeParent;
     private List<BrowserTreeNode> allPossibleTreeChildren;
@@ -101,7 +74,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     private DBObjectList<DBCharset> charsets;
 
     private List<DBNativeDataType> nativeDataTypes;
-    private List<DBDataType> cachedDataTypes = new CopyOnWriteArrayList<DBDataType>();
+    private List<DBDataType> cachedDataTypes = new CopyOnWriteArrayList<>();
 
     private DBObjectListContainer objectLists;
     private DBObjectRelationListContainer objectRelationLists;
@@ -180,10 +153,12 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             if (schemaObject.getConnectionHandler() == getConnectionHandler()) {
                 DBObjectListContainer childObjects = schemaObject.getChildObjects();
                 if (childObjects != null) {
-                    List<DBObjectList<DBObject>> objectLists = childObjects.getAllObjectLists();
-                    for (DBObjectList objectList : objectLists) {
-                        if (objectList.isLoaded()) {
-                            objectList.refresh();
+                    List<DBObjectList<DBObject>> objectLists = childObjects.getObjectLists();
+                    if (objectLists != null && !objectLists.isEmpty()) {
+                        for (DBObjectList objectList : objectLists) {
+                            if (objectList.isLoaded()) {
+                                objectList.refresh();
+                            }
                         }
                     }
                 }
@@ -194,23 +169,16 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     private final SourceCodeManagerListener sourceCodeManagerListener = new SourceCodeManagerAdapter() {
         @Override
         public void sourceCodeSaved(final DBSourceCodeVirtualFile sourceCodeFile, @Nullable SourceCodeEditor fileEditor) {
-            new BackgroundTask(getProject(), "Reloading database object", true) {
-
-                @Override
-                protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
-                    DBObject object = sourceCodeFile.getObject();
-                    object.refresh();
-                }
-            }.start();
+            BackgroundTask.invoke(getProject(), "Reloading database object", true, false, (task, progress) -> {
+                DBObject object = sourceCodeFile.getObject();
+                object.refresh();
+            });
         }
     };
 
-    private CompileManagerListener compileManagerListener = new CompileManagerListener() {
-        @Override
-        public void compileFinished(@NotNull ConnectionHandler connectionHandler, @Nullable DBSchemaObject object) {
-            if (getConnectionHandler().equals(connectionHandler)) {
-                refreshObjectsStatus(object);
-            }
+    private CompileManagerListener compileManagerListener = (connectionHandler, object) -> {
+        if (getConnectionHandler().equals(connectionHandler)) {
+            refreshObjectsStatus(object);
         }
     };
 
@@ -248,21 +216,21 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     }
 
     @NotNull
-    public synchronized List<DBNativeDataType> getNativeDataTypes(){
+    public List<DBNativeDataType> getNativeDataTypes(){
         if (nativeDataTypes == null) {
-            DatabaseInterfaceProvider interfaceProvider = getConnectionHandler().getInterfaceProvider();
-            List<DataTypeDefinition> dataTypeDefinitions = interfaceProvider.getNativeDataTypes().list();
-            nativeDataTypes = new ArrayList<DBNativeDataType>();
-            for (DataTypeDefinition dataTypeDefinition : dataTypeDefinitions) {
-                DBNativeDataType dataType = new DBNativeDataType(dataTypeDefinition);
-                nativeDataTypes.add(dataType);
-            }
-            Collections.sort(nativeDataTypes, new Comparator<DBNativeDataType>() {
-                @Override
-                public int compare(DBNativeDataType o1, DBNativeDataType o2) {
-                    return -o1.compareTo(o2);
+            synchronized (this) {
+                if (nativeDataTypes == null) {
+                    nativeDataTypes = new ArrayList<>();
+
+                    DatabaseInterfaceProvider interfaceProvider = getConnectionHandler().getInterfaceProvider();
+                    List<DataTypeDefinition> dataTypeDefinitions = interfaceProvider.getNativeDataTypes().list();
+                    for (DataTypeDefinition dataTypeDefinition : dataTypeDefinitions) {
+                        DBNativeDataType dataType = new DBNativeDataType(dataTypeDefinition);
+                        nativeDataTypes.add(dataType);
+                    }
+                    nativeDataTypes.sort((o1, o2) -> -o1.compareTo(o2));
                 }
-            });
+            }
         }
         return nativeDataTypes;
     }
@@ -361,15 +329,9 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
         if (visibleTreeChildren == null) {
             synchronized (this) {
                 if (visibleTreeChildren == null) {
-                    visibleTreeChildren = new ArrayList<BrowserTreeNode>();
+                    visibleTreeChildren = new ArrayList<>();
                     visibleTreeChildren.add(new LoadInProgressTreeNode(this));
-
-                    new SimpleBackgroundTask("load database objects") {
-                        @Override
-                        protected void execute() {
-                            buildTreeChildren();
-                        }
-                    }.start();
+                    SimpleBackgroundInvocator.invoke(this::buildTreeChildren);
                 }
             }
         }
@@ -381,7 +343,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
         List<BrowserTreeNode> newTreeChildren = allPossibleTreeChildren;
         Filter<BrowserTreeNode> filter = getConnectionHandler().getObjectTypeFilter();
         if (!filter.acceptsAll(allPossibleTreeChildren)) {
-            newTreeChildren = new ArrayList<BrowserTreeNode>();
+            newTreeChildren = new ArrayList<>();
             for (BrowserTreeNode treeNode : allPossibleTreeChildren) {
                 if (treeNode != null && filter.accepts(treeNode)) {
                     DBObjectList objectList = (DBObjectList) treeNode;
@@ -628,30 +590,26 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
     public void refreshObjectsStatus(final @Nullable DBSchemaObject requester) {
         if (DatabaseFeature.OBJECT_INVALIDATION.isSupported(getConnectionHandler())) {
-            new BackgroundTask(getProject(), "Updating objects status", true, true) {
-                @Override
-                protected void execute(@NotNull ProgressIndicator progressIndicator) {
-                    try {
-                        List<DBSchema> schemas = requester == null ? getSchemas() : requester.getReferencingSchemas();
+            BackgroundTask.invoke(getProject(), "Updating objects status", true, true, (task, progress) -> {
+                try {
+                    List<DBSchema> schemas = requester == null ? getSchemas() : requester.getReferencingSchemas();
 
-                        int size = schemas.size();
-                        for (int i=0; i<size; i++) {
-                            if (!progressIndicator.isCanceled()) {
-                                DBSchema schema = schemas.get(i);
-                                if (size > 3) {
-                                    progressIndicator.setIndeterminate(false);
-                                    progressIndicator.setFraction(CommonUtil.getProgressPercentage(i, size));
-                                }
-                                progressIndicator.setText("Updating object status in schema " + schema.getName() + "... ");
-                                schema.refreshObjectsStatus();
+                    int size = schemas.size();
+                    for (int i=0; i<size; i++) {
+                        if (!progress.isCanceled()) {
+                            DBSchema schema = schemas.get(i);
+                            if (size > 3) {
+                                progress.setIndeterminate(false);
+                                progress.setFraction(CommonUtil.getProgressPercentage(i, size));
                             }
+                            progress.setText("Updating object status in schema " + schema.getName() + "... ");
+                            schema.refreshObjectsStatus();
                         }
-                    } catch (SQLException e) {
-                        NotificationUtil.sendErrorNotification(getProject(), "Object Status Refresh", "Could not refresh object status. Cause: " + e.getMessage());
                     }
+                } catch (SQLException e) {
+                    sendErrorNotification("Object Status Refresh", "Could not refresh object status. Cause: " + e.getMessage());
                 }
-
-            }.start();
+            });
         }
     }
 
@@ -701,11 +659,11 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     public void dispose() {
         if (!isDisposed()) {
             super.dispose();
-            DisposerUtil.dispose(objectLists);
-            DisposerUtil.dispose(objectRelationLists);
+            DisposerUtil.disposeInBackground(objectLists);
+            DisposerUtil.disposeInBackground(objectRelationLists);
             CollectionUtil.clearCollection(visibleTreeChildren);
             CollectionUtil.clearCollection(allPossibleTreeChildren);
-            cachedDataTypes.clear();
+            CollectionUtil.clearCollection(cachedDataTypes);
             treeParent = null;
             connectionHandler = null;
         }

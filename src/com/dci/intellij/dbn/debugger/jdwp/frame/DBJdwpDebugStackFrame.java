@@ -1,8 +1,8 @@
 package com.dci.intellij.dbn.debugger.jdwp.frame;
 
-import com.dci.intellij.dbn.common.util.LazyValue;
-import com.dci.intellij.dbn.common.util.SimpleLazyValue;
+import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.debugger.DBDebugUtil;
+import com.dci.intellij.dbn.debugger.common.frame.DBDebugSourcePosition;
 import com.dci.intellij.dbn.debugger.common.frame.DBDebugStackFrame;
 import com.dci.intellij.dbn.debugger.jdwp.evaluation.DBJdwpDebuggerEvaluator;
 import com.dci.intellij.dbn.debugger.jdwp.process.DBJdwpDebugProcess;
@@ -14,7 +14,6 @@ import com.intellij.debugger.engine.JavaStackFrame;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.xdebugger.XSourcePosition;
 import com.intellij.xdebugger.frame.XCompositeNode;
-import com.intellij.xdebugger.impl.XSourcePositionImpl;
 import com.sun.jdi.Location;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -25,21 +24,12 @@ import java.util.Set;
 public class DBJdwpDebugStackFrame extends DBDebugStackFrame<DBJdwpDebugProcess, DBJdwpDebugValue>{
     private long childrenComputed = 0;
     private JavaStackFrame underlyingFrame;
-    private LazyValue<DBJdwpDebuggerEvaluator> evaluator = new SimpleLazyValue<DBJdwpDebuggerEvaluator>() {
-        @Override
-        protected DBJdwpDebuggerEvaluator load() {
-            return new DBJdwpDebuggerEvaluator(DBJdwpDebugStackFrame.this);
-        }
-    };
 
-    private LazyValue<Location> location = new SimpleLazyValue<Location>() {
-        @Override
-        protected Location load() {
-            return underlyingFrame == null ? null : underlyingFrame.getDescriptor().getLocation();
-        }
-    };
+    private Latent<DBJdwpDebuggerEvaluator> evaluator = Latent.create(() -> new DBJdwpDebuggerEvaluator(DBJdwpDebugStackFrame.this));
 
-    public DBJdwpDebugStackFrame(DBJdwpDebugProcess debugProcess, JavaStackFrame underlyingFrame, int index) {
+    private Latent<Location> location = Latent.create(() -> underlyingFrame == null ? null : underlyingFrame.getDescriptor().getLocation());
+
+    DBJdwpDebugStackFrame(DBJdwpDebugProcess debugProcess, JavaStackFrame underlyingFrame, int index) {
         super(debugProcess, index);
         this.underlyingFrame = underlyingFrame;
     }
@@ -69,7 +59,7 @@ public class DBJdwpDebugStackFrame extends DBDebugStackFrame<DBJdwpDebugProcess,
                 lineNumber += statementExecutionInput.getExecutableLineNumber();
             }
         }
-        return XSourcePositionImpl.create(getVirtualFile(), lineNumber);
+        return DBDebugSourcePosition.create(getVirtualFile(), lineNumber);
     }
 
     @Override

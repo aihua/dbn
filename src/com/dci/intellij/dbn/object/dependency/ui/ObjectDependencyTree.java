@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.object.dependency.ui;
 
 import com.dci.intellij.dbn.common.dispose.Disposable;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.load.LoadInProgressRegistry;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.ui.tree.DBNTree;
 import com.dci.intellij.dbn.common.util.CommonUtil;
@@ -12,12 +13,7 @@ import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.dependency.ObjectDependencyManager;
 import com.dci.intellij.dbn.object.dependency.ObjectDependencyType;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
-import com.intellij.openapi.actionSystem.ActionManager;
-import com.intellij.openapi.actionSystem.ActionPopupMenu;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.DefaultActionGroup;
-import com.intellij.openapi.actionSystem.Presentation;
-import com.intellij.openapi.progress.ProcessCanceledException;
+import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.project.DumbAwareAction;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
@@ -26,37 +22,30 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import javax.swing.event.MouseInputAdapter;
-import javax.swing.event.TreeSelectionEvent;
-import javax.swing.event.TreeSelectionListener;
 import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 import java.awt.*;
 import java.awt.event.MouseEvent;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Set;
-import java.util.Timer;
-import java.util.TimerTask;
 
 public class ObjectDependencyTree extends DBNTree implements Disposable{
-    private final Set<ObjectDependencyTreeNode> loadInProgressNodes = new HashSet<ObjectDependencyTreeNode>();
     private DBObjectSelectionHistory selectionHistory =  new DBObjectSelectionHistory();
     private ObjectDependencyTreeSpeedSearch speedSearch;
     private Project project;
 
-    public ObjectDependencyTree(Project project, DBSchemaObject schemaObject) {
+    private LoadInProgressRegistry<ObjectDependencyTreeNode> loadInProgressRegistry =
+            LoadInProgressRegistry.create(this,
+                    node -> getModel().refreshLoadInProgressNode(node));
+
+    ObjectDependencyTree(Project project, DBSchemaObject schemaObject) {
         setModel(createModel(project, schemaObject));
         this.project = project;
         selectionHistory.add(schemaObject);
         getSelectionModel().setSelectionMode(TreeSelectionModel.SINGLE_TREE_SELECTION);
         setCellRenderer(new ObjectDependencyTreeCellRenderer());
-        addTreeSelectionListener(new TreeSelectionListener() {
-            @Override
-            public void valueChanged(TreeSelectionEvent e) {
-                revalidate();
-                repaint();
-            }
+        addTreeSelectionListener(e -> {
+            revalidate();
+            repaint();
         });
 
         speedSearch = new ObjectDependencyTreeSpeedSearch(this);
@@ -86,14 +75,11 @@ public class ObjectDependencyTree extends DBNTree implements Disposable{
 
                         ActionPopupMenu actionPopupMenu = ActionManager.getInstance().createActionPopupMenu("", actionGroup);
                         final JPopupMenu popupMenu = actionPopupMenu.getComponent();
-                        new SimpleLaterInvocator() {
-                            @Override
-                            protected void execute() {
-                                if (isShowing()) {
-                                    popupMenu.show(ObjectDependencyTree.this, event.getX(), event.getY());
-                                }
+                        SimpleLaterInvocator.invoke(() -> {
+                            if (isShowing()) {
+                                popupMenu.show(ObjectDependencyTree.this, event.getX(), event.getY());
                             }
-                        }.start();
+                        });
                     }
                 }
             }
@@ -160,7 +146,7 @@ public class ObjectDependencyTree extends DBNTree implements Disposable{
         return project;
     }
 
-    public DBObjectSelectionHistory getSelectionHistory() {
+    DBObjectSelectionHistory getSelectionHistory() {
         return selectionHistory;
     }
 
@@ -169,21 +155,25 @@ public class ObjectDependencyTree extends DBNTree implements Disposable{
         TreeUtil.selectPath(this, treePath);
     }
 
+    void registerLoadInProgressNode(ObjectDependencyTreeNode loadInProgressNode) {
+        loadInProgressRegistry.register(loadInProgressNode);
+    }
+
     public class SelectObjectAction extends DumbAwareAction {
         private DBObjectRef<DBSchemaObject> objectRef;
-        public SelectObjectAction(DBSchemaObject object) {
+        SelectObjectAction(DBSchemaObject object) {
             super("Select");
             objectRef = DBObjectRef.from(object);
         }
 
-        public void actionPerformed(AnActionEvent e) {
+        public void actionPerformed(@NotNull AnActionEvent e) {
             DBSchemaObject schemaObject = DBObjectRef.get(objectRef);
             if (schemaObject != null) {
                 setRootObject(schemaObject, true);
             }
         }
 
-        public void update(AnActionEvent e) {
+        public void update(@NotNull AnActionEvent e) {
             Presentation presentation = e.getPresentation();
             presentation.setText("Select");
         }
@@ -207,57 +197,13 @@ public class ObjectDependencyTree extends DBNTree implements Disposable{
         }
     }
 
-
-
-    /****************************************************
-     *              LoadInProgress handling             *
-     ****************************************************/
-
-    public void registerLoadInProgressNode(ObjectDependencyTreeNode node) {
-        synchronized (loadInProgressNodes) {
-            boolean startTimer = loadInProgressNodes.size() == 0;
-            loadInProgressNodes.add(node);
-            if (startTimer) {
-                Timer reloader = new Timer("DBN - Object Dependency Tree (load in progress reload timer)");
-                reloader.schedule(new LoadInProgressRefreshTask(), 0, 50);
-            }
-        }
-    }
-
-    private class LoadInProgressRefreshTask extends TimerTask {
-        int iterations = 0;
-        public void run() {
-            synchronized (loadInProgressNodes) {
-                try {
-                    Iterator<ObjectDependencyTreeNode> loadInProgressNodesIterator = loadInProgressNodes.iterator();
-                    while (loadInProgressNodesIterator.hasNext()) {
-                        ObjectDependencyTreeNode loadInProgressTreeNode = loadInProgressNodesIterator.next();
-                        if (loadInProgressTreeNode.isDisposed()) {
-                            loadInProgressNodesIterator.remove();
-                        } else {
-                            getModel().refreshLoadInProgressNode(loadInProgressTreeNode);
-                        }
-                    }
-
-                } catch (ProcessCanceledException e) {
-                    loadInProgressNodes.clear();
-                }
-
-                if (loadInProgressNodes.isEmpty()) {
-                    cancel();
-                }
-            }
-
-            iterations++;
-        }
-    }
     @Override
     public ObjectDependencyTreeModel getModel() {
         TreeModel model = super.getModel();
         return model instanceof ObjectDependencyTreeModel ? (ObjectDependencyTreeModel) model : null;
     }
 
-    public void setDependencyType(ObjectDependencyType dependencyType) {
+    void setDependencyType(ObjectDependencyType dependencyType) {
         ObjectDependencyTreeModel oldModel = getModel();
         Project project = FailsafeUtil.get(oldModel.getProject());
         ObjectDependencyManager dependencyManager = ObjectDependencyManager.getInstance(project);
@@ -270,7 +216,7 @@ public class ObjectDependencyTree extends DBNTree implements Disposable{
         }
     }
 
-    public void setRootObject(DBSchemaObject object, boolean addHistory) {
+    void setRootObject(DBSchemaObject object, boolean addHistory) {
         ObjectDependencyTreeModel oldModel = getModel();
         if (addHistory) {
             selectionHistory.add(object);

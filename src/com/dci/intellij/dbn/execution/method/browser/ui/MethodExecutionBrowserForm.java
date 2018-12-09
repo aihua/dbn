@@ -19,9 +19,7 @@ import com.dci.intellij.dbn.object.common.ui.ObjectTree;
 import com.dci.intellij.dbn.object.common.ui.ObjectTreeModel;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.intellij.openapi.actionSystem.ActionToolbar;
-import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.util.Disposer;
-import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import javax.swing.event.TreeSelectionListener;
@@ -37,7 +35,7 @@ public class MethodExecutionBrowserForm extends DBNFormImpl<MethodExecutionBrows
 
     private MethodBrowserSettings settings;
 
-    public MethodExecutionBrowserForm(MethodExecutionBrowserDialog parentComponent, ObjectTreeModel model, boolean debug) {
+    MethodExecutionBrowserForm(MethodExecutionBrowserDialog parentComponent, ObjectTreeModel model, boolean debug) {
         super(parentComponent);
         ActionToolbar actionToolbar = ActionUtil.createActionToolbar("", true,
                 new SelectConnectionComboBoxAction(this, debug),
@@ -86,17 +84,17 @@ public class MethodExecutionBrowserForm extends DBNFormImpl<MethodExecutionBrows
         }
     }
 
-    public void addTreeSelectionListener(TreeSelectionListener selectionListener) {
+    void addTreeSelectionListener(TreeSelectionListener selectionListener) {
         methodsTree.addTreeSelectionListener(selectionListener);
     }
 
-    public DBMethod getSelectedMethod() {
+    DBMethod getSelectedMethod() {
         TreePath selectionPath = methodsTree.getSelectionPath();
         if (selectionPath != null) {
             DefaultMutableTreeNode node = (DefaultMutableTreeNode) selectionPath.getLastPathComponent();
             Object userObject = node.getUserObject();
             if (userObject instanceof DBObjectRef) {
-                DBObjectRef objectRef = (DBObjectRef) userObject;
+                DBObjectRef<?> objectRef = (DBObjectRef) userObject;
                 DBObject object = DBObjectRef.get(objectRef);
                 if (object instanceof DBMethod) {
                     return (DBMethod) object;
@@ -106,25 +104,17 @@ public class MethodExecutionBrowserForm extends DBNFormImpl<MethodExecutionBrows
         return null;
     }
 
-    void updateTree() {
-        BackgroundTask backgroundTask = new BackgroundTask(getProject(), "Loading executable components", false) {
-            @Override
-            protected void execute(@NotNull ProgressIndicator progressIndicator) {
-                MethodBrowserSettings settings = getSettings();
-                final ObjectTreeModel model = new ObjectTreeModel(settings.getSchema(), settings.getVisibleObjectTypes(), null);
-                new SimpleLaterInvocator() {
-                    @Override
-                    protected void execute() {
-                        methodsTree.setModel(model);
+    private void updateTree() {
+        BackgroundTask.invoke(getProject(), "Loading executable components", false, false, (task, progress) -> {
+            MethodBrowserSettings settings = getSettings();
+            final ObjectTreeModel model = new ObjectTreeModel(settings.getSchema(), settings.getVisibleObjectTypes(), null);
+            SimpleLaterInvocator.invoke(() -> {
+                methodsTree.setModel(model);
 
-                        methodsTree.revalidate();
-                        methodsTree.repaint();
-                    }
-                }.start();
-
-            }
-        };
-        backgroundTask.start();
+                methodsTree.revalidate();
+                methodsTree.repaint();
+            });
+        });
     }
 
     public JPanel getComponent() {

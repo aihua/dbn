@@ -34,18 +34,18 @@ import static com.dci.intellij.dbn.common.ui.GUIUtil.updateBorderTitleForeground
 
 public class RegionalSettingsEditorForm extends ConfigurationEditorForm<RegionalSettings> {
     private JPanel mainPanel;
-    private DBNComboBox<LocaleOption> localeComboBox;
+    private JPanel previewPanel;
     private JLabel numberPreviewLabel;
     private JLabel integerPreviewLabel;
     private JLabel datePreviewLabel;
     private JLabel timePreviewLabel;
-    private JPanel previewPanel;
+    private JLabel errorLabel;
     private JTextField customNumberFormatTextField;
     private JTextField customDateFormatTextField;
     private JTextField customTimeFormatTextField;
-    private JLabel errorLabel;
     private JRadioButton presetPatternsRadioButton;
     private JRadioButton customPatternsRadioButton;
+    private DBNComboBox<LocaleOption> localeComboBox;
     private DBNComboBox<DBNumberFormat> numberFormatComboBox;
     private DBNComboBox<DBDateFormat> dateFormatComboBox;
 
@@ -207,15 +207,11 @@ public class RegionalSettingsEditorForm extends ConfigurationEditorForm<Regional
         regionalSettings.getCustomTimeFormat().to(customTimeFormatTextField);
         regionalSettings.getCustomNumberFormat().to(customNumberFormatTextField);
 
-        if (modified) {
-            new SettingsChangeNotifier() {
-                @Override
-                public void notifyChanges() {
-                    EventUtil.notify(regionalSettings.getProject(), RegionalSettingsListener.TOPIC).settingsChanged();
-                }
-            };
-        }
 
+        SettingsChangeNotifier.register(() -> {
+            if (modified) {
+                EventUtil.notify(regionalSettings.getProject(), RegionalSettingsListener.TOPIC).settingsChanged();
+            }});
     }
 
     public void resetFormChanges() {

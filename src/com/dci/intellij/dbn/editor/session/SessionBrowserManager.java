@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.editor.session;
 
-import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.option.InteractiveOptionHandler;

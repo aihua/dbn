@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.ddl;
 
-import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
@@ -17,11 +16,6 @@ import com.dci.intellij.dbn.vfs.file.DBSourceCodeVirtualFile;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
-import com.intellij.openapi.fileTypes.ExtensionFileNameMatcher;
-import com.intellij.openapi.fileTypes.FileNameMatcher;
-import com.intellij.openapi.fileTypes.FileTypeEvent;
-import com.intellij.openapi.fileTypes.FileTypeListener;
-import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.components.StoragePathMacros;
 import com.intellij.openapi.components.StorageScheme;
 import com.intellij.openapi.fileTypes.ExtensionFileNameMatcher;

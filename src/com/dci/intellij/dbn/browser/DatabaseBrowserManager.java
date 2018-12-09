@@ -239,6 +239,11 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
             }
         }
 
+        @Override
+        public void fileClosed(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
+
+        }
+
         public void selectionChanged(@NotNull FileEditorManagerEvent event) {
             if (scroll()) {
                 VirtualFile oldFile = event.getOldFile();

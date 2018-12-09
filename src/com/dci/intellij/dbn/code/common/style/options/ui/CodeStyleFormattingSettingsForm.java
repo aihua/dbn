@@ -42,7 +42,7 @@ public class CodeStyleFormattingSettingsForm extends ConfigurationEditorForm<Cod
                             GridConstraints.SIZEPOLICY_FIXED,
                             GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
 
-            JComboBox<CodeStylePreset> comboBox = new ComboBox<>();
+            JComboBox<CodeStylePreset> comboBox = new ComboBox();
             initComboBox(comboBox, option.getPresets().toArray(new CodeStylePreset[0]));
             label.setLabelFor(comboBox);
 

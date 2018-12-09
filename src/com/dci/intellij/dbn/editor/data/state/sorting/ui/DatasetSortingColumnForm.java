@@ -1,10 +1,7 @@
 package com.dci.intellij.dbn.editor.data.state.sorting.ui;
 
 import com.dci.intellij.dbn.common.Icons;
-import com.dci.intellij.dbn.common.ui.DBNFormImpl;
-import com.dci.intellij.dbn.common.ui.ValueSelector;
-import com.dci.intellij.dbn.common.ui.ValueSelectorListener;
-import com.dci.intellij.dbn.common.ui.ValueSelectorOption;
+import com.dci.intellij.dbn.common.ui.*;
 import com.dci.intellij.dbn.common.util.ActionUtil;
 import com.dci.intellij.dbn.data.sorting.SortingInstruction;
 import com.dci.intellij.dbn.editor.data.state.sorting.action.ChangeSortingDirectionAction;
@@ -23,19 +20,22 @@ import java.util.List;
 public class DatasetSortingColumnForm extends DBNFormImpl<DatasetEditorSortingForm> {
     private JPanel actionsPanel;
     private JPanel mainPanel;
-    private JPanel columnPanel;
     private JLabel indexLabel;
     private JLabel dataTypeLabel;
+    private DBNComboBox<DBColumn> columnComboBox;
 
     private SortingInstruction sortingInstruction;
 
-    public DatasetSortingColumnForm(final DatasetEditorSortingForm parent, SortingInstruction sortingInstruction) {
+    DatasetSortingColumnForm(final DatasetEditorSortingForm parent, SortingInstruction sortingInstruction) {
         super(parent);
         this.sortingInstruction = sortingInstruction;
 
-        DBColumn column = parent.getDataset().getColumn(sortingInstruction.getColumnName());
-        ColumnSelector columnSelector = new ColumnSelector(column);
-        columnPanel.add(columnSelector, BorderLayout.CENTER);
+        DBDataset dataset = parent.getDataset();
+        DBColumn column = sortingInstruction.getColumn(dataset);
+        columnComboBox.setValues(dataset.getColumns());
+        columnComboBox.setSelectedValue(column);
+        columnComboBox.set(ValueSelectorOption.HIDE_DESCRIPTION, true);
+        columnComboBox.setBackground(UIUtil.getTextFieldBackground());
         dataTypeLabel.setText(column.getDataType().getQualifiedName());
         dataTypeLabel.setForeground(UIUtil.getInactiveTextColor());
 
@@ -47,8 +47,8 @@ public class DatasetSortingColumnForm extends DBNFormImpl<DatasetEditorSortingFo
     }
 
     private class ColumnSelector extends ValueSelector<DBColumn>{
-        public ColumnSelector(DBColumn selectedColumn) {
-            super(Icons.DBO_COLUMN_HIDDEN, "Select column...", selectedColumn, true, ValueSelectorOption.HIDE_DESCRIPTION);
+        ColumnSelector(DBColumn selectedColumn) {
+            super(Icons.DBO_COLUMN_HIDDEN, "Select column...", selectedColumn, ValueSelectorOption.HIDE_DESCRIPTION);
             addListener(new ValueSelectorListener<DBColumn>() {
                 @Override
                 public void selectionChanged(DBColumn oldValue, DBColumn newValue) {

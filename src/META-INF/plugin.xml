@@ -2,7 +2,7 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.0.8222.3</version>
+    <version>3.1.0025.3</version>
     <category>Database</category>
     <depends>com.intellij.modules.lang</depends>
     <vendor email="dancioca@bluewin.ch" logo="/img/project/DatabaseNavigator.png">Dan Cioca</vendor>
@@ -28,6 +28,13 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
+            <li><b>3.1.0025</b>
+            <ul>
+                - Support for latest IDE versions<br>
+                - Discontinued support for IntelliJ 13.x and related products<br>
+                - Small bug fixes and performance improvements<br>
+                - <span style='color:red; font-weight: bold'>JRE 8.x or higher required</span><br>
+            </ul>
             <li><b>3.0.8222</b>
             <ul>
                 - Resolved JDWP debugger initialization issues<br>
@@ -124,6 +131,7 @@
         <component><implementation-class>com.dci.intellij.dbn.editor.console.SQLConsoleEditorProvider</implementation-class></component>
         <component><implementation-class>com.dci.intellij.dbn.connection.ConnectionCache</implementation-class></component>
         <component><implementation-class>com.dci.intellij.dbn.connection.ssh.SshTunnelManager</implementation-class></component>
+        <component><implementation-class>com.dci.intellij.dbn.connection.ssl.SslConnectionManager</implementation-class></component>
         <component><implementation-class>com.dci.intellij.dbn.options.DefaultProjectSettingsManager</implementation-class></component>
         <component><implementation-class>com.dci.intellij.dbn.common.ide.IdeMonitor</implementation-class></component>
     </application-components>

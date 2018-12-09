@@ -1,18 +1,29 @@
 package com.dci.intellij.dbn.connection.console;
 
+import java.util.List;
+
+import org.jdom.CDATA;
+import org.jdom.Element;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.message.MessageCallback;
 import com.dci.intellij.dbn.common.options.setting.SettingsUtil;
 import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
+import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
+import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionManager;
 import com.dci.intellij.dbn.connection.console.ui.CreateRenameConsoleDialog;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
+import com.dci.intellij.dbn.connection.session.DatabaseSessionBundle;
 import com.dci.intellij.dbn.connection.session.SessionManagerListener;
 import com.dci.intellij.dbn.vfs.DBConsoleType;
 import com.dci.intellij.dbn.vfs.file.DBConsoleVirtualFile;
@@ -28,13 +39,6 @@ import com.intellij.openapi.vfs.VirtualFileEvent;
 import com.intellij.openapi.vfs.VirtualFileListener;
 import com.intellij.openapi.vfs.VirtualFilePropertyEvent;
 import com.intellij.util.EventDispatcher;
-import org.jdom.CDATA;
-import org.jdom.Element;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
 
 @State(
     name = DatabaseConsoleManager.COMPONENT_NAME,
@@ -67,16 +71,13 @@ public class DatabaseConsoleManager extends AbstractProjectComponent implements 
 
 
     private void showCreateRenameConsoleDialog(final ConnectionHandler connectionHandler, final DBConsoleVirtualFile consoleVirtualFile, final DBConsoleType consoleType) {
-        new ConditionalLaterInvocator() {
-            @Override
-            protected void execute() {
-                CreateRenameConsoleDialog createConsoleDialog = consoleVirtualFile == null ?
-                        new CreateRenameConsoleDialog(connectionHandler, consoleType) :
-                        new CreateRenameConsoleDialog(connectionHandler, consoleVirtualFile);
-                createConsoleDialog.setModal(true);
-                createConsoleDialog.show();
-            }
-        }.start();
+        ConditionalLaterInvocator.invoke(() -> {
+            CreateRenameConsoleDialog createConsoleDialog = consoleVirtualFile == null ?
+                    new CreateRenameConsoleDialog(connectionHandler, consoleType) :
+                    new CreateRenameConsoleDialog(connectionHandler, consoleVirtualFile);
+            createConsoleDialog.setModal(true);
+            createConsoleDialog.show();
+        });
     }
 
     public void createConsole(ConnectionHandler connectionHandler, String name, DBConsoleType type) {
@@ -109,16 +110,13 @@ public class DatabaseConsoleManager extends AbstractProjectComponent implements 
                 "You will loose the information contained in this console.\n" +
                         "Are you sure you want to delete the console?",
                 MessageUtil.OPTIONS_YES_NO, 0,
-                new MessageCallback(0) {
-                    @Override
-                    protected void execute() {
-                        FileEditorManager.getInstance(project).closeFile(consoleFile);
-                        ConnectionHandler connectionHandler = consoleFile.getConnectionHandler();
-                        String fileName = consoleFile.getName();
-                        connectionHandler.getConsoleBundle().removeConsole(fileName);
-                        eventDispatcher.getMulticaster().fileDeleted(new VirtualFileEvent(this, consoleFile, fileName, null));
-                    }
-                });
+                MessageCallback.create(0, () -> {
+                    FileEditorManager.getInstance(project).closeFile(consoleFile);
+                    ConnectionHandler connectionHandler = consoleFile.getConnectionHandler();
+                    String fileName = consoleFile.getName();
+                    connectionHandler.getConsoleBundle().removeConsole(fileName);
+                    eventDispatcher.getMulticaster().fileDeleted(new VirtualFileEvent(this, consoleFile, fileName, null));
+                }));
     }
 
 
@@ -167,8 +165,14 @@ public class DatabaseConsoleManager extends AbstractProjectComponent implements 
                 Element consoleElement = new Element("console");
                 connectionElement.addContent(consoleElement);
 
+                DatabaseSession databaseSession = CommonUtil.nvl(
+                        console.getDatabaseSession(),
+                        connectionHandler.getSessionBundle().getMainSession());
+
                 consoleElement.setAttribute("name", console.getName());
                 consoleElement.setAttribute("type", console.getType().name());
+                consoleElement.setAttribute("schema", CommonUtil.nvl(console.getDatabaseSchemaName(), ""));
+                consoleElement.setAttribute("session", databaseSession.getName());
                 consoleElement.addContent(new CDATA(console.getContent().exportContent()));
             }
         }
@@ -176,7 +180,7 @@ public class DatabaseConsoleManager extends AbstractProjectComponent implements 
     }
 
     @Override
-    public void loadState(Element element) {
+    public void loadState(@NotNull Element element) {
         ConnectionManager connectionManager = ConnectionManager.getInstance(getProject());
         for (Element connectionElement : element.getChildren()) {
             ConnectionId connectionId = ConnectionId.get(connectionElement.getAttributeValue("id"));
@@ -186,12 +190,26 @@ public class DatabaseConsoleManager extends AbstractProjectComponent implements 
                 DatabaseConsoleBundle consoleBundle = connectionHandler.getConsoleBundle();
                 for (Element consoleElement : connectionElement.getChildren()) {
                     String consoleName = consoleElement.getAttributeValue("name");
+
+                    // schema
+                    String schema = consoleElement.getAttributeValue("schema");
+
+                    // session
+                    String session = consoleElement.getAttributeValue("session");
+                    DatabaseSessionBundle sessionBundle = connectionHandler.getSessionBundle();
+                    DatabaseSession databaseSession = StringUtil.isEmpty(session) ?
+                            sessionBundle.getMainSession() :
+                            sessionBundle.getSession(session);
+
+
                     DBConsoleType consoleType = SettingsUtil.getEnumAttribute(consoleElement, "type", DBConsoleType.class);
 
                     String consoleText = SettingsUtil.readCdata(consoleElement);
 
                     DBConsoleVirtualFile consoleVirtualFile = consoleBundle.getConsole(consoleName, consoleType, true);
                     consoleVirtualFile.setText(consoleText);
+                    consoleVirtualFile.setDatabaseSchemaName(schema);
+                    consoleVirtualFile.setDatabaseSession(databaseSession);
                 }
             }
         }

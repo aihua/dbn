@@ -17,6 +17,7 @@ import com.dci.intellij.dbn.vfs.file.DBSourceCodeVirtualFile;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
+import com.intellij.openapi.fileTypes.*;
 import com.intellij.openapi.components.StoragePathMacros;
 import com.intellij.openapi.components.StorageScheme;
 import com.intellij.openapi.fileTypes.ExtensionFileNameMatcher;
@@ -48,22 +49,20 @@ public class DDLFileManager extends AbstractProjectComponent implements Persiste
     private static boolean isRegisteringFileTypes = false;
 
     public static void registerExtensions(final DDLFileExtensionSettings settings) {
-        new WriteActionRunner() {
-            public void run() {
-                try {
-                    isRegisteringFileTypes = true;
-                    FileTypeManager fileTypeManager = FileTypeManager.getInstance();
-                    List<DDLFileType> ddlFileTypeList = settings.getDDLFileTypes();
-                    for (DDLFileType ddlFileType : ddlFileTypeList) {
-                        for (String extension : ddlFileType.getExtensions()) {
-                            fileTypeManager.associateExtension(ddlFileType.getLanguageFileType(), extension);
-                        }
+        WriteActionRunner.invoke(() -> {
+            try {
+                isRegisteringFileTypes = true;
+                FileTypeManager fileTypeManager = FileTypeManager.getInstance();
+                List<DDLFileType> ddlFileTypeList = settings.getDDLFileTypes();
+                for (DDLFileType ddlFileType : ddlFileTypeList) {
+                    for (String extension : ddlFileType.getExtensions()) {
+                        fileTypeManager.associateExtension(ddlFileType.getLanguageFileType(), extension);
                     }
-                } finally {
-                    isRegisteringFileTypes = false;
                 }
+            } finally {
+                isRegisteringFileTypes = false;
             }
-        }.start();
+        });
     }
 
     public static DDLFileManager getInstance(@NotNull Project project) {
@@ -164,12 +163,7 @@ public class DDLFileManager extends AbstractProjectComponent implements Persiste
     }
 
     public void projectOpened() {
-        new SimpleLaterInvocator() {
-            @Override
-            protected void execute() {
-                registerExtensions(getExtensionSettings());
-            }
-        }.start();
+        SimpleLaterInvocator.invoke(() -> registerExtensions(getExtensionSettings()));
     }
 
     public void projectClosed() {
@@ -185,7 +179,7 @@ public class DDLFileManager extends AbstractProjectComponent implements Persiste
     }
 
     @Override
-    public void loadState(Element element) {
+    public void loadState(@NotNull Element element) {
 
     }
 }

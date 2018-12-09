@@ -10,20 +10,18 @@ import com.dci.intellij.dbn.data.model.basic.BasicDataModel;
 import com.intellij.find.FindManager;
 import com.intellij.find.FindResult;
 import com.intellij.openapi.Disposable;
-import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
-import org.jetbrains.annotations.NotNull;
 
 import java.awt.*;
 
 public class DataSearchResultController implements Disposable{
     private SearchableDataComponent searchableComponent;
 
-    public DataSearchResultController(SearchableDataComponent searchableComponent) {
+    DataSearchResultController(SearchableDataComponent searchableComponent) {
         this.searchableComponent = searchableComponent;
     }
 
-    public void moveCursor(DataSearchDirection direction) {
+    void moveCursor(DataSearchDirection direction) {
         BasicTable<? extends BasicDataModel> table = searchableComponent.getTable();
         DataModel dataModel = table.getModel();
         DataSearchResult searchResult = dataModel.getSearchResult();
@@ -36,7 +34,7 @@ public class DataSearchResultController implements Disposable{
         updateSelection(table, oldSelection, selection);
     }
 
-    public void selectFirst(int selectedRowIndex, int selectedColumnIndex) {
+    private void selectFirst(int selectedRowIndex, int selectedColumnIndex) {
         BasicTable<? extends BasicDataModel> table = searchableComponent.getTable();
         DataModel dataModel = table.getModel();
         DataSearchResult searchResult = dataModel.getSearchResult();
@@ -65,65 +63,58 @@ public class DataSearchResultController implements Disposable{
     }
 
     public void updateResult(final DataFindModel findModel) {
-        new BackgroundTask(searchableComponent.getTable().getProject(), "Updating search results", true) {
-            @Override
-            protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
-                DataModel dataModel = searchableComponent.getTable().getModel();
-                final DataSearchResult searchResult = dataModel.getSearchResult();
-                
-                long updateTimestamp = System.currentTimeMillis();
-                searchResult.startUpdating(updateTimestamp);
+        BackgroundTask.invoke(searchableComponent.getTable().getProject(), "Updating search results", true, false, (task, progress) -> {
+            DataModel dataModel = searchableComponent.getTable().getModel();
+            final DataSearchResult searchResult = dataModel.getSearchResult();
 
-                Project project = dataModel.getProject();
-                FindManager findManager = FindManager.getInstance(project);
+            long updateTimestamp = System.currentTimeMillis();
+            searchResult.startUpdating(updateTimestamp);
 
-                for (Object r : dataModel.getRows()) {
+            Project project = dataModel.getProject();
+            FindManager findManager = FindManager.getInstance(project);
+
+            for (Object r : dataModel.getRows()) {
+                searchResult.checkTimestamp(updateTimestamp);
+                DataModelRow row = (DataModelRow) r;
+                for (Object c : row.getCells()) {
                     searchResult.checkTimestamp(updateTimestamp);
-                    DataModelRow row = (DataModelRow) r;
-                    for (Object c : row.getCells()) {
-                        searchResult.checkTimestamp(updateTimestamp);
-                        DataModelCell cell = (DataModelCell) c;
-                        String userValue = cell.getFormattedUserValue();
-                        if (userValue != null) {
-                            int findOffset = 0;
-                            while (true) {
-                                FindResult findResult = findManager.findString(userValue, findOffset, findModel);
-                                searchResult.checkTimestamp(updateTimestamp);
-                                if (findResult.isStringFound()) {
-                                    searchResult.addMatch(cell, findResult.getStartOffset(), findResult.getEndOffset());
-                                    findOffset = findResult.getEndOffset();
-                                } else {
-                                    break;
-                                }
+                    DataModelCell cell = (DataModelCell) c;
+                    String userValue = cell.getFormattedUserValue();
+                    if (userValue != null) {
+                        int findOffset = 0;
+                        while (true) {
+                            FindResult findResult = findManager.findString(userValue, findOffset, findModel);
+                            searchResult.checkTimestamp(updateTimestamp);
+                            if (findResult.isStringFound()) {
+                                searchResult.addMatch(cell, findResult.getStartOffset(), findResult.getEndOffset());
+                                findOffset = findResult.getEndOffset();
+                            } else {
+                                break;
                             }
                         }
                     }
                 }
-                
-                searchResult.stopUpdating();
-
-                new SimpleLaterInvocator() {
-                    @Override
-                    protected void execute() {
-                        BasicTable table = searchableComponent.getTable();
-                        int selectedRowIndex = table.getSelectedRow();
-                        int selectedColumnIndex = table.getSelectedRow();
-                        if (selectedRowIndex < 0) selectedRowIndex = 0;
-                        if (selectedColumnIndex < 0) selectedColumnIndex = 0;
-                        searchableComponent.cancelEditActions();
-
-                        table.clearSelection();
-                        table.revalidate();
-                        table.repaint();
-
-                        selectFirst(selectedRowIndex, selectedColumnIndex);
-                        searchResult.notifyListeners();
-
-                    }
-                }.start();
-
             }
-        }.start();
+
+            searchResult.stopUpdating();
+
+            SimpleLaterInvocator.invoke(() -> {
+                BasicTable table = searchableComponent.getTable();
+                int selectedRowIndex = table.getSelectedRow();
+                int selectedColumnIndex = table.getSelectedRow();
+                if (selectedRowIndex < 0) selectedRowIndex = 0;
+                if (selectedColumnIndex < 0) selectedColumnIndex = 0;
+                searchableComponent.cancelEditActions();
+
+                table.clearSelection();
+                table.revalidate();
+                table.repaint();
+
+                selectFirst(selectedRowIndex, selectedColumnIndex);
+                searchResult.notifyListeners();
+            });
+
+        });
 
     }
 

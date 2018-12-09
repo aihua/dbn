@@ -11,6 +11,7 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.data.model.resultSet.ResultSetDataModelCell;
 import com.dci.intellij.dbn.data.type.DBDataType;
+import com.dci.intellij.dbn.data.type.GenericDataType;
 import com.dci.intellij.dbn.data.value.ValueAdapter;
 import com.dci.intellij.dbn.editor.EditorProviderId;
 import com.dci.intellij.dbn.editor.data.DatasetEditorError;
@@ -57,14 +58,15 @@ public class DatasetEditorModelCell extends ResultSetDataModelCell implements Ch
                 MessageUtil.showErrorDialog(getProject(), "Could not update cell value for " + getColumnInfo().getName() + ".", e);
                 return;
             }
-            final boolean isValueAdapter = userValue instanceof ValueAdapter || newUserValue instanceof ValueAdapter;
+            GenericDataType genericDataType = getColumnInfo().getDataType().getGenericDataType();
+            final boolean isValueAdapter = ValueAdapter.supports(genericDataType);
 
             final ConnectionHandler connectionHandler = getConnectionHandler();
             try {
                 clearError();
                 final int columnIndex = getColumnInfo().getResultSetColumnIndex();
                 if (isValueAdapter && userValue == null) {
-                    userValue = newUserValue.getClass().newInstance();
+                    userValue = ValueAdapter.create(genericDataType);
                 }
 
                 if (isValueAdapter) {
@@ -209,7 +211,7 @@ public class DatasetEditorModelCell extends ResultSetDataModelCell implements Ch
         return (DatasetEditorModel) super.getModel();
     }
 
-    public void setOriginalUserValue(Object value) {
+    void setOriginalUserValue(Object value) {
         if (originalUserValue == null) {
             isModified = value != null;
         } else {
@@ -237,11 +239,11 @@ public class DatasetEditorModelCell extends ResultSetDataModelCell implements Ch
         return column.isForeignKey() && getUserValue() != null;
     }
 
-    public void notifyCellUpdated() {
+    private void notifyCellUpdated() {
         getRow().getModel().notifyCellUpdated(getRow().getIndex(), getIndex());
     }
 
-    public void scrollToVisible() {
+    private void scrollToVisible() {
         DatasetEditorTable table = getEditorTable();
         table.scrollRectToVisible(table.getCellRect(getRow().getIndex(), getIndex(), true));
     }
@@ -268,7 +270,7 @@ public class DatasetEditorModelCell extends ResultSetDataModelCell implements Ch
         return error != null;
     }
 
-    public boolean notifyError(DatasetEditorError error, final boolean showPopup) {
+    boolean notifyError(DatasetEditorError error, final boolean showPopup) {
         error.setNotified(true);
         if(!CommonUtil.safeEqual(this.error, error)) {
             clearError();
@@ -290,28 +292,25 @@ public class DatasetEditorModelCell extends ResultSetDataModelCell implements Ch
         return false;
     }
 
-    public void showErrorPopup() {
-        new SimpleLaterInvocator() {
-            @Override
-            protected void execute() {
-                if (!isDisposed()) {
-                    DatasetEditorModelRow row = getRow();
-                    DatasetEditorModel model = row.getModel();
-                    DatasetEditorTable editorTable = model.getEditorTable();
-                    if (!editorTable.isShowing()) {
-                        DBDataset dataset = getDataset();
-                        DatabaseFileSystem.getInstance().openEditor(dataset, EditorProviderId.DATA, true);
-                    }
-                    if (error != null) {
-                        DatasetEditorErrorForm errorForm = new DatasetEditorErrorForm(DatasetEditorModelCell.this);
-                        errorForm.show();
-                    }
+    void showErrorPopup() {
+        SimpleLaterInvocator.invoke(() -> {
+            if (!isDisposed()) {
+                DatasetEditorModelRow row = getRow();
+                DatasetEditorModel model = row.getModel();
+                DatasetEditorTable editorTable = model.getEditorTable();
+                if (!editorTable.isShowing()) {
+                    DBDataset dataset = getDataset();
+                    DatabaseFileSystem.getInstance().openEditor(dataset, EditorProviderId.DATA, true);
+                }
+                if (error != null) {
+                    DatasetEditorErrorForm errorForm = new DatasetEditorErrorForm(DatasetEditorModelCell.this);
+                    errorForm.show();
                 }
             }
-        }.start();
+        });
     }
 
-    public void clearError() {
+    private void clearError() {
         if (error != null ) {
             error.markDirty();
             error = null;

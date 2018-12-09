@@ -5,33 +5,46 @@ import com.intellij.openapi.application.ApplicationManager;
 public abstract class WriteActionRunner {
     private RunnableTask callback;
 
-    public WriteActionRunner(RunnableTask callback) {
+    private WriteActionRunner(RunnableTask callback) {
         this.callback = callback;
     }
 
-    public WriteActionRunner() {
+    private WriteActionRunner() {
     }
 
     public void start() {
-        new SimpleLaterInvocator() {
-            @Override
-            protected void execute() {
-                Runnable writeAction = new Runnable() {
-                    public void run() {
-                        try {
-                            WriteActionRunner.this.run();
-                        } finally {
-                            if (callback != null) {
-                                callback.start();
-                            }
-                        }
+        SimpleLaterInvocator.invoke(() -> {
+            ApplicationManager.getApplication().runWriteAction(() -> {
+                try {
+                    WriteActionRunner.this.run();
+                } finally {
+                    if (callback != null) {
+                        callback.start();
                     }
-                };
-                ApplicationManager.getApplication().runWriteAction(writeAction);
+                }
+            });
+        });
+    }
+
+    public abstract void run();
+
+
+    public static void invoke(Runnable runnable) {
+        new WriteActionRunner() {
+            @Override
+            public void run() {
+                runnable.run();
             }
         }.start();
     }
 
-    public abstract void run();
+    public static void invoke(Runnable runnable, RunnableTask callback) {
+        new WriteActionRunner(callback) {
+            @Override
+            public void run() {
+                runnable.run();
+            }
+        }.start();
+    }
 
 }

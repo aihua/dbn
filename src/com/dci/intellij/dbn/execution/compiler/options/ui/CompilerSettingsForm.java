@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.execution.compiler.options.ui;
 
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
-import com.dci.intellij.dbn.common.ui.DBNComboBox;
 import com.dci.intellij.dbn.common.ui.Presentable;
 import com.dci.intellij.dbn.execution.compiler.CompileDependenciesOption;
 import com.dci.intellij.dbn.execution.compiler.CompileType;
@@ -12,29 +11,32 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.getSelection;
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.initComboBox;
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.setSelection;
 import static com.dci.intellij.dbn.common.ui.GUIUtil.updateBorderTitleForeground;
 
 public class CompilerSettingsForm extends ConfigurationEditorForm<CompilerSettings> {
     private JPanel mainPanel;
-    private DBNComboBox<CompileType> compileTypeComboBox;
-    private DBNComboBox<CompileDependenciesOption> compileDependenciesComboBox;
-    private DBNComboBox<ShowControlOption> showControlsComboBox;
+    private JComboBox<CompileType> compileTypeComboBox;
+    private JComboBox<CompileDependenciesOption> compileDependenciesComboBox;
+    private JComboBox<ShowControlOption> showControlsComboBox;
 
 
     public CompilerSettingsForm(CompilerSettings settings) {
         super(settings);
 
-        showControlsComboBox.setValues(
+        initComboBox(showControlsComboBox,
                 ShowControlOption.ALWAYS,
                 ShowControlOption.WHEN_INVALID);
 
-        compileTypeComboBox.setValues(
+        initComboBox(compileTypeComboBox,
                 CompileType.NORMAL,
                 CompileType.DEBUG,
                 CompileType.KEEP,
                 CompileType.ASK);
 
-        compileDependenciesComboBox.setValues(
+        initComboBox(compileDependenciesComboBox,
                 CompileDependenciesOption.YES,
                 CompileDependenciesOption.NO,
                 CompileDependenciesOption.ASK);
@@ -52,17 +54,17 @@ public class CompilerSettingsForm extends ConfigurationEditorForm<CompilerSettin
 
     public void applyFormChanges() throws ConfigurationException {
         CompilerSettings settings = getConfiguration();
-        settings.setCompileType(compileTypeComboBox.getSelectedValue());
-        settings.setCompileDependenciesOption(compileDependenciesComboBox.getSelectedValue());
-        ShowControlOption showControlOption = showControlsComboBox.getSelectedValue();
+        settings.setCompileType(getSelection(compileTypeComboBox));
+        settings.setCompileDependenciesOption(getSelection(compileDependenciesComboBox));
+        ShowControlOption showControlOption = getSelection(showControlsComboBox);
         settings.setAlwaysShowCompilerControls(showControlOption != null && showControlOption.getValue());
     }
 
     public void resetFormChanges() {
         CompilerSettings settings = getConfiguration();
-        compileTypeComboBox.setSelectedValue(settings.getCompileType());
-        compileDependenciesComboBox.setSelectedValue(settings.getCompileDependenciesOption());
-        showControlsComboBox.setSelectedValue(
+        setSelection(compileTypeComboBox, settings.getCompileType());
+        setSelection(compileDependenciesComboBox, settings.getCompileDependenciesOption());
+        setSelection(showControlsComboBox,
                 settings.alwaysShowCompilerControls() ?
                         ShowControlOption.ALWAYS:
                         ShowControlOption.WHEN_INVALID);

@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.editor.data.filter.ui;
 
+import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
 import com.dci.intellij.dbn.common.ui.DBNHeaderForm;
 import com.dci.intellij.dbn.common.util.ActionUtil;
@@ -125,11 +126,15 @@ public class DatasetFilterForm extends ConfigurationEditorForm<DatasetFilterGrou
                 String id = filter.getId();
                 ConfigurationEditorForm configurationEditorForm = filterDetailPanels.get(id);
                 if (configurationEditorForm == null) {
-                    filterDetailsPanel.add(filter.createComponent(), id);
-                    filterDetailPanels.put(id, filter.getSettingsEditor());
+                    JComponent component = filter.createComponent();
+                    filterDetailsPanel.add(component, id);
+
+                    configurationEditorForm = filter.getSettingsEditor();
+                    filterDetailPanels.put(id, configurationEditorForm);
+                    DisposerUtil.register(this, configurationEditorForm);
                 }
                 cardLayout.show(filterDetailsPanel, id);
-                filter.getSettingsEditor().focus();
+                configurationEditorForm.focus();
             }
         }
     }

@@ -3,22 +3,22 @@ package com.dci.intellij.dbn.code.common.style.options.ui;
 import com.dci.intellij.dbn.code.common.style.options.CodeStyleCase;
 import com.dci.intellij.dbn.code.common.style.options.CodeStyleCaseSettings;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
-import com.dci.intellij.dbn.common.ui.DBNComboBox;
 import com.intellij.openapi.options.ConfigurationException;
 
 import javax.swing.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.getSelection;
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.initComboBox;
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.setSelection;
 import static com.dci.intellij.dbn.common.ui.GUIUtil.updateBorderTitleForeground;
 
 public class CodeStyleCaseSettingsForm extends ConfigurationEditorForm<CodeStyleCaseSettings> {
     private JPanel mainPanel;
-    private DBNComboBox<CodeStyleCase> keywordCaseComboBox;
-    private DBNComboBox<CodeStyleCase> functionCaseComboBox;
-    private DBNComboBox<CodeStyleCase> parameterCaseComboBox;
-    private DBNComboBox<CodeStyleCase> datatypeCaseComboBox;
-    private DBNComboBox<CodeStyleCase> objectCaseComboBox;
+    private JComboBox<CodeStyleCase> keywordCaseComboBox;
+    private JComboBox<CodeStyleCase> functionCaseComboBox;
+    private JComboBox<CodeStyleCase> parameterCaseComboBox;
+    private JComboBox<CodeStyleCase> datatypeCaseComboBox;
+    private JComboBox<CodeStyleCase> objectCaseComboBox;
     private JCheckBox enableCheckBox;
 
     public static final CodeStyleCase[] OBJECT_STYLE_CASES = new CodeStyleCase[]{
@@ -36,21 +36,16 @@ public class CodeStyleCaseSettingsForm extends ConfigurationEditorForm<CodeStyle
         super(settings);
         updateBorderTitleForeground(mainPanel);
 
-        keywordCaseComboBox.setValues(KEYWORD_STYLE_CASES);
-        functionCaseComboBox.setValues(KEYWORD_STYLE_CASES);
-        parameterCaseComboBox.setValues(KEYWORD_STYLE_CASES);
-        datatypeCaseComboBox.setValues(KEYWORD_STYLE_CASES);
-        objectCaseComboBox.setValues(OBJECT_STYLE_CASES);
+        initComboBox(keywordCaseComboBox, KEYWORD_STYLE_CASES);
+        initComboBox(functionCaseComboBox, KEYWORD_STYLE_CASES);
+        initComboBox(parameterCaseComboBox, KEYWORD_STYLE_CASES);
+        initComboBox(datatypeCaseComboBox, KEYWORD_STYLE_CASES);
+        initComboBox(objectCaseComboBox, OBJECT_STYLE_CASES);
         resetFormChanges();
         enableDisableOptions();
 
         registerComponent(mainPanel);
-        enableCheckBox.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                enableDisableOptions();
-            }
-        });
+        enableCheckBox.addActionListener(e -> enableDisableOptions());
 
 
 
@@ -73,21 +68,21 @@ public class CodeStyleCaseSettingsForm extends ConfigurationEditorForm<CodeStyle
 
     public void applyFormChanges() throws ConfigurationException {
         CodeStyleCaseSettings settings = getConfiguration();
-        settings.getKeywordCaseOption().setStyleCase(keywordCaseComboBox.getSelectedValue());
-        settings.getFunctionCaseOption().setStyleCase(functionCaseComboBox.getSelectedValue());
-        settings.getParameterCaseOption().setStyleCase(parameterCaseComboBox.getSelectedValue());
-        settings.getDatatypeCaseOption().setStyleCase(datatypeCaseComboBox.getSelectedValue());
-        settings.getObjectCaseOption().setStyleCase(objectCaseComboBox.getSelectedValue());
+        settings.getKeywordCaseOption().setStyleCase(getSelection(keywordCaseComboBox));
+        settings.getFunctionCaseOption().setStyleCase(getSelection(functionCaseComboBox));
+        settings.getParameterCaseOption().setStyleCase(getSelection(parameterCaseComboBox));
+        settings.getDatatypeCaseOption().setStyleCase(getSelection(datatypeCaseComboBox));
+        settings.getObjectCaseOption().setStyleCase(getSelection(objectCaseComboBox));
         settings.setEnabled(enableCheckBox.isSelected());
     }
 
     public void resetFormChanges() {
         CodeStyleCaseSettings settings = getConfiguration();
-        keywordCaseComboBox.setSelectedValue(settings.getKeywordCaseOption().getStyleCase());
-        functionCaseComboBox.setSelectedValue(settings.getFunctionCaseOption().getStyleCase());
-        parameterCaseComboBox.setSelectedValue(settings.getParameterCaseOption().getStyleCase());
-        datatypeCaseComboBox.setSelectedValue(settings.getDatatypeCaseOption().getStyleCase());
-        objectCaseComboBox.setSelectedValue(settings.getObjectCaseOption().getStyleCase());
+        setSelection(keywordCaseComboBox, settings.getKeywordCaseOption().getStyleCase());
+        setSelection(functionCaseComboBox, settings.getFunctionCaseOption().getStyleCase());
+        setSelection(parameterCaseComboBox, settings.getParameterCaseOption().getStyleCase());
+        setSelection(datatypeCaseComboBox, settings.getDatatypeCaseOption().getStyleCase());
+        setSelection(objectCaseComboBox, settings.getObjectCaseOption().getStyleCase());
         enableCheckBox.setSelected(settings.isEnabled());
     }
 }

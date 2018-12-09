@@ -15,6 +15,7 @@ import com.dci.intellij.dbn.editor.session.SessionBrowserManager;
 import com.dci.intellij.dbn.editor.session.model.SessionBrowserModelRow;
 import com.dci.intellij.dbn.editor.session.ui.table.SessionBrowserTable;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
+import com.dci.intellij.dbn.language.common.PsiFileRef;
 import com.dci.intellij.dbn.language.sql.SQLLanguage;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.vfs.DatabaseFileViewProvider;
@@ -30,7 +31,6 @@ import com.intellij.openapi.editor.EditorSettings;
 import com.intellij.openapi.editor.colors.EditorColorsScheme;
 import com.intellij.openapi.editor.ex.EditorEx;
 import com.intellij.openapi.fileTypes.SyntaxHighlighter;
-import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiManager;
 import org.jetbrains.annotations.NotNull;
@@ -46,14 +46,14 @@ public class SessionBrowserCurrentSqlPanel extends DBNFormImpl{
 
 
     private DBSessionStatementVirtualFile virtualFile;
-    private DBLanguagePsiFile psiFile;
+    private PsiFileRef<DBLanguagePsiFile> psiFileRef;
     private Document document;
     private EditorEx viewer;
     private SessionBrowser sessionBrowser;
     private Object selectedSessionId;
 
 
-    public SessionBrowserCurrentSqlPanel(SessionBrowser sessionBrowser) {
+    SessionBrowserCurrentSqlPanel(SessionBrowser sessionBrowser) {
         this.sessionBrowser = sessionBrowser;
         createStatementViewer();
 
@@ -67,42 +67,46 @@ public class SessionBrowserCurrentSqlPanel extends DBNFormImpl{
         return mainPanel;
     }
 
-    public void setPreviewText(String text) {
+    private void setPreviewText(String text) {
         DocumentUtil.setText(document, text);
     }
 
-    public void setDatabaseSchema(DBSchema currentSchema) {
-        virtualFile.setDatabaseSchema(currentSchema);
+    private void setDatabaseSchema(DBSchema currentSchema) {
+        getVirtualFile().setDatabaseSchema(currentSchema);
     }
 
-    public void loadCurrentStatement() {
+    @NotNull
+    public DBSessionStatementVirtualFile getVirtualFile() {
+        return FailsafeUtil.get(virtualFile);
+    }
+
+    void loadCurrentStatement() {
         SessionBrowserTable editorTable = sessionBrowser.getEditorTable();
         if (editorTable.getSelectedRowCount() == 1) {
             SessionBrowserModelRow selectedRow = editorTable.getModel().getRowAtIndex(editorTable.getSelectedRow());
             if (selectedRow != null) {
                 setPreviewText("-- Loading...");
                 selectedSessionId = selectedRow.getSessionId();
-                final Object sessionId = selectedSessionId;
-                final String schemaName = selectedRow.getSchema();
-                final Project project = sessionBrowser.getProject();
-                new BackgroundTask(project, "Loading session current SQL", true) {
-                    @Override
-                    protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
-                        ConnectionHandler connectionHandler = getConnectionHandler();
-                        DBSchema schema = null;
-                        if (StringUtil.isNotEmpty(schemaName)) {
-                            schema = connectionHandler.getObjectBundle().getSchema(schemaName);
-                        }
 
-                        checkCancelled(sessionId);
-                        SessionBrowserManager sessionBrowserManager = SessionBrowserManager.getInstance(project);
-                        String sql = sessionBrowserManager.loadSessionCurrentSql(connectionHandler, sessionId);
+                Object sessionId = selectedSessionId;
+                String schemaName = selectedRow.getSchema();
+                Project project = sessionBrowser.getProject();
 
-                        checkCancelled(sessionId);
-                        setDatabaseSchema(schema);
-                        setPreviewText(sql.replace("\r\n", "\n"));
+                BackgroundTask.invoke(project, "Loading session current SQL", true, false, (task, progress) -> {
+                    ConnectionHandler connectionHandler = getConnectionHandler();
+                    DBSchema schema = null;
+                    if (StringUtil.isNotEmpty(schemaName)) {
+                        schema = connectionHandler.getObjectBundle().getSchema(schemaName);
                     }
-                }.start();
+
+                    checkCancelled(sessionId);
+                    SessionBrowserManager sessionBrowserManager = SessionBrowserManager.getInstance(project);
+                    String sql = sessionBrowserManager.loadSessionCurrentSql(connectionHandler, sessionId);
+
+                    checkCancelled(sessionId);
+                    setDatabaseSchema(schema);
+                    setPreviewText(sql.replace("\r\n", "\n"));
+                });
             } else {
                 setPreviewText("");
             }
@@ -123,7 +127,7 @@ public class SessionBrowserCurrentSqlPanel extends DBNFormImpl{
     }
 
     public DBLanguagePsiFile getPsiFile() {
-        return psiFile;
+        return psiFileRef.get();
     }
 
     private void createStatementViewer() {
@@ -131,8 +135,8 @@ public class SessionBrowserCurrentSqlPanel extends DBNFormImpl{
         ConnectionHandler connectionHandler = getConnectionHandler();
         virtualFile = new DBSessionStatementVirtualFile(sessionBrowser, "");
         DatabaseFileViewProvider viewProvider = new DatabaseFileViewProvider(PsiManager.getInstance(project), virtualFile, true);
-        psiFile = (DBLanguagePsiFile) virtualFile.initializePsiFile(viewProvider, SQLLanguage.INSTANCE);
-
+        DBLanguagePsiFile psiFile = (DBLanguagePsiFile) virtualFile.initializePsiFile(viewProvider, SQLLanguage.INSTANCE);
+        psiFileRef = new PsiFileRef<>(psiFile);
         document = DocumentUtil.getDocument(psiFile);
 
 
@@ -164,15 +168,15 @@ public class SessionBrowserCurrentSqlPanel extends DBNFormImpl{
 
 
     public class WrapUnwrapContentAction extends ToggleAction {
-        public WrapUnwrapContentAction() {
+        WrapUnwrapContentAction() {
             super("Wrap/Unwrap", "", Icons.ACTION_WRAP_TEXT);
         }
 
-        public boolean isSelected(AnActionEvent e) {
+        public boolean isSelected(@NotNull AnActionEvent e) {
             return viewer != null && viewer.getSettings().isUseSoftWraps();
         }
 
-        public void setSelected(AnActionEvent e, boolean state) {
+        public void setSelected(@NotNull AnActionEvent e, boolean state) {
             viewer.getSettings().setUseSoftWraps(state);
         }
 
@@ -186,12 +190,12 @@ public class SessionBrowserCurrentSqlPanel extends DBNFormImpl{
     }
 
     public class RefreshAction extends AnAction {
-        public RefreshAction() {
+        RefreshAction() {
             super("Reload", "", Icons.ACTION_REFRESH);
         }
 
         @Override
-        public void actionPerformed(AnActionEvent anActionEvent) {
+        public void actionPerformed(@NotNull AnActionEvent e) {
             loadCurrentStatement();
         }
     }

@@ -4,10 +4,8 @@ import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.compatibility.CompatibilityUtil;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
 import com.dci.intellij.dbn.common.ui.Borders;
-import com.dci.intellij.dbn.common.ui.DBNComboBox;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.common.ui.ValueSelector;
-import com.dci.intellij.dbn.common.ui.ValueSelectorListener;
 import com.dci.intellij.dbn.common.ui.ValueSelectorOption;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.editor.data.filter.ConditionJoinType;
@@ -37,7 +35,6 @@ import com.intellij.util.ui.UIUtil;
 import javax.swing.*;
 import javax.swing.border.LineBorder;
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -45,6 +42,10 @@ import java.awt.event.KeyListener;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.getSelection;
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.initComboBox;
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.setSelection;
 
 public class DatasetBasicFilterForm extends ConfigurationEditorForm<DatasetBasicFilter> {
     private JPanel conditionsPanel;
@@ -55,10 +56,10 @@ public class DatasetBasicFilterForm extends ConfigurationEditorForm<DatasetBasic
     private JPanel previewPanel;
     private JPanel addConditionsPanel;
     private JPanel filterNamePanel;
-    private DBNComboBox<ConditionJoinType> joinTypeComboBox;
+    private JComboBox<ConditionJoinType> joinTypeComboBox;
 
     private DBObjectRef<DBDataset> datasetRef;
-    private List<DatasetBasicFilterConditionForm> conditionForms = new ArrayList<DatasetBasicFilterConditionForm>();
+    private List<DatasetBasicFilterConditionForm> conditionForms = new ArrayList<>();
     private Document previewDocument;
     private boolean isCustomNamed;
     private EditorEx viewer;
@@ -78,8 +79,8 @@ public class DatasetBasicFilterForm extends ConfigurationEditorForm<DatasetBasic
             addConditionPanel(condition);
         }
 
-        joinTypeComboBox.setValues(ConditionJoinType.values());
-        joinTypeComboBox.setSelectedValue(filter.getJoinType());
+        initComboBox(joinTypeComboBox, ConditionJoinType.values());
+        setSelection(joinTypeComboBox, filter.getJoinType());
 
         nameTextField.addKeyListener(createKeyListener());
         registerComponent(mainPanel);
@@ -96,20 +97,15 @@ public class DatasetBasicFilterForm extends ConfigurationEditorForm<DatasetBasic
     }
 
     private class ColumnSelector extends ValueSelector<DBColumn> {
-        public ColumnSelector() {
-            super(PlatformIcons.ADD_ICON, "Add Condition", null, false, ValueSelectorOption.HIDE_DESCRIPTION);
-            addListener(new ValueSelectorListener<DBColumn>() {
-                @Override
-                public void selectionChanged(DBColumn oldValue, DBColumn newValue) {
-                    addConditionPanel(newValue);
-                }
-            });
+        ColumnSelector() {
+            super(PlatformIcons.ADD_ICON, "Add Condition", null, ValueSelectorOption.HIDE_DESCRIPTION);
+            addListener((oldValue, newValue) -> addConditionPanel(newValue));
         }
 
         @Override
         public List<DBColumn> loadValues() {
             DBDataset dataset = getDataset();
-            List<DBColumn> columns = new ArrayList<DBColumn>(dataset.getColumns());
+            List<DBColumn> columns = new ArrayList<>(dataset.getColumns());
             Collections.sort(columns);
             return columns;
         }
@@ -122,11 +118,7 @@ public class DatasetBasicFilterForm extends ConfigurationEditorForm<DatasetBasic
     }
 
     protected ActionListener createActionListener() {
-        return new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                updateNameAndPreview();
-            }
-        };
+        return e -> updateNameAndPreview();
     }
 
     private KeyListener createKeyListener() {
@@ -139,14 +131,14 @@ public class DatasetBasicFilterForm extends ConfigurationEditorForm<DatasetBasic
     }
 
 
-    public void updateGeneratedName() {
+    private void updateGeneratedName() {
         if (!isDisposed() && (!isCustomNamed || nameTextField.getText().trim().length() == 0)) {
             getConfiguration().setCustomNamed(false);
             boolean addSeparator = false;
             StringBuilder buffer = new StringBuilder();
             for (DatasetBasicFilterConditionForm conditionForm : conditionForms) {
                 if (conditionForm.isActive()) {
-                    if (addSeparator) buffer.append(joinTypeComboBox.getSelectedValue() == ConditionJoinType.AND ? " & " : " | ");
+                    if (addSeparator) buffer.append(getSelection(joinTypeComboBox) == ConditionJoinType.AND ? " & " : " | ");
                     addSeparator = true;
                     buffer.append(conditionForm.getValue());
                     if (buffer.length() > 40) {
@@ -159,7 +151,7 @@ public class DatasetBasicFilterForm extends ConfigurationEditorForm<DatasetBasic
 
             String name = buffer.length() > 0 ? buffer.toString() : getConfiguration().getFilterGroup().createFilterName("Filter");
             nameTextField.setText(name);
-            nameTextField.setForeground(Color.GRAY);
+            nameTextField.setForeground(UIUtil.getInactiveTextColor());
         }
     }
 
@@ -177,7 +169,7 @@ public class DatasetBasicFilterForm extends ConfigurationEditorForm<DatasetBasic
                 DatasetBasicFilterCondition condition = conditionForm.getCondition();
                 if (conditionForm.isActive()) {
                     if (addJoin) {
-                        selectStatement.append(joinTypeComboBox.getSelectedValue() == ConditionJoinType.AND ? " and\n    " : " or\n    ");
+                        selectStatement.append(getSelection(joinTypeComboBox) == ConditionJoinType.AND ? " and\n    " : " or\n    ");
                     }
                     addJoin = true;
                     condition.appendConditionString(selectStatement, dataset);
@@ -192,19 +184,19 @@ public class DatasetBasicFilterForm extends ConfigurationEditorForm<DatasetBasic
 
                 previewDocument = DocumentUtil.getDocument(selectStatementFile);
 
-                viewer = (EditorEx) EditorFactory.getInstance().createViewer(previewDocument, project);
-                viewer.setEmbeddedIntoDialogWrapper(true);
-                JScrollPane viewerScrollPane = viewer.getScrollPane();
+                this.viewer = (EditorEx) EditorFactory.getInstance().createViewer(previewDocument, project);
+                this.viewer.setEmbeddedIntoDialogWrapper(true);
+                JScrollPane viewerScrollPane = this.viewer.getScrollPane();
                 SyntaxHighlighter syntaxHighlighter = dataset.getLanguageDialect(SQLLanguage.INSTANCE).getSyntaxHighlighter();
-                EditorColorsScheme colorsScheme = viewer.getColorsScheme();
-                viewer.setHighlighter(HighlighterFactory.createHighlighter(syntaxHighlighter, colorsScheme));
-                viewer.setBackgroundColor(GUIUtil.adjustColor(viewer.getBackgroundColor(), -0.01));
+                EditorColorsScheme colorsScheme = this.viewer.getColorsScheme();
+                this.viewer.setHighlighter(HighlighterFactory.createHighlighter(syntaxHighlighter, colorsScheme));
+                this.viewer.setBackgroundColor(GUIUtil.adjustColor(this.viewer.getBackgroundColor(), -0.01));
                 viewerScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
                 viewerScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
                 //viewerScrollPane.setBorder(null);
-                viewerScrollPane.setViewportBorder(new LineBorder(CompatibilityUtil.getEditorBackgroundColor(viewer), 4, false));
+                viewerScrollPane.setViewportBorder(new LineBorder(CompatibilityUtil.getEditorBackgroundColor(this.viewer), 4, false));
 
-                EditorSettings settings = viewer.getSettings();
+                EditorSettings settings = this.viewer.getSettings();
                 settings.setFoldingOutlineShown(false);
                 settings.setLineMarkerAreaShown(false);
                 settings.setLineNumbersShown(false);
@@ -212,8 +204,8 @@ public class DatasetBasicFilterForm extends ConfigurationEditorForm<DatasetBasic
                 settings.setDndEnabled(false);
                 settings.setAdditionalLinesCount(2);
                 settings.setRightMarginShown(false);
-                viewer.getComponent().setFocusable(false);
-                previewPanel.add(viewer.getComponent(), BorderLayout.CENTER);
+                this.viewer.getComponent().setFocusable(false);
+                previewPanel.add(this.viewer.getComponent(), BorderLayout.CENTER);
 
             } else {
                 DocumentUtil.setText(previewDocument, selectStatement);
@@ -230,7 +222,7 @@ public class DatasetBasicFilterForm extends ConfigurationEditorForm<DatasetBasic
         return datasetRef.get();
     }
 
-    public void addConditionPanel(DatasetBasicFilterCondition condition) {
+    private void addConditionPanel(DatasetBasicFilterCondition condition) {
         condition.createComponent();
         DatasetBasicFilterConditionForm conditionForm = condition.getSettingsEditor();
         if (conditionForm != null) {
@@ -254,7 +246,7 @@ public class DatasetBasicFilterForm extends ConfigurationEditorForm<DatasetBasic
         updateNameAndPreview();
     }
 
-    public void removeConditionPanel(DatasetBasicFilterConditionForm conditionForm) {
+    void removeConditionPanel(DatasetBasicFilterConditionForm conditionForm) {
         conditionForm.setBasicFilterPanel(null);
         conditionForms.remove(conditionForm);
         conditionsPanel.remove(conditionForm.getComponent());
@@ -274,7 +266,7 @@ public class DatasetBasicFilterForm extends ConfigurationEditorForm<DatasetBasic
     public void applyFormChanges() throws ConfigurationException {
         updateGeneratedName();
         DatasetBasicFilter filter = getConfiguration();
-        filter.setJoinType(joinTypeComboBox.getSelectedValue());
+        filter.setJoinType(getSelection(joinTypeComboBox));
         filter.setCustomNamed(isCustomNamed);
         filter.getConditions().clear();
         for (DatasetBasicFilterConditionForm conditionForm : conditionForms) {

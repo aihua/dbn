@@ -7,8 +7,7 @@ import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.options.SettingsChangeNotifier;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorUtil;
-import com.dci.intellij.dbn.common.ui.DBNComboBox;
-import com.dci.intellij.dbn.common.ui.ValueSelectorListener;
+import com.dci.intellij.dbn.common.ui.ComboBoxUtil;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
@@ -33,16 +32,20 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.Document;
 import java.awt.*;
-import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.getElements;
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.getSelection;
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.initComboBox;
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.setSelection;
 
 public class ConnectionDatabaseSettingsForm extends ConfigurationEditorForm<ConnectionDatabaseSettings> {
     private JPanel mainPanel;
     private JTextField nameTextField;
     private JTextField descriptionTextField;
     private JTextField hostTextField;
-    private DBNComboBox<DatabaseType> databaseTypeComboBox;
-    private DBNComboBox<DatabaseUrlType> urlTypeComboBox;
+    private JComboBox<DatabaseType> databaseTypeComboBox;
+    private JComboBox<DatabaseUrlType> urlTypeComboBox;
     private JTextField portTextField;
     private JTextField databaseTextField;
     private JPanel driverLibraryPanel;
@@ -58,6 +61,8 @@ public class ConnectionDatabaseSettingsForm extends ConfigurationEditorForm<Conn
     private ConnectionDriverSettingsForm driverSettingsForm;
     private ConnectionAuthenticationSettingsForm authenticationSettingsForm;
 
+    private DatabaseType selectedDatabaseType;
+
     public ConnectionDatabaseSettingsForm(final ConnectionDatabaseSettings configuration) {
         super(configuration);
 
@@ -66,67 +71,68 @@ public class ConnectionDatabaseSettingsForm extends ConfigurationEditorForm<Conn
 
         DatabaseType databaseType = configuration.getDatabaseType();
         if (databaseType == DatabaseType.UNKNOWN) {
-            databaseTypeComboBox.setValues(
+            initComboBox(databaseTypeComboBox,
                     DatabaseType.ORACLE,
                     DatabaseType.MYSQL,
                     DatabaseType.POSTGRES,
                     DatabaseType.SQLITE);
-            databaseTypeComboBox.addListener(new ValueSelectorListener<DatabaseType>() {
-                @Override
-                public void selectionChanged(DatabaseType oldValue, DatabaseType newValue) {
-                    DatabaseUrlPattern oldUrlPattern = oldValue == null ? null : oldValue.getDefaultUrlPattern();
-                    DatabaseUrlPattern newUrlPattern = newValue.getDefaultUrlPattern();
-                    updateFieldVisibility(configType, newValue);
-                    if (configType == ConnectionConfigType.BASIC) {
-                        if (newUrlPattern.getUrlType() == DatabaseUrlType.FILE) {
-                            String file = databaseFileSettingsForm.getMainFilePath();
-                            DatabaseInfo defaults = newUrlPattern.getDefaultInfo();
-                            DatabaseInfo oldDefaults = oldUrlPattern == null ? null : oldUrlPattern.getDefaultInfo();
-                            if (StringUtil.isEmpty(file) || (oldDefaults != null && oldDefaults.getFiles().getMainFile().getPath().equals(file))) {
-                                databaseFileSettingsForm.setMainFilePath(defaults.getFiles().getMainFile().getPath());
-                            }
-                        } else {
-                            String host = hostTextField.getText();
-                            String port = portTextField.getText();
-                            String database = databaseTextField.getText();
+            databaseTypeComboBox.addActionListener(e -> {
+                DatabaseType oldValue = selectedDatabaseType;
+                DatabaseType newValue = getSelection(databaseTypeComboBox);
 
-                            DatabaseInfo defaults = newUrlPattern.getDefaultInfo();
-                            DatabaseInfo oldDefaults = oldUrlPattern == null ? null : oldUrlPattern.getDefaultInfo();
-                            if (StringUtil.isEmpty(host) || (oldDefaults != null && oldDefaults.getHost().equals(host))) {
-                                hostTextField.setText(defaults.getHost());
-                            }
-
-                            if (StringUtil.isEmpty(port) || (oldDefaults != null && oldDefaults.getPort().equals(port))) {
-                                portTextField.setText(defaults.getPort());
-                            }
-                            if (StringUtil.isEmpty(database) || (oldDefaults != null && oldDefaults.getDatabase().equals(database))) {
-                                databaseTextField.setText(defaults.getDatabase());
-                            }
-                            DatabaseUrlType[] urlTypes = newValue.getUrlTypes();
-                            urlTypeComboBox.setValues(urlTypes);
-                            urlTypeComboBox.setSelectedValue(urlTypes[0]);
-                            urlTypeComboBox.setVisible(urlTypes.length > 1);
+                DatabaseUrlPattern oldUrlPattern = oldValue == null ? null : oldValue.getDefaultUrlPattern();
+                DatabaseUrlPattern newUrlPattern = newValue.getDefaultUrlPattern();
+                updateFieldVisibility(configType, newValue);
+                if (configType == ConnectionConfigType.BASIC) {
+                    if (newUrlPattern.getUrlType() == DatabaseUrlType.FILE) {
+                        String file = databaseFileSettingsForm.getMainFilePath();
+                        DatabaseInfo defaults = newUrlPattern.getDefaultInfo();
+                        DatabaseInfo oldDefaults = oldUrlPattern == null ? null : oldUrlPattern.getDefaultInfo();
+                        if (StringUtil.isEmpty(file) || (oldDefaults != null && oldDefaults.getFiles().getMainFile().getPath().equals(file))) {
+                            databaseFileSettingsForm.setMainFilePath(defaults.getFiles().getMainFile().getPath());
                         }
                     } else {
-                        if (oldUrlPattern == null || oldUrlPattern.getDefaultUrl().equals(urlTextField.getText())) {
-                            urlTextField.setText(newUrlPattern.getDefaultUrl());
-                        }
-                    }
+                        String host = hostTextField.getText();
+                        String port = portTextField.getText();
+                        String database = databaseTextField.getText();
 
-                    driverSettingsForm.updateDriverFields();
+                        DatabaseInfo defaults = newUrlPattern.getDefaultInfo();
+                        DatabaseInfo oldDefaults = oldUrlPattern == null ? null : oldUrlPattern.getDefaultInfo();
+                        if (StringUtil.isEmpty(host) || (oldDefaults != null && oldDefaults.getHost().equals(host))) {
+                            hostTextField.setText(defaults.getHost());
+                        }
+
+                        if (StringUtil.isEmpty(port) || (oldDefaults != null && oldDefaults.getPort().equals(port))) {
+                            portTextField.setText(defaults.getPort());
+                        }
+                        if (StringUtil.isEmpty(database) || (oldDefaults != null && oldDefaults.getDatabase().equals(database))) {
+                            databaseTextField.setText(defaults.getDatabase());
+                        }
+                        DatabaseUrlType[] urlTypes = newValue.getUrlTypes();
+                        initComboBox(urlTypeComboBox, urlTypes);
+                        setSelection(urlTypeComboBox, urlTypes[0]);
+                        urlTypeComboBox.setVisible(urlTypes.length > 1);
+                    }
+                } else {
+                    if (oldUrlPattern == null || oldUrlPattern.getDefaultUrl().equals(urlTextField.getText())) {
+                        urlTextField.setText(newUrlPattern.getDefaultUrl());
+                    }
                 }
+
+                driverSettingsForm.updateDriverFields();
+                selectedDatabaseType = newValue;
             });
         } else {
             databaseTypeLabel.setText(databaseType.getName());
             databaseTypeLabel.setIcon(databaseType.getIcon());
-            databaseTypeComboBox.setValues(databaseType);
-            databaseTypeComboBox.setSelectedValue(databaseType);
+            initComboBox(databaseTypeComboBox, databaseType);
+            setSelection(databaseTypeComboBox, databaseType);
             databaseTypeComboBox.setEnabled(false);
             databaseTypeComboBox.setVisible(false);
 
             DatabaseUrlType[] urlTypes = databaseType.getUrlTypes();
-            urlTypeComboBox.setValues(urlTypes);
-            urlTypeComboBox.setSelectedValue(urlTypes[0]);
+            initComboBox(urlTypeComboBox, urlTypes);
+            setSelection(urlTypeComboBox, urlTypes[0]);
             urlTypeComboBox.setVisible(urlTypes.length > 1);
         }
 
@@ -209,21 +215,19 @@ public class ConnectionDatabaseSettingsForm extends ConfigurationEditorForm<Conn
 
 
     protected ActionListener createActionListener() {
-        return new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                Object source = e.getSource();
-                ConnectionDatabaseSettings configuration = getConfiguration();
-                configuration.setModified(true);
-                if (source == nameTextField) {
-                    ConnectionBundleSettings connectionBundleSettings = configuration.getParent().getParent();
-                    ConnectionBundleSettingsForm settingsEditor = connectionBundleSettings.getSettingsEditor();
+        return e -> {
+            Object source = e.getSource();
+            ConnectionDatabaseSettings configuration = getConfiguration();
+            configuration.setModified(true);
+            if (source == nameTextField) {
+                ConnectionBundleSettings connectionBundleSettings = configuration.getParent().getParent();
+                ConnectionBundleSettingsForm settingsEditor = connectionBundleSettings.getSettingsEditor();
 
-                    if (settingsEditor != null) {
-                        JList connectionList = settingsEditor.getList();
-                        connectionList.revalidate();
-                        connectionList.repaint();
-                        notifyPresentationChanges();
-                    }
+                if (settingsEditor != null) {
+                    JList connectionList = settingsEditor.getList();
+                    connectionList.revalidate();
+                    connectionList.repaint();
+                    notifyPresentationChanges();
                 }
             }
         };
@@ -238,13 +242,13 @@ public class ConnectionDatabaseSettingsForm extends ConfigurationEditorForm<Conn
     }
 
     public void applyFormChanges(final ConnectionDatabaseSettings configuration){
-        DBNComboBox<DriverSource> driverSourceComboBox = driverSettingsForm.getDriverSourceComboBox();
+        JComboBox<DriverSource> driverSourceComboBox = driverSettingsForm.getDriverSourceComboBox();
         TextFieldWithBrowseButton driverLibraryTextField = driverSettingsForm.getDriverLibraryTextField();
-        DBNComboBox<DriverOption> driverComboBox = driverSettingsForm.getDriverComboBox();
+        JComboBox<DriverOption> driverComboBox = driverSettingsForm.getDriverComboBox();
 
-        DatabaseType databaseType = CommonUtil.nvl(databaseTypeComboBox.getSelectedValue(), configuration.getDatabaseType());
-        DriverOption driverOption = driverComboBox.getSelectedValue();
-        DatabaseUrlType urlType = CommonUtil.nvl(urlTypeComboBox.getSelectedValue(), DatabaseUrlType.DATABASE);
+        DatabaseType databaseType = CommonUtil.nvl(getSelection(databaseTypeComboBox), configuration.getDatabaseType());
+        DriverOption driverOption = ComboBoxUtil.getSelection(driverComboBox);
+        DatabaseUrlType urlType = CommonUtil.nvl(getSelection(urlTypeComboBox), DatabaseUrlType.DATABASE);
 
         configuration.setDatabaseType(databaseType);
         configuration.setName(nameTextField.getText());
@@ -263,7 +267,7 @@ public class ConnectionDatabaseSettingsForm extends ConfigurationEditorForm<Conn
         AuthenticationInfo authenticationInfo = configuration.getAuthenticationInfo();
         authenticationSettingsForm.applyFormChanges(authenticationInfo);
 
-        configuration.setDriverSource(driverSourceComboBox.getSelectedValue());
+        configuration.setDriverSource(getSelection(driverSourceComboBox));
         configuration.updateHashCode();
     }
 
@@ -272,10 +276,10 @@ public class ConnectionDatabaseSettingsForm extends ConfigurationEditorForm<Conn
         final ConnectionDatabaseSettings configuration = getConfiguration();
 
         TextFieldWithBrowseButton driverLibraryTextField = driverSettingsForm.getDriverLibraryTextField();
-        DBNComboBox<DriverOption> driverComboBox = driverSettingsForm.getDriverComboBox();
+        JComboBox<DriverOption> driverComboBox = driverSettingsForm.getDriverComboBox();
 
-        DatabaseType selectedDatabaseType = CommonUtil.nvl(databaseTypeComboBox.getSelectedValue(), configuration.getDatabaseType());
-        DriverOption selectedDriver = driverComboBox.getSelectedValue();
+        DatabaseType selectedDatabaseType = CommonUtil.nvl(getSelection(databaseTypeComboBox), configuration.getDatabaseType());
+        DriverOption selectedDriver = ComboBoxUtil.getSelection(driverComboBox);
         DatabaseType driverDatabaseType = selectedDriver == null ? null : DatabaseType.resolve(selectedDriver.getName());
         if (driverDatabaseType != null && driverDatabaseType != selectedDatabaseType) {
             throw new ConfigurationException("The provided driver library is not a valid " + selectedDatabaseType.getDisplayName() + " driver library.");
@@ -290,36 +294,33 @@ public class ConnectionDatabaseSettingsForm extends ConfigurationEditorForm<Conn
                 !CommonUtil.safeEqual(databaseInfo.getHost(), hostTextField.getText()) ||
                 !CommonUtil.safeEqual(databaseInfo.getPort(), portTextField.getText()) ||
                 !CommonUtil.safeEqual(databaseInfo.getDatabase(), databaseTextField.getText()) ||
-                !CommonUtil.safeEqual(databaseInfo.getUrlType(), urlTypeComboBox.getSelectedValue()) ||
+                !CommonUtil.safeEqual(databaseInfo.getUrlType(), getSelection(urlTypeComboBox)) ||
                 !CommonUtil.safeEqual(databaseInfo.getFiles(), databaseFileSettingsForm.getDatabaseFiles()) ||
                 !CommonUtil.safeEqual(configuration.getAuthenticationInfo().getUser(), authenticationSettingsForm.getUserTextField().getText());
 
 
         applyFormChanges(configuration);
 
-         new SettingsChangeNotifier() {
-            @Override
-            public void notifyChanges() {
-                if (nameChanged) {
-                    Project project = configuration.getProject();
-                    ConnectionSettingsListener listener = EventUtil.notify(project, ConnectionSettingsListener.TOPIC);
-                    listener.connectionNameChanged(configuration.getConnectionId());
-                }
+         SettingsChangeNotifier.register(() -> {
+             if (nameChanged) {
+                 Project project = configuration.getProject();
+                 ConnectionSettingsListener listener = EventUtil.notify(project, ConnectionSettingsListener.TOPIC);
+                 listener.connectionNameChanged(configuration.getConnectionId());
+             }
 
-                if (settingsChanged) {
-                    Project project = configuration.getProject();
-                    ConnectionSettingsListener listener = EventUtil.notify(project, ConnectionSettingsListener.TOPIC);
-                    listener.connectionChanged(configuration.getConnectionId());
-                }
-            }
-        };
+             if (settingsChanged) {
+                 Project project = configuration.getProject();
+                 ConnectionSettingsListener listener = EventUtil.notify(project, ConnectionSettingsListener.TOPIC);
+                 listener.connectionChanged(configuration.getConnectionId());
+             }
+         });
     }
 
 
     public void resetFormChanges() {
-        DBNComboBox<DriverSource> driverSourceComboBox = driverSettingsForm.getDriverSourceComboBox();
+        JComboBox<DriverSource> driverSourceComboBox = driverSettingsForm.getDriverSourceComboBox();
         TextFieldWithBrowseButton driverLibraryTextField = driverSettingsForm.getDriverLibraryTextField();
-        DBNComboBox<DriverOption> driverComboBox = driverSettingsForm.getDriverComboBox();
+        JComboBox<DriverOption> driverComboBox = driverSettingsForm.getDriverComboBox();
 
         ConnectionDatabaseSettings configuration = getConfiguration();
 
@@ -333,25 +334,25 @@ public class ConnectionDatabaseSettingsForm extends ConfigurationEditorForm<Conn
         databaseTextField.setText(databaseInfo.getDatabase());
         DatabaseType databaseType = configuration.getDatabaseType();
         if (databaseType != DatabaseType.UNKNOWN) {
-            databaseTypeComboBox.setSelectedValue(databaseType);
+            setSelection(databaseTypeComboBox, databaseType);
         }
 
         DatabaseUrlType[] urlTypes = databaseType.getUrlTypes();
-        urlTypeComboBox.setValues(urlTypes);
-        urlTypeComboBox.setSelectedValue(databaseInfo.getUrlType());
+        initComboBox(urlTypeComboBox, urlTypes);
+        setSelection(urlTypeComboBox, databaseInfo.getUrlType());
         urlTypeComboBox.setVisible(urlTypes.length > 1);
 
         AuthenticationInfo authenticationInfo = configuration.getAuthenticationInfo();
         authenticationSettingsForm.resetFormChanges(authenticationInfo);
 
-        driverSourceComboBox.setSelectedValue(configuration.getDriverSource());
+        setSelection(driverSourceComboBox, configuration.getDriverSource());
         driverLibraryTextField.setText(configuration.getDriverLibrary());
         driverSettingsForm.updateDriverFields();
-        driverComboBox.setSelectedValue(DriverOption.get(driverComboBox.getValues(), configuration.getDriver()));
+        setSelection(driverComboBox, DriverOption.get(getElements(driverComboBox), configuration.getDriver()));
     }
 
     public DatabaseType getSelectedDatabaseType() {
-        return databaseTypeComboBox.getSelectedValue();
+        return getSelection(databaseTypeComboBox);
     }
 }
 

@@ -4,6 +4,8 @@ import com.dci.intellij.dbn.code.common.style.formatting.FormattingAttributes;
 import com.dci.intellij.dbn.code.common.style.formatting.FormattingDefinition;
 import com.dci.intellij.dbn.code.common.style.formatting.FormattingProviderPsiElement;
 import com.dci.intellij.dbn.common.editor.BasicTextEditor;
+import com.dci.intellij.dbn.common.latent.Latent;
+import com.dci.intellij.dbn.common.latent.MutableLatent;
 import com.dci.intellij.dbn.common.thread.ReadActionRunner;
 import com.dci.intellij.dbn.common.util.EditorUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
@@ -45,12 +47,7 @@ import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.PsiComment;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiElementVisitor;
-import com.intellij.psi.PsiErrorElement;
-import com.intellij.psi.PsiFile;
-import com.intellij.psi.PsiWhiteSpace;
+import com.intellij.psi.*;
 import com.intellij.psi.search.LocalSearchScope;
 import com.intellij.psi.search.SearchScope;
 import org.jetbrains.annotations.NotNull;
@@ -64,6 +61,10 @@ public abstract class BasePsiElement extends ASTWrapperPsiElement implements Ite
     private ElementType elementType;
     private DBVirtualObject underlyingObject;
     private FormattingAttributes formattingAttributes;
+
+    private Latent<BasePsiElement> enclosingScopePsiElement = MutableLatent.create(
+            () -> getTextLength(),
+            () -> findEnclosingScopePsiElement());
 
     public enum MatchType {
         STRONG,
@@ -224,11 +225,7 @@ public abstract class BasePsiElement extends ASTWrapperPsiElement implements Ite
         if (ApplicationManager.getApplication().isReadAccessAllowed()) {
             return super.getText();
         }
-        return new ReadActionRunner<String>() {
-            protected String run() {
-                return BasePsiElement.super.getText();
-            }
-        }.start();
+        return ReadActionRunner.invoke(false, BasePsiElement.super::getText);
     }
 
 
@@ -559,27 +556,13 @@ public abstract class BasePsiElement extends ASTWrapperPsiElement implements Ite
         return basePsiElement;
     }
 
-/*    private LazyValue<BasePsiElement> enclosingScopePsiElement = new SimpleLazyValue<BasePsiElement>() {
-        @Override
-        protected BasePsiElement load() {
-            PsiElement element = BasePsiElement.this;
-            BasePsiElement basePsiElement = null;
-            while (element != null) {
-                if (element instanceof BasePsiElement) {
-                    basePsiElement = (BasePsiElement) element;
-                    if (basePsiElement.isScopeBoundary()) {
-                        return basePsiElement;
-                    }
-                }
-                element = element.getParent();
-            }
-
-            return basePsiElement;
-        }
-    };*/
+    @Nullable
+    public BasePsiElement getEnclosingScopePsiElement() {
+        return enclosingScopePsiElement.get();
+    }
 
     @Nullable
-    public BasePsiElement findEnclosingScopePsiElement() {
+    private BasePsiElement findEnclosingScopePsiElement() {
         PsiElement element = BasePsiElement.this;
         BasePsiElement basePsiElement = null;
         while (element != null && !(element instanceof PsiFile)) {

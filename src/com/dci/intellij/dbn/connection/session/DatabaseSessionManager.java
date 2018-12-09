@@ -1,5 +1,12 @@
 package com.dci.intellij.dbn.connection.session;
 
+import java.util.List;
+
+import org.jdom.Element;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
@@ -19,12 +26,6 @@ import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.components.StoragePathMacros;
 import com.intellij.openapi.components.StorageScheme;
 import com.intellij.openapi.project.Project;
-import org.jdom.Element;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
 
 @State(
     name = DatabaseSessionManager.COMPONENT_NAME,
@@ -53,21 +54,17 @@ public class DatabaseSessionManager extends AbstractProjectComponent implements 
 
 
     private void showCreateRenameSessionDialog(final ConnectionHandler connectionHandler, final DatabaseSession session, @Nullable final RunnableTask<DatabaseSession> callback) {
-        new ConditionalLaterInvocator() {
-            @Override
-            protected void execute() {
-                CreateRenameSessionDialog dialog = session == null ?
-                        new CreateRenameSessionDialog(connectionHandler) :
-                        new CreateRenameSessionDialog(connectionHandler, session);
-                dialog.setModal(true);
-                dialog.show();
-                DatabaseSession session = dialog.getSession();
-                if (callback != null) {
-                    callback.setData(session);
-                    callback.start();
-                }
+        ConditionalLaterInvocator.invoke(() -> {
+            CreateRenameSessionDialog dialog = session == null ?
+                    new CreateRenameSessionDialog(connectionHandler) :
+                    new CreateRenameSessionDialog(connectionHandler, session);
+            dialog.setModal(true);
+            dialog.show();
+            if (callback != null) {
+                callback.setData(dialog.getSession());
+                callback.start();
             }
-        }.start();
+        });
     }
 
     public DatabaseSession createSession(ConnectionHandler connectionHandler, String name) {
@@ -96,12 +93,7 @@ public class DatabaseSessionManager extends AbstractProjectComponent implements 
                     "Delete Session",
                     "Are you sure you want to delete the session \"" + session.getName() + "\" for connection\"" + session.getConnectionHandler().getName() + "\"" ,
                     MessageUtil.OPTIONS_YES_NO, 0,
-                    new MessageCallback(0) {
-                        @Override
-                        protected void execute() {
-                            deleteSession(session);
-                        }
-                    });
+                    MessageCallback.create(0, () -> deleteSession(session)));
         } else {
             deleteSession(session);
         }
@@ -141,7 +133,7 @@ public class DatabaseSessionManager extends AbstractProjectComponent implements 
     }
 
     @Override
-    public void loadState(Element element) {
+    public void loadState(@NotNull Element element) {
         ConnectionManager connectionManager = ConnectionManager.getInstance(getProject());
         for (Element connectionElement : element.getChildren()) {
             ConnectionId connectionId = ConnectionId.get(connectionElement.getAttributeValue("id"));

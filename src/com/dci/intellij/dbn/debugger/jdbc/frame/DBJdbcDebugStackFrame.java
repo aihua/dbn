@@ -1,8 +1,8 @@
 package com.dci.intellij.dbn.debugger.jdbc.frame;
 
-import com.dci.intellij.dbn.common.util.LazyValue;
-import com.dci.intellij.dbn.common.util.SimpleLazyValue;
+import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.database.common.debug.DebuggerRuntimeInfo;
+import com.dci.intellij.dbn.debugger.common.frame.DBDebugSourcePosition;
 import com.dci.intellij.dbn.debugger.common.frame.DBDebugStackFrame;
 import com.dci.intellij.dbn.debugger.jdbc.DBJdbcDebugProcess;
 import com.dci.intellij.dbn.debugger.jdbc.evaluation.DBJdbcDebuggerEvaluator;
@@ -11,7 +11,6 @@ import com.dci.intellij.dbn.execution.statement.StatementExecutionInput;
 import com.dci.intellij.dbn.language.common.psi.IdentifierPsiElement;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.xdebugger.XSourcePosition;
-import com.intellij.xdebugger.impl.XSourcePositionImpl;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -20,14 +19,9 @@ import java.util.Set;
 
 public class DBJdbcDebugStackFrame extends DBDebugStackFrame<DBJdbcDebugProcess, DBJdbcDebugValue> {
     private DebuggerRuntimeInfo runtimeInfo;
-    private LazyValue<DBJdbcDebuggerEvaluator> evaluator = new SimpleLazyValue<DBJdbcDebuggerEvaluator>() {
-        @Override
-        protected DBJdbcDebuggerEvaluator load() {
-            return new DBJdbcDebuggerEvaluator(DBJdbcDebugStackFrame.this);
-        }
-    };
+    private Latent<DBJdbcDebuggerEvaluator> evaluator = Latent.create(() -> new DBJdbcDebuggerEvaluator(DBJdbcDebugStackFrame.this));
 
-    public DBJdbcDebugStackFrame(DBJdbcDebugProcess debugProcess, DebuggerRuntimeInfo runtimeInfo, int index) {
+    DBJdbcDebugStackFrame(DBJdbcDebugProcess debugProcess, DebuggerRuntimeInfo runtimeInfo, int index) {
         super(debugProcess, index);
         this.runtimeInfo = runtimeInfo;
     }
@@ -45,7 +39,7 @@ public class DBJdbcDebugStackFrame extends DBDebugStackFrame<DBJdbcDebugProcess,
                 lineNumber += statementExecutionInput.getExecutableLineNumber();
             }
         }
-        return XSourcePositionImpl.create(virtualFile, lineNumber);
+        return DBDebugSourcePosition.create(virtualFile, lineNumber);
     }
 
     @Override

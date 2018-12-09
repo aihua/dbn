@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.browser;
 
-import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.browser.model.BrowserTreeModel;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.browser.model.TabbedBrowserTreeModel;
@@ -241,6 +240,11 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
                     navigateToElement(connectionHandler.getObjectBundle(), false);
                 }
             }
+        }
+
+        @Override
+        public void fileClosed(@NotNull FileEditorManager fileEditorManager, @NotNull VirtualFile virtualFile) {
+
         }
 
         public void selectionChanged(@NotNull FileEditorManagerEvent event) {

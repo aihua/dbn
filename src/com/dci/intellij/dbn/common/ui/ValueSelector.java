@@ -23,15 +23,15 @@ import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.EmptyBorder;
-import javax.swing.border.LineBorder;
-import javax.swing.plaf.InsetsUIResource;
-import javax.swing.plaf.UIResource;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
-import java.util.*;
+import java.util.Set;
 
 public abstract class ValueSelector<T extends Presentable> extends JPanel{
     private Set<ValueSelectorListener<T>> listeners = new HashSet<>();
@@ -41,8 +41,8 @@ public abstract class ValueSelector<T extends Presentable> extends JPanel{
     private OptionBundle<ValueSelectorOption> options;
     private ListPopup popup;
 
-    private static Border focusBorder = new CompoundBorder(new RoundedLineBorder(new JBColor(Gray._190, Gray._55), 3, 1), JBUI.Borders.empty(2, 4));
-    private static Border defaultBorder = JBUI.Borders.empty(3, 5);
+    private static Border focusBorder = new CompoundBorder(new RoundedLineBorder(new JBColor(Gray._190, Gray._55), 3, 1), new EmptyBorder(2, 4, 2, 4));
+    private static Border defaultBorder = new EmptyBorder(3, 5, 3, 5);
 
     private List<T> values;
     private PresentableFactory<T> valueFactory;

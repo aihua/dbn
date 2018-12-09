@@ -6,7 +6,6 @@ import com.dci.intellij.dbn.common.ui.KeyUtil;
 import com.intellij.openapi.actionSystem.Shortcut;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
-import com.intellij.util.ui.JBUI;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -45,7 +44,7 @@ public class TextFieldWithPopup<T extends JComponent> extends JPanel implements 
         this.parentComponent = parentComponent;
 
         textField = new JTextField();
-        textField.setMargin(JBUI.insets(0, 1));
+        textField.setMargin(new Insets(0, 1, 0, 1));
 
         Dimension textFieldPreferredSize = textField.getPreferredSize();
         Dimension maximumSize = new Dimension((int) textFieldPreferredSize.getWidth(), (int) textFieldPreferredSize.getHeight());

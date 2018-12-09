@@ -24,7 +24,6 @@ import com.dci.intellij.dbn.navigation.options.NavigationSettings;
 import com.dci.intellij.dbn.options.ConfigId;
 import com.dci.intellij.dbn.options.ProjectSettings;
 import com.dci.intellij.dbn.options.general.GeneralProjectSettings;
-import com.intellij.ide.plugins.*;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManagerMain;
 import com.intellij.ide.plugins.PluginNode;
@@ -34,7 +33,6 @@ import com.intellij.openapi.application.impl.ApplicationInfoImpl;
 import com.intellij.openapi.editor.colors.EditorColors;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.extensions.PluginId;
-import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.HyperlinkAdapter;
@@ -117,7 +115,7 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
                     BackgroundTask.invoke(project, "Updating plugin", false, false, (task, progress) -> {
                         try {
                             List<PluginNode> updateDescriptors = new ArrayList<>();
-                            List<IdeaPluginDescriptor> descriptors = RepositoryHelper.loadCachedPlugins();
+                            List<IdeaPluginDescriptor> descriptors = RepositoryHelper.loadPluginsFromRepository(null);
                             List<PluginId> pluginIds = new ArrayList<>();
                             if (descriptors != null) {
                                 for (IdeaPluginDescriptor descriptor : descriptors) {
@@ -126,7 +124,9 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
                                         PluginNode pluginNode = new PluginNode(descriptor.getPluginId());
                                         pluginNode.setName(descriptor.getName());
                                         pluginNode.setSize("-1");
-                                        pluginNode.setRepositoryName(PluginInstaller.UNKNOWN_HOST_MARKER);
+                                        ApplicationInfoEx appInfo = ApplicationInfoImpl.getShadowInstance();
+                                        String url = appInfo.getPluginsListUrl() + "?build=" + appInfo.getApiVersion();
+                                        pluginNode.setRepositoryName(url);
                                         updateDescriptors.add(pluginNode);
                                     }
                                 }

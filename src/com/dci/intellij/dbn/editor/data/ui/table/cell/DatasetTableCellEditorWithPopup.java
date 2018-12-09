@@ -124,7 +124,6 @@ public class DatasetTableCellEditorWithPopup extends DatasetTableCellEditor {
         @Override
         public void customizeTextField(JTextField textField) {
             textField.setBorder(Borders.EMPTY_BORDER);
-            textField.setMargin(JBUI.emptyInsets());
             JTable table = getTableComponent();
             textField.setPreferredSize(new Dimension(textField.getPreferredSize().width, table.getRowHeight()));
             //textField.setBorder(new CompoundBorder(new LineBorder(Color.BLACK), new EmptyBorder(new Insets(1, 1, 1, 1))));

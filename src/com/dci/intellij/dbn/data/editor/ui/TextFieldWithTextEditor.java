@@ -11,7 +11,6 @@ import com.intellij.openapi.actionSystem.Shortcut;
 import com.intellij.openapi.keymap.KeymapUtil;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.components.JBTextField;
-import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 
 import javax.swing.*;
@@ -43,7 +42,7 @@ public class TextFieldWithTextEditor extends JPanel implements DataEditorCompone
         setBounds(0, 0, 0, 0);
 
         textField = new JBTextField();
-        textField.setMargin(JBUI.insets(1, 3, 1, 1));
+        textField.setMargin(new Insets(1, 3, 1, 1));
         add(textField, BorderLayout.CENTER);
 
         button = new JLabel(Icons.DATA_EDITOR_BROWSE);

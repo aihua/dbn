@@ -3,13 +3,10 @@ package com.dci.intellij.dbn.debugger.jdbc;
 import com.dci.intellij.dbn.common.Constants;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
-import com.dci.intellij.dbn.common.editor.BasicTextEditor;
-import com.dci.intellij.dbn.common.notification.NotificationUtil;
+import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.RunnableTask;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.WriteActionRunner;
-import com.dci.intellij.dbn.common.util.EditorUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -30,20 +27,14 @@ import com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus;
 import com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatusHolder;
 import com.dci.intellij.dbn.debugger.jdbc.evaluation.DBJdbcDebuggerEditorsProvider;
 import com.dci.intellij.dbn.debugger.jdbc.frame.DBJdbcDebugSuspendContext;
-import com.dci.intellij.dbn.editor.code.SourceCodeEditor;
+import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.execution.ExecutionContext;
 import com.dci.intellij.dbn.execution.ExecutionInput;
-import com.dci.intellij.dbn.execution.NavigationInstruction;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObjectBundle;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
-import com.dci.intellij.dbn.vfs.DBVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
-import com.dci.intellij.dbn.vfs.file.DBSourceCodeVirtualFile;
-import com.intellij.openapi.editor.LogicalPosition;
-import com.intellij.openapi.editor.ScrollType;
-import com.intellij.openapi.fileEditor.FileEditor;
-import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.dci.intellij.dbn.vfs.file.DBObjectVirtualFile;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.xdebugger.XDebugProcess;
@@ -68,7 +59,7 @@ import static com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointUtil.s
 import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.*;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.CANCELLED;
 
-public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebugProcess implements DBDebugProcess {
+public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebugProcess implements DBDebugProcess, NotificationSupport {
     protected DBNConnection targetConnection;
     private DBNConnection debugConnection;
     private ConnectionHandlerRef connectionHandlerRef;
@@ -99,11 +90,6 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
     @Override
     public boolean is(DBDebugProcessStatus status) {
         return this.status.is(status);
-    }
-
-    @Override
-    public boolean isNot(DBDebugProcessStatus status) {
-        return this.status.isNot(status);
     }
 
     public DBNConnection getTargetConnection() {
@@ -254,17 +240,14 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
      */
     private void registerBreakpoints(final RunnableTask callback) {
         console.system("Registering breakpoints...");
-        final List<XLineBreakpoint<XBreakpointProperties>> breakpoints = DBBreakpointUtil.getDatabaseBreakpoints(getConnectionHandler());
+        List<XLineBreakpoint<XBreakpointProperties>> breakpoints = DBBreakpointUtil.getDatabaseBreakpoints(getConnectionHandler());
 
-        new WriteActionRunner() {
-            @Override
-            public void run() {
-                getBreakpointHandler().registerBreakpoints(breakpoints, null);
-                registerDefaultBreakpoint();
-                console.system("Done registering breakpoints");
-                callback.start();
-            }
-        }.start();
+        WriteActionRunner.invoke(() -> {
+            getBreakpointHandler().registerBreakpoints(breakpoints, null);
+            registerDefaultBreakpoint();
+            console.system("Done registering breakpoints");
+            callback.start();
+        });
     }
 
     protected void registerDefaultBreakpoint() {}
@@ -432,12 +415,11 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
 
     private void suspendSession() {
         if (is(PROCESS_TERMINATING)) return;
-        Project project = getProject();
         XDebugSession session = getSession();
         if (isTerminated()) {
             int reasonCode = runtimeInfo.getReason();
             String message = "Session terminated with code :" + reasonCode + " (" + getDebuggerInterface().getRuntimeEventReason(reasonCode) + ")";
-            NotificationUtil.sendInfoNotification(project, Constants.DBN_TITLE_PREFIX + "Debugger", message);
+            sendInfoNotification(Constants.DBN_TITLE_PREFIX + "Debugger", message);
 
             set(PROCESS_STOPPED_NORMALLY, true);
             session.stop();
@@ -452,7 +434,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
                     if (runtimeInfo.isTerminated()) {
                         int reasonCode = runtimeInfo.getReason();
                         String message = "Session terminated with code :" + reasonCode + " (" + getDebuggerInterface().getRuntimeEventReason(reasonCode) + ")";
-                        NotificationUtil.sendInfoNotification(project, Constants.DBN_TITLE_PREFIX + "Debugger", message);
+                        sendInfoNotification(Constants.DBN_TITLE_PREFIX + "Debugger", message);
                     }
                     if (!runtimeInfo.equals(topRuntimeInfo)) {
                         runtimeInfo = topRuntimeInfo;
@@ -466,7 +448,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
 
             DBJdbcDebugSuspendContext suspendContext = new DBJdbcDebugSuspendContext(this);
             session.positionReached(suspendContext);
-            navigateInEditor(virtualFile, runtimeInfo.getLineNumber());
+            //navigateInEditor(virtualFile, runtimeInfo.getLineNumber());
         }
     }
 
@@ -482,7 +464,17 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
     public VirtualFile getRuntimeInfoFile(DebuggerRuntimeInfo runtimeInfo) {
         DBSchemaObject schemaObject = getDatabaseObject(runtimeInfo);
         if (schemaObject != null) {
-            return schemaObject.getVirtualFile();
+            DBObjectVirtualFile virtualFile = schemaObject.getVirtualFile();
+            if (virtualFile instanceof DBEditableObjectVirtualFile) {
+                DBEditableObjectVirtualFile editableObjectFile = (DBEditableObjectVirtualFile) virtualFile;
+                DBContentType contentType = schemaObject.getContentType();
+                if (contentType == DBContentType.CODE_SPEC_AND_BODY) {
+                    return editableObjectFile.getContentFile(DBContentType.CODE_BODY);
+                } else if (contentType.isOneOf(DBContentType.CODE, DBContentType.CODE_AND_DATA)) {
+                    return editableObjectFile.getContentFile(DBContentType.CODE);
+                }
+
+            }
         }
         return null;
     }
@@ -518,7 +510,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
         }
     }
 
-    private void navigateInEditor(final VirtualFile virtualFile, final int line) {
+/*    private void navigateInEditor(final VirtualFile virtualFile, final int line) {
         SimpleLaterInvocator.invoke(() -> {
             Project project = getProject();
             LogicalPosition position = new LogicalPosition(line, 0);
@@ -550,6 +542,19 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
                     EditorUtil.selectEditor(project, sourceCodeEditor, objectVirtualFile, sourceCodeEditor.getEditorProviderId(), NavigationInstruction.FOCUS_SCROLL);
                     sourceCodeEditor.getEditor().getScrollingModel().scrollTo(position, ScrollType.CENTER);
                 }
+            } else if (virtualFile instanceof DBSourceCodeVirtualFile) {
+                DBSourceCodeVirtualFile sourceCodeFile = (DBSourceCodeVirtualFile) virtualFile;
+                DBEditableObjectVirtualFile objectVirtualFile = sourceCodeFile.getMainDatabaseFile();
+                FileEditorManager editorManager = FileEditorManager.getInstance(project);
+                FileEditor[] fileEditors = editorManager.getEditors(objectVirtualFile);
+                for (FileEditor fileEditor : fileEditors) {
+                    VirtualFile editorFile = fileEditor.getFile();
+                    if (editorFile != null && editorFile.equals(sourceCodeFile)) {
+                        System.out.println();
+                        break;
+                    }
+                }
+
             }
             else if (virtualFile instanceof DBVirtualFile){
                 FileEditorManager editorManager = FileEditorManager.getInstance(project);
@@ -563,7 +568,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
                 }
             }
         });
-    }
+    }*/
 
     public DatabaseDebuggerInterface getDebuggerInterface() {
         return getConnectionHandler().getInterfaceProvider().getDebuggerInterface();

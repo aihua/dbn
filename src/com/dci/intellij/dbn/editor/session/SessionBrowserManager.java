@@ -3,7 +3,6 @@ package com.dci.intellij.dbn.editor.session;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
-import com.dci.intellij.dbn.common.notification.NotificationUtil;
 import com.dci.intellij.dbn.common.option.InteractiveOptionHandler;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.ReadActionRunner;
@@ -116,7 +115,7 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
                 return "";
             }
         } catch (SQLException e) {
-            NotificationUtil.sendWarningNotification(connectionHandler.getProject(), "Session Browser", "Could not load current session SQL. Cause: {0}", e.getMessage());
+            sendWarningNotification("Session Browser", "Could not load current session SQL. Cause: {0}", e.getMessage());
         } finally {
             ConnectionUtil.close(resultSet);
             connectionHandler.freePoolConnection(connection);
@@ -210,35 +209,31 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
     private class UpdateTimestampTask extends TimerTask {
         public void run() {
             if (openFiles.size() > 0) {
-                new ReadActionRunner() {
-                    @Override
-                    protected Object run() {
-                        try {
-                            Project project = getProject();
-                            if (!project.isDisposed()) {
-                                final List<SessionBrowser> sessionBrowsers = new ArrayList<SessionBrowser>();
-                                FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
-                                FileEditor[] editors = fileEditorManager.getAllEditors();
-                                for (FileEditor editor : editors) {
-                                    if (editor instanceof SessionBrowser) {
-                                        SessionBrowser sessionBrowser = (SessionBrowser) editor;
-                                        sessionBrowsers.add(sessionBrowser);
-                                    }
+                ReadActionRunner.invoke(false, () -> {
+                    try {
+                        Project project = getProject();
+                        if (!project.isDisposed()) {
+                            final List<SessionBrowser> sessionBrowsers = new ArrayList<SessionBrowser>();
+                            FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
+                            FileEditor[] editors = fileEditorManager.getAllEditors();
+                            for (FileEditor editor : editors) {
+                                if (editor instanceof SessionBrowser) {
+                                    SessionBrowser sessionBrowser = (SessionBrowser) editor;
+                                    sessionBrowsers.add(sessionBrowser);
                                 }
-
-                                SimpleLaterInvocator.invoke(() -> {
-                                    for (SessionBrowser sessionBrowser : sessionBrowsers) {
-                                        sessionBrowser.refreshLoadTimestamp();
-                                    }
-                                });
                             }
-                        } catch (ProcessCanceledException ignore) {
 
+                            SimpleLaterInvocator.invoke(() -> {
+                                for (SessionBrowser sessionBrowser : sessionBrowsers) {
+                                    sessionBrowser.refreshLoadTimestamp();
+                                }
+                            });
                         }
-                        return null;
-                    }
-                }.start();
+                    } catch (ProcessCanceledException ignore) {
 
+                    }
+                    return null;
+                });
             }
         }
     }

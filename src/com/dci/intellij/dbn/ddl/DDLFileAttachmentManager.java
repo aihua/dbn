@@ -1,5 +1,16 @@
 package com.dci.intellij.dbn.ddl;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.*;
+
+import javax.swing.*;
+
+import org.jdom.Element;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
@@ -42,19 +53,6 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileEvent;
 import com.intellij.openapi.vfs.VirtualFileListener;
 import com.intellij.openapi.vfs.VirtualFileManager;
-import org.jdom.Element;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import javax.swing.*;
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @State(
     name = DDLFileAttachmentManager.COMPONENT_NAME,
@@ -64,14 +62,14 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
 
     public static final String COMPONENT_NAME = "DBNavigator.Project.DDLFileAttachmentManager";
 
-    private Map<String, DBObjectRef<DBSchemaObject>> mappings = new HashMap<String, DBObjectRef<DBSchemaObject>>();
+    private Map<String, DBObjectRef<DBSchemaObject>> mappings = new HashMap<>();
     private DDLFileAttachmentManager(Project project) {
         super(project);
         VirtualFileManager.getInstance().addVirtualFileListener(virtualFileListener);
         EventUtil.subscribe(project, project, SourceCodeManagerListener.TOPIC, sourceCodeManagerListener);
     }
 
-    SourceCodeManagerListener sourceCodeManagerListener = new SourceCodeManagerAdapter() {
+    private SourceCodeManagerListener sourceCodeManagerListener = new SourceCodeManagerAdapter() {
         @Override
         public void sourceCodeLoaded(DBSourceCodeVirtualFile sourceCodeFile, boolean initialLoad) {
             if (!initialLoad && DatabaseFileSystem.isFileOpened(sourceCodeFile.getObject())) {
@@ -97,7 +95,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
                 if (virtualFile == null || !virtualFile.isValid()) {
                     mappings.remove(fileUrl);
                 } else {
-                    if (virtualFiles == null) virtualFiles = new ArrayList<VirtualFile>();
+                    if (virtualFiles == null) virtualFiles = new ArrayList<>();
                     virtualFiles.add(virtualFile);
                 }
             }
@@ -136,7 +134,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
             List<VirtualFile> obsolete = null;
             for (VirtualFile virtualFile : virtualFiles) {
                 if (!virtualFile.isValid() || !isValidDDLFile(virtualFile, object)) {
-                    if (obsolete == null) obsolete = new ArrayList<VirtualFile>();
+                    if (obsolete == null) obsolete = new ArrayList<>();
                     obsolete.add(virtualFile);
                 }
             }
@@ -198,7 +196,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
     }
 
     private static List<VirtualFile> lookupApplicableDDLFiles(DBSchemaObject object) {
-        List<VirtualFile> fileList = new ArrayList<VirtualFile>();
+        List<VirtualFile> fileList = new ArrayList<>();
 
         ConnectionHandler connectionHandler = object.getConnectionHandler();
         Project project = connectionHandler.getProject();
@@ -216,7 +214,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
     public List<VirtualFile> lookupDetachedDDLFiles(DBSchemaObject object) {
         List<String> fileUrls = getAttachedFileUrls(object);
         List<VirtualFile> virtualFiles = lookupApplicableDDLFiles(object);
-        List<VirtualFile> detachedVirtualFiles = new ArrayList<VirtualFile>();
+        List<VirtualFile> detachedVirtualFiles = new ArrayList<>();
         for (VirtualFile virtualFile : virtualFiles) {
             if (!fileUrls.contains(virtualFile.getUrl())) {
                 detachedVirtualFiles.add(virtualFile);
@@ -239,20 +237,17 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
             if (selectedDirectories.length > 0) {
                 final String fileName = fileNameProvider.getFileName();
                 final VirtualFile parentDirectory = selectedDirectories[0];
-                new WriteActionRunner() {
-                    @Override
-                    public void run() {
-                        try {
-                            VirtualFile virtualFile = parentDirectory.createChildData(this, fileName);
-                            attachDDLFile(object, virtualFile);
-                            DBEditableObjectVirtualFile editableObjectFile = object.getEditableVirtualFile();
-                            updateDDLFiles(editableObjectFile);
-                            DatabaseFileSystem.getInstance().reopenEditor(object);
-                        } catch (IOException e) {
-                            MessageUtil.showErrorDialog(project, "Could not create file " + parentDirectory + File.separator + fileName + ".", e);
-                        }
+                WriteActionRunner.invoke(() -> {
+                    try {
+                        VirtualFile virtualFile = parentDirectory.createChildData(this, fileName);
+                        attachDDLFile(object, virtualFile);
+                        DBEditableObjectVirtualFile editableObjectFile = object.getEditableVirtualFile();
+                        updateDDLFiles(editableObjectFile);
+                        DatabaseFileSystem.getInstance().reopenEditor(object);
+                    } catch (IOException e) {
+                        MessageUtil.showErrorDialog(project, "Could not create file " + parentDirectory + File.separator + fileName + ".", e);
                     }
-                }.start();
+                });
             }
         }                                
     }
@@ -323,12 +318,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
             MessageUtil.showInfoDialog(getProject(),
                     "No DDL files found",
                     message.toString(), options, 0,
-                    new MessageCallback(1) {
-                        @Override
-                        protected void execute() {
-                            createDDLFile(object);
-                        }
-            });
+                    MessageCallback.create(1, () -> createDDLFile(object)));
         } else {
             int exitCode = showFileAttachDialog(object, virtualFiles, false);
             if (exitCode != DialogWrapper.CANCEL_EXIT_CODE) {
@@ -351,7 +341,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
             DDLFileType ddlFileType = ddlFileTypes[0];
             return new DDLFileNameProvider(object, ddlFileType, ddlFileType.getExtensions().get(0));
         } else {
-            List<DDLFileNameProvider> fileNameProviders = new ArrayList<DDLFileNameProvider>();
+            List<DDLFileNameProvider> fileNameProviders = new ArrayList<>();
             for (DDLFileType ddlFileType : ddlFileTypes) {
                 for (String extension : ddlFileType.getExtensions()) {
                     DDLFileNameProvider fileNameProvider = new DDLFileNameProvider(object, ddlFileType, extension);
@@ -376,7 +366,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
     }
 
     private List<String> getAttachedFileUrls(DBSchemaObject object) {
-        List<String> fileUrls = new ArrayList<String>();
+        List<String> fileUrls = new ArrayList<>();
         for (String fileUrl : mappings.keySet()) {
             DBObjectRef<DBSchemaObject> objectRef = mappings.get(fileUrl);
             if (objectRef.is(object)) {
@@ -437,7 +427,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
     }
 
     @Override
-    public void loadState(Element element) {
+    public void loadState(@NotNull Element element) {
         VirtualFileManager virtualFileManager = VirtualFileManager.getInstance();
         for (Object child : element.getChildren()) {
             Element childElement = (Element) child;

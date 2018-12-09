@@ -24,10 +24,10 @@ import java.awt.*;
 
 public class ObjectQuickFilterConditionForm extends DBNFormImpl<ObjectQuickFilterForm> {
     private JPanel mainPanel;
-    private JTextField patternTextField;
-    private JLabel objectNameLabel;
-    private DBNComboBox<ConditionOperator> operatorComboBox;
     private JPanel actionsPanel;
+    private JLabel objectNameLabel;
+    private JTextField patternTextField;
+    private DBNComboBox<ConditionOperator> operatorComboBox;
     private DBNComboBox<ConditionJoinType> joinTypeComboBox;
 
     private ObjectQuickFilterCondition condition;
@@ -69,7 +69,7 @@ public class ObjectQuickFilterConditionForm extends DBNFormImpl<ObjectQuickFilte
         patternTextField.addKeyListener(ComboBoxSelectionKeyListener.create(operatorComboBox, false));
         patternTextField.getDocument().addDocumentListener(new DocumentAdapter() {
             @Override
-            protected void textChanged(DocumentEvent e) {
+            protected void textChanged(@NotNull DocumentEvent e) {
                 condition.setPattern(patternTextField.getText().trim());
             }
         });

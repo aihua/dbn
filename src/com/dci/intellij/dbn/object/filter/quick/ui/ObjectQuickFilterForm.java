@@ -28,14 +28,6 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.jetbrains.annotations.NotNull;
-
-import javax.swing.*;
-import javax.swing.border.CompoundBorder;
-import java.awt.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 public class ObjectQuickFilterForm extends DBNFormImpl<ObjectQuickFilterDialog> {
     private JPanel mainPanel;

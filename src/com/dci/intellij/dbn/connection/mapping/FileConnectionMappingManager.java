@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.connection.mapping;
 
-import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
@@ -59,16 +58,9 @@ import com.intellij.openapi.project.DumbAwareAction;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.ui.popup.ListPopup;
-import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.openapi.vfs.VirtualFileAdapter;
-import com.intellij.openapi.vfs.VirtualFileEvent;
-import com.intellij.openapi.vfs.VirtualFileListener;
-import com.intellij.openapi.vfs.VirtualFileManager;
-import com.intellij.openapi.vfs.VirtualFileMoveEvent;
-import com.intellij.openapi.vfs.VirtualFilePropertyEvent;
-import com.intellij.openapi.vfs.*;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.vfs.VirtualFileAdapter;
 import com.intellij.openapi.vfs.VirtualFileEvent;
 import com.intellij.openapi.vfs.VirtualFileListener;
 import com.intellij.openapi.vfs.VirtualFileManager;

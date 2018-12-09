@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.code.common.completion;
 
-import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.intellij.openapi.components.AbstractProjectComponent;
 import com.intellij.openapi.components.PersistentStateComponent;

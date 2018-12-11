@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.data.editor.ui;
 
 import com.dci.intellij.dbn.common.ProjectRef;
-import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.ui.KeyUtil;
 import com.intellij.openapi.actionSystem.Shortcut;
 import com.intellij.openapi.project.Project;
@@ -13,15 +12,7 @@ import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.text.Document;
 import java.awt.*;
-import java.awt.event.ActionListener;
-import java.awt.event.FocusAdapter;
-import java.awt.event.FocusEvent;
-import java.awt.event.FocusListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,7 +20,7 @@ public class TextFieldWithPopup<T extends JComponent> extends JPanel implements 
     private JTextField textField;
     private JPanel buttonsPanel;
 
-    private List<TextFieldPopupProvider> popupProviders = new ArrayList<TextFieldPopupProvider>();
+    private List<TextFieldPopupProvider> popupProviders = new ArrayList<>();
     private UserValueHolder userValueHolder;
     private ProjectRef projectRef;
     private T parentComponent;
@@ -91,6 +82,11 @@ public class TextFieldWithPopup<T extends JComponent> extends JPanel implements 
 
     public void setEditable(boolean editable){
         textField.setEditable(editable);
+    }
+
+    @Override
+    public boolean isEditable() {
+        return textField.isEditable();
     }
                                                                                   
     public void setUserValueHolder(UserValueHolder userValueHolder) {
@@ -235,7 +231,7 @@ public class TextFieldWithPopup<T extends JComponent> extends JPanel implements 
         return null;
     }
 
-    public TextFieldPopupProvider getDefaultPopupProvider() {
+    private TextFieldPopupProvider getDefaultPopupProvider() {
         return popupProviders.get(0);
     }
 
@@ -312,7 +308,7 @@ public class TextFieldWithPopup<T extends JComponent> extends JPanel implements 
     private class ButtonMouseListener extends MouseAdapter {
         TextFieldPopupProvider popupProvider;
 
-        public ButtonMouseListener(TextFieldPopupProvider popupProvider) {
+        ButtonMouseListener(TextFieldPopupProvider popupProvider) {
             this.popupProvider = popupProvider;
         }
 
@@ -325,7 +321,7 @@ public class TextFieldWithPopup<T extends JComponent> extends JPanel implements 
                 popupProvider.showPopup();
             }
         }
-    };
+    }
 
     public UserValueHolder getUserValueHolder() {
         return userValueHolder;
@@ -348,10 +344,5 @@ public class TextFieldWithPopup<T extends JComponent> extends JPanel implements 
             userValueHolder = null;
             parentComponent = null;
         }
-    }
-
-    @Override
-    public void checkDisposed() {
-        if (disposed) throw AlreadyDisposedException.INSTANCE;
     }
 }

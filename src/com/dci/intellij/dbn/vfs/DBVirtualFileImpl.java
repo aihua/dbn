@@ -1,6 +1,16 @@
 package com.dci.intellij.dbn.vfs;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import javax.swing.*;
+
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import com.dci.intellij.dbn.common.ProjectRef;
+import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.ui.Presentable;
@@ -11,6 +21,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFilePathWrapper;
 import com.intellij.openapi.vfs.ex.dummy.DummyFileIdGenerator;
+import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -198,10 +209,4 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
     public DatabaseFileViewProvider getCachedViewProvider() {
         return getUserData(DatabaseFileViewProvider.CACHED_VIEW_PROVIDER);
     }
-
-    @Override
-    public void checkDisposed() {
-        if (disposed) throw AlreadyDisposedException.INSTANCE;
-    }
-
 }

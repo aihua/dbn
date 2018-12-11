@@ -6,6 +6,7 @@ import com.intellij.ui.RoundedLineBorder;
 
 import javax.swing.*;
 import javax.swing.border.CompoundBorder;
+import java.awt.*;
 import javax.swing.border.EmptyBorder;
 
 public interface DataEditorComponent extends Disposable{
@@ -18,7 +19,11 @@ public interface DataEditorComponent extends Disposable{
 
     void setEditable(boolean editable);
 
+    boolean isEditable();
+
     void setEnabled(boolean enabled);
+
+    boolean isEnabled();
 
     UserValueHolder getUserValueHolder();
 
@@ -27,4 +32,8 @@ public interface DataEditorComponent extends Disposable{
     String getText();
 
     void setText(String text);
+
+    void setFont(Font font);
+
+    void setBorder(Border border);
 }

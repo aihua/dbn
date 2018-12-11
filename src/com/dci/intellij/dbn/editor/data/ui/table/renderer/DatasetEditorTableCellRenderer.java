@@ -14,6 +14,8 @@ import javax.swing.*;
 import javax.swing.border.Border;
 import java.awt.*;
 
+import static com.dci.intellij.dbn.editor.data.model.RecordStatus.*;
+
 public class DatasetEditorTableCellRenderer extends BasicTableCellRenderer {
 
     protected void customizeCellRenderer(JTable table, Object value, boolean isSelected, boolean hasFocus, int rowIndex, int columnIndex) {
@@ -28,10 +30,10 @@ public class DatasetEditorTableCellRenderer extends BasicTableCellRenderer {
             boolean isLoading = datasetEditorTable.isLoading();
             boolean isInserting = datasetEditorTable.isInserting();
 
-            boolean isDeletedRow = row.isDeleted();
-            boolean isInsertRow = row.isInsert();
+            boolean isDeletedRow = row.is(DELETED);
+            boolean isInsertRow = row.is(INSERTING);
             boolean isCaretRow = !isInsertRow && table.getCellSelectionEnabled() && table.getSelectedRow() == rowIndex && table.getSelectedRowCount() == 1;
-            boolean isModified = cell.isModified();
+            boolean isModified = cell.is(MODIFIED);
             boolean isTrackingColumn = columnInfo.isTrackingColumn();
             boolean isConnected = FailsafeUtil.get(datasetEditorTable.getDatasetEditor().getConnectionHandler()).isConnected();
 

@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.data.editor.ui;
 
 import com.dci.intellij.dbn.common.Icons;
-import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.ui.KeyUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.data.editor.text.TextEditorAdapter;
@@ -17,13 +16,7 @@ import com.intellij.util.ui.UIUtil;
 import javax.swing.*;
 import javax.swing.text.Document;
 import java.awt.*;
-import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
+import java.awt.event.*;
 
 public class TextFieldWithTextEditor extends JPanel implements DataEditorComponent, TextEditorAdapter {
     private JTextField textField;
@@ -77,8 +70,18 @@ public class TextFieldWithTextEditor extends JPanel implements DataEditorCompone
         if (textField != null) textField.setFont(font);
     }
 
+    @Override
+    public void setEnabled(boolean enabled) {
+        textField.setEditable(enabled);
+    }
+
     public void setEditable(boolean editable){
         textField.setEditable(editable);
+    }
+
+    @Override
+    public boolean isEditable() {
+        return textField.isEditable();
     }
 
     public void setUserValueHolder(UserValueHolder userValueHolder) {
@@ -120,11 +123,6 @@ public class TextFieldWithTextEditor extends JPanel implements DataEditorCompone
 
     public JLabel getButton() {
         return button;
-    }
-
-    @Override
-    public void setEnabled(boolean enabled) {
-        textField.setEditable(enabled);
     }
 
     public void openEditor() {
@@ -188,10 +186,5 @@ public class TextFieldWithTextEditor extends JPanel implements DataEditorCompone
             userValueHolder = null;
             project = null;
         }
-    }
-
-    @Override
-    public void checkDisposed() {
-        if (disposed) throw AlreadyDisposedException.INSTANCE;
     }
 }

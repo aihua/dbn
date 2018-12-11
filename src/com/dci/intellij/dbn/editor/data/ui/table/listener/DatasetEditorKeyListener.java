@@ -10,6 +10,8 @@ import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
 import java.sql.SQLException;
 
+import static com.dci.intellij.dbn.editor.data.model.RecordStatus.INSERTING;
+
 public class DatasetEditorKeyListener extends KeyAdapter {
     private DatasetEditorTable table;
 
@@ -21,7 +23,7 @@ public class DatasetEditorKeyListener extends KeyAdapter {
         DatasetEditorModel model = table.getModel();
         if (!e.isConsumed()) {
             int keyChar = e.getKeyChar();
-            if (model.isInserting()) {
+            if (model.is(INSERTING)) {
                 switch (keyChar) {
                     case 27:  // escape
                         model.cancelInsert(true);
@@ -30,7 +32,7 @@ public class DatasetEditorKeyListener extends KeyAdapter {
                         int index = model.getInsertRowIndex();
                         try {
                             model.postInsertRecord(false, true, false);
-                            if (!model.isInserting()) {
+                            if (model.isNot(INSERTING)) {
                                 model.insertRecord(index + 1);
                             }
                         } catch (SQLException e1) {
@@ -40,17 +42,19 @@ public class DatasetEditorKeyListener extends KeyAdapter {
                 }
             } else if (!table.isEditing()){
                 if (keyChar == 127) {
-                    for (int rowIndex : table.getSelectedRows()) {
-                        for (int columnIndex : table.getSelectedColumns()) {
-                            DatasetEditorModelCell cell = model.getCellAt(rowIndex, columnIndex);
-                            DBDataType dataType = cell.getColumnInfo().getDataType();
-                            if (dataType != null && dataType.isNative() && !dataType.getNativeDataType().isLargeObject()) {
-                                cell.updateUserValue(null, true);
+                    int[] selectedRows = table.getSelectedRows();
+                    int[] selectedColumns = table.getSelectedColumns();
+                    table.performUpdate(() -> {
+                        for (int rowIndex : selectedRows) {
+                            for (int columnIndex : selectedColumns) {
+                                DatasetEditorModelCell cell = model.getCellAt(rowIndex, columnIndex);
+                                DBDataType dataType = cell.getColumnInfo().getDataType();
+                                if (dataType.isNative() && !dataType.getNativeDataType().isLargeObject()) {
+                                    cell.updateUserValue(null, true);
+                                }
                             }
                         }
-                    }
-                    table.revalidate();
-                    table.repaint();
+                    });
                 }
             }
         }

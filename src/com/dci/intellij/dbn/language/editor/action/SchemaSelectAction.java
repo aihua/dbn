@@ -15,12 +15,10 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
 
-import static com.dci.intellij.dbn.common.util.ActionUtil.getEditor;
-import static com.dci.intellij.dbn.common.util.ActionUtil.getProject;
-import static com.dci.intellij.dbn.common.util.ActionUtil.getVirtualFile;
+import static com.dci.intellij.dbn.common.util.ActionUtil.*;
 
 public class SchemaSelectAction extends AnObjectAction<DBSchema> {
-    public SchemaSelectAction(DBSchema schema) {
+    SchemaSelectAction(DBSchema schema) {
         super(schema);
     }
 
@@ -31,10 +29,10 @@ public class SchemaSelectAction extends AnObjectAction<DBSchema> {
     }
 
 
-    public void actionPerformed(AnActionEvent e) {
-        Project project = getProject(e);
+    public void actionPerformed(@NotNull AnActionEvent e) {
+        Project project = ensureProject(e);
         Editor editor = getEditor(e);
-        if (project != null && editor != null) {
+        if (editor != null) {
             DBSchema schema = getSchema();
             FileConnectionMappingManager connectionMappingManager = FileConnectionMappingManager.getInstance(project);
             connectionMappingManager.setDatabaseSchema(editor, schema);
@@ -49,7 +47,7 @@ public class SchemaSelectAction extends AnObjectAction<DBSchema> {
             VirtualFile virtualFile = getVirtualFile(e);
             if (virtualFile instanceof DBEditableObjectVirtualFile) {
                 enabled = false;//objectFile.getObject().getSchema() == schema;
-            } else {
+            } else if (virtualFile != null){
                 PsiFile currentFile = PsiUtil.getPsiFile(project, virtualFile);
                 enabled = currentFile instanceof DBLanguagePsiFile;
             }

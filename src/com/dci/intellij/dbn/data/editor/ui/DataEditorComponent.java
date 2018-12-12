@@ -5,9 +5,10 @@ import com.dci.intellij.dbn.common.dispose.Disposable;
 import com.intellij.ui.RoundedLineBorder;
 
 import javax.swing.*;
+import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
-import java.awt.*;
 import javax.swing.border.EmptyBorder;
+import java.awt.*;
 
 public interface DataEditorComponent extends Disposable{
     EmptyBorder BUTTON_OUTSIDE_BORDER = new EmptyBorder(1, 1, 1, 1);

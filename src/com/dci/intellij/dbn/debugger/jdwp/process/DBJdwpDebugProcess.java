@@ -32,8 +32,8 @@ import com.dci.intellij.dbn.object.DBProgram;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
 import com.intellij.debugger.DebuggerManager;
+import com.intellij.debugger.engine.DebugProcessAdapter;
 import com.intellij.debugger.engine.DebugProcessImpl;
-import com.intellij.debugger.engine.DebugProcessListener;
 import com.intellij.debugger.engine.JavaDebugProcess;
 import com.intellij.debugger.engine.JavaStackFrame;
 import com.intellij.debugger.engine.SuspendContext;
@@ -45,7 +45,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.xdebugger.XDebugSession;
-import com.intellij.xdebugger.XDebugSessionListener;
+import com.intellij.xdebugger.XDebugSessionAdapter;
 import com.intellij.xdebugger.breakpoints.XBreakpointProperties;
 import com.intellij.xdebugger.breakpoints.XLineBreakpoint;
 import com.intellij.xdebugger.frame.XExecutionStack;
@@ -61,7 +61,12 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.StringTokenizer;
 
-import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.*;
+import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.BREAKPOINT_SETTING_ALLOWED;
+import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.DEBUGGER_STOPPING;
+import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.SESSION_INITIALIZATION_THREW_EXCEPTION;
+import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.TARGET_EXECUTION_STARTED;
+import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.TARGET_EXECUTION_TERMINATED;
+import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.TARGET_EXECUTION_THREW_EXCEPTION;
 
 public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaDebugProcess implements DBDebugProcess {
     public static final Key<DBJdwpDebugProcess> KEY = new Key<DBJdwpDebugProcess>("DBNavigator.JdwpDebugProcess");
@@ -184,7 +189,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
         final Project project = getProject();
         DebuggerManager debuggerManager = DebuggerManager.getInstance(project);
         ProcessHandler processHandler = debuggerSession.getProcess().getProcessHandler();
-        debuggerManager.addDebugProcessListener(processHandler, new DebugProcessListener(){
+        debuggerManager.addDebugProcessListener(processHandler, new DebugProcessAdapter(){
             @Override
             public void paused(@NotNull SuspendContext suspendContext) {
                 if (suspendContext instanceof XSuspendContext) {
@@ -201,7 +206,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
             }
         });
 
-        session.addSessionListener(new XDebugSessionListener() {
+        session.addSessionListener(new XDebugSessionAdapter() {
             @Override
             public void sessionPaused() {
                 XSuspendContext suspendContext = session.getSuspendContext();
@@ -221,12 +226,9 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
             }
         });
 
-        debuggerSession.getContextManager().addListener(new DebuggerContextListener() {
-            @Override
-            public void changeEvent(DebuggerContextImpl newContext, int event) {
-                SuspendContextImpl suspendContext = newContext.getSuspendContext();
-                overwriteSuspendContext(suspendContext);
-            }
+        debuggerSession.getContextManager().addListener((newContext, event) -> {
+            SuspendContextImpl suspendContext = newContext.getSuspendContext();
+            overwriteSuspendContext(suspendContext);
         });
 
         getDebuggerSession().getProcess().setXDebugProcess(this);

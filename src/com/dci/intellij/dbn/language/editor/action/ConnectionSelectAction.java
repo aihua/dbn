@@ -13,14 +13,12 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NotNull;
 
-import static com.dci.intellij.dbn.common.util.ActionUtil.getEditor;
-import static com.dci.intellij.dbn.common.util.ActionUtil.getProject;
-import static com.dci.intellij.dbn.common.util.ActionUtil.getVirtualFile;
+import static com.dci.intellij.dbn.common.util.ActionUtil.*;
 
 public class ConnectionSelectAction extends DumbAwareAction {
     private final ConnectionHandler connectionHandler;
 
-    public ConnectionSelectAction(ConnectionHandler connectionHandler) {
+    ConnectionSelectAction(ConnectionHandler connectionHandler) {
         super();
         Presentation presentation = getTemplatePresentation();
         presentation.setText(connectionHandler == null ? "No Connection" : connectionHandler.getQualifiedName(), false);
@@ -29,9 +27,9 @@ public class ConnectionSelectAction extends DumbAwareAction {
     }
 
     public void actionPerformed(@NotNull AnActionEvent e) {
-        Project project = getProject(e);
+        Project project = ensureProject(e);
         Editor editor = getEditor(e);
-        if (project != null && editor != null) {
+        if (editor != null) {
             FileConnectionMappingManager connectionMappingManager = FileConnectionMappingManager.getInstance(project);
             connectionMappingManager.setConnectionHandler(editor, connectionHandler);
         }

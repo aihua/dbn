@@ -20,15 +20,13 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
 
-import static com.dci.intellij.dbn.common.util.ActionUtil.getEditor;
-import static com.dci.intellij.dbn.common.util.ActionUtil.getProject;
-import static com.dci.intellij.dbn.common.util.ActionUtil.getVirtualFile;
+import static com.dci.intellij.dbn.common.util.ActionUtil.*;
 
 public class ExplainPlanEditorAction extends AnAction {
     public void actionPerformed(@NotNull AnActionEvent e) {
-        Project project = getProject(e);
+        Project project = ensureProject(e);
         Editor editor = getEditor(e);
-        if (project != null && editor != null) {
+        if (editor != null) {
             FileEditor fileEditor = EditorUtil.getFileEditor(editor);
             ExecutablePsiElement executable = PsiUtil.lookupExecutableAtCaret(editor, true);
             if (fileEditor != null && executable != null && executable.is(ElementTypeAttribute.DATA_MANIPULATION)) {
@@ -46,9 +44,9 @@ public class ExplainPlanEditorAction extends AnAction {
         boolean visible = false;
         boolean enabled = false;
 
-        Project project = getProject(e);
+        Project project = ensureProject(e);
         Editor editor = getEditor(e);
-        if (project != null && editor != null) {
+        if (editor != null) {
             PsiFile psiFile = PsiUtil.getPsiFile(project, editor.getDocument());
             if (psiFile instanceof DBLanguagePsiFile) {
                 DBLanguagePsiFile languagePsiFile = (DBLanguagePsiFile) psiFile;

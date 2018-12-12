@@ -300,10 +300,15 @@ public class PsiUtil {
         return psiDocumentManager == null ? null : psiDocumentManager.getPsiFile(document);
     }
 
-    public static PsiFile getPsiFile(@NotNull final Project project, final VirtualFile virtualFile) {
+    @Nullable
+    public static PsiFile getPsiFile(@NotNull Project project, @NotNull VirtualFile virtualFile) {
         return ReadActionRunner.invoke(true, () -> {
-            PsiManager psiManager = PsiManager.getInstance(project);
-            return psiManager.findFile(virtualFile);
+            if (virtualFile.isValid()) {
+                PsiManager psiManager = PsiManager.getInstance(project);
+                return psiManager.findFile(virtualFile);
+            } else {
+                return null;
+            }
         });
     }
 

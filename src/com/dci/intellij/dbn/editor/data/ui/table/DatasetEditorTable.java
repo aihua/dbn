@@ -40,7 +40,6 @@ import com.dci.intellij.dbn.vfs.DatabaseFileSystem;
 import com.intellij.openapi.actionSystem.ActionGroup;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.ActionPopupMenu;
-import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.awt.RelativePoint;
@@ -50,7 +49,11 @@ import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.TableColumnModelEvent;
-import javax.swing.table.*;
+import javax.swing.table.JTableHeader;
+import javax.swing.table.TableCellEditor;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.sql.SQLException;
@@ -509,29 +512,26 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
      *                        Popup                         *
      ********************************************************/
     public void showPopupMenu(
-            final MouseEvent event,
-            final DatasetEditorModelCell cell,
-            final ColumnInfo columnInfo) {
-        new ModalTask(getProject(), "Loading column information", true) {
-            @Override
-            protected void execute(@NotNull ProgressIndicator progressIndicator) {
-                ActionGroup actionGroup = new DatasetEditorTableActionGroup(datasetEditor, cell, columnInfo);
-                if (!progressIndicator.isCanceled()) {
-                    ActionPopupMenu actionPopupMenu = ActionManager.getInstance().createActionPopupMenu("", actionGroup);
-                    final JPopupMenu popupMenu = actionPopupMenu.getComponent();
-                    SimpleLaterInvocator.invoke(() -> {
-                        Component component = (Component) event.getSource();
-                        if (component.isShowing()) {
-                            int x = event.getX();
-                            int y = event.getY();
-                            if (x >= 0 && x < component.getWidth() && y >= 0 && y < component.getHeight()) {
-                                popupMenu.show(component, x, y);
-                            }
+            MouseEvent event,
+            DatasetEditorModelCell cell,
+            ColumnInfo columnInfo) {
+        ModalTask.invoke(getProject(), "Loading column information", true, (data, progress) -> {
+            ActionGroup actionGroup = new DatasetEditorTableActionGroup(datasetEditor, cell, columnInfo);
+            if (!progress.isCanceled()) {
+                ActionPopupMenu actionPopupMenu = ActionManager.getInstance().createActionPopupMenu("", actionGroup);
+                JPopupMenu popupMenu = actionPopupMenu.getComponent();
+                SimpleLaterInvocator.invoke(() -> {
+                    Component component = (Component) event.getSource();
+                    if (component.isShowing()) {
+                        int x = event.getX();
+                        int y = event.getY();
+                        if (x >= 0 && x < component.getWidth() && y >= 0 && y < component.getHeight()) {
+                            popupMenu.show(component, x, y);
                         }
-                    });
-                }
+                    }
+                });
             }
-        }.start();
+        });
     }
 
 

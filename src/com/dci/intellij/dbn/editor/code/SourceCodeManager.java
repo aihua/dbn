@@ -1,18 +1,5 @@
 package com.dci.intellij.dbn.editor.code;
 
-import static com.dci.intellij.dbn.common.thread.TaskInstruction.START_IN_BACKGROUND;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.*;
-
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import org.jdom.Element;
-import org.jetbrains.annotations.NonNls;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
@@ -27,7 +14,11 @@ import com.dci.intellij.dbn.common.option.InteractiveOptionHandler;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.SynchronizedTask;
 import com.dci.intellij.dbn.common.thread.TaskInstructions;
-import com.dci.intellij.dbn.common.util.*;
+import com.dci.intellij.dbn.common.util.DocumentUtil;
+import com.dci.intellij.dbn.common.util.EditorUtil;
+import com.dci.intellij.dbn.common.util.EventUtil;
+import com.dci.intellij.dbn.common.util.MessageUtil;
+import com.dci.intellij.dbn.common.util.NamingUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
@@ -65,13 +56,29 @@ import com.intellij.openapi.components.StoragePathMacros;
 import com.intellij.openapi.components.StorageScheme;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.actionSystem.EditorActionManager;
-import com.intellij.openapi.fileEditor.*;
+import com.intellij.openapi.fileEditor.FileEditor;
+import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
+import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
+import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManager;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import com.intellij.util.text.DateFormatUtil;
+import org.jdom.Element;
+import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
+import static com.dci.intellij.dbn.common.thread.TaskInstruction.START_IN_BACKGROUND;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.*;
 
 @State(
     name = SourceCodeManager.COMPONENT_NAME,
@@ -113,7 +120,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
                             "The " + schemaObject.getQualifiedNameWithType() + " has been updated in database. You have unsaved changes in the object editor.\n" +
                                     "Do you want to discard the changes and reload the updated database version?",
                             new String[]{"Reload", "Keep changes"}, 0,
-                            MessageCallback.create(0, () ->
+                            MessageCallback.create(0, option ->
                                     reloadAndUpdateEditors(databaseFile, false)));
                 } else {
                     reloadAndUpdateEditors(databaseFile, true);
@@ -176,35 +183,29 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
     }
 
     private void loadSourceFromDatabase(@NotNull final DBSourceCodeVirtualFile sourceCodeFile, final boolean force) {
-        new SynchronizedTask() {
-            @Override
-            protected void execute() {
-                boolean initialLoad = !sourceCodeFile.isLoaded();
-                if (sourceCodeFile.isNot(LOADING) && (initialLoad || force)) {
-                    sourceCodeFile.set(LOADING, true);
-                    EditorUtil.setEditorsReadonly(sourceCodeFile, true);
-                    Project project = getProject();
-                    DBSchemaObject object = sourceCodeFile.getObject();
+        SynchronizedTask.invoke(
+                () -> "LOAD_SOURCE:" + sourceCodeFile.getUrl(),
+                data -> {
+                    boolean initialLoad = !sourceCodeFile.isLoaded();
+                    if (sourceCodeFile.isNot(LOADING) && (initialLoad || force)) {
+                        sourceCodeFile.set(LOADING, true);
+                        EditorUtil.setEditorsReadonly(sourceCodeFile, true);
+                        Project project = getProject();
+                        DBSchemaObject object = sourceCodeFile.getObject();
 
-                    EventUtil.notify(project, SourceCodeManagerListener.TOPIC).sourceCodeLoading(sourceCodeFile);
-                    try {
-                        sourceCodeFile.loadSourceFromDatabase();
-                    } catch (SQLException e) {
-                        sourceCodeFile.setSourceLoadError(e.getMessage());
-                        sourceCodeFile.set(MODIFIED, false);
-                        sendErrorNotification("Source Load Error", "Could not load sourcecode for " + object.getQualifiedNameWithType() + " from database. Cause: " + e.getMessage());
-                    } finally {
-                        sourceCodeFile.set(LOADING, false);
-                        EventUtil.notify(project, SourceCodeManagerListener.TOPIC).sourceCodeLoaded(sourceCodeFile, initialLoad);
+                        EventUtil.notify(project, SourceCodeManagerListener.TOPIC).sourceCodeLoading(sourceCodeFile);
+                        try {
+                            sourceCodeFile.loadSourceFromDatabase();
+                        } catch (SQLException e) {
+                            sourceCodeFile.setSourceLoadError(e.getMessage());
+                            sourceCodeFile.set(MODIFIED, false);
+                            sendErrorNotification("Source Load Error", "Could not load sourcecode for " + object.getQualifiedNameWithType() + " from database. Cause: " + e.getMessage());
+                        } finally {
+                            sourceCodeFile.set(LOADING, false);
+                            EventUtil.notify(project, SourceCodeManagerListener.TOPIC).sourceCodeLoaded(sourceCodeFile, initialLoad);
+                        }
                     }
-                }
-            }
-
-            @Override
-            protected String getSyncKey() {
-                return "LOAD_SOURCE:" + sourceCodeFile.getUrl();
-            }
-        }.start();
+                });
     }
 
     private void saveSourceToDatabase(@NotNull final DBSourceCodeVirtualFile sourceCodeFile, @Nullable final SourceCodeEditor fileEditor, @Nullable final Runnable successCallback) {
@@ -237,8 +238,8 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
                                         "\nYou must merge the changes before saving.";
 
                         MessageUtil.showWarningDialog(project, "Version conflict", message, new String[]{"Merge Changes", "Cancel"}, 0,
-                                BackgroundTask.create(project, "Loading database source code", false, false, (task, progress) -> {
-                                    if (task.getData() == 0) {
+                                BackgroundTask.create(project, "Loading database source code", false, false, (option, progress) -> {
+                                    if (option == 0) {
                                         try {
                                             SourceCodeContent sourceCodeContent = loadSourceFromDatabase(object, contentType);
                                             String databaseContent = sourceCodeContent.getText().toString();

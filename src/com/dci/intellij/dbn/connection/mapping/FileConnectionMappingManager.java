@@ -76,9 +76,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import static com.dci.intellij.dbn.common.action.DBNDataKeys.CONNECTION_HANDLER;
-import static com.dci.intellij.dbn.common.action.DBNDataKeys.DATABASE_SCHEMA;
-import static com.dci.intellij.dbn.common.action.DBNDataKeys.DATABASE_SESSION;
+import static com.dci.intellij.dbn.common.action.DBNDataKeys.*;
 
 @State(
     name = FileConnectionMappingManager.COMPONENT_NAME,
@@ -409,7 +407,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                 MessageUtil.showWarningDialog(project,
                         "No valid connection", message,
                         new String[]{"Select Connection", "Cancel"}, 0,
-                        MessageCallback.create(0, () ->
+                        MessageCallback.create(0, option ->
                                 promptConnectionSelector(file, false, true, true, callback)));
 
             } else if (file.getDatabaseSchema() == null) {
@@ -419,17 +417,13 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                 MessageUtil.showWarningDialog(project,
                         "No schema selected", message,
                         new String[]{"Use Current Schema", "Select Schema", "Cancel"}, 0,
-                        new MessageCallback() {
-                            @Override
-                            protected void execute() {
-                                Integer result = getData();
-                                if (result == 0) {
-                                    callback.start();
-                                } else if (result == 1) {
-                                    promptSchemaSelector(file, callback);
-                                }
+                        MessageCallback.create(null, option -> {
+                            if (option == 0) {
+                                callback.start();
+                            } else if (option == 1) {
+                                promptSchemaSelector(file, callback);
                             }
-                        });
+                        }));
             } else {
                 callback.start();
             }
@@ -529,11 +523,9 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
         @Override
         public void actionPerformed(@NotNull AnActionEvent e) {
-            Project project = ActionUtil.getProject(e);
-            if (project != null) {
-                ProjectSettingsManager settingsManager = ProjectSettingsManager.getInstance(project);
-                settingsManager.openProjectSettings(ConfigId.CONNECTIONS);
-            }
+            Project project = ActionUtil.ensureProject(e);
+            ProjectSettingsManager settingsManager = ProjectSettingsManager.getInstance(project);
+            settingsManager.openProjectSettings(ConfigId.CONNECTIONS);
         }
     }
 
@@ -678,15 +670,13 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                 Project project = getProject();
                 DatabaseSessionManager sessionManager = DatabaseSessionManager.getInstance(project);
                 ConnectionHandler connectionHandler = connectionHandlerRef.get();
-                sessionManager.showCreateSessionDialog(connectionHandler, new SimpleTask<DatabaseSession>() {
-                    @Override
-                    protected void execute() {
-                        DatabaseSession session = getData();
-                        if (session != null) {
-                            file.setDatabaseSession(session);
-                        }
-                    }
-                });
+                sessionManager.showCreateSessionDialog(
+                        connectionHandler,
+                        SimpleTask.create(session -> {
+                            if (session != null) {
+                                file.setDatabaseSession(session);
+                            }
+                        }));
             }
         }
     }

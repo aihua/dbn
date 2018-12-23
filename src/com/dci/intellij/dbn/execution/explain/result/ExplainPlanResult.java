@@ -70,11 +70,11 @@ public class ExplainPlanResult extends DisposableBase implements ExecutionResult
     }
 
     public ExplainPlanResult(ExecutablePsiElement executablePsiElement, String errorMessage) {
-        DBLanguagePsiFile file = executablePsiElement.getFile();
-        ConnectionHandler connectionHandler = FailsafeUtil.get(file.getConnectionHandler());
+        DBLanguagePsiFile psiFile = executablePsiElement.getFile();
+        ConnectionHandler connectionHandler = FailsafeUtil.get(psiFile.getConnectionHandler());
         connectionHandlerRef = connectionHandler.getRef();
-        databaseSchemaRef = DBObjectRef.from(file.getDatabaseSchema());
-        virtualFile = file.getVirtualFile();
+        databaseSchemaRef = DBObjectRef.from(psiFile.getDatabaseSchema());
+        virtualFile = psiFile.getVirtualFile();
         this.resultName = CommonUtil.nvl(executablePsiElement.createSubjectList(), "Explain Plan");
         this.errorMessage = errorMessage;
         this.statementText = executablePsiElement.getText();
@@ -95,7 +95,7 @@ public class ExplainPlanResult extends DisposableBase implements ExecutionResult
 
     @NotNull
     public ConnectionHandler getConnectionHandler() {
-        return ConnectionHandlerRef.get(connectionHandlerRef);
+        return ConnectionHandlerRef.getnn(connectionHandlerRef);
     }
 
     public DBSchema getDatabaseSchema() {

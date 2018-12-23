@@ -122,7 +122,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
     }
 
     public ConnectionHandler getConnectionHandler() {
-        return connectionHandlerRef.get();
+        return connectionHandlerRef.getnn();
     }
 
     @Nullable
@@ -304,15 +304,14 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
     protected abstract void executeTarget() throws SQLException;
 
     @Override
-    public synchronized void stop() {
-        if (isNot(DEBUGGER_STOPPING)) {
-            set(DEBUGGER_STOPPING, true);
+    public void stop() {
+        sync(DEBUGGER_STOPPING, () -> {
             set(BREAKPOINT_SETTING_ALLOWED, false);
             console.system("Stopping debugger...");
             getSession().stop();
             stopDebugger();
             super.stop();
-        }
+        });
     }
 
     private void stopDebugger() {

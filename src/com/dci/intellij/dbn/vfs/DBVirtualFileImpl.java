@@ -193,8 +193,9 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
 
     @Override
     public void dispose() {
-        disposed = true;
-        putUserData(FileDocumentManagerImpl.HARD_REF_TO_DOCUMENT_KEY, null);
+        if (!disposed) {
+            disposed = true;
+            putUserData(FileDocumentManagerImpl.HARD_REF_TO_DOCUMENT_KEY, null);}
     }
 
     @Override

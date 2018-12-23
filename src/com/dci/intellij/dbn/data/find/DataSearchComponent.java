@@ -326,7 +326,7 @@ public class DataSearchComponent extends DBNFormImpl implements Disposable, Sele
         FeatureUsageTracker.getInstance().triggerFeatureUsed("find.recent.search");
         FindSettings settings = FindSettings.getInstance();
         String[] recent = textField == searchField ? settings.getRecentFindStrings() : settings.getRecentReplaceStrings();
-        JBList<String> list = new JBList<>((String[]) ArrayUtil.reverseArray(recent));
+        JBList list = new JBList((Object[]) ArrayUtil.reverseArray(recent));
         CompatibilityUtil.showSearchCompletionPopup(byClickingToolbarButton, actionsPanel, list, "Recent Searches", textField);
     }
 

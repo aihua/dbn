@@ -3,11 +3,11 @@ package com.dci.intellij.dbn.common.thread;
 import com.dci.intellij.dbn.common.Constants;
 import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.PerformInBackgroundOption;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.progress.ProgressIndicator;
-import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
@@ -15,6 +15,7 @@ import org.jetbrains.annotations.Nullable;
 
 public abstract class BackgroundTask<T> extends Task.Backgroundable implements RunnableTask<T> {
     private static final Logger LOGGER = LoggerFactory.createLogger();
+    private TaskInstructions instructions;
     private T data;
 
     private static PerformInBackgroundOption START_IN_BACKGROUND = new PerformInBackgroundOption() {
@@ -28,15 +29,14 @@ public abstract class BackgroundTask<T> extends Task.Backgroundable implements R
     };
 
     private BackgroundTask(@Nullable Project project, TaskInstructions instructions) {
-        this(project, instructions.getTitle(), instructions.isStartInBackground(), instructions.isCanBeCancelled());
-    }
-
-    private BackgroundTask(@Nullable Project project, @NotNull String title, boolean startInBackground, boolean canBeCancelled) {
         super(
             FailsafeUtil.get(project),
-            Constants.DBN_TITLE_PREFIX + title,
-            canBeCancelled,
-            startInBackground ? START_IN_BACKGROUND : DO_NOT_START_IN_BACKGROUND);
+            Constants.DBN_TITLE_PREFIX + instructions.getTitle(),
+            instructions.is(TaskInstruction.CANCELLABLE),
+            instructions.is(TaskInstruction.BACKGROUNDED) ?
+                    START_IN_BACKGROUND :
+                    DO_NOT_START_IN_BACKGROUND);
+        this.instructions = instructions;
     }
 
     @Override
@@ -51,11 +51,12 @@ public abstract class BackgroundTask<T> extends Task.Backgroundable implements R
 
     @Override
     public final void run() {
-        ProgressIndicator progressIndicator = ProgressManager.getInstance().getProgressIndicator();
+        ProgressIndicator progressIndicator = ProgressMonitor.getProgressIndicator();
         run(progressIndicator);
     }
 
     public final void run(@NotNull ProgressIndicator progressIndicator) {
+        BackgroundMonitor.startBackgroundProcess();
         Thread currentThread = Thread.currentThread();
         int priority = currentThread.getPriority();
         try {
@@ -71,6 +72,7 @@ public abstract class BackgroundTask<T> extends Task.Backgroundable implements R
         } finally {
             currentThread.setPriority(priority);
             progressIndicator.popState();
+            BackgroundMonitor.endBackgroundProcess();
             /*if (progressIndicator.isRunning()) {
                 progressIndicator.stop();
             }*/
@@ -80,26 +82,26 @@ public abstract class BackgroundTask<T> extends Task.Backgroundable implements R
     protected abstract void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException;
 
     public final void start() {
-        final BackgroundTask task = BackgroundTask.this;
-        TaskUtil.startTask(task, getProject());
+        boolean conditional = instructions != null && instructions.is(TaskInstruction.CONDITIONAL);
+        if (conditional && BackgroundMonitor.isBackgroundProcess()) {
+            ProgressMonitor.checkCancelled();
+            run(ProgressMonitor.getProgressIndicator());
+        } else {
+            TaskUtil.startTask(BackgroundTask.this, getProject());
+        }
     }
 
-    protected static void initProgressIndicator(final ProgressIndicator progressIndicator, final boolean indeterminate) {
+    protected static void initProgressIndicator(ProgressIndicator progressIndicator, boolean indeterminate) {
         initProgressIndicator(progressIndicator, indeterminate, null);
     }
 
-    public static void initProgressIndicator(final ProgressIndicator progressIndicator, final boolean indeterminate, @Nullable final String text) {
+    public static void initProgressIndicator(ProgressIndicator progressIndicator, boolean indeterminate, @Nullable String text) {
         SimpleLaterInvocator.invoke(() -> {
             if (progressIndicator.isRunning()) {
                 progressIndicator.setIndeterminate(indeterminate);
                 if (text != null) progressIndicator.setText(text);
             }
         });
-    }
-
-    public static boolean isProcessCancelled() {
-        ProgressIndicator progressIndicator = ProgressManager.getInstance().getProgressIndicator();
-        return progressIndicator != null && progressIndicator.isCanceled();
     }
 
     public static <T> BackgroundTask<T> create(@Nullable Project project, TaskInstructions instructions, BackgroundRunnable<T> runnable) {
@@ -110,25 +112,7 @@ public abstract class BackgroundTask<T> extends Task.Backgroundable implements R
             }
         };
     }
-    public static <T> BackgroundTask<T> create(@Nullable Project project, @NotNull String title, boolean startInBackground, boolean cancellable, BackgroundRunnable<T> runnable) {
-        return new BackgroundTask<T>(project, title, startInBackground, cancellable) {
-            @Override
-            protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
-                runnable.run(getData(), progressIndicator);
-            }
-        };
-    }
-
     public static <T> void invoke(@Nullable Project project, TaskInstructions instructions, BackgroundRunnable<T> runnable) {
         create(project, instructions, runnable).start();
-    }
-
-    public static <T> void invoke(@Nullable Project project, String title, boolean startInBackground, boolean cancellable, BackgroundRunnable<T> runnable) {
-        create(project, title, startInBackground, cancellable, runnable).start();
-    }
-
-    @FunctionalInterface
-    public interface BackgroundRunnable<T> {
-        void run(T data, ProgressIndicator progress) throws InterruptedException;
     }
 }

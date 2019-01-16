@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.object.common;
 
 import com.dci.intellij.dbn.common.util.ChangeTimestamp;
-import com.dci.intellij.dbn.ddl.DDLFileType;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.object.DBSchema;
@@ -17,7 +16,6 @@ import java.util.List;
 public interface DBSchemaObject extends DBObject {
     List<DBObject> getReferencedObjects();
     List<DBObject> getReferencingObjects();
-    DBContentType getContentType();
     boolean isEditable(DBContentType contentType);
 
     @NotNull
@@ -28,8 +26,6 @@ public interface DBSchemaObject extends DBObject {
     String getCodeParseRootId(DBContentType contentType);
 
     void executeUpdateDDL(DBContentType contentType, String oldCode, String newCode) throws SQLException;
-    DDLFileType getDDLFileType(DBContentType contentType);
-    DDLFileType[] getDDLFileTypes();
 
     DBObjectStatusHolder getStatus();
 

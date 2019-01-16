@@ -1,8 +1,8 @@
 package com.dci.intellij.dbn.common.thread;
 
+import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.progress.ProgressIndicator;
-import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
@@ -27,7 +27,7 @@ public abstract class ModalTask<T> extends Task.Modal implements RunnableTask<T>
     @Override
     public final void run() {
         try {
-            ProgressIndicator progressIndicator = ProgressManager.getInstance().getProgressIndicator();
+            ProgressIndicator progressIndicator = ProgressMonitor.getProgressIndicator();
             run(progressIndicator);
         } catch (ProcessCanceledException e) {
             // do nothing
@@ -57,12 +57,12 @@ public abstract class ModalTask<T> extends Task.Modal implements RunnableTask<T>
             @NotNull Project project,
             String title,
             boolean cancellable,
-            ModalRunnable runnable) {
+            BackgroundRunnable runnable) {
         create(project, title, cancellable, runnable).start();
     }
 
     @NotNull
-    public static <T> ModalTask<T> create(@NotNull Project project, String title, boolean cancellable, ModalRunnable<T> runnable) {
+    public static <T> ModalTask<T> create(@NotNull Project project, String title, boolean cancellable, BackgroundRunnable<T> runnable) {
         return new ModalTask<T>(project, title, cancellable) {
             @Override
             protected void execute(@NotNull ProgressIndicator progressIndicator) throws InterruptedException {
@@ -71,8 +71,4 @@ public abstract class ModalTask<T> extends Task.Modal implements RunnableTask<T>
         };
     }
 
-    @FunctionalInterface
-    public interface ModalRunnable<T> {
-        void run(T data, ProgressIndicator progress) throws InterruptedException;
-    }
 }

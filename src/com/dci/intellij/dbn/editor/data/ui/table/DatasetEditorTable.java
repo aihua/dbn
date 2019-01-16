@@ -1,8 +1,7 @@
 package com.dci.intellij.dbn.editor.data.ui.table;
 
-import com.dci.intellij.dbn.common.content.DatabaseLoadMonitor;
 import com.dci.intellij.dbn.common.thread.ModalTask;
-import com.dci.intellij.dbn.common.thread.SimpleBackgroundInvocator;
+import com.dci.intellij.dbn.common.thread.SimpleBackgroundTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.ui.MouseUtil;
 import com.dci.intellij.dbn.common.ui.table.DBNTableGutter;
@@ -179,7 +178,7 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
     }
 
     public void performUpdate(Runnable runnable) {
-        SimpleBackgroundInvocator.invoke(() -> {
+        SimpleBackgroundTask.invoke(() -> {
             DatasetEditorModel model = getModel();
             try {
                 model.set(UPDATING, true);
@@ -428,15 +427,9 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
             DatasetEditorModelCell cell = (DatasetEditorModelCell) getCellAtMouseLocation();
             if (cell != null) {
                 DBColumn column = cell.getColumnInfo().getColumn();
-                boolean ensureDataLoaded = DatabaseLoadMonitor.isEnsureDataLoaded();
-                DatabaseLoadMonitor.setEnsureDataLoaded(false);
-                try {
-                    DBColumn foreignKeyColumn = column.getForeignKeyColumn();
-                    if (foreignKeyColumn != null) {
-                        setToolTipText("<html>Show referenced <b>" + foreignKeyColumn.getDataset().getQualifiedName() + "</b> record<html>");
-                    }
-                } finally {
-                    DatabaseLoadMonitor.setEnsureDataLoaded(ensureDataLoaded);
+                DBColumn foreignKeyColumn = column.getForeignKeyColumn();
+                if (foreignKeyColumn != null) {
+                    setToolTipText("<html>Show referenced <b>" + foreignKeyColumn.getDataset().getQualifiedName() + "</b> record<html>");
                 }
             }
         } else {

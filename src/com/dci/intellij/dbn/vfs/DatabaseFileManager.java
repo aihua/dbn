@@ -4,8 +4,14 @@ import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.option.InteractiveOptionHandler;
+import com.dci.intellij.dbn.common.thread.BackgroundTask;
+import com.dci.intellij.dbn.common.thread.TaskInstruction;
+import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.common.util.EventUtil;
+import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
+import com.dci.intellij.dbn.connection.ConnectionManager;
+import com.dci.intellij.dbn.connection.config.ConnectionDetailSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSettingsAdapter;
 import com.dci.intellij.dbn.connection.config.ConnectionSettingsListener;
 import com.dci.intellij.dbn.editor.code.SourceCodeManager;
@@ -21,17 +27,18 @@ import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.fileEditor.FileEditorManager;
-import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.startup.StartupManager;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.util.containers.ContainerUtil;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -48,7 +55,7 @@ import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
 public class DatabaseFileManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.DatabaseFileManager";
 
-    private Map<DBObjectRef, DBEditableObjectVirtualFile> openFiles = new HashMap<DBObjectRef, DBEditableObjectVirtualFile>();
+    private Set<DBEditableObjectVirtualFile> openFiles = ContainerUtil.newConcurrentSet();
     private boolean projectInitialized = false;
     private String sessionId;
 
@@ -86,8 +93,14 @@ public class DatabaseFileManager extends AbstractProjectComponent implements Per
         return sessionId;
     }
 
-    public boolean isFileOpened(DBSchemaObject object) {
-        return openFiles.containsKey(object.getRef());
+    public boolean isFileOpened(@NotNull DBSchemaObject object) {
+        for (DBEditableObjectVirtualFile openFile : openFiles) {
+            if (openFile.getObjectRef().is(object)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /***************************************
@@ -114,9 +127,9 @@ public class DatabaseFileManager extends AbstractProjectComponent implements Per
 
     private void closeFiles(ConnectionId connectionId) {
         Set<DBEditableObjectVirtualFile> filesToClose = new HashSet<DBEditableObjectVirtualFile>();
-        for (DBObjectRef objectRef : openFiles.keySet()) {
-            if (objectRef.getConnectionId() == connectionId) {
-                filesToClose.add(openFiles.get(objectRef));
+        for (DBEditableObjectVirtualFile openFile : openFiles) {
+            if (openFile.getConnectionId() == connectionId) {
+                filesToClose.add(openFile);
             }
         }
 
@@ -143,12 +156,17 @@ public class DatabaseFileManager extends AbstractProjectComponent implements Per
     private FileEditorManagerListener.Before fileEditorManagerListenerBefore = new FileEditorManagerListener.Before() {
         @Override
         public void beforeFileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
+            if (file instanceof DBEditableObjectVirtualFile) {
+                DBEditableObjectVirtualFile databaseFile = (DBEditableObjectVirtualFile) file;
+                DBObjectRef<DBSchemaObject> objectRef = databaseFile.getObjectRef();
+                objectRef.getnn();
+            }
         }
 
         @Override
         public void beforeFileClosed(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
             if (file instanceof DBEditableObjectVirtualFile) {
-                final DBEditableObjectVirtualFile databaseFile = (DBEditableObjectVirtualFile) file;
+                DBEditableObjectVirtualFile databaseFile = (DBEditableObjectVirtualFile) file;
                 if (databaseFile.isModified()) {
                     DBSchemaObject object = databaseFile.getObject();
 
@@ -179,18 +197,18 @@ public class DatabaseFileManager extends AbstractProjectComponent implements Per
 
         }
     };
-    private FileEditorManagerListener fileEditorManagerListener  =new FileEditorManagerAdapter() {
+    private FileEditorManagerListener fileEditorManagerListener  =new FileEditorManagerListener() {
         public void fileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
             if (file instanceof DBEditableObjectVirtualFile) {
                 DBEditableObjectVirtualFile databaseFile = (DBEditableObjectVirtualFile) file;
-                openFiles.put(databaseFile.getObjectRef(), databaseFile);
+                openFiles.add(databaseFile);
             }
         }
 
         public void fileClosed(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
             if (file instanceof DBEditableObjectVirtualFile) {
                 DBEditableObjectVirtualFile databaseFile = (DBEditableObjectVirtualFile) file;
-                openFiles.remove(databaseFile.getObjectRef());
+                openFiles.remove(databaseFile);
             }
         }
 
@@ -247,11 +265,64 @@ public class DatabaseFileManager extends AbstractProjectComponent implements Per
     @Nullable
     @Override
     public Element getState() {
-        return null;
+        Element stateElement = new Element("state");
+        Element openFilesElement = new Element("open-files");
+        stateElement.addContent(openFilesElement);
+        for (DBEditableObjectVirtualFile openFile : openFiles) {
+            DBObjectRef<DBSchemaObject> objectRef = openFile.getObjectRef();
+            Element fileElement = new Element("object");
+            objectRef.writeState(fileElement);
+            openFilesElement.addContent(fileElement);
+        }
+
+        return stateElement;
     }
 
     @Override
-    public void loadState(Element element) {
+    public void loadState(@NotNull Element element) {
+        Map<ConnectionId, List<DBObjectRef<DBSchemaObject>>> openObjectRefs = new HashMap<>();
+        Element openFilesElement = element.getChild("open-files");
+        Project project = getProject();
+        ConnectionManager connectionManager = ConnectionManager.getInstance(project);
 
+        if (openFilesElement != null) {
+            List<Element> fileElements = openFilesElement.getChildren();
+            fileElements.forEach((fileElement) -> {
+                DBObjectRef<DBSchemaObject> objectRef = DBObjectRef.from(fileElement);
+                if (objectRef != null) {
+                    ConnectionId connectionId = objectRef.getConnectionId();
+                    List<DBObjectRef<DBSchemaObject>> objectRefs =
+                            openObjectRefs.computeIfAbsent(connectionId, k -> new ArrayList<>());
+                    objectRefs.add(objectRef);
+                }
+            });
+        }
+
+        if (!openObjectRefs.isEmpty()) {
+            openObjectRefs.keySet().forEach(connectionId -> {
+                List<DBObjectRef<DBSchemaObject>> objectRefs = openObjectRefs.get(connectionId);
+                ConnectionHandler connectionHandler = connectionManager.getConnectionHandler(connectionId);
+                if (connectionHandler != null) {
+                    ConnectionDetailSettings connectionDetailSettings = connectionHandler.getSettings().getDetailSettings();
+                    if (connectionDetailSettings.isRestoreWorkspace()) {
+                        BackgroundTask.invoke(project,
+                                TaskInstructions.create("Opening database editors", TaskInstruction.CANCELLABLE),
+                                (data, progress) -> {
+                                    DatabaseFileSystem databaseFileSystem = DatabaseFileSystem.getInstance();
+
+                                    objectRefs.forEach(objectRef -> {
+                                        if (progress.isCanceled()) return;
+                                        if (connectionHandler.canConnect()) {
+                                            DBSchemaObject object = objectRef.get(project);
+                                            if (object != null) {
+                                                databaseFileSystem.openEditor(object, null, false);
+                                            }
+                                        }
+                                    });
+                                });
+                    }
+                }
+            });
+        }
     }
 }

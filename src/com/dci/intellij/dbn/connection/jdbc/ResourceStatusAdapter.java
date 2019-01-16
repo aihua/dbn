@@ -3,16 +3,14 @@ package com.dci.intellij.dbn.connection.jdbc;
 import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.dispose.FailsafeWeakRef;
 import com.dci.intellij.dbn.common.options.setting.SettingsUtil;
-import com.dci.intellij.dbn.common.thread.SimpleBackgroundInvocator;
 import com.dci.intellij.dbn.common.thread.SimpleTimeoutCall;
-import com.dci.intellij.dbn.common.thread.SimpleTimeoutTask;
 import com.dci.intellij.dbn.common.thread.Synchronized;
+import com.dci.intellij.dbn.common.util.ExceptionUtil;
 import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.intellij.openapi.diagnostic.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.SQLException;
-import java.util.concurrent.TimeUnit;
 
 public abstract class ResourceStatusAdapter<T extends Resource> {
     protected static final Logger LOGGER = LoggerFactory.createLogger();
@@ -103,15 +101,13 @@ public abstract class ResourceStatusAdapter<T extends Resource> {
         }
     }
 
-    public final void change(boolean value) {
-        if (canChange(value)) {
-            synchronized (this) {
-                if (canChange(value)) {
+    public final void change(boolean value) throws SQLException {
+        Synchronized.run(this,
+                () -> canChange(value),
+                () -> {
                     set(changing, true);
                     changeControlled(value);
-                }
-            }
-        }
+                });
     }
 
     private boolean canCheck() {
@@ -128,38 +124,37 @@ public abstract class ResourceStatusAdapter<T extends Resource> {
     }
 
     private boolean checkControlled() {
-        return new SimpleTimeoutCall<Boolean>(5, TimeUnit.SECONDS, is(value), true) {
-            @Override
-            public Boolean call() throws Exception {
-                return checkInner();
-            }
-        }.start();
+        return SimpleTimeoutCall.invoke(5, is(value), true, () -> checkInner());
     }
 
-    private void changeControlled(final boolean value) {
-        SimpleBackgroundInvocator.invoke(() -> {
-            boolean daemon = true;
-            T resource = getResource();
-            if (resource.getResourceType() == ResourceType.CONNECTION && ResourceStatusAdapter.this.value == ResourceStatus.CLOSED) {
-                // non daemon threads for closing connections
-                daemon = false;
+    private void changeControlled(final boolean value) throws SQLException{
+        boolean daemon = true;
+        T resource = getResource();
+        if (resource.getResourceType() == ResourceType.CONNECTION && ResourceStatusAdapter.this.value == ResourceStatus.CLOSED) {
+            // non daemon threads for closing connections
+            daemon = false;
+        }
+
+        SQLException exception = SimpleTimeoutCall.invoke(10, null, daemon, () -> {
+            try {
+                if (SettingsUtil.isDebugEnabled) LOGGER.info("Started " + getLogIdentifier());
+                changeInner(value);
+                set(ResourceStatusAdapter.this.value, value);
+            } catch (Throwable e) {
+                LOGGER.warn("Error " + getLogIdentifier() + ": " + e.getMessage());
+                fail();
+                return ExceptionUtil.toSqlException(e);
+            } finally {
+                set(changing, false);
+                if (SettingsUtil.isDebugEnabled) LOGGER.info("Done " + getLogIdentifier());
             }
-
-            SimpleTimeoutTask.invoke(10, TimeUnit.SECONDS, daemon, () -> {
-                try {
-                    if (SettingsUtil.isDebugEnabled) LOGGER.info("Started " + getLogIdentifier());
-                    changeInner(value);
-                    set(ResourceStatusAdapter.this.value, value);
-                } catch (Throwable e) {
-                    LOGGER.warn("Error " + getLogIdentifier() + ": " + e.getMessage());
-                    fail();
-                } finally {
-                    set(changing, false);
-                    if (SettingsUtil.isDebugEnabled) LOGGER.info("Done " + getLogIdentifier());
-                }
-            });
-
+            return null;
         });
+
+        if (exception != null) {
+            throw exception;
+        }
+
     }
 
     @NotNull

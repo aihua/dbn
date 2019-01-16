@@ -28,6 +28,7 @@ import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.project.Project;
@@ -44,7 +45,10 @@ import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.sql.SQLException;
 
-import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.*;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.DELIBERATE_ACTION;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.PRESERVE_CHANGES;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.REBUILD;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.USE_CURRENT_FILTER;
 
 @State(
     name = DatasetEditorManager.COMPONENT_NAME,
@@ -158,7 +162,7 @@ public class DatasetEditorManager extends AbstractProjectComponent implements Pe
         return COMPONENT_NAME;
     }
 
-    private FileEditorManagerListener fileEditorListener = new FileEditorManagerListener() {
+    private FileEditorManagerListener fileEditorListener = new FileEditorManagerAdapter() {
         @Override
         public void fileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
             if (file instanceof DBEditableObjectVirtualFile) {

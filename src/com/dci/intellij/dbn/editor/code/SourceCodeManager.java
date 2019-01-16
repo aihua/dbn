@@ -56,6 +56,7 @@ import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.actionSystem.EditorActionManager;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.project.Project;
@@ -75,7 +76,9 @@ import java.util.Arrays;
 import java.util.List;
 
 import static com.dci.intellij.dbn.common.thread.TaskInstruction.BACKGROUNDED;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.*;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.LOADING;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
 
 @State(
     name = SourceCodeManager.COMPONENT_NAME,
@@ -137,7 +140,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
         }
     };
 
-    private FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerListener() {
+    private FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerAdapter() {
         @Override
         public void selectionChanged(@NotNull FileEditorManagerEvent event) {
             FileEditor newEditor = event.getNewEditor();

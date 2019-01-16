@@ -71,7 +71,7 @@ public class SslConnectionManager implements ApplicationComponent{
     /*********************************************************
      *              ProjectLifecycleListener                 *
      *********************************************************/
-    private ProjectLifecycleListener projectLifecycleListener = new ProjectLifecycleListener() {
+    private ProjectLifecycleListener projectLifecycleListener = new ProjectLifecycleListener.Adapter() {
 
         @Override
         public void projectComponentsInitialized(Project project) {

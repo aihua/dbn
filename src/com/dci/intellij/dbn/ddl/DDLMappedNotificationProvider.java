@@ -16,6 +16,7 @@ import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
 import com.intellij.ide.FrameStateManager;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
@@ -57,7 +58,7 @@ public class DDLMappedNotificationProvider extends EditorNotifications.Provider<
         }
     };
 
-    private FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerListener() {
+    private FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerAdapter() {
         @Override
         public void fileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
             updateDdlFileHeaders(file);

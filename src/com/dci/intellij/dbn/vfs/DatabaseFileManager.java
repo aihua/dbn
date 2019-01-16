@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.vfs;
 
-import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.option.InteractiveOptionHandler;
@@ -35,7 +34,7 @@ import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.startup.StartupManager;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.util.containers.ContainerUtil;
+import com.intellij.util.containers.ConcurrentHashSet;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -59,7 +58,7 @@ import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
 public class DatabaseFileManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.DatabaseFileManager";
 
-    private Set<DBEditableObjectVirtualFile> openFiles = ContainerUtil.newConcurrentSet();
+    private Set<DBEditableObjectVirtualFile> openFiles = new ConcurrentHashSet<>();
     private boolean projectInitialized = false;
     private String sessionId;
 

@@ -31,6 +31,7 @@ import com.intellij.openapi.components.StoragePathMacros;
 import com.intellij.openapi.components.StorageScheme;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
@@ -268,7 +269,7 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
         EventUtil.subscribe(getProject(), this, FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorManagerListener);
     }
 
-    private FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerListener() {
+    private FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerAdapter() {
         public void fileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
             if (file instanceof DBSessionBrowserVirtualFile) {
                 boolean schedule = openFiles.size() == 0;

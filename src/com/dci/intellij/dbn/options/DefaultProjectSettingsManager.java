@@ -67,7 +67,7 @@ public class DefaultProjectSettingsManager implements ApplicationComponent, Pers
     /*********************************************************
      *              ProjectLifecycleListener                 *
      *********************************************************/
-    private ProjectLifecycleListener projectLifecycleListener = new ProjectLifecycleListener() {
+    private ProjectLifecycleListener projectLifecycleListener = new ProjectLifecycleListener.Adapter() {
 
         @Override
         public void projectComponentsInitialized(@NotNull Project project) {

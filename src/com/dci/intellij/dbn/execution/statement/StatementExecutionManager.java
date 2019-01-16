@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.execution.statement;
 
-import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.message.MessageCallback;
@@ -53,6 +52,7 @@ import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
@@ -75,7 +75,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.dci.intellij.dbn.execution.ExecutionStatus.*;
+import static com.dci.intellij.dbn.execution.ExecutionStatus.EXECUTING;
+import static com.dci.intellij.dbn.execution.ExecutionStatus.PROMPTED;
+import static com.dci.intellij.dbn.execution.ExecutionStatus.QUEUED;
 
 @State(
     name = StatementExecutionManager.COMPONENT_NAME,
@@ -145,7 +147,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
         }
     };
 
-    private FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerListener() {
+    private FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerAdapter() {
         @Override
         public void fileClosed(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
 

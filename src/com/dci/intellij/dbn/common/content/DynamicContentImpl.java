@@ -10,12 +10,14 @@ import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.list.AbstractFiltrableList;
 import com.dci.intellij.dbn.common.list.FiltrableList;
 import com.dci.intellij.dbn.common.property.PropertyHolderImpl;
+import com.dci.intellij.dbn.common.thread.BackgroundMonitor;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.Synchronized;
+import com.dci.intellij.dbn.common.thread.TaskInstruction;
+import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.GenericDatabaseElement;
-import com.dci.intellij.dbn.object.common.DBVirtualObject;
 import com.intellij.openapi.util.Disposer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -135,9 +137,11 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
     }
 
     public final void load(boolean force) {
-        Synchronized.run(this,
-                () -> shouldLoad(force),
-                () -> {
+        boolean shouldLoad = shouldLoad(force);
+        if (shouldLoad) {
+            synchronized (this) {
+                shouldLoad = shouldLoad(force);
+                if (shouldLoad) {
                     set(LOADING, true);
                     try {
                         performLoad();
@@ -149,13 +153,17 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
                         set(LOADING, false);
                         updateChangeTimestamp();
                     }
-                });
+                }
+            }
+        }
     }
 
     public final void reload() {
-        Synchronized.run(this,
-                () -> shouldReload(),
-                () -> {
+        boolean shouldReload = shouldReload();
+        if (shouldReload) {
+            synchronized (this) {
+                shouldReload = shouldReload();
+                if (shouldReload) {
                     set(LOADING, true);
                     try {
                         performReload();
@@ -172,7 +180,9 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
                         set(LOADING, false);
                         updateChangeTimestamp();
                     }
-                });
+                }
+            }
+        }
     }
 
     @Override
@@ -190,14 +200,14 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
                     set(LOADING_IN_BACKGROUND, true);
                     ConnectionHandler connectionHandler = getConnectionHandler();
                     String connectionString = " (" + connectionHandler.getName() + ')';
-                    BackgroundTask.invoke(getProject(), "Loading data dictionary" + connectionString, true, false, (task, progress) -> {
-                        try {
-                            DatabaseLoadMonitor.startBackgroundLoad();
-                            load(force);
-                        } finally {
-                            DatabaseLoadMonitor.endBackgroundLoad();
-                            set(LOADING_IN_BACKGROUND, false);
-                        }
+                    BackgroundTask.invoke(getProject(),
+                            TaskInstructions.create("Loading data dictionary" + connectionString, TaskInstruction.BACKGROUNDED),
+                            (data, progress) -> {
+                                try {
+                                    load(force);
+                                } finally {
+                                    set(LOADING_IN_BACKGROUND, false);
+                                }
                     });
                 });
     }
@@ -281,9 +291,13 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
 
     @NotNull
     public List<T> getElements() {
-        if (!isDisposed()) {
-            if (parent instanceof DBVirtualObject || isSubContent() || DatabaseLoadMonitor.isEnsureDataLoaded() || DatabaseLoadMonitor.isLoadingInBackground()) {
-                load(false);
+        if (!isLoaded()) {
+            if (BackgroundMonitor.isBackgroundProcess() || BackgroundMonitor.isTimeoutProcess()) {
+                synchronized (this) {
+                    if (!isLoaded()) {
+                        load(false);
+                    }
+                }
             } else{
                 loadInBackground(false);
             }

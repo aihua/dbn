@@ -29,7 +29,6 @@ import com.dci.intellij.dbn.connection.session.SessionManagerListener;
 import com.dci.intellij.dbn.ddl.DDLFileAttachmentManager;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.PsiFileRef;
-import com.dci.intellij.dbn.language.editor.ui.DBLanguageFileEditorToolbarForm;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.action.AnObjectAction;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
@@ -51,8 +50,6 @@ import com.intellij.openapi.components.StorageScheme;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
-import com.intellij.openapi.fileEditor.FileEditor;
-import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.DumbAwareAction;
 import com.intellij.openapi.project.Project;
@@ -66,6 +63,7 @@ import com.intellij.openapi.vfs.VirtualFileListener;
 import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.openapi.vfs.VirtualFileMoveEvent;
 import com.intellij.openapi.vfs.VirtualFilePropertyEvent;
+import com.intellij.testFramework.LightVirtualFile;
 import com.intellij.util.IncorrectOperationException;
 import gnu.trove.THashSet;
 import org.jdom.Element;
@@ -108,8 +106,15 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
 
     public boolean setConnectionHandler(VirtualFile virtualFile, ConnectionHandler connectionHandler) {
+        ConnectionHandlerRef connectionHandlerRef = ConnectionHandlerRef.from(connectionHandler);
+
+        if (virtualFile instanceof LightVirtualFile) {
+            virtualFile.putUserData(CONNECTION_HANDLER, connectionHandlerRef);
+            return true;
+        }
+
         if (VirtualFileUtil.isLocalFileSystem(virtualFile)) {
-            virtualFile.putUserData(CONNECTION_HANDLER, connectionHandler);
+            virtualFile.putUserData(CONNECTION_HANDLER, connectionHandlerRef);
 
             ConnectionId connectionId = connectionHandler == null ? null : connectionHandler.getId();
             String currentSchema = connectionHandler == null ? null  : connectionHandler.getUserName().toUpperCase();
@@ -140,8 +145,21 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     }
 
     public boolean setDatabaseSchema(VirtualFile virtualFile, DBSchema schema) {
-        if (VirtualFileUtil.isLocalFileSystem(virtualFile) || VirtualFileUtil.isVirtualFileSystem(virtualFile)) {
-            virtualFile.putUserData(DATABASE_SCHEMA, DBObjectRef.from(schema));
+        DBObjectRef<DBSchema> schemaRef = DBObjectRef.from(schema);
+
+        if (virtualFile instanceof LightVirtualFile) {
+            virtualFile.putUserData(DATABASE_SCHEMA, schemaRef);
+            return true;
+        }
+
+        if (virtualFile instanceof DBConsoleVirtualFile) {
+            DBConsoleVirtualFile sqlConsoleFile = (DBConsoleVirtualFile) virtualFile;
+            sqlConsoleFile.setDatabaseSchema(schema);
+            return true;
+        }
+
+        if (VirtualFileUtil.isLocalFileSystem(virtualFile)) {
+            virtualFile.putUserData(DATABASE_SCHEMA, schemaRef);
             FileConnectionMapping mapping = lookupMapping(virtualFile);
             if (mapping != null) {
                 if (schema == null) {
@@ -154,16 +172,16 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
             }
         }
 
-        if (virtualFile instanceof DBConsoleVirtualFile) {
-            DBConsoleVirtualFile sqlConsoleFile = (DBConsoleVirtualFile) virtualFile;
-            sqlConsoleFile.setDatabaseSchema(schema);
-            return true;
-        }
         return false;
     }
 
-    public void setDatabaseSession(VirtualFile virtualFile, DatabaseSession session) {
-        if (VirtualFileUtil.isLocalFileSystem(virtualFile) || VirtualFileUtil.isVirtualFileSystem(virtualFile)) {
+    public boolean setDatabaseSession(VirtualFile virtualFile, DatabaseSession session) {
+        if (virtualFile instanceof LightVirtualFile) {
+            virtualFile.putUserData(DATABASE_SESSION, session);
+            return true;
+        }
+
+        if (VirtualFileUtil.isLocalFileSystem(virtualFile)) {
             virtualFile.putUserData(DATABASE_SESSION, session);
             FileConnectionMapping mapping = lookupMapping(virtualFile);
             if (mapping != null) {
@@ -173,20 +191,35 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                     mapping.setSessionId(session.getId());
                 }
 
-                return;
+                return true;
             }
         }
 
         if (virtualFile instanceof DBConsoleVirtualFile) {
             DBConsoleVirtualFile sqlConsoleFile = (DBConsoleVirtualFile) virtualFile;
             sqlConsoleFile.setDatabaseSession(session);
+            return true;
         }
+
+        return false;
     }
 
     @Nullable
     public ConnectionHandler getConnectionHandler(@NotNull VirtualFile virtualFile) {
         try {
             Project project = getProject();
+            if (virtualFile instanceof LightVirtualFile) {
+                ConnectionHandlerRef connectionHandlerRef = virtualFile.getUserData(CONNECTION_HANDLER);
+                if (connectionHandlerRef == null) {
+                    LightVirtualFile lightVirtualFile = (LightVirtualFile) virtualFile;
+                    VirtualFile originalFile = lightVirtualFile.getOriginalFile();
+                    if (originalFile != null && !originalFile.equals(virtualFile)) {
+                        return getConnectionHandler(originalFile);
+                    }
+                }
+                return ConnectionHandlerRef.get(connectionHandlerRef);
+            }
+
             // if the file is a database content file then get the connection from the underlying database object
             if (VirtualFileUtil.isDatabaseFileSystem(virtualFile)) {
                 if (virtualFile instanceof FileConnectionMappingProvider) {
@@ -207,22 +240,23 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                 }
 
                 // lookup connection mappings
-                ConnectionHandler connectionHandler = virtualFile.getUserData(CONNECTION_HANDLER);
-                if (connectionHandler == null || connectionHandler.isDisposed()) {
+                ConnectionHandlerRef connectionHandlerRef = virtualFile.getUserData(CONNECTION_HANDLER);
+                if (connectionHandlerRef == null) {
                     FileConnectionMapping mapping = lookupMapping(virtualFile);
                     if (mapping != null) {
                         ConnectionManager connectionManager = ConnectionManager.getInstance(project);
-                        connectionHandler = connectionManager.getConnectionHandler(mapping.getConnectionId());
+                        ConnectionHandler connectionHandler = connectionManager.getConnectionHandler(mapping.getConnectionId());
                         if (connectionHandler == null) {
                             ConnectionBundle connectionBundle = connectionManager.getConnectionBundle();
                             connectionHandler = connectionBundle.getVirtualConnection(mapping.getConnectionId());
                         }
+                        connectionHandlerRef = ConnectionHandlerRef.from(connectionHandler);
 
-                        if (connectionHandler != null)
-                            virtualFile.putUserData(CONNECTION_HANDLER, connectionHandler);
+                        virtualFile.putUserData(CONNECTION_HANDLER, connectionHandlerRef);
+
                     }
                 }
-                return connectionHandler;
+                return ConnectionHandlerRef.get(connectionHandlerRef);
             }
         } catch (ProcessCanceledException e) {
             return null;
@@ -232,6 +266,18 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
     @Nullable
     public DBSchema getDatabaseSchema(@NotNull VirtualFile virtualFile) {
+        if (virtualFile instanceof LightVirtualFile) {
+            DBObjectRef<DBSchema> schemaRef = virtualFile.getUserData(DATABASE_SCHEMA);
+            if (schemaRef == null) {
+                LightVirtualFile lightVirtualFile = (LightVirtualFile) virtualFile;
+                VirtualFile originalFile = lightVirtualFile.getOriginalFile();
+                if (originalFile != null && !originalFile.equals(virtualFile)) {
+                    return getDatabaseSchema(originalFile);
+                }
+            }
+            return DBObjectRef.get(schemaRef);
+        }
+
         // if the file is a database content file then get the schema from the underlying schema object
         if (VirtualFileUtil.isDatabaseFileSystem(virtualFile)) {
             if (virtualFile instanceof FileConnectionMappingProvider) {
@@ -240,7 +286,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
             }
         }
 
-        if (VirtualFileUtil.isLocalFileSystem(virtualFile) || VirtualFileUtil.isVirtualFileSystem(virtualFile)) {
+        if (VirtualFileUtil.isLocalFileSystem(virtualFile)) {
             // if the file is an attached ddl file, then resolve the object which it is
             // linked to, and return its parent schema
             Project project = getProject();
@@ -278,6 +324,18 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
     @Nullable
     public DatabaseSession getDatabaseSession(@NotNull VirtualFile virtualFile) {
+        if (virtualFile instanceof LightVirtualFile) {
+            DatabaseSession databaseSession = virtualFile.getUserData(DATABASE_SESSION);
+            if (databaseSession == null) {
+                LightVirtualFile lightVirtualFile = (LightVirtualFile) virtualFile;
+                VirtualFile originalFile = lightVirtualFile.getOriginalFile();
+                if (originalFile != null && !originalFile.equals(virtualFile)) {
+                    return getDatabaseSession(originalFile);
+                }
+            }
+            return databaseSession;
+        }
+
         // if the file is a database content file then get the schema from the underlying schema object
         if (VirtualFileUtil.isDatabaseFileSystem(virtualFile)) {
             if (virtualFile instanceof FileConnectionMappingProvider) {
@@ -286,8 +344,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
             }
         }
 
-        if (VirtualFileUtil.isLocalFileSystem(virtualFile) || VirtualFileUtil.isVirtualFileSystem(virtualFile)) {
-
+        if (VirtualFileUtil.isLocalFileSystem(virtualFile)) {
             // lookup schema mappings
             DatabaseSession databaseSession = virtualFile.getUserData(DATABASE_SESSION);
             if (databaseSession == null) {
@@ -363,14 +420,9 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
             boolean changed = setConnectionHandler(virtualFile, connectionHandler);
             if (changed) {
                 DocumentUtil.touchDocument(editor, true);
-                Project project = getProject();
-                FileEditor fileEditor = FileEditorManager.getInstance(project).getSelectedEditor(virtualFile);
-                if (fileEditor != null) {
-                    DBLanguageFileEditorToolbarForm toolbarForm = fileEditor.getUserData(DBLanguageFileEditorToolbarForm.USER_DATA_KEY);
-                    if (toolbarForm != null) {
-                        toolbarForm.getAutoCommitLabel().setConnectionHandler(connectionHandler);
-                    }
-                }
+
+                FileConnectionMappingListener mappingListener = EventUtil.notify(getProject(), FileConnectionMappingListener.TOPIC);
+                mappingListener.connectionChanged(virtualFile, connectionHandler);
             }
         }
     }
@@ -382,6 +434,9 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
             boolean changed = setDatabaseSchema(virtualFile, schema);
             if (changed) {
                 DocumentUtil.touchDocument(editor, false);
+
+                FileConnectionMappingListener mappingListener = EventUtil.notify(getProject(), FileConnectionMappingListener.TOPIC);
+                mappingListener.schemaChanged(virtualFile, schema);
             }
         }
     }
@@ -391,6 +446,9 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
         VirtualFile virtualFile = FileDocumentManager.getInstance().getFile(document);
         if (virtualFile != null && (VirtualFileUtil.isLocalFileSystem(virtualFile) || virtualFile instanceof DBConsoleVirtualFile)) {
             setDatabaseSession(virtualFile, session);
+
+            FileConnectionMappingListener mappingListener = EventUtil.notify(getProject(), FileConnectionMappingListener.TOPIC);
+            mappingListener.sessionChanged(virtualFile, session);
         }
     }
 
@@ -481,7 +539,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
         private ConnectionSelectAction(ConnectionHandler connectionHandler, DBLanguagePsiFile file, boolean promptSchemaSelection, SimpleTask callback) {
             super(connectionHandler.getName(), null, connectionHandler.getIcon(), connectionHandler);
-            this.fileRef = new PsiFileRef<>(file);
+            this.fileRef = PsiFileRef.from(file);
             this.callback = callback;
             this.promptSchemaSelection = promptSchemaSelection;
         }
@@ -566,7 +624,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
         private SchemaSelectAction(DBLanguagePsiFile file, DBSchema schema, RunnableTask callback) {
             super(schema);
-            this.fileRef = new PsiFileRef<>(file);
+            this.fileRef = PsiFileRef.from(file);
             this.callback = callback;
         }
 
@@ -629,7 +687,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
         private SessionSelectAction(DBLanguagePsiFile file, DatabaseSession session, RunnableTask callback) {
             super(session.getName(), null, session.getIcon());
-            this.fileRef = new PsiFileRef<>(file);
+            this.fileRef = PsiFileRef.from(file);
             this.sessionRef = new WeakReference<>(session);
             this.callback = callback;
         }
@@ -662,7 +720,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
         private SessionCreateAction(DBLanguagePsiFile file, ConnectionHandler connectionHandler) {
             super("New session...");
-            this.fileRef = new PsiFileRef<>(file);
+            this.fileRef = PsiFileRef.from(file);
             this.connectionHandlerRef = connectionHandler.getRef();
         }
 

@@ -18,7 +18,7 @@ import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.filter.Filter;
-import com.dci.intellij.dbn.common.thread.SimpleBackgroundInvocator;
+import com.dci.intellij.dbn.common.thread.SimpleBackgroundTask;
 import com.dci.intellij.dbn.common.ui.tree.TreeEventType;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
@@ -66,7 +66,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -152,8 +151,8 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
         return properties.is(property);
     }
 
-    public DBContentType getContentType() {
-        return DBContentType.NONE;
+    public final DBContentType getContentType() {
+        return getObjectType().getContentType();
     }
 
     @Override
@@ -426,15 +425,18 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
             return list;
         } else {
             if (objectType == DBObjectType.ANY) {
-                Collection<DBObjectList<DBObject>> objectLists = childObjects.getObjectLists();
-                if (objectLists != null) {
+                if (childObjects != null) {
                     List<DBObject> objects = new ArrayList<DBObject>();
-                    for (DBObjectList objectList : objectLists) {
-                        if (FailsafeUtil.softCheck(objectList) && !objectList.isInternal())
-                        objects.addAll(objectList.getObjects());
-                    }
+                    CollectionUtil.forEach(
+                            childObjects.getObjectLists(),
+                            objectList -> {
+                                if (!objectList.isInternal() && FailsafeUtil.softCheck(objectList)) {
+                                    objects.addAll(objectList.getObjects());
+                                }
+                            });
                     return objects;
                 }
+
                 return EMPTY_OBJECT_LIST;
             } else {
                 DBObjectList objectList = null;
@@ -543,7 +545,7 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
         if (virtualFile == null) {
             synchronized (this) {
                 if (virtualFile == null) {
-                    virtualFile = new DBObjectVirtualFile(this);
+                    virtualFile = new DBObjectVirtualFile(getProject(), getRef());
                     Disposer.register(this, virtualFile);
                 }
             }
@@ -654,7 +656,7 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
                     visibleTreeChildren = new ArrayList<>();
                     visibleTreeChildren.add(new LoadInProgressTreeNode(this));
 
-                    SimpleBackgroundInvocator.invoke(this::buildTreeChildren);
+                    SimpleBackgroundTask.invoke(this::buildTreeChildren);
                 }
             }
         }
@@ -810,8 +812,8 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
             psiFacade = null;
             DisposerUtil.dispose(childObjects);
             DisposerUtil.dispose(childObjectRelations);
-            CollectionUtil.clearCollection(visibleTreeChildren);
-            CollectionUtil.clearCollection(allPossibleTreeChildren);
+            CollectionUtil.clear(visibleTreeChildren);
+            CollectionUtil.clear(allPossibleTreeChildren);
         }
     }
 

@@ -1,16 +1,21 @@
 package com.dci.intellij.dbn.connection.jdbc;
 
 import com.dci.intellij.dbn.common.LoggerFactory;
+import com.dci.intellij.dbn.common.ProjectRef;
+import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.dci.intellij.dbn.connection.ConnectionCache;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerStatusHolder;
 import com.dci.intellij.dbn.connection.ConnectionId;
+import com.dci.intellij.dbn.connection.ConnectionStatusListener;
 import com.dci.intellij.dbn.connection.ConnectionType;
 import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.transaction.PendingTransactionBundle;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.sql.CallableStatement;
@@ -26,6 +31,7 @@ import static com.dci.intellij.dbn.connection.jdbc.ResourceStatus.RESERVED;
 
 public class DBNConnection extends DBNConnectionBase {
     private static final Logger LOGGER = LoggerFactory.createLogger();
+    private String name;
     private ConnectionType type;
     private ConnectionId id;
     private SessionId sessionId;
@@ -34,22 +40,19 @@ public class DBNConnection extends DBNConnectionBase {
     private Set<DBNStatement> statements = new HashSet<DBNStatement>();
     private PendingTransactionBundle dataChanges;
     private String currentSchema;
+    private ProjectRef projectRef;
 
     private IncrementalResourceStatusAdapter<DBNConnection> active =
-            new IncrementalResourceStatusAdapter<DBNConnection>(ResourceStatus.ACTIVE, this) {
-                @Override
-                protected boolean setInner(ResourceStatus status, boolean value) {
-                    return DBNConnection.super.set(status, value);
-                }
-            };
+            IncrementalResourceStatusAdapter.create(
+                    DBNConnection.this,
+                    ResourceStatus.ACTIVE,
+                    (status, value) -> DBNConnection.super.set(status, value));
 
     private IncrementalResourceStatusAdapter<DBNConnection> reserved =
-            new IncrementalResourceStatusAdapter<DBNConnection>(ResourceStatus.RESERVED, this) {
-                @Override
-                protected boolean setInner(ResourceStatus status, boolean value) {
-                    return DBNConnection.super.set(status, value);
-                }
-            };
+            IncrementalResourceStatusAdapter.create(
+                    DBNConnection.this,
+                    ResourceStatus.RESERVED,
+                    (status, value) -> DBNConnection.super.set(status, value));
 
     private ResourceStatusAdapter<DBNConnection> invalid =
             new ResourceStatusAdapter<DBNConnection>(this,
@@ -77,7 +80,11 @@ public class DBNConnection extends DBNConnectionBase {
                     false) { // no terminal status
                 @Override
                 protected void changeInner(boolean value) throws SQLException {
-                    inner.setAutoCommit(value);
+                    try {
+                        inner.setAutoCommit(value);
+                    } catch (SQLException e) {
+                        inner.setAutoCommit(value);
+                    }
                 }
 
                 @Override
@@ -86,8 +93,10 @@ public class DBNConnection extends DBNConnectionBase {
                 }
             };
 
-    public DBNConnection(Connection connection, ConnectionType type, ConnectionId id, SessionId sessionId) {
+    public DBNConnection(Project project, Connection connection, String name, ConnectionType type, ConnectionId id, SessionId sessionId) {
         super(connection);
+        this.projectRef = ProjectRef.from(project);
+        this.name = name;
         this.type = type;
         this.id = id;
         this.sessionId = sessionId;
@@ -206,11 +215,20 @@ public class DBNConnection extends DBNConnectionBase {
         return connection;
     }
 
+    @NotNull
+    public Project getProject() {
+        return projectRef.getnn();
+    }
+
+    public String getName() {
+        return name;
+    }
+
     /********************************************************************
      *                        Transaction                               *
      ********************************************************************/
     @Override
-    public void setAutoCommit(boolean autoCommit) {
+    public void setAutoCommit(boolean autoCommit) throws SQLException {
         this.autoCommit.change(autoCommit);
     }
 
@@ -225,6 +243,7 @@ public class DBNConnection extends DBNConnectionBase {
 
         super.commit();
         resetDataChanges();
+        notifyStatusChange();
     }
 
     @Override
@@ -233,14 +252,21 @@ public class DBNConnection extends DBNConnectionBase {
 
         super.rollback();
         resetDataChanges();
+        notifyStatusChange();
     }
 
     @Override
-    public void close() {
+    public void close() throws SQLException {
         updateLastAccess();
 
         super.close();
         resetDataChanges();
+        notifyStatusChange();
+    }
+
+    protected void notifyStatusChange() {
+        ConnectionStatusListener statusListener = EventUtil.notify(getProject(), ConnectionStatusListener.TOPIC);
+        statusListener.statusChanged(id, sessionId);
     }
 
     public String getCurrentSchema() {

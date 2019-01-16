@@ -8,11 +8,11 @@ import com.dci.intellij.dbn.browser.model.BrowserTreeModel;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.browser.model.SimpleBrowserTreeModel;
 import com.dci.intellij.dbn.browser.model.TabbedBrowserTreeModel;
-import com.dci.intellij.dbn.common.content.DatabaseLoadMonitor;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.ModalTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
+import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.common.ui.tree.DBNTree;
 import com.dci.intellij.dbn.common.util.EventUtil;
@@ -169,13 +169,7 @@ public class DatabaseBrowserTree extends DBNTree {
                     Object object = path.getLastPathComponent();
                     if (object instanceof ToolTipProvider) {
                         ToolTipProvider toolTipProvider = (ToolTipProvider) object;
-                        boolean ensureDataLoaded = DatabaseLoadMonitor.isEnsureDataLoaded();
-                        try {
-                            DatabaseLoadMonitor.setEnsureDataLoaded(false);
-                            return toolTipProvider.getToolTip();
-                        } finally {
-                            DatabaseLoadMonitor.setEnsureDataLoaded(ensureDataLoaded);
-                        }
+                        return toolTipProvider.getToolTip();
                     }
                 }
             }
@@ -243,21 +237,24 @@ public class DatabaseBrowserTree extends DBNTree {
         if (path != null) {
             Object lastPathEntity = path.getLastPathComponent();
             if (lastPathEntity instanceof DBObject) {
-                final DBObject object = (DBObject) lastPathEntity;
+                DBObject object = (DBObject) lastPathEntity;
+                DatabaseFileSystem databaseFileSystem = DatabaseFileSystem.getInstance();
                 if (object.is(DBObjectProperty.EDITABLE)) {
                     DBSchemaObject schemaObject = (DBSchemaObject) object;
-                    DatabaseFileSystem.getInstance().openEditor(schemaObject, deliberate);
+                    databaseFileSystem.openEditor(schemaObject, deliberate);
                     event.consume();
                 } else if (object.is(DBObjectProperty.NAVIGABLE)) {
-                    DatabaseFileSystem.getInstance().openEditor(object, deliberate);
+                    databaseFileSystem.openEditor(object, deliberate);
                     event.consume();
                 } else if (deliberate) {
-                    BackgroundTask.invoke(getProject(), "Loading Object Reference", false, false, (task, progress) -> {
-                        DBObject navigationObject = object.getDefaultNavigationObject();
-                        if (navigationObject != null) {
-                            SimpleLaterInvocator.invoke(() -> navigationObject.navigate(true));
-                        }
-                    });
+                    BackgroundTask.invoke(getProject(),
+                            TaskInstructions.create("Loading Object Reference"),
+                            (data, progress) -> {
+                                DBObject navigationObject = object.getDefaultNavigationObject();
+                                if (navigationObject != null) {
+                                    SimpleLaterInvocator.invoke(() -> navigationObject.navigate(true));
+                                }
+                            });
 
                 }
             } else if (lastPathEntity instanceof DBObjectBundle) {

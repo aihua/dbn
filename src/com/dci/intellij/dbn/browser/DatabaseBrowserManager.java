@@ -17,6 +17,9 @@ import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.options.setting.BooleanSetting;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
+import com.dci.intellij.dbn.common.thread.TaskInstruction;
+import com.dci.intellij.dbn.common.thread.TaskInstructions;
+import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -339,19 +342,18 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
                         List<DBObjectType> objectTypes = new ArrayList<>();
                         DBObjectListContainer childObjects = schema.getChildObjects();
                         if (childObjects != null) {
-                            List<DBObjectList<DBObject>> objectLists = childObjects.getObjectLists();
-                            if (objectLists != null && !objectLists.isEmpty()) {
-                                for (DBObjectList<DBObject> objectList : objectLists) {
-                                    if (objectList.isLoaded() || objectList.isLoading()) {
-                                        objectTypes.add(objectList.getObjectType());
-                                    }
-                                }
-                            }
+                            CollectionUtil.forEach(
+                                    childObjects.getObjectLists(),
+                                    objectList -> {
+                                        if (objectList.isLoaded() || objectList.isLoading()) {
+                                            objectTypes.add(objectList.getObjectType());
+                                        }
+                                    });
                         }
                         if (objectTypes.size() > 0) {
                             Element schemaElement = new Element("schema");
                             schemaElement.setAttribute("name", schema.getName());
-                            schemaElement.setAttribute("object-types", DBObjectType.toCommaSeparated(objectTypes));
+                            schemaElement.setAttribute("object-types", DBObjectType.toCsv(objectTypes));
                             connectionElement.addContent(schemaElement);
                             addConnectionElement = true;
                         }
@@ -386,16 +388,18 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
                             String schemaName = schemaElement.getAttributeValue("name");
                             DBSchema schema = objectBundle.getSchema(schemaName);
                             if (schema != null) {
-                                BackgroundTask.invoke(project, "Loading data dictionary" + connectionString, true, true, (task, progress) -> {
-                                    String objectTypesAttr = schemaElement.getAttributeValue("object-types");
-                                    List<DBObjectType> objectTypes = DBObjectType.fromCommaSeparated(objectTypesAttr);
-                                    for (DBObjectType objectType : objectTypes) {
-                                        DBObjectListContainer childObjects = schema.getChildObjects();
-                                        if (childObjects != null && !progress.isCanceled()) {
-                                            childObjects.loadObjectList(objectType);
-                                        }
-                                    }
-                                });
+                                BackgroundTask.invoke(project,
+                                        TaskInstructions.create("Loading data dictionary" + connectionString, TaskInstruction.BACKGROUNDED, TaskInstruction.CANCELLABLE),
+                                        (data, progress) -> {
+                                            String objectTypesAttr = schemaElement.getAttributeValue("object-types");
+                                            List<DBObjectType> objectTypes = DBObjectType.fromCsv(objectTypesAttr);
+                                            for (DBObjectType objectType : objectTypes) {
+                                                DBObjectListContainer childObjects = schema.getChildObjects();
+                                                if (childObjects != null && !progress.isCanceled()) {
+                                                    childObjects.loadObjectList(objectType);
+                                                }
+                                            }
+                                        });
                             }
                         }
                     }

@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.object.lookup;
 import com.dci.intellij.dbn.common.Reference;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.state.PersistentStateElement;
+import com.dci.intellij.dbn.common.thread.SimpleTimeoutCall;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionCache;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -149,7 +150,7 @@ public class DBObjectRef<T extends DBObject> implements Comparable, Reference<T>
         while (objectTypes.hasMoreTokens()) {
             String objectTypeName = objectTypes.nextToken();
             String objectName = objectNames.nextToken();
-            DBObjectType objectType = DBObjectType.getObjectType(objectTypeName);
+            DBObjectType objectType = DBObjectType.get(objectTypeName);
             if (objectTypes.hasMoreTokens()) {
                 objectRef = objectRef == null ?
                         new DBObjectRef(connectionId, objectType, objectName) :
@@ -312,6 +313,20 @@ public class DBObjectRef<T extends DBObject> implements Comparable, Reference<T>
         return load(null);
     }
 
+    @Nullable
+    public T ensure(long timeoutSeconds) {
+        return SimpleTimeoutCall.invoke(timeoutSeconds, null, false, () -> get());
+/*
+        try {
+            BackgroundMonitor.startTimeoutProcess();
+            return get();
+        } finally {
+            BackgroundMonitor.endTimeoutProcess();
+        }
+*/
+
+    }
+
     public T getnn(){
         return FailsafeUtil.get(get());
     }
@@ -361,13 +376,9 @@ public class DBObjectRef<T extends DBObject> implements Comparable, Reference<T>
     }
 
     private void clearReference() {
-        try {
-            if (reference != null) {
-                reference.clear();
-                reference = null;
-            }
-        } catch (Exception ignore) {
-
+        if (reference != null) {
+            reference.clear();
+            reference = null;
         }
     }
 
@@ -489,5 +500,9 @@ public class DBObjectRef<T extends DBObject> implements Comparable, Reference<T>
 
     public boolean isOfType(DBObjectType objectType) {
         return this.objectType.matches(objectType);
+    }
+
+    public boolean isLoaded() {
+        return (parent == null || parent.isLoaded()) && reference != null;
     }
 }

@@ -1,6 +1,10 @@
 package com.dci.intellij.dbn.editor.code.content;
 
+import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.util.StringUtil;
+import com.intellij.diff.comparison.ByWord;
+import com.intellij.diff.comparison.ComparisonPolicy;
+import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.diff.impl.ComparisonPolicy;
 import com.intellij.openapi.diff.impl.processing.ByWord;
 import org.jetbrains.annotations.NotNull;

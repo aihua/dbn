@@ -11,9 +11,6 @@ import com.dci.intellij.dbn.common.content.loader.DynamicSubcontentLoader;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
-import com.dci.intellij.dbn.ddl.DDLFileManager;
-import com.dci.intellij.dbn.ddl.DDLFileType;
-import com.dci.intellij.dbn.ddl.DDLFileTypeId;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.object.DBPackage;
 import com.dci.intellij.dbn.object.DBPackageFunction;
@@ -56,11 +53,6 @@ public class DBPackageImpl extends DBProgramImpl implements DBPackage {
         functions = childObjects.createSubcontentObjectList(DBObjectType.PACKAGE_FUNCTION, this, FUNCTIONS_LOADER, schema);
         procedures = childObjects.createSubcontentObjectList(DBObjectType.PACKAGE_PROCEDURE, this, PROCEDURES_LOADER, schema);
         types = childObjects.createSubcontentObjectList(DBObjectType.PACKAGE_TYPE, this, TYPES_LOADER, schema, INDEXED);
-    }
-
-    @Override
-    public DBContentType getContentType() {
-        return DBContentType.CODE_SPEC_AND_BODY;
     }
 
     public List getTypes() {
@@ -225,22 +217,6 @@ public class DBPackageImpl extends DBProgramImpl implements DBPackage {
     public String getCodeParseRootId(DBContentType contentType) {
         return contentType == DBContentType.CODE_SPEC ? "package_spec" :
                contentType == DBContentType.CODE_BODY ? "package_body" : null;
-    }
-
-    public DDLFileType getDDLFileType(DBContentType contentType) {
-        DDLFileManager ddlFileManager = DDLFileManager.getInstance(getProject());
-        return contentType == DBContentType.CODE_SPEC ? ddlFileManager.getDDLFileType(DDLFileTypeId.PACKAGE_SPEC) :
-               contentType == DBContentType.CODE_BODY ? ddlFileManager.getDDLFileType(DDLFileTypeId.PACKAGE_BODY) :
-               ddlFileManager.getDDLFileType(DDLFileTypeId.PACKAGE);
-    }
-
-
-    public DDLFileType[] getDDLFileTypes() {
-        DDLFileManager ddlFileManager = DDLFileManager.getInstance(getProject());
-        return new DDLFileType[]{
-                ddlFileManager.getDDLFileType(DDLFileTypeId.PACKAGE),
-                ddlFileManager.getDDLFileType(DDLFileTypeId.PACKAGE_SPEC),
-                ddlFileManager.getDDLFileType(DDLFileTypeId.PACKAGE_BODY)};
     }
 
     public DBObjectTimestampLoader getTimestampLoader(DBContentType contentType) {

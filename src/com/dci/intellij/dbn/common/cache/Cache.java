@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.common.cache;
 
+import com.dci.intellij.dbn.common.thread.BasicCallable;
 import gnu.trove.THashMap;
 import org.jetbrains.annotations.Nullable;
 
@@ -14,24 +15,33 @@ public class Cache {
     }
 
     @Nullable
-    public <T> T get(String key) {
+    private <T> T get(String key) {
         CacheValue<T> cacheValue = elements.get(key);
         if (isValid(cacheValue)) {
-            synchronized (this) {
-                cacheValue = elements.get(key);
-                if (isValid(cacheValue)) {
-                    return cacheValue.getValue();
-                }
-            }
+            return cacheValue.getValue();
         }
         return null;
     }
 
-    boolean isValid(CacheValue cacheValue) {
+    private <T> void set(String key, T value) {
+        elements.put(key, new CacheValue<T>(value));
+    }
+
+    private boolean isValid(CacheValue cacheValue) {
         return cacheValue != null && !cacheValue.isOlderThan(expiryTimeMillis);
     }
 
-    public <T> void set(String key, T value) {
-        elements.put(key, new CacheValue<T>(value));
+    public <T, E extends Throwable> T get(String key, BasicCallable<T, E> loader) throws E {
+        T value = get(key);
+        if (value == null) {
+            synchronized (this) {
+                value = get(key);
+                if (value == null) {
+                    value = loader.call();
+                    set(key, value);
+                }
+            }
+        }
+        return value;
     }
 }

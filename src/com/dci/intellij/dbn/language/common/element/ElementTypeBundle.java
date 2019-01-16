@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.language.common.element;
 
-import com.dci.intellij.dbn.common.thread.SimpleBackgroundInvocator;
+import com.dci.intellij.dbn.common.thread.SimpleBackgroundTask;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
 import com.dci.intellij.dbn.language.common.TokenTypeBundle;
@@ -108,7 +108,7 @@ public class ElementTypeBundle {
             } else {
             }
 
-            SimpleBackgroundInvocator.invoke(() -> {
+            SimpleBackgroundTask.invoke(() -> {
                 for (ElementType allElementType : builder.allElementTypes) {
                     allElementType.getLookupCache().cleanup();
                 }
@@ -221,7 +221,7 @@ public class ElementTypeBundle {
 
 
     public static DBObjectType resolveObjectType(String name) throws ElementTypeDefinitionException {
-        DBObjectType objectType = DBObjectType.getObjectType(name);
+        DBObjectType objectType = DBObjectType.get(name);
         if (objectType == null)
             throw new ElementTypeDefinitionException("Invalid object type '" + name + '\'');
         return objectType;

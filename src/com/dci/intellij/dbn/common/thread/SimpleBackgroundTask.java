@@ -2,8 +2,8 @@ package com.dci.intellij.dbn.common.thread;
 
 import java.util.concurrent.ExecutorService;
 
-public abstract class SimpleBackgroundInvocator extends SimpleTask{
-    private SimpleBackgroundInvocator() {}
+public abstract class SimpleBackgroundTask extends SimpleTask{
+    private SimpleBackgroundTask() {}
 
     public final void start() {
         ExecutorService executorService = ThreadFactory.backgroundExecutor();
@@ -11,10 +11,15 @@ public abstract class SimpleBackgroundInvocator extends SimpleTask{
     }
 
     public static void invoke(Runnable runnable) {
-        new SimpleBackgroundInvocator() {
+        new SimpleBackgroundTask() {
             @Override
             protected void execute() {
-                runnable.run();
+                try {
+                    BackgroundMonitor.startBackgroundProcess();
+                    runnable.run();
+                } finally {
+                    BackgroundMonitor.endBackgroundProcess();
+                }
             }
         }.start();
     }

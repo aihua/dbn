@@ -2,8 +2,10 @@ package com.dci.intellij.dbn.vfs.file;
 
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.common.DevNullStreams;
+import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObject;
@@ -13,6 +15,7 @@ import com.dci.intellij.dbn.vfs.DBVirtualFileImpl;
 import com.intellij.ide.navigationToolbar.NavBarPresentation;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.UnknownFileType;
+import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -27,9 +30,9 @@ public class DBObjectVirtualFile<T extends DBObject> extends DBVirtualFileImpl {
     private static final byte[] EMPTY_BYTE_CONTENT = new byte[0];
     protected DBObjectRef<T> objectRef;
 
-    public DBObjectVirtualFile(@NotNull T object) {
-        super(object.getProject());
-        this.objectRef = DBObjectRef.from(object);
+    public DBObjectVirtualFile(@NotNull Project project, @NotNull DBObjectRef<T> objectRef) {
+        super(project);
+        this.objectRef = objectRef;
         this.name = objectRef.getFileName();
     }
 
@@ -42,9 +45,14 @@ public class DBObjectVirtualFile<T extends DBObject> extends DBVirtualFileImpl {
         return DBObjectRef.getnn(objectRef);
     }
 
+    @Override
+    public final ConnectionId getConnectionId() {
+        return objectRef.getConnectionId();
+    }
+
     @NotNull
     public ConnectionHandler getConnectionHandler() {
-        return getObject().getConnectionHandler();
+        return FailsafeUtil.get(objectRef.getConnectionHandler());
     }
 
     @Override

@@ -16,6 +16,8 @@ import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
 import com.dci.intellij.dbn.common.thread.ModalTask;
 import com.dci.intellij.dbn.common.thread.RunnableTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
+import com.dci.intellij.dbn.common.thread.TaskInstruction;
+import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.common.util.EditorUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
@@ -132,11 +134,16 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
             ConnectionHandler connectionHandler = getConnectionHandler(connectionId);
             if (connectionHandler != null) {
                 Project project = getProject();
-                String taskTitle = "Refreshing database objects";
-                BackgroundTask.invoke(project, taskTitle, true, true, (task, progress) -> {
-                    connectionHandler.getConnectionPool().closeConnections();
-                    connectionHandler.getObjectBundle().getObjectListContainer().reload();
-                });
+                BackgroundTask.invoke(project,
+                        TaskInstructions.create("Refreshing database objects", TaskInstruction.BACKGROUNDED, TaskInstruction.CANCELLABLE),
+                        (data, progress) -> {
+                            DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(project);
+                            List<DBNConnection> connections = connectionHandler.getConnections();
+                            for (DBNConnection connection : connections) {
+                                transactionManager.execute(connectionHandler, connection, false, TransactionAction.DISCONNECT);
+                            }
+                            connectionHandler.getObjectBundle().getObjectListContainer().reload();
+                        });
             }
         }
     };
@@ -174,9 +181,9 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     }
 
     public static void testConfigConnection(final ConnectionSettings connectionSettings, final boolean showMessageDialog) {
-        final Project project = connectionSettings.getProject();
-        final ConnectionDatabaseSettings databaseSettings = connectionSettings.getDatabaseSettings();
-        final String connectionName = databaseSettings.getName();
+        Project project = connectionSettings.getProject();
+        ConnectionDatabaseSettings databaseSettings = connectionSettings.getDatabaseSettings();
+        String connectionName = databaseSettings.getName();
         try {
             databaseSettings.checkConfiguration();
 
@@ -412,10 +419,10 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
 
         private void resolveIdleStatus(final ConnectionHandler connectionHandler) {
             FailsafeUtil.check(connectionHandler);
-            final DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(getProject());
+            DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(getProject());
             List<DBNConnection> activeConnections = connectionHandler.getConnections(ConnectionType.MAIN, ConnectionType.SESSION);
 
-            for (final DBNConnection connection : activeConnections) {
+            for (DBNConnection connection : activeConnections) {
                 if (connection.isIdle() && connection.isNot(ResourceStatus.RESOLVING_TRANSACTION)) {
 
                     int idleMinutes = connection.getIdleMinutes();
@@ -437,7 +444,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
         }
     }
 
-    void disposeConnections(@NotNull final List<ConnectionHandler> connectionHandlers) {
+    void disposeConnections(@NotNull List<ConnectionHandler> connectionHandlers) {
         if (connectionHandlers.size() > 0) {
             final Project project = getProject();
             ConditionalLaterInvocator.invoke(() -> {
@@ -455,8 +462,9 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
                 MethodExecutionManager methodExecutionManager = MethodExecutionManager.getInstance(project);
                 methodExecutionManager.cleanupExecutionHistory(connectionIds);
 
-                String taskTitle = "Cleaning up connections";
-                BackgroundTask.invoke(project, taskTitle, true, false, (task, progress) -> DisposerUtil.dispose(connectionHandlers));
+                BackgroundTask.invoke(project,
+                        TaskInstructions.create("Cleaning up connections", TaskInstruction.CANCELLABLE),
+                        (data, progress) -> DisposerUtil.dispose(connectionHandlers));
             });
         }
     }

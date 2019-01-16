@@ -6,7 +6,7 @@ import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.Disposable;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.message.MessageCallback;
-import com.dci.intellij.dbn.common.thread.SimpleBackgroundInvocator;
+import com.dci.intellij.dbn.common.thread.SimpleBackgroundTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.util.DataProviderSupplier;
 import com.dci.intellij.dbn.common.util.EventUtil;
@@ -14,8 +14,8 @@ import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
-import com.dci.intellij.dbn.connection.ConnectionHandlerStatusListener;
 import com.dci.intellij.dbn.connection.ConnectionProvider;
+import com.dci.intellij.dbn.connection.ConnectionStatusListener;
 import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingProvider;
@@ -66,8 +66,13 @@ import java.beans.PropertyChangeListener;
 import java.sql.SQLException;
 import java.util.List;
 
-import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.*;
-import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.*;
+import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.CONNECTED;
+import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.LOADED;
+import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.LOADING;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.DELIBERATE_ACTION;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.PRESERVE_CHANGES;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.REBUILD;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.USE_CURRENT_FILTER;
 import static com.dci.intellij.dbn.editor.data.model.RecordStatus.INSERTING;
 import static com.dci.intellij.dbn.editor.data.model.RecordStatus.MODIFIED;
 
@@ -108,7 +113,7 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
         Disposer.register(this, editorForm);
 
         EventUtil.subscribe(project, this, TransactionListener.TOPIC, transactionListener);
-        EventUtil.subscribe(project, this, ConnectionHandlerStatusListener.TOPIC, connectionStatusListener);
+        EventUtil.subscribe(project, this, ConnectionStatusListener.TOPIC, connectionStatusListener);
         EventUtil.subscribe(project, this, DataGridSettingsChangeListener.TOPIC, dataGridSettingsChangeListener);
     }
 
@@ -274,7 +279,7 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
             ConnectionAction.invoke("loading table data", this, (Integer) null, action -> {
                 setLoading(true);
                 EventUtil.notify(project, DatasetLoadListener.TOPIC).datasetLoading(databaseFile);
-                SimpleBackgroundInvocator.invoke(() -> {
+                SimpleBackgroundTask.invoke(() -> {
                     DatasetEditorForm editorForm = getEditorForm();
                     try {
                         editorForm.showLoadingHint();
@@ -509,9 +514,9 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
     /*******************************************************
      *                      Listeners                      *
      *******************************************************/
-    private ConnectionHandlerStatusListener connectionStatusListener = (connectionId, sessionId) -> {
+    private ConnectionStatusListener connectionStatusListener = (connectionId, sessionId) -> {
         ConnectionHandler connectionHandler = getConnectionHandler();
-        if (connectionHandler.getId().equals(connectionId) && sessionId == SessionId.MAIN) {
+        if (connectionHandler.getId() == connectionId && sessionId == SessionId.MAIN) {
             boolean connected = connectionHandler.isConnected(SessionId.MAIN);
             boolean statusChanged = getStatus().set(CONNECTED, connected);
 

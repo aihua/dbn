@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.connection;
 
+import com.dci.intellij.dbn.common.Constants;
 import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.notification.NotificationUtil;
@@ -22,6 +23,7 @@ import com.dci.intellij.dbn.database.DatabaseMessageParserInterface;
 import com.dci.intellij.dbn.driver.DatabaseDriverManager;
 import com.dci.intellij.dbn.driver.DriverSource;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -35,7 +37,6 @@ import java.sql.Savepoint;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 public class ConnectionUtil {
     private static final Logger LOGGER = LoggerFactory.createLogger();
@@ -52,6 +53,7 @@ public class ConnectionUtil {
         if (statement != null) {
             try {
                 statement.cancel();
+            } catch (SQLRecoverableException ignore) {
             } catch (Throwable e) {
                 LOGGER.warn("Error cancelling statement: " + e.getMessage());
             } finally {
@@ -60,22 +62,14 @@ public class ConnectionUtil {
         }
     }
 
-    public static <T extends AutoCloseable> T close(T resource) {
+    public static <T extends AutoCloseable> void close(T resource) {
         if (resource != null) {
             try {
                 resource.close();
+            } catch (SQLRecoverableException ignore) {
             } catch (Throwable e) {
                 LOGGER.warn("Failed to close resource", e);
             }
-        }
-        return null;
-    }
-
-    public static void setAutoCommit(Connection connection, boolean autoCommit) throws SQLException {
-        try {
-            connection.setAutoCommit(autoCommit);
-        } catch (SQLException e) {
-            connection.setAutoCommit(autoCommit);
         }
     }
 
@@ -127,7 +121,9 @@ public class ConnectionUtil {
 
     public static DBNConnection connect(
             ConnectionSettings connectionSettings,
-            @Nullable ConnectionHandlerStatusHolder connectionStatus, @Nullable AuthenticationInfo temporaryAuthenticationInfo, @NotNull SessionId sessionId,
+            @Nullable ConnectionHandlerStatusHolder connectionStatus,
+            @Nullable AuthenticationInfo temporaryAuthenticationInfo,
+            @NotNull SessionId sessionId,
             boolean autoCommit,
             @Nullable DatabaseAttachmentHandler attachmentHandler) throws SQLException {
         ConnectTimeoutCall connectCall = new ConnectTimeoutCall();
@@ -161,7 +157,7 @@ public class ConnectionUtil {
         private SQLException exception;
 
         ConnectTimeoutCall() {
-            super(30, TimeUnit.SECONDS, null, true);
+            super(30, null, true);
         }
 
         @Override
@@ -233,13 +229,20 @@ public class ConnectionUtil {
                 if (connection == null) {
                     throw new SQLException("Driver failed to create connection for this configuration. No failure information provided.");
                 }
-                ConnectionUtil.setAutoCommit(connection, autoCommit);
+
+                try {
+                    connection.setAutoCommit(autoCommit);
+                } catch (SQLException e) {
+                    // need to try twice (don't remember why)
+                    connection.setAutoCommit(autoCommit);
+                }
                 if (connectionStatus != null) {
                     connectionStatus.setConnectionException(null);
                     connectionStatus.setConnected(true);
                     connectionStatus.setValid(true);
                 }
 
+                Project project = connectionSettings.getProject();
                 if (databaseAttachmentHandler != null) {
                     List<DatabaseFile> attachedDatabaseFiles = databaseSettings.getDatabaseInfo().getFiles().getSecondaryFiles();
                     for (DatabaseFile databaseFile : attachedDatabaseFiles) {
@@ -248,7 +251,7 @@ public class ConnectionUtil {
                             databaseAttachmentHandler.attachDatabase(connection, path, databaseFile.getSchema());
                         } catch (Exception e) {
                             NotificationUtil.sendErrorNotification(
-                                    connectionSettings.getProject(),
+                                    project,
                                     "Database Attachment Failure",
                                     "Unable to attach database file " + path + ". Cause: " + e.getMessage());
                         }
@@ -259,7 +262,13 @@ public class ConnectionUtil {
                 databaseSettings.setDatabaseType(databaseType);
                 databaseSettings.setDatabaseVersion(getDatabaseVersion(connection));
                 databaseSettings.setConnectivityStatus(ConnectivityStatus.VALID);
-                return new DBNConnection(connection, connectionType, connectionSettings.getConnectionId(), sessionId);
+                return new DBNConnection(
+                        project,
+                        connection,
+                        connectionSettings.getDatabaseSettings().getName(),
+                        connectionType,
+                        connectionSettings.getConnectionId(),
+                        sessionId);
 
             } catch (Throwable e) {
                 DatabaseType databaseType = getDatabaseType(databaseSettings.getDriver());
@@ -315,67 +324,145 @@ public class ConnectionUtil {
         return DatabaseType.resolve(productName);
     }
 
-    public static void commit(DBNConnection connection) {
+    public static void commitSilently(DBNConnection connection) {
+        try {
+            commit(connection);
+        } catch (SQLRecoverableException ignore) {
+        } catch (SQLException e) {
+            LOGGER.warn("Commit failed", e);
+        }
+    }
+
+    public static void commit(DBNConnection connection) throws SQLException {
         try {
             if (connection != null) connection.commit();
-        } catch (SQLRecoverableException e){
-            // ignore
+        } catch (SQLRecoverableException ignore) {
         } catch (SQLException e) {
-            LOGGER.warn("Error committing connection", e);
+            sentWarningNotification(
+                    "Commit",
+                    "Failed to commit",
+                    connection,
+                    e);
+            throw e;
         }
     }
 
-    public static void rollback(Connection connection) {
+    public static void rollbackSilently(DBNConnection connection) {
+        try {
+            rollback(connection);
+        } catch (SQLRecoverableException ignore) {
+        } catch (SQLException e) {
+            LOGGER.warn("Rollback failed", e);
+        }
+
+    }
+    public static void rollback(DBNConnection connection) throws SQLException {
         try {
             if (connection != null && !connection.isClosed() && !connection.getAutoCommit()) connection.rollback();
-        } catch (SQLRecoverableException ignore){
+        } catch (SQLRecoverableException ignore) {
         } catch (SQLException e) {
-            LOGGER.warn("Error rolling back connection", e);
+            sentWarningNotification(
+                    "Rollback",
+                    "Failed to rollback",
+                    connection,
+                    e);
+            throw e;
         }
     }
 
-    public static void rollback(Connection connection, @Nullable Savepoint savepoint) {
+    public static void rollbackSilently(DBNConnection connection, @Nullable Savepoint savepoint) {
+        try {
+            rollback(connection, savepoint);
+        } catch (SQLRecoverableException ignore) {
+        } catch (SQLException e) {
+            LOGGER.warn("Savepoint rollback failed", e);
+        }
+    }
+
+    public static void rollback(DBNConnection connection, @Nullable Savepoint savepoint) throws SQLException {
         try {
             if (connection != null && savepoint != null && !connection.isClosed() && !connection.getAutoCommit()) connection.rollback(savepoint);
-        } catch (SQLException ignore) {
+        } catch (SQLRecoverableException ignore) {
+        } catch (SQLException e) {
+            sentWarningNotification(
+                    "Savepoint",
+                    "Failed to rollback savepoint for",
+                    connection,
+                    e);
+            throw e;
         }
     }
 
-    public static @Nullable Savepoint createSavepoint(Connection connection) {
+    public static @Nullable Savepoint createSavepoint(DBNConnection connection) {
         try {
             if (connection != null && !connection.isClosed() && !connection.getAutoCommit()) {
                 return connection.setSavepoint();
             }
-        } catch (SQLException ignore) {
+        } catch (SQLRecoverableException ignore) {
+        } catch (SQLException e) {
+            sentWarningNotification(
+                    "Savepoint",
+                    "Failed to create savepoint for",
+                    connection,
+                    e);
         }
         return null;
     }
 
-    public static void releaseSavepoint(Connection connection, @Nullable Savepoint savepoint) {
+    public static void releaseSavepoint(DBNConnection connection, @Nullable Savepoint savepoint) {
         try {
             if (connection != null && savepoint != null && !connection.isClosed() && !connection.getAutoCommit()) {
                 connection.releaseSavepoint(savepoint);
             }
-        } catch (SQLException ignore) {
+        } catch (SQLRecoverableException ignore) {
+        } catch (SQLException e) {
+            sentWarningNotification(
+                    "Savepoint",
+                    "Failed to release savepoint for",
+                    connection,
+                    e);
         }
     }
 
     public static void setReadonly(DBNConnection connection, boolean readonly) {
         try {
             connection.setReadOnly(readonly);
-        } catch (SQLException ignore) {
+        } catch (SQLException e) {
+/*
+            sentWarningNotification(
+                    "Readonly",
+                    "Failed to initialize readonly status for",
+                    connection,
+                    e);
+*/
         }
     }
 
-    public static void setAutocommit(DBNConnection connection, boolean autoCommit) {
+    public static void setAutoCommit(DBNConnection connection, boolean autoCommit) {
         try {
             if (connection != null && !connection.isClosed()) {
-                ConnectionUtil.setAutoCommit(connection, autoCommit);
+                connection.setAutoCommit(autoCommit);
             }
-        } catch (SQLRecoverableException e){
-            // ignore
-        } catch (SQLException e) {
-            LOGGER.warn("Error committing connection", e);
+        } catch (SQLRecoverableException ignore) {
+        } catch (Exception e) {
+            sentWarningNotification(
+                    "Auto-Commit",
+                    "Failed to change auto-commit status for",
+                    connection,
+                    e);
         }
+    }
+
+    private static void sentWarningNotification(String title, String message, DBNConnection connection, Exception e) {
+        String name = connection.getName();
+        SessionId sessionId = connection.getSessionId();
+        String errorMessage = e.getMessage();
+        String notificationMessage = message + " connection \"" + name + " (" + sessionId + ")\": " + errorMessage;
+
+        NotificationUtil.sendWarningNotification(
+                connection.getProject(),
+                Constants.DBN_TITLE_PREFIX + title,
+                notificationMessage);
+
     }
 }

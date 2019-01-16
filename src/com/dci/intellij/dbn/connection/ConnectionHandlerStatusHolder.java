@@ -1,11 +1,12 @@
 package com.dci.intellij.dbn.connection;
 
+import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.property.PropertyHolderImpl;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.jdbc.IncrementalStatusAdapter;
-import com.dci.intellij.dbn.connection.jdbc.LazyResourceStatus;
+import com.dci.intellij.dbn.connection.jdbc.LatentResourceStatus;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 
@@ -22,7 +23,7 @@ public class ConnectionHandlerStatusHolder extends PropertyHolderImpl<Connection
         return ConnectionHandlerStatus.values();
     }
 
-    private LazyConnectionStatus active = new LazyConnectionStatus(ConnectionHandlerStatus.ACTIVE, true, TimeUtil.ONE_SECOND) {
+    private LatentConnectionStatus active = new LatentConnectionStatus(ConnectionHandlerStatus.ACTIVE, true, TimeUtil.ONE_SECOND) {
         @Override
         protected boolean doCheck() {
             ConnectionHandler connectionHandler = getConnectionHandler();
@@ -36,7 +37,7 @@ public class ConnectionHandlerStatusHolder extends PropertyHolderImpl<Connection
         }
     };
 
-    private LazyConnectionStatus busy = new LazyConnectionStatus(ConnectionHandlerStatus.BUSY, true, TimeUtil.ONE_SECOND) {
+    private LatentConnectionStatus busy = new LatentConnectionStatus(ConnectionHandlerStatus.BUSY, true, TimeUtil.ONE_SECOND) {
         @Override
         protected boolean doCheck() {
             ConnectionHandler connectionHandler = getConnectionHandler();
@@ -50,7 +51,7 @@ public class ConnectionHandlerStatusHolder extends PropertyHolderImpl<Connection
         }
     };
 
-    private LazyConnectionStatus valid = new LazyConnectionStatus(ConnectionHandlerStatus.VALID, true, TimeUtil.THIRTY_SECONDS) {
+    private LatentConnectionStatus valid = new LatentConnectionStatus(ConnectionHandlerStatus.VALID, true, TimeUtil.THIRTY_SECONDS) {
         @Override
         protected boolean doCheck() {
             DBNConnection poolConnection = null;
@@ -70,7 +71,7 @@ public class ConnectionHandlerStatusHolder extends PropertyHolderImpl<Connection
         }
     };
 
-    private LazyConnectionStatus connected = new LazyConnectionStatus(ConnectionHandlerStatus.CONNECTED, false, TimeUtil.TEN_SECONDS) {
+    private LatentConnectionStatus connected = new LatentConnectionStatus(ConnectionHandlerStatus.CONNECTED, false, TimeUtil.TEN_SECONDS) {
         @Override
         protected boolean doCheck() {
             try {
@@ -89,7 +90,7 @@ public class ConnectionHandlerStatusHolder extends PropertyHolderImpl<Connection
     };
 
     private IncrementalStatusAdapter<ConnectionHandlerStatusHolder, ConnectionHandlerStatus> loading =
-            new IncrementalStatusAdapter<ConnectionHandlerStatusHolder, ConnectionHandlerStatus>(ConnectionHandlerStatus.LOADING, this) {
+            new IncrementalStatusAdapter<ConnectionHandlerStatusHolder, ConnectionHandlerStatus>(this, ConnectionHandlerStatus.LOADING) {
                 @Override
                 protected boolean setInner(ConnectionHandlerStatus status, boolean value) {
                     return ConnectionHandlerStatusHolder.super.set(status, value);
@@ -97,8 +98,8 @@ public class ConnectionHandlerStatusHolder extends PropertyHolderImpl<Connection
 
                 @Override
                 protected void statusChanged() {
-                    if (getResource().isNot(ConnectionHandlerStatus.LOADING)) {
-                        ConnectionHandler connectionHandler = getConnectionHandler();
+                    if (true || getResource().isNot(ConnectionHandlerStatus.LOADING)) {
+                        ConnectionHandler connectionHandler = FailsafeUtil.get(getConnectionHandler());
                         Project project = connectionHandler.getProject();
                         EventUtil.notify(project, ConnectionLoadListener.TOPIC).contentsLoaded(connectionHandler);
                     }
@@ -167,19 +168,19 @@ public class ConnectionHandlerStatusHolder extends PropertyHolderImpl<Connection
         return active.check();
     }
 
-    public LazyResourceStatus getActive() {
+    public LatentResourceStatus getActive() {
         return active;
     }
 
-    public LazyResourceStatus getBusy() {
+    public LatentResourceStatus getBusy() {
         return busy;
     }
 
-    public LazyResourceStatus getValid() {
+    public LatentResourceStatus getValid() {
         return valid;
     }
 
-    public LazyResourceStatus getConnected() {
+    public LatentResourceStatus getConnected() {
         return connected;
     }
 
@@ -187,8 +188,8 @@ public class ConnectionHandlerStatusHolder extends PropertyHolderImpl<Connection
         return loading;
     }
 
-    private abstract class LazyConnectionStatus extends LazyResourceStatus<ConnectionHandlerStatus> {
-        LazyConnectionStatus(ConnectionHandlerStatus status, boolean initialValue, long interval) {
+    private abstract class LatentConnectionStatus extends LatentResourceStatus<ConnectionHandlerStatus> {
+        LatentConnectionStatus(ConnectionHandlerStatus status, boolean initialValue, long interval) {
             super(ConnectionHandlerStatusHolder.this, status, initialValue, interval);
         }
 
@@ -197,7 +198,7 @@ public class ConnectionHandlerStatusHolder extends PropertyHolderImpl<Connection
             ConnectionHandler connectionHandler = connectionHandlerRef.getnn();
             Project project = connectionHandler.getProject();
             ConnectionHandlerStatusListener statusListener = EventUtil.notify(project, ConnectionHandlerStatusListener.TOPIC);
-            statusListener.statusChanged(connectionHandler.getId(), null);
+            statusListener.statusChanged(connectionHandler.getId());
         }
     }
 }

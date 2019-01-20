@@ -6,12 +6,12 @@ import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.browser.options.DatabaseBrowserSettings;
 import com.dci.intellij.dbn.browser.options.DatabaseBrowserSortingSettings;
 import com.dci.intellij.dbn.common.LoggerFactory;
-import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.content.DynamicContentImpl;
 import com.dci.intellij.dbn.common.content.DynamicContentStatus;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
 import com.dci.intellij.dbn.common.content.dependency.ContentDependencyAdapter;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoader;
+import com.dci.intellij.dbn.common.content.loader.DynamicContentLoaderImpl;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.ui.tree.TreeEventType;
@@ -22,6 +22,7 @@ import com.dci.intellij.dbn.navigation.psi.DBObjectListPsiDirectory;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBObjectType;
+import com.dci.intellij.dbn.object.common.DBVirtualObject;
 import com.dci.intellij.dbn.object.common.sorting.DBObjectComparator;
 import com.dci.intellij.dbn.object.filter.quick.ObjectQuickFilter;
 import com.dci.intellij.dbn.object.filter.quick.ObjectQuickFilterManager;
@@ -49,12 +50,28 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
     private InternalFilter filter;
     private PsiDirectory psiDirectory;
 
-    DBObjectListImpl(@NotNull DBObjectType objectType, @NotNull BrowserTreeNode treeParent, DynamicContentLoader<T> loader, ContentDependencyAdapter dependencyAdapter, DynamicContentStatus ... statuses) {
-        super(treeParent, loader, dependencyAdapter, statuses);
+    DBObjectListImpl(
+            @NotNull DBObjectType objectType,
+            @NotNull BrowserTreeNode treeParent,
+            ContentDependencyAdapter dependencyAdapter,
+            DynamicContentStatus... statuses) {
+        super(treeParent, dependencyAdapter, statuses);
         this.objectType = objectType;
         if (treeParent instanceof DBSchema && !isInternal()) {
             ObjectQuickFilterManager quickFilterManager = ObjectQuickFilterManager.getInstance(getProject());
             quickFilterManager.applyCachedFilter(this);
+        }
+        //DBObjectListLoaderRegistry.register(treeParent, objectType, loader);
+    }
+
+    @Override
+    public DynamicContentLoader<T> getLoader() {
+        BrowserTreeNode parent = getParent();
+        if (parent instanceof DBVirtualObject) {
+            return DynamicContentLoader.VOID_CONTENT_LOADER;
+        } else {
+            DynamicContentType parentContentType = parent.getDynamicContentType();
+            return DynamicContentLoaderImpl.resolve(parentContentType, objectType);
         }
     }
 
@@ -206,7 +223,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
         if (psiDirectory == null) {
             synchronized (this) {
                 if (psiDirectory == null) {
-                    FailsafeUtil.check(this);
+                    FailsafeUtil.ensure(this);
                     psiDirectory = new DBObjectListPsiDirectory(this);
                 }
             }
@@ -214,16 +231,11 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
         return psiDirectory;
     }
 
-    @Nullable
-    public DynamicContent getDynamicContent(DynamicContentType dynamicContentType) {
-        return null;
-    }
-
     public void notifyChangeListeners() {
         try {
             Project project = getProject();
             BrowserTreeNode treeParent = getParent();
-            if (isNot(INTERNAL) && isTouched() && FailsafeUtil.softCheck(project) && treeParent != null && treeParent.isTreeStructureLoaded()) {
+            if (isNot(INTERNAL) && isTouched() && FailsafeUtil.check(project) && treeParent.isTreeStructureLoaded()) {
                 BrowserTreeEventListener treeEventListener = EventUtil.notify(project, BrowserTreeEventListener.TOPIC);
                 treeEventListener.nodeChanged(this, TreeEventType.STRUCTURE_CHANGED);
             }
@@ -274,7 +286,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
         return getChildren().get(index);
     }
 
-    @Nullable
+    @NotNull
     public BrowserTreeNode getParent() {
         return (BrowserTreeNode) getParentElement();
     }

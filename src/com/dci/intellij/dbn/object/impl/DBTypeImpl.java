@@ -72,8 +72,8 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
     }
 
     @Override
-    protected void initObject(ResultSet resultSet) throws SQLException {
-        name = resultSet.getString("TYPE_NAME");
+    protected String initObject(ResultSet resultSet) throws SQLException {
+        String name = resultSet.getString("TYPE_NAME");
         superTypeOwner = resultSet.getString("SUPERTYPE_OWNER");
         superTypeName = resultSet.getString("SUPERTYPE_NAME");
 
@@ -84,8 +84,10 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
         if (isCollection()) {
             collectionElementTypeRef = new DBDataType.Ref(resultSet,  "COLLECTION_");
         }
+        return name;
     }
 
+    @Override
     protected void initLists() {
         super.initLists();
         if (!isCollection()) {
@@ -98,10 +100,12 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
         }
     }
 
+    @Override
     public DBObjectType getObjectType() {
         return TYPE;
     }
 
+    @Override
     @Nullable
     public Icon getIcon() {
         if (getStatus().is(DBObjectStatus.VALID)) {
@@ -115,14 +119,17 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
         }
     }
 
+    @Override
     public Icon getOriginalIcon() {
         return isCollection() ? Icons.DBO_TYPE_COLLECTION : Icons.DBO_TYPE;
     }
 
+    @Override
     public List<DBTypeAttribute> getAttributes() {
         return attributes == null ? EMPTY_ATTRIBUTE_LIST : attributes.getObjects();
     }
 
+    @Override
     public DBType getSuperType() {
         ConnectionHandler connectionHandler = getConnectionHandler();
         if (superType == null && superTypeOwner != null && superTypeName != null) {
@@ -134,6 +141,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
         return DBObjectRef.get(superType);
     }
 
+    @Override
     public DBDataType getCollectionElementType() {
         ConnectionHandler connectionHandler = getConnectionHandler();
         if (collectionElementType == null && collectionElementTypeRef != null) {
@@ -143,6 +151,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
         return collectionElementType;
     }
 
+    @Override
     @Nullable
     public DBObject getDefaultNavigationObject() {
         if (isCollection()) {
@@ -165,18 +174,22 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
         return properties;
     }
 
+    @Override
     public List<DBType> getSubTypes() {
         return subTypes.getObjects();
     }
 
+    @Override
     public DBNativeDataType getNativeDataType() {
         return nativeDataType;
     }
 
+    @Override
     public boolean isCollection() {
         return is(DBObjectProperty.COLLECTION);
     }
 
+    @Override
     public void buildToolTip(HtmlToolTipBuilder ttb) {
         ttb.append(true, getObjectType().getName(), true);
         ttb.createEmptyRow();
@@ -186,6 +199,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
     /*********************************************************
      *                     TreeElement                       *
      *********************************************************/
+    @Override
     @NotNull
     public List<BrowserTreeNode> buildAllPossibleTreeChildren() {
         return isCollection() ?
@@ -199,20 +213,24 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
     static {
         new DynamicSubcontentLoader<DBTypeAttribute>(TYPE, TYPE_ATTRIBUTE, true) {
 
+            @Override
             public boolean match(DBTypeAttribute typeAttribute, DynamicContent dynamicContent) {
                 DBType type = (DBType) dynamicContent.getParentElement();
                 return typeAttribute.getType().equals(type);
             }
 
+            @Override
             public DynamicContentLoader<DBTypeAttribute> createAlternativeLoader() {
                 return new DynamicContentResultSetLoader<DBTypeAttribute>(TYPE, TYPE_ATTRIBUTE, false) {
 
+                    @Override
                     public ResultSet createResultSet(DynamicContent<DBTypeAttribute> dynamicContent, DBNConnection connection) throws SQLException {
                         DatabaseMetadataInterface metadataInterface = dynamicContent.getConnectionHandler().getInterfaceProvider().getMetadataInterface();
                         DBType type = (DBType) dynamicContent.getParentElement();
                         return metadataInterface.loadTypeAttributes(type.getSchema().getName(), type.getName(), connection);
                     }
 
+                    @Override
                     public DBTypeAttribute createElement(DynamicContent<DBTypeAttribute> dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
                         DBTypeImpl type = (DBTypeImpl) dynamicContent.getParentElement();
                         return new DBTypeAttributeImpl(type, resultSet);
@@ -224,20 +242,24 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
 
         new DynamicSubcontentLoader<DBTypeFunction>(TYPE, TYPE_FUNCTION, true) {
 
+            @Override
             public boolean match(DBTypeFunction function, DynamicContent dynamicContent) {
                 DBType type = (DBType) dynamicContent.getParentElement();
                 return function.getType() == type;
             }
 
+            @Override
             public DynamicContentLoader<DBTypeFunction> createAlternativeLoader() {
                 return new DynamicContentResultSetLoader<DBTypeFunction>(TYPE, TYPE_FUNCTION, false) {
 
+                    @Override
                     public ResultSet createResultSet(DynamicContent<DBTypeFunction> dynamicContent, DBNConnection connection) throws SQLException {
                         DatabaseMetadataInterface metadataInterface = dynamicContent.getConnectionHandler().getInterfaceProvider().getMetadataInterface();
                         DBType type = (DBType) dynamicContent.getParentElement();
                         return metadataInterface.loadTypeFunctions(type.getSchema().getName(), type.getName(), connection);
                     }
 
+                    @Override
                     public DBTypeFunction createElement(DynamicContent<DBTypeFunction> dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
                         DBType type = (DBType) dynamicContent.getParentElement();
                         return new DBTypeFunctionImpl(type, resultSet);
@@ -248,20 +270,24 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
 
         new DynamicSubcontentLoader<DBTypeProcedure>(TYPE, TYPE_PROCEDURE, true) {
 
+            @Override
             public boolean match(DBTypeProcedure procedure, DynamicContent dynamicContent) {
                 DBType type = (DBType) dynamicContent.getParentElement();
                 return procedure.getType() == type;
             }
 
+            @Override
             public DynamicContentLoader<DBTypeProcedure> createAlternativeLoader() {
                 return new DynamicContentResultSetLoader<DBTypeProcedure>(TYPE, TYPE_PROCEDURE, false) {
 
+                    @Override
                     public ResultSet createResultSet(DynamicContent<DBTypeProcedure> dynamicContent, DBNConnection connection) throws SQLException {
                         DatabaseMetadataInterface metadataInterface = dynamicContent.getConnectionHandler().getInterfaceProvider().getMetadataInterface();
                         DBType type = (DBType) dynamicContent.getParentElement();
                         return metadataInterface.loadTypeProcedures(type.getSchema().getName(), type.getName(), connection);
                     }
 
+                    @Override
                     public DBTypeProcedure createElement(DynamicContent<DBTypeProcedure> dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
                         DBType type = (DBType) dynamicContent.getParentElement();
                         return new DBTypeProcedureImpl(type, resultSet);
@@ -272,6 +298,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
 
         new DynamicSubcontentLoader<DBType>(TYPE, TYPE, false) {
 
+            @Override
             public boolean match(DBType type, DynamicContent dynamicContent) {
                 DBType superType = type.getSuperType();
                 DBType thisType = (DBType) dynamicContent.getParentElement();
@@ -292,6 +319,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
             super(object, false);
         }
 
+        @Override
         public ResultSet loadSourceCode(DBNConnection connection) throws SQLException {
             DatabaseMetadataInterface metadataInterface = getConnectionHandler().getInterfaceProvider().getMetadataInterface();
             return metadataInterface.loadObjectSourceCode(getSchema().getName(), getName(), "TYPE", connection);
@@ -303,6 +331,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
             super(object, true);
         }
 
+        @Override
         public ResultSet loadSourceCode(DBNConnection connection) throws SQLException {
             ConnectionHandler connectionHandler = getConnectionHandler();
             DatabaseMetadataInterface metadataInterface = connectionHandler.getInterfaceProvider().getMetadataInterface();
@@ -316,6 +345,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
    /*********************************************************
     *                   DBEditableObject                    *
     *********************************************************/
+    @Override
     public String loadCodeFromDatabase(DBContentType contentType) throws SQLException {
        DBSourceCodeLoader loader =
                contentType == DBContentType.CODE_SPEC ? new SpecSourceCodeLoader(this) :
@@ -324,6 +354,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
        return loader == null ? null : loader.load();
     }
 
+    @Override
     public String getCodeParseRootId(DBContentType contentType) {
         if (getParentObject() instanceof DBSchema) {
             return contentType == DBContentType.CODE_SPEC ? "type_spec" :
@@ -371,6 +402,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
         return objectNavigationLists;
     }
 
+    @Override
     public DBObjectTimestampLoader getTimestampLoader(DBContentType contentType) {
         return contentType == DBContentType.CODE_SPEC ? SPEC_TIMESTAMP_LOADER :
                contentType == DBContentType.CODE_BODY ? BODY_TIMESTAMP_LOADER : null;

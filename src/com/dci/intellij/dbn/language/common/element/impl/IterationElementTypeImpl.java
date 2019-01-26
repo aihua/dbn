@@ -2,7 +2,6 @@ package com.dci.intellij.dbn.language.common.element.impl;
 
 import com.dci.intellij.dbn.code.common.style.formatting.FormattingDefinition;
 import com.dci.intellij.dbn.common.latent.Latent;
-import com.dci.intellij.dbn.common.latent.RecursiveLatent;
 import com.dci.intellij.dbn.language.common.TokenType;
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.ElementTypeBundle;
@@ -27,7 +26,7 @@ public class IterationElementTypeImpl extends AbstractElementType implements Ite
     private TokenElementType[] separatorTokens;
     private int[] elementsCountVariants;
     private int minIterations;
-    private Latent<Boolean> followedBySeparator = RecursiveLatent.create(() -> {
+    private Latent<Boolean> followedBySeparator = Latent.create(() -> {
         TokenElementType[] separatorTokens = getSeparatorTokens();
         if (separatorTokens != null) {
             Set<TokenType> nextPossibleTokens = getLookupCache().getNextPossibleTokens();
@@ -54,6 +53,7 @@ public class IterationElementTypeImpl extends AbstractElementType implements Ite
         return new IterationElementTypeParser(this);
     }
 
+    @Override
     protected void loadDefinition(Element def) throws ElementTypeDefinitionException {
         super.loadDefinition(def);
         ElementTypeBundle bundle = getElementBundle();
@@ -111,26 +111,32 @@ public class IterationElementTypeImpl extends AbstractElementType implements Ite
         }
     }
 
+    @Override
     public boolean isLeaf() {
         return false;
     }
 
+    @Override
     public String getDebugName() {
         return "iteration (" + getId() + ")";
     }
 
+    @Override
     public PsiElement createPsiElement(ASTNode astNode) {
         return new SequencePsiElement(astNode, this);
     }
 
+    @Override
     public ElementType getIteratedElementType() {
         return iteratedElementType;
     }
 
+    @Override
     public TokenElementType[] getSeparatorTokens() {
         return separatorTokens;
     }
 
+    @Override
     public int[] getElementsCountVariants() {
         return elementsCountVariants;
     }
@@ -140,6 +146,7 @@ public class IterationElementTypeImpl extends AbstractElementType implements Ite
         return minIterations;
     }
 
+    @Override
     public boolean isSeparator(TokenElementType tokenElementType) {
         if (separatorTokens != null) {
             for (TokenElementType separatorToken: separatorTokens) {
@@ -149,6 +156,7 @@ public class IterationElementTypeImpl extends AbstractElementType implements Ite
         return false;
     }
 
+    @Override
     public boolean isSeparator(TokenType tokenType) {
         if (separatorTokens != null) {
             for (TokenElementType separatorToken: separatorTokens) {

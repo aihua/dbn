@@ -1,5 +1,7 @@
 package com.dci.intellij.dbn.editor.code.content;
 
+import com.dci.intellij.dbn.common.load.ProgressMonitor;
+import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.intellij.openapi.diff.impl.ComparisonPolicy;
 import com.intellij.openapi.diff.impl.processing.ByWord;
@@ -71,7 +73,7 @@ public class SourceCodeContent{
     }
 
     public void importContent(String content) {
-        StringBuilder builder = new StringBuilder(content);
+        StringBuilder builder = new StringBuilder(CommonUtil.nvl(content, ""));
         int startIndex = builder.indexOf(START_OFFSET_IDENTIFIER);
 
 

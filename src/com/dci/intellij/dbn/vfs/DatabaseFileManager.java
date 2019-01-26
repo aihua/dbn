@@ -109,11 +109,13 @@ public class DatabaseFileManager extends AbstractProjectComponent implements Per
     /***************************************
      *            ProjectComponent         *
      ***************************************/
+    @Override
     @NotNull
     public String getComponentName() {
         return COMPONENT_NAME;
     }
 
+    @Override
     public void projectOpened() {
         Project project = getProject();
         EventUtil.subscribe(project, this, FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorManagerListener);
@@ -201,6 +203,7 @@ public class DatabaseFileManager extends AbstractProjectComponent implements Per
         }
     };
     private FileEditorManagerListener fileEditorManagerListener  =new FileEditorManagerListener() {
+        @Override
         public void fileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
             if (file instanceof DBEditableObjectVirtualFile) {
                 DBEditableObjectVirtualFile databaseFile = (DBEditableObjectVirtualFile) file;
@@ -208,6 +211,7 @@ public class DatabaseFileManager extends AbstractProjectComponent implements Per
             }
         }
 
+        @Override
         public void fileClosed(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
             if (file instanceof DBEditableObjectVirtualFile) {
                 DBEditableObjectVirtualFile databaseFile = (DBEditableObjectVirtualFile) file;

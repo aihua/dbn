@@ -80,6 +80,7 @@ public class TextFieldWithTextEditor extends JPanel implements DataEditorCompone
         textField.setEditable(enabled);
     }
 
+    @Override
     public void setEditable(boolean editable){
         textField.setEditable(editable);
     }
@@ -89,6 +90,7 @@ public class TextFieldWithTextEditor extends JPanel implements DataEditorCompone
         return textField.isEditable();
     }
 
+    @Override
     public void setUserValueHolder(UserValueHolder userValueHolder) {
         this.userValueHolder = userValueHolder;
     }
@@ -112,6 +114,7 @@ public class TextFieldWithTextEditor extends JPanel implements DataEditorCompone
         }
     }
 
+    @Override
     public JTextField getTextField() {
         return textField;
     }
@@ -138,6 +141,7 @@ public class TextFieldWithTextEditor extends JPanel implements DataEditorCompone
      *                      KeyListener                     *
      ********************************************************/
     private KeyListener keyListener = new KeyAdapter() {
+        @Override
         public void keyPressed(KeyEvent keyEvent) {
             Shortcut[] shortcuts = KeyUtil.getShortcuts(IdeActions.ACTION_SHOW_INTENTION_ACTIONS);
             if (!keyEvent.isConsumed() && KeyUtil.match(shortcuts, keyEvent)) {
@@ -158,6 +162,7 @@ public class TextFieldWithTextEditor extends JPanel implements DataEditorCompone
         }
     };
 
+    @Override
     public UserValueHolder getUserValueHolder() {
         return userValueHolder;
     }
@@ -165,6 +170,7 @@ public class TextFieldWithTextEditor extends JPanel implements DataEditorCompone
     /********************************************************
      *                 TextEditorListener                   *
      ********************************************************/
+    @Override
     public void afterUpdate() {
         Object userValue = userValueHolder.getUserValue();
         if (userValue instanceof String && StringUtil.isEmpty(displayValue)) {

@@ -48,6 +48,7 @@ public class DatasetEditorStateManager extends AbstractProjectComponent implemen
     /***************************************
     *            ProjectComponent           *
     ****************************************/
+    @Override
     @NonNls
     @NotNull
     public String getComponentName() {

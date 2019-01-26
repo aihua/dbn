@@ -32,8 +32,8 @@ public class DBViewImpl extends DBDatasetImpl implements DBView {
     }
 
     @Override
-    protected void initObject(ResultSet resultSet) throws SQLException {
-        name = resultSet.getString("VIEW_NAME");
+    protected String initObject(ResultSet resultSet) throws SQLException {
+        String name = resultSet.getString("VIEW_NAME");
         set(DBObjectProperty.SYSTEM_OBJECT, resultSet.getString("IS_SYSTEM_VIEW").equals("Y"));
         String typeOwner = resultSet.getString("VIEW_TYPE_OWNER");
         String typeName = resultSet.getString("VIEW_TYPE");
@@ -42,12 +42,15 @@ public class DBViewImpl extends DBDatasetImpl implements DBView {
             DBSchema typeSchema = objectBundle.getSchema(typeOwner);
             type = typeSchema.getType(typeName);
         }
+        return name;
     }
 
+    @Override
     public DBObjectType getObjectType() {
         return DBObjectType.VIEW;
     }
 
+    @Override
     public DBType getType() {
         return type;
     }
@@ -55,6 +58,7 @@ public class DBViewImpl extends DBDatasetImpl implements DBView {
     /*********************************************************
      *                     TreeElement                       *
      *********************************************************/
+    @Override
     @NotNull
     public List<BrowserTreeNode> buildAllPossibleTreeChildren() {
         return DatabaseBrowserUtils.createList(
@@ -68,6 +72,7 @@ public class DBViewImpl extends DBDatasetImpl implements DBView {
         return contentType == DBContentType.CODE;
     }
 
+    @Override
     protected List<DBObjectNavigationList> createNavigationLists() {
         List<DBObjectNavigationList> objectNavigationLists = new ArrayList<DBObjectNavigationList>();
 
@@ -91,6 +96,7 @@ public class DBViewImpl extends DBDatasetImpl implements DBView {
             super(object, false);
         }
 
+        @Override
         public ResultSet loadSourceCode(DBNConnection connection) throws SQLException {
             return getConnectionHandler().getInterfaceProvider().getMetadataInterface().loadViewSourceCode(
                    getSchema().getName(), getName(), connection);
@@ -101,11 +107,13 @@ public class DBViewImpl extends DBDatasetImpl implements DBView {
      *                  DBEditableCodeObject                 *
      ********************************************************/
 
+    @Override
     public String loadCodeFromDatabase(DBContentType contentType) throws SQLException {
         SourceCodeLoader loader = new SourceCodeLoader(this);
         return loader.load();
     }
 
+    @Override
     public void executeUpdateDDL(DBContentType contentType, String oldCode, String newCode) throws SQLException {
         ConnectionHandler connectionHandler = getConnectionHandler();
         DBNConnection connection = connectionHandler.getPoolConnection(getSchema(), false);
@@ -117,10 +125,12 @@ public class DBViewImpl extends DBDatasetImpl implements DBView {
         }
     }
 
+    @Override
     public String getCodeParseRootId(DBContentType contentType) {
         return "subquery";
     }
 
+    @Override
     public DBLanguage getCodeLanguage(DBContentType contentType) {
         return SQLLanguage.INSTANCE;
     }

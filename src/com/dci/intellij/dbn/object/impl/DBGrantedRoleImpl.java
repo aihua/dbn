@@ -26,29 +26,35 @@ public class DBGrantedRoleImpl extends DBObjectImpl implements DBGrantedRole {
     }
 
     @Override
-    protected void initObject(ResultSet resultSet) throws SQLException {
-        this.name = resultSet.getString("GRANTED_ROLE_NAME");
+    protected String initObject(ResultSet resultSet) throws SQLException {
+        String name = resultSet.getString("GRANTED_ROLE_NAME");
         this.roleRef = DBObjectRef.from(getConnectionHandler().getObjectBundle().getRole(name));
         set(ADMIN_OPTION, resultSet.getString("IS_ADMIN_OPTION").equals("Y"));
         set(DEFAULT_ROLE, resultSet.getString("IS_DEFAULT_ROLE").equals("Y"));
+        return name;
     }
 
+    @Override
     public DBObjectType getObjectType() {
         return DBObjectType.GRANTED_ROLE;
     }
 
+    @Override
     public DBRoleGrantee getGrantee() {
         return (DBRoleGrantee) getParentObject();
     }
 
+    @Override
     public DBRole getRole() {
         return DBObjectRef.get(roleRef);
     }
 
+    @Override
     public boolean isAdminOption() {
         return is(ADMIN_OPTION);
     }
 
+    @Override
     public boolean isDefaultRole() {
         return is(DEFAULT_ROLE);
     }
@@ -62,11 +68,13 @@ public class DBGrantedRoleImpl extends DBObjectImpl implements DBGrantedRole {
     /*********************************************************
      *                     TreeElement                       *
      *********************************************************/
+    @Override
     public boolean isLeaf() {
         return true;
     }
 
 
+    @Override
     @NotNull
     public List<BrowserTreeNode> buildAllPossibleTreeChildren() {
         return EMPTY_TREE_NODE_LIST;

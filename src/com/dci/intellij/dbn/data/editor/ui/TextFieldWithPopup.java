@@ -88,6 +88,7 @@ public class TextFieldWithPopup<T extends JComponent> extends JPanel implements 
         return parentComponent;
     }
 
+    @Override
     public void setEditable(boolean editable){
         textField.setEditable(editable);
     }
@@ -97,6 +98,7 @@ public class TextFieldWithPopup<T extends JComponent> extends JPanel implements 
         return textField.isEditable();
     }
                                                                                   
+    @Override
     public void setUserValueHolder(UserValueHolder userValueHolder) {
         this.userValueHolder = userValueHolder;
     }
@@ -125,6 +127,7 @@ public class TextFieldWithPopup<T extends JComponent> extends JPanel implements 
         }
     }
 
+    @Override
     public JTextField getTextField() {
         return textField;
     }
@@ -279,6 +282,7 @@ public class TextFieldWithPopup<T extends JComponent> extends JPanel implements 
      *                      KeyListener                     *
      ********************************************************/
     private KeyListener keyListener = new KeyAdapter() {
+        @Override
         public void keyPressed(KeyEvent keyEvent) {
             TextFieldPopupProvider popupProvider = getActivePopupProvider();
             if (popupProvider != null) {
@@ -293,6 +297,7 @@ public class TextFieldWithPopup<T extends JComponent> extends JPanel implements 
             }
         }
 
+        @Override
         public void keyReleased(KeyEvent keyEvent) {
             TextFieldPopupProvider popupProvider = getActivePopupProvider();
             if (popupProvider != null) {
@@ -331,6 +336,7 @@ public class TextFieldWithPopup<T extends JComponent> extends JPanel implements 
         }
     }
 
+    @Override
     public UserValueHolder getUserValueHolder() {
         return userValueHolder;
     }

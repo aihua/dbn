@@ -59,7 +59,7 @@ public class DBNConnection extends DBNConnectionBase {
                     ResourceStatus.INVALID,
                     ResourceStatus.INVALID_SETTING,
                     ResourceStatus.INVALID_CHECKING,
-                    0,
+                    TimeUtil.FIVE_SECONDS,
                     true) { // true is terminal status
                 @Override
                 protected void changeInner(boolean value) throws SQLException {
@@ -76,7 +76,7 @@ public class DBNConnection extends DBNConnectionBase {
                     ResourceStatus.AUTO_COMMIT,
                     ResourceStatus.AUTO_COMMIT_SETTING,
                     ResourceStatus.AUTO_COMMIT_CHECKING,
-                    0,
+                    TimeUtil.FIVE_SECONDS,
                     false) { // no terminal status
                 @Override
                 protected void changeInner(boolean value) throws SQLException {
@@ -102,6 +102,7 @@ public class DBNConnection extends DBNConnectionBase {
         this.sessionId = sessionId;
     }
 
+    @Override
     protected <S extends Statement> S wrap(S statement) {
         updateLastAccess();
         if (statement instanceof CallableStatement) {
@@ -229,7 +230,11 @@ public class DBNConnection extends DBNConnectionBase {
      ********************************************************************/
     @Override
     public void setAutoCommit(boolean autoCommit) throws SQLException {
-        this.autoCommit.change(autoCommit);
+        try {
+            this.autoCommit.change(autoCommit);
+        } catch (SQLException e) {
+            throw e;
+        }
     }
 
     @Override
@@ -241,7 +246,11 @@ public class DBNConnection extends DBNConnectionBase {
     public void commit() throws SQLException {
         updateLastAccess();
 
-        super.commit();
+        try {
+            super.commit();
+        } catch (SQLException e) {
+            throw e;
+        }
         resetDataChanges();
         notifyStatusChange();
     }
@@ -250,7 +259,11 @@ public class DBNConnection extends DBNConnectionBase {
     public void rollback() throws SQLException {
         updateLastAccess();
 
-        super.rollback();
+        try {
+            super.rollback();
+        } catch (SQLException e) {
+            throw e;
+        }
         resetDataChanges();
         notifyStatusChange();
     }
@@ -259,7 +272,11 @@ public class DBNConnection extends DBNConnectionBase {
     public void close() throws SQLException {
         updateLastAccess();
 
-        super.close();
+        try {
+            super.close();
+        } catch (SQLException e) {
+            throw e;
+        }
         resetDataChanges();
         notifyStatusChange();
     }
@@ -297,6 +314,7 @@ public class DBNConnection extends DBNConnectionBase {
         return isValid(2);
     }
 
+    @Override
     public boolean isValid(int timeout) {
         return !isInvalid();
     }
@@ -306,6 +324,7 @@ public class DBNConnection extends DBNConnectionBase {
     }
 
 
+    @Override
     public boolean set(ResourceStatus status, boolean value) {
         boolean changed;
         if (status == ACTIVE) {

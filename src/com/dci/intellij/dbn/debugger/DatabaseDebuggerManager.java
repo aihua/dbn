@@ -487,6 +487,7 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
         return FailsafeUtil.getComponent(project, DatabaseDebuggerManager.class);
     }
 
+    @Override
     @NonNls
     @NotNull
     public String getComponentName() {

@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.language.common.psi;
 import com.dci.intellij.dbn.code.common.style.options.CodeStyleCaseOption;
 import com.dci.intellij.dbn.code.common.style.options.CodeStyleCaseSettings;
 import com.dci.intellij.dbn.execution.statement.processor.StatementExecutionProcessor;
+import com.dci.intellij.dbn.language.common.WeakRef;
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.NamedElementType;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
@@ -13,10 +14,9 @@ import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
-import java.lang.ref.WeakReference;
 
 public class ExecutablePsiElement extends NamedPsiElement{
-    private WeakReference<StatementExecutionProcessor> executionProcessor;
+    private WeakRef<StatementExecutionProcessor> executionProcessor;
 
     public String prepareStatementText(){
         PsiElement lastChild = getLastChild();
@@ -37,6 +37,7 @@ public class ExecutablePsiElement extends NamedPsiElement{
         super(astNode, elementType);
     }
 
+    @Override
     public NamedElementType getElementType() {
         return (NamedElementType) super.getElementType();
     }
@@ -68,6 +69,7 @@ public class ExecutablePsiElement extends NamedPsiElement{
         return false;
     }
 
+    @Override
     public boolean hasErrors() {
         return false;
     }
@@ -77,9 +79,10 @@ public class ExecutablePsiElement extends NamedPsiElement{
     }
 
     public void setExecutionProcessor(StatementExecutionProcessor executionProcessor) {
-        this.executionProcessor = new WeakReference<StatementExecutionProcessor>(executionProcessor);
+        this.executionProcessor = WeakRef.from(executionProcessor);
     }
 
+    @Override
     public Object clone() {
         return super.clone();
     }
@@ -89,6 +92,7 @@ public class ExecutablePsiElement extends NamedPsiElement{
     /*********************************************************
      *                    ItemPresentation                   *
      *********************************************************/
+    @Override
     public String getPresentableText() {
         ElementType elementType = getSpecificElementType();
         String subject = null;
@@ -129,16 +133,19 @@ public class ExecutablePsiElement extends NamedPsiElement{
         }
     }
 
+    @Override
     @Nullable
     public String getLocationString() {
         return null;
     }
 
+    @Override
     @Nullable
     public Icon getIcon(boolean open) {
         return super.getIcon(open);
     }
 
+    @Override
     @Nullable
     public TextAttributesKey getTextAttributesKey() {
         return null;

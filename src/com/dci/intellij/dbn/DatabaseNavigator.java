@@ -42,6 +42,7 @@ public class DatabaseNavigator implements ApplicationComponent, PersistentStateC
                 registerExtension(new SQLCodeStyleSettingsProvider());
     }*/
 
+    @Override
     @NotNull
     public String getComponentName() {
         return COMPONENT_NAME;
@@ -53,6 +54,7 @@ public class DatabaseNavigator implements ApplicationComponent, PersistentStateC
     private boolean showPluginConflictDialog;
     private String repositoryPluginVersion;
 
+    @Override
     public void initComponent() {
         //ModuleTypeManager.getInstance().registerModuleType(DBModuleType.MODULE_TYPE);
 
@@ -109,6 +111,7 @@ public class DatabaseNavigator implements ApplicationComponent, PersistentStateC
         this.slowDatabaseModeEnabled = slowDatabaseModeEnabled;
     }
 
+    @Override
     public void disposeComponent() {
     }
 
@@ -126,6 +129,7 @@ public class DatabaseNavigator implements ApplicationComponent, PersistentStateC
     }
 
     private class PluginUpdateChecker extends TimerTask {
+        @Override
         public void run() {
             ProxySelector initialProxySelector = ProxySelector.getDefault();
             CommonProxy defaultProxy = CommonProxy.getInstance();

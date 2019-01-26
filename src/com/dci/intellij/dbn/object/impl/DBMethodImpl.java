@@ -46,11 +46,12 @@ public abstract class DBMethodImpl extends DBSchemaObjectImpl implements DBMetho
     }
 
     @Override
-    protected void initObject(ResultSet resultSet) throws SQLException {
+    protected String initObject(ResultSet resultSet) throws SQLException {
         set(DETERMINISTIC, resultSet.getString("IS_DETERMINISTIC").equals("Y"));
         overload = resultSet.getInt("OVERLOAD");
         position = resultSet.getInt("POSITION");
         language = DBLanguage.getLanguage(resultSet.getString("LANGUAGE"));
+        return null;
     }
 
     @Override
@@ -70,12 +71,14 @@ public abstract class DBMethodImpl extends DBSchemaObjectImpl implements DBMetho
         objectStatus.set(DBObjectStatus.DEBUG, isDebug);
     }
 
+    @Override
     protected void initLists() {
         super.initLists();
         DBObjectListContainer container = initChildObjects();
         arguments = container.createSubcontentObjectList(ARGUMENT, this, getSchema(), INDEXED);
     }
 
+    @Override
     @NotNull
     public DBLanguage getLanguage() {
         return language;
@@ -86,10 +89,12 @@ public abstract class DBMethodImpl extends DBSchemaObjectImpl implements DBMetho
         return getContentType() == DBContentType.CODE && contentType == DBContentType.CODE;
     }
 
+    @Override
     public boolean isDeterministic() {
         return is(DETERMINISTIC);
     }
 
+    @Override
     public boolean hasDeclaredArguments() {
         for (DBArgument argument : getArguments()) {
             if (argument.getDataType().isDeclared()) {
@@ -99,6 +104,7 @@ public abstract class DBMethodImpl extends DBSchemaObjectImpl implements DBMetho
         return false; 
     }
 
+    @Override
     public List<DBArgument> getArguments() {
         return arguments.getObjects();
     }
@@ -108,10 +114,12 @@ public abstract class DBMethodImpl extends DBSchemaObjectImpl implements DBMetho
         return null;
     }
 
+    @Override
     public DBArgument getArgument(String name) {
         return (DBArgument) getObjectByName(getArguments(), name);
     }
 
+    @Override
     public int getOverload() {
         return overload;
     }
@@ -126,6 +134,7 @@ public abstract class DBMethodImpl extends DBSchemaObjectImpl implements DBMetho
         return overload > 0 ? " #" + overload : "";
     }
 
+    @Override
     public boolean isProgramMethod() {
         return false;
     }
@@ -153,6 +162,7 @@ public abstract class DBMethodImpl extends DBSchemaObjectImpl implements DBMetho
     /*********************************************************
      *                     TreeElement                       *
      *********************************************************/
+    @Override
     @NotNull
     public List<BrowserTreeNode> buildAllPossibleTreeChildren() {
         return DatabaseBrowserUtils.createList(arguments);
@@ -163,14 +173,17 @@ public abstract class DBMethodImpl extends DBSchemaObjectImpl implements DBMetho
      *********************************************************/
     static {
         new DynamicSubcontentLoader<DBArgument>(METHOD, ARGUMENT, true) {
+            @Override
             public boolean match(DBArgument argument, DynamicContent dynamicContent) {
                 DBMethod method = (DBMethod) dynamicContent.getParentElement();
                 DBMethod argumentMethod = argument.getMethod();
                 return argumentMethod != null && argumentMethod.equals(method) && argument.getOverload() == method.getOverload();
             }
 
+            @Override
             public DynamicContentLoader<DBArgument> createAlternativeLoader() {
                 return new DynamicContentResultSetLoader<DBArgument>(METHOD, ARGUMENT, false) {
+                    @Override
                     public ResultSet createResultSet(DynamicContent<DBArgument> dynamicContent, DBNConnection connection) throws SQLException {
                         DatabaseMetadataInterface metadataInterface = dynamicContent.getConnectionHandler().getInterfaceProvider().getMetadataInterface();
                         DBMethod method = (DBMethod) dynamicContent.getParentElement();
@@ -194,6 +207,7 @@ public abstract class DBMethodImpl extends DBSchemaObjectImpl implements DBMetho
                         }
                     }
 
+                    @Override
                     public DBArgument createElement(DynamicContent<DBArgument> dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
                         DBMethod method = (DBMethod) dynamicContent.getParentElement();
                         return new DBArgumentImpl(method, resultSet);

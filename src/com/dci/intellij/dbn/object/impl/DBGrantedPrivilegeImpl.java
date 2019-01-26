@@ -25,24 +25,29 @@ public class DBGrantedPrivilegeImpl extends DBObjectImpl implements DBGrantedPri
     }
 
     @Override
-    protected void initObject(ResultSet resultSet) throws SQLException {
-        this.name = resultSet.getString("GRANTED_PRIVILEGE_NAME");
-        this.privilegeRef = DBObjectRef.from(getConnectionHandler().getObjectBundle().getPrivilege(name));
+    protected String initObject(ResultSet resultSet) throws SQLException {
+        String name = resultSet.getString("GRANTED_PRIVILEGE_NAME");
+        privilegeRef = DBObjectRef.from(getConnectionHandler().getObjectBundle().getPrivilege(name));
         set(ADMIN_OPTION, resultSet.getString("IS_ADMIN_OPTION").equals("Y"));
+        return name;
     }
 
+    @Override
     public DBObjectType getObjectType() {
         return DBObjectType.GRANTED_PRIVILEGE;
     }
 
+    @Override
     public DBPrivilegeGrantee getGrantee() {
         return (DBPrivilegeGrantee) getParentObject();
     }
 
+    @Override
     public DBPrivilege getPrivilege() {
         return DBObjectRef.get(privilegeRef);
     }
 
+    @Override
     public boolean isAdminOption() {
         return is(ADMIN_OPTION);
     }
@@ -56,11 +61,13 @@ public class DBGrantedPrivilegeImpl extends DBObjectImpl implements DBGrantedPri
     /*********************************************************
      *                     TreeElement                       *
      *********************************************************/
+    @Override
     public boolean isLeaf() {
         return true;
     }
 
 
+    @Override
     @NotNull
     public List<BrowserTreeNode> buildAllPossibleTreeChildren() {
         return EMPTY_TREE_NODE_LIST;

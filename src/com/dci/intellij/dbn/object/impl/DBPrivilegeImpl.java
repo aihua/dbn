@@ -22,10 +22,11 @@ public abstract class DBPrivilegeImpl extends DBObjectImpl implements DBPrivileg
     }
 
     @Override
-    protected void initObject(ResultSet resultSet) throws SQLException {
-        name = resultSet.getString("PRIVILEGE_NAME");
+    protected String initObject(ResultSet resultSet) throws SQLException {
+        return resultSet.getString("PRIVILEGE_NAME");
     }
 
+    @Override
     public List<DBUser> getUserGrantees() {
         return new ArrayList<DBUser>();
     }
@@ -43,6 +44,7 @@ public abstract class DBPrivilegeImpl extends DBObjectImpl implements DBPrivileg
         return grantees;
     }
 
+    @Override
     protected List<DBObjectNavigationList> createNavigationLists() {
         List<DBObjectNavigationList> navigationLists = new ArrayList<DBObjectNavigationList>();
         navigationLists.add(new DBObjectNavigationListImpl<DBUser>("User grantees", getUserGrantees()));
@@ -55,11 +57,13 @@ public abstract class DBPrivilegeImpl extends DBObjectImpl implements DBPrivileg
     /*********************************************************
      *                     TreeElement                       *
      *********************************************************/
+    @Override
     public boolean isLeaf() {
         return true;
     }
 
 
+    @Override
     @NotNull
     public List<BrowserTreeNode> buildAllPossibleTreeChildren() {
         return EMPTY_TREE_NODE_LIST;

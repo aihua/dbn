@@ -174,15 +174,18 @@ public class DDLFileManager extends AbstractProjectComponent implements Persiste
     /***************************************
      *            ProjectComponent         *
      ***************************************/
+    @Override
     @NotNull
     public String getComponentName() {
         return COMPONENT_NAME;
     }
 
+    @Override
     public void projectOpened() {
         SimpleLaterInvocator.invoke(() -> registerExtensions(getExtensionSettings()));
     }
 
+    @Override
     public void projectClosed() {
     }
 

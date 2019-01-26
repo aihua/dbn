@@ -352,7 +352,6 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
         targetConnection = null;
     }
 
-    @Override
     public void startStepOver(@Nullable XSuspendContext suspendContext) {
         DBDebugOperationTask.invoke(getProject(), "step over", () -> {
             DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
@@ -361,7 +360,6 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
         });
     }
 
-    @Override
     public void startStepInto(@Nullable XSuspendContext suspendContext) {
         DBDebugOperationTask.invoke(getProject(), "step into", () -> {
             DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
@@ -371,7 +369,6 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
     }
 
 
-    @Override
     public void startStepOut(@Nullable XSuspendContext suspendContext) {
         DBDebugOperationTask.invoke(getProject(), "step out", () -> {
             DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
@@ -380,7 +377,6 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
         });
     }
 
-    @Override
     public void resume(@Nullable XSuspendContext suspendContext) {
         DBDebugOperationTask.invoke(getProject(), "resume execution", () -> {
             DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
@@ -389,7 +385,6 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
         });
     }
 
-    @Override
     public void runToPosition(@NotNull XSourcePosition position, @Nullable XSuspendContext suspendContext) {
         DBDebugOperationTask.invoke(getProject(), "run to position", () -> {
             DBSchemaObject object = DBDebugUtil.getObject(position);

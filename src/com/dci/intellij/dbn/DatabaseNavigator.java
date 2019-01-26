@@ -62,7 +62,7 @@ public class DatabaseNavigator implements ApplicationComponent, PersistentStateC
         //FileTypeManager.getInstance().registerFileType(PSQLFileType.INSTANCE, "psql");
         //resolvePluginConflict();
 
-        FileTemplateManager templateManager = FileTemplateManager.getDefaultInstance();
+        FileTemplateManager templateManager = FileTemplateManager.getInstance();
         if (templateManager.getTemplate("SQL Script") == null) {
             templateManager.addTemplate("SQL Script", "sql");
         }

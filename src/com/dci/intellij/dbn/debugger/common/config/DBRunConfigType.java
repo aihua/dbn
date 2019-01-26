@@ -9,7 +9,6 @@ public abstract class DBRunConfigType<T extends DBRunConfigFactory> implements C
     public abstract String getDefaultRunnerName();
     public abstract T getConfigurationFactory(DBDebuggerType debuggerType);
 
-    @Override
     public boolean isDumbAware() {
         return false;
     }

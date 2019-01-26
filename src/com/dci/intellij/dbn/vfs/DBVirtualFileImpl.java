@@ -84,6 +84,7 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
         return projectRef.get();
     }
 
+    @Override
     public abstract Icon getIcon();
 
     public int getId() {

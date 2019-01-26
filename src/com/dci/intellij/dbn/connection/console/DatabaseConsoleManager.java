@@ -96,6 +96,7 @@ public class DatabaseConsoleManager extends AbstractProjectComponent implements 
         eventDispatcher.getMulticaster().propertyChanged(event);
     }
 
+    @Override
     @NonNls
     @NotNull
     public String getComponentName() {

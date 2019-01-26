@@ -140,6 +140,7 @@ public class DataExportManager extends AbstractProjectComponent implements Persi
     /****************************************
     *            ProjectComponent           *
     *****************************************/
+    @Override
     @NonNls
     @NotNull
     public String getComponentName() {

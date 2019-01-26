@@ -39,8 +39,8 @@ public abstract class DBTriggerImpl extends DBSchemaObjectImpl implements DBTrig
     }
 
     @Override
-    protected void initObject(ResultSet resultSet) throws SQLException {
-        name = resultSet.getString("TRIGGER_NAME");
+    protected String initObject(ResultSet resultSet) throws SQLException {
+        String name = resultSet.getString("TRIGGER_NAME");
         set(FOR_EACH_ROW, resultSet.getString("IS_FOR_EACH_ROW").equals("Y"));
 
         String triggerTypeString = resultSet.getString("TRIGGER_TYPE");
@@ -65,8 +65,11 @@ public abstract class DBTriggerImpl extends DBSchemaObjectImpl implements DBTrig
         if (triggeringEventString.contains("DDL")) triggeringEventList.add(TRIGGERING_EVENT_DDL);
         if (triggeringEventList.size() == 0) triggeringEventList.add(TRIGGERING_EVENT_UNKNOWN);
 
-        triggeringEvents = triggeringEventList.toArray(new TriggeringEvent[0]);    }
+        triggeringEvents = triggeringEventList.toArray(new TriggeringEvent[0]);
+        return name;
+    }
 
+    @Override
     public void initStatus(ResultSet resultSet) throws SQLException {
         boolean isEnabled = resultSet.getString("IS_ENABLED").equals("Y");
         boolean isValid = resultSet.getString("IS_VALID").equals("Y");
@@ -88,14 +91,17 @@ public abstract class DBTriggerImpl extends DBSchemaObjectImpl implements DBTrig
         properties.set(SCHEMA_OBJECT, true);
     }
 
+    @Override
     public boolean isForEachRow() {
         return is(FOR_EACH_ROW);
     }
 
+    @Override
     public TriggerType getTriggerType() {
         return triggerType;
     }
 
+    @Override
     public TriggeringEvent[] getTriggeringEvents() {
         return triggeringEvents;
     }
@@ -103,6 +109,7 @@ public abstract class DBTriggerImpl extends DBSchemaObjectImpl implements DBTrig
     @Override
     public DBOperationExecutor getOperationExecutor() {
         return new DBOperationExecutor() {
+            @Override
             public void executeOperation(DBOperationType operationType) throws SQLException, DBOperationNotSupportedException {
                 ConnectionHandler connectionHandler = getConnectionHandler();
                 DBNConnection connection = connectionHandler.getMainConnection(getSchema());
@@ -138,10 +145,12 @@ public abstract class DBTriggerImpl extends DBSchemaObjectImpl implements DBTrig
      *                     TreeElement                       *
      *********************************************************/
 
+    @Override
     public boolean isLeaf() {
         return true;
     }
 
+    @Override
     @NotNull
     public List<BrowserTreeNode> buildAllPossibleTreeChildren() {
         return EMPTY_TREE_NODE_LIST;
@@ -153,10 +162,12 @@ public abstract class DBTriggerImpl extends DBSchemaObjectImpl implements DBTrig
      *                   DBEditableObject                    *
      ********************************************************/
 
+    @Override
     public String getCodeParseRootId(DBContentType contentType) {
         return "trigger_definition";
     }
 
+    @Override
     public DBObjectTimestampLoader getTimestampLoader(DBContentType contentType) {
         return TIMESTAMP_LOADER;
     }

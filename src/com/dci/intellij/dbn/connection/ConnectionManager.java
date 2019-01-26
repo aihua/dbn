@@ -409,6 +409,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     }
 
     private class CloseIdleConnectionTask extends TimerTask {
+        @Override
         public void run() {
             try {
                 for (ConnectionHandler connectionHandler : getConnectionBundle().getConnectionHandlers()) {
@@ -502,6 +503,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     /**********************************************
     *                ProjectComponent             *
     ***********************************************/
+    @Override
     @NonNls
     @NotNull
     public String getComponentName() {
@@ -511,10 +513,12 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     /*********************************************************
      *                PersistentStateComponent               *
      *********************************************************/
+    @Override
     @Nullable
     public Element getState() {
         return null;
     }
 
+    @Override
     public void loadState(@NotNull Element element) {}
 }

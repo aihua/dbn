@@ -216,12 +216,14 @@ public class ExecutionManager extends AbstractProjectComponent implements Persis
     /*********************************************************
      *                    ProjectComponent                   *
      *********************************************************/
+    @Override
     public void projectOpened() {
         ToolWindow toolWindow = initExecutionConsole();
         toolWindow.getContentManager().removeAllContents(false);
         toolWindow.setAvailable(false, null);
     }
 
+    @Override
     public void projectClosed() {
     }
 
@@ -234,6 +236,7 @@ public class ExecutionManager extends AbstractProjectComponent implements Persis
         super.projectClosing(project);
     }
 
+    @Override
     @NonNls
     @NotNull
     public String getComponentName() {

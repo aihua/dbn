@@ -36,7 +36,7 @@ public class DBArgumentImpl extends DBObjectImpl implements DBArgument {
     }
 
     @Override
-    protected void initObject(ResultSet resultSet) throws SQLException {
+    protected String initObject(ResultSet resultSet) throws SQLException {
         overload = resultSet.getInt("OVERLOAD");
         position = resultSet.getInt("POSITION");
         sequence = resultSet.getInt("SEQUENCE");
@@ -46,52 +46,63 @@ public class DBArgumentImpl extends DBObjectImpl implements DBArgument {
             set(DBObjectProperty.OUTPUT, inOut.contains("OUT"));
 
         }
-        name = resultSet.getString("ARGUMENT_NAME");
+        String name = resultSet.getString("ARGUMENT_NAME");
         if (name == null) name = position == 0 ? "return" : "[unnamed]";
 
         dataType = DBDataType.get(this.getConnectionHandler(), resultSet);
         if (getParentObject() instanceof DBFunction) {
             position++;
         }
+        return name;
     }
 
+    @Override
     public DBDataType getDataType() {
         return dataType;
     }
 
+    @Override
     public DBMethod getMethod() {
         return (DBMethod) getParentObject();
     }
 
+    @Override
     public int getOverload() {
         return overload;
     }
 
+    @Override
     public int getPosition() {
         return position;
     }
 
+    @Override
     public int getSequence() {
         return sequence;
     }
 
+    @Override
     public boolean isInput() {
         return is(DBObjectProperty.INPUT);
     }
 
+    @Override
     public boolean isOutput() {
         return is(DBObjectProperty.OUTPUT);
     }
 
+    @Override
     public boolean isLeaf() {
         return true;
     }
 
+    @Override
     @NotNull
     public List<BrowserTreeNode> buildAllPossibleTreeChildren() {
         return EMPTY_TREE_NODE_LIST;
     }
 
+    @Override
     public void buildToolTip(HtmlToolTipBuilder ttb) {
         ttb.append(true, getObjectType().getName(), true);
         ttb.append(false, " - ", true);
@@ -133,10 +144,12 @@ public class DBArgumentImpl extends DBObjectImpl implements DBArgument {
                isOutput() ? Icons.DBO_ARGUMENT_OUT : Icons.DBO_ARGUMENT;
     }
 
+    @Override
     public DBObjectType getObjectType() {
         return DBObjectType.ARGUMENT;
     }
 
+    @Override
     public int compareTo(@NotNull Object o) {
         if (o instanceof DBArgument) {
             DBArgument argument = (DBArgument) o;

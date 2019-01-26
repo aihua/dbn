@@ -168,11 +168,13 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
         return FailsafeUtil.getComponent(project, DatabaseBrowserManager.class);
     }
 
+    @Override
     @NonNls @NotNull
     public String getComponentName() {
         return COMPONENT_NAME;
     }
 
+    @Override
     public void initComponent() {
         Project project = getProject();
         EventUtil.subscribe(project, this, FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorManagerListener);
@@ -199,6 +201,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
      *                       Listeners                        *
      **********************************************************/
     private ObjectFilterChangeListener filterChangeListener = new ObjectFilterChangeListener() {
+        @Override
         public void typeFiltersChanged(ConnectionId connectionId) {
             if (toolWindowForm.loaded()) {
                 ConnectionHandler connectionHandler = getConnectionHandler(connectionId);
@@ -231,6 +234,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
     }
 
     private FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerListener() {
+        @Override
         public void fileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
             if (scroll()) {
                 if (file instanceof DBEditableObjectVirtualFile) {
@@ -250,6 +254,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
 
         }
 
+        @Override
         public void selectionChanged(@NotNull FileEditorManagerEvent event) {
             if (scroll()) {
                 VirtualFile oldFile = event.getOldFile();

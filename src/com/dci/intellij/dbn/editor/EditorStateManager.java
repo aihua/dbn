@@ -115,6 +115,7 @@ public class EditorStateManager extends AbstractProjectComponent implements Pers
     /****************************************
     *             ProjectComponent          *
     *****************************************/
+    @Override
     @NonNls
     @NotNull
     public String getComponentName() {

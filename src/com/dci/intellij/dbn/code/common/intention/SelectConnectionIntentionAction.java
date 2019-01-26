@@ -14,31 +14,34 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.*;
 
 public class SelectConnectionIntentionAction extends GenericIntentionAction implements LowPriorityAction {
+    @Override
     @NotNull
     public String getText() {
         return "Select connection...";
     }
 
+    @Override
     @NotNull
     public String getFamilyName() {
         return IntentionActionGroups.CONNECTION;
     }
 
+    @Override
     public Icon getIcon(int flags) {
         return Icons.FILE_CONNECTION_MAPPING;
     }
 
+    @Override
     public boolean isAvailable(@NotNull Project project, Editor editor, PsiFile psiFile) {
         if (psiFile instanceof DBLanguagePsiFile) {
             VirtualFile virtualFile = psiFile.getVirtualFile();
-            if (virtualFile != null && virtualFile.isInLocalFileSystem()) {
-                //DBLanguageFile file = (DBLanguageFile) psiFile;
-                return true;
-            }
+            FileConnectionMappingManager connectionMappingManager = FileConnectionMappingManager.getInstance(project);
+            return connectionMappingManager.isConnectionSelectable(virtualFile);
         }
         return false;
     }
 
+    @Override
     public void invoke(@NotNull Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
         if (psiFile instanceof DBLanguagePsiFile) {
             DBLanguagePsiFile dbLanguageFile = (DBLanguagePsiFile) psiFile;
@@ -48,6 +51,7 @@ public class SelectConnectionIntentionAction extends GenericIntentionAction impl
     }
 
 
+    @Override
     public boolean startInWriteAction() {
         return false;
     }

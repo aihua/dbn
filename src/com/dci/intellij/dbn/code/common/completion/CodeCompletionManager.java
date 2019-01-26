@@ -36,6 +36,7 @@ public class CodeCompletionManager extends AbstractProjectComponent implements P
     /***************************************
     *            ProjectComponent           *
     ****************************************/
+    @Override
     @NonNls
     @NotNull
     public String getComponentName() {

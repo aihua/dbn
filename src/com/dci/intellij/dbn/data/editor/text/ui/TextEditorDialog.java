@@ -7,6 +7,7 @@ import com.dci.intellij.dbn.data.editor.text.TextEditorAdapter;
 import com.dci.intellij.dbn.data.editor.ui.UserValueHolder;
 import com.dci.intellij.dbn.data.type.DBDataType;
 import com.dci.intellij.dbn.object.common.DBObjectType;
+import com.intellij.openapi.editor.event.DocumentAdapter;
 import com.intellij.openapi.editor.event.DocumentEvent;
 import com.intellij.openapi.editor.event.DocumentListener;
 import com.intellij.openapi.project.Project;
@@ -67,7 +68,7 @@ public class TextEditorDialog extends DBNDialog<TextEditorForm> {
         super.doOKAction();
     }
 
-    private DocumentListener documentListener = new DocumentListener() {
+    private DocumentListener documentListener = new DocumentAdapter() {
         @Override
         public void documentChanged(@NotNull DocumentEvent event) {
             getCancelAction().putValue(Action.NAME, "Cancel");

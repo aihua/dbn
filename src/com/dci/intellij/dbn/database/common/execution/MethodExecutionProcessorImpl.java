@@ -36,15 +36,16 @@ import java.util.concurrent.TimeUnit;
 
 public abstract class MethodExecutionProcessorImpl<T extends DBMethod> implements MethodExecutionProcessor<T> {
     private static final Logger LOGGER = LoggerFactory.createLogger();
-    private DBObjectRef<T> method;
+    private DBObjectRef<T> methodRef;
 
     protected MethodExecutionProcessorImpl(T method) {
-        this.method = new DBObjectRef<T>(method);
+        this.methodRef = DBObjectRef.from(method);
     }
 
+    @Override
     @NotNull
     public T getMethod() {
-        return DBObjectRef.getnn(method);
+        return DBObjectRef.getnn(methodRef);
     }
 
     public List<DBArgument> getArguments() {
@@ -62,6 +63,7 @@ public abstract class MethodExecutionProcessorImpl<T extends DBMethod> implement
     }
 
 
+    @Override
     public void execute(MethodExecutionInput executionInput, DBDebuggerType debuggerType) throws SQLException {
         executionInput.initExecution(debuggerType);
         ConnectionHandler connectionHandler = getConnectionHandler();
@@ -76,6 +78,7 @@ public abstract class MethodExecutionProcessorImpl<T extends DBMethod> implement
         execute(executionInput, connection, debuggerType);
     }
 
+    @Override
     public void execute(final MethodExecutionInput executionInput, @NotNull DBNConnection connection, DBDebuggerType debuggerType) throws SQLException {
         executionInput.initExecution(debuggerType);
         ExecutionOptions options = executionInput.getOptions();

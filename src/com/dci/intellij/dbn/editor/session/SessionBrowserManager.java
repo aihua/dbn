@@ -221,6 +221,7 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
     }
 
     private class UpdateTimestampTask extends TimerTask {
+        @Override
         public void run() {
             if (openFiles.size() > 0) {
                 ReadActionRunner.invoke(false, () -> {
@@ -255,6 +256,7 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
     /****************************************
     *             ProjectComponent          *
     *****************************************/
+    @Override
     @NonNls
     @NotNull
     public String getComponentName() {
@@ -267,6 +269,7 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
     }
 
     private FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerAdapter() {
+        @Override
         public void fileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
             if (file instanceof DBSessionBrowserVirtualFile) {
                 boolean schedule = openFiles.size() == 0;
@@ -280,6 +283,7 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
             }
         }
 
+        @Override
         public void fileClosed(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
             if (file instanceof DBSessionBrowserVirtualFile) {
                 DBSessionBrowserVirtualFile sessionBrowserFile = (DBSessionBrowserVirtualFile) file;

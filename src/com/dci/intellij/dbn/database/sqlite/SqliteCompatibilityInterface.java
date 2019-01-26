@@ -10,7 +10,9 @@ import com.dci.intellij.dbn.database.DatabaseObjectTypeId;
 import com.dci.intellij.dbn.editor.session.SessionStatus;
 import com.dci.intellij.dbn.language.common.QuoteDefinition;
 import com.dci.intellij.dbn.language.common.QuotePair;
+import org.jetbrains.annotations.Nullable;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -25,6 +27,7 @@ public class SqliteCompatibilityInterface extends DatabaseCompatibilityInterface
         super(parent);
     }
 
+    @Override
     public boolean supportsObjectType(DatabaseObjectTypeId objectTypeId) {
         return
             objectTypeId == DatabaseObjectTypeId.SCHEMA ||
@@ -37,12 +40,15 @@ public class SqliteCompatibilityInterface extends DatabaseCompatibilityInterface
             objectTypeId == DatabaseObjectTypeId.DATASET_TRIGGER;
     }
 
+    @Override
     public boolean supportsFeature(DatabaseFeature feature) {
         switch (feature) {
+            case CONNECTION_ERROR_RECOVERY: return true;
             default: return false;
         }
     }
 
+    @Override
     public QuoteDefinition getIdentifierQuotes() {
         return IDENTIFIER_QUOTE_DEFINITION;
     }
@@ -74,21 +80,34 @@ public class SqliteCompatibilityInterface extends DatabaseCompatibilityInterface
         else return SessionStatus.ACTIVE;
     }
 
+    @Nullable
     @Override
     public DatabaseAttachmentHandler getDatabaseAttachmentHandler() {
         return (connection, filePath, schemaName) -> {
-            boolean autoCommit = connection.getAutoCommit();
-            connection.setAutoCommit(false);
+            //setAutoCommit(connection, false);
             try {
-                connection.rollback();
+                //connection.rollback();
                 Statement statement = connection.createStatement();
+/*
                 try {
                     statement.execute("end transaction");
                 } catch (SQLException ignore) {}
+*/
                 statement.executeUpdate("attach database '" + filePath + "' as \"" + schemaName + "\"");
             } finally {
-                connection.setAutoCommit(autoCommit);
+                //setAutoCommit(connection, true);
             }
         };
+    }
+
+    private void setAutoCommit(Connection connection, boolean autoCommit) throws SQLException {
+        try {
+            connection.setAutoCommit(autoCommit);
+        } catch (SQLException e) {
+            if (connection.getAutoCommit() != autoCommit) {
+                throw e;
+            }
+
+        }
     }
 }

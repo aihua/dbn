@@ -28,8 +28,10 @@ import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.connection.session.DatabaseSessionManager;
 import com.dci.intellij.dbn.connection.session.SessionManagerListener;
 import com.dci.intellij.dbn.ddl.DDLFileAttachmentManager;
+import com.dci.intellij.dbn.language.common.DBLanguageFileType;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.PsiFileRef;
+import com.dci.intellij.dbn.language.common.WeakRef;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.action.AnObjectAction;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
@@ -69,7 +71,6 @@ import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -96,6 +97,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
         return FailsafeUtil.getComponent(project, FileConnectionMappingManager.class);
     }
 
+    @Override
     @NotNull
     public String getComponentName() {
         return COMPONENT_NAME;
@@ -413,7 +415,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     public void setConnectionHandler(@NotNull Editor editor, @Nullable ConnectionHandler connectionHandler) {
         Document document = editor.getDocument();
         VirtualFile virtualFile = FileDocumentManager.getInstance().getFile(document);
-        if (virtualFile != null && VirtualFileUtil.isLocalFileSystem(virtualFile) ) {
+        if (isConnectionSelectable(virtualFile)) {
             boolean changed = setConnectionHandler(virtualFile, connectionHandler);
             if (changed) {
                 DocumentUtil.touchDocument(editor, true);
@@ -427,7 +429,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     public void setDatabaseSchema(@NotNull Editor editor, DBSchema schema) {
         Document document = editor.getDocument();
         VirtualFile virtualFile = FileDocumentManager.getInstance().getFile(document);
-        if (virtualFile != null && (VirtualFileUtil.isLocalFileSystem(virtualFile) || virtualFile instanceof DBConsoleVirtualFile)) {
+        if (isSchemaSelectable(virtualFile)) {
             boolean changed = setDatabaseSchema(virtualFile, schema);
             if (changed) {
                 DocumentUtil.touchDocument(editor, false);
@@ -441,12 +443,35 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     public void setDatabaseSession(@NotNull Editor editor, DatabaseSession session) {
         Document document = editor.getDocument();
         VirtualFile virtualFile = FileDocumentManager.getInstance().getFile(document);
-        if (virtualFile != null && (VirtualFileUtil.isLocalFileSystem(virtualFile) || virtualFile instanceof DBConsoleVirtualFile)) {
+        if (isSessionSelectable(virtualFile)) {
             setDatabaseSession(virtualFile, session);
 
             FileConnectionMappingListener mappingListener = EventUtil.notify(getProject(), FileConnectionMappingListener.TOPIC);
             mappingListener.sessionChanged(virtualFile, session);
         }
+    }
+
+    public boolean isConnectionSelectable(VirtualFile virtualFile) {
+        return virtualFile != null &&
+                virtualFile.getFileType() instanceof DBLanguageFileType &&
+                (VirtualFileUtil.isLocalFileSystem(virtualFile) ||
+                        virtualFile instanceof LightVirtualFile);
+    }
+
+    public boolean isSchemaSelectable(VirtualFile virtualFile) {
+        return virtualFile != null &&
+                virtualFile.getFileType() instanceof DBLanguageFileType &&
+                (VirtualFileUtil.isLocalFileSystem(virtualFile) ||
+                        virtualFile instanceof LightVirtualFile ||
+                        virtualFile instanceof DBConsoleVirtualFile);
+    }
+
+    public boolean isSessionSelectable(VirtualFile virtualFile) {
+        return virtualFile != null &&
+                virtualFile.getFileType() instanceof DBLanguageFileType &&
+                (VirtualFileUtil.isLocalFileSystem(virtualFile) ||
+                        virtualFile instanceof LightVirtualFile ||
+                        virtualFile instanceof DBConsoleVirtualFile);
     }
 
 
@@ -679,13 +704,13 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
     private class SessionSelectAction extends AnAction {
         private PsiFileRef<DBLanguagePsiFile> fileRef;
-        private WeakReference<DatabaseSession> sessionRef;
+        private WeakRef<DatabaseSession> sessionRef;
         private RunnableTask callback;
 
         private SessionSelectAction(DBLanguagePsiFile file, DatabaseSession session, RunnableTask callback) {
             super(session.getName(), null, session.getIcon());
             this.fileRef = PsiFileRef.from(file);
-            this.sessionRef = new WeakReference<>(session);
+            this.sessionRef = WeakRef.from(session);
             this.callback = callback;
         }
 
@@ -748,6 +773,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
             removeMapping(event.getFile());
         }
 
+        @Override
         public void fileMoved(@NotNull VirtualFileMoveEvent event) {
             String oldFileUrl = event.getOldParent().getUrl() + "/" + event.getFileName();
             FileConnectionMapping fileConnectionMapping = lookupMapping(oldFileUrl);
@@ -756,6 +782,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
             }
         }
 
+        @Override
         public void propertyChanged(@NotNull VirtualFilePropertyEvent event) {
             VirtualFile file = event.getFile();
             VirtualFile parent = file.getParent();
@@ -792,9 +819,13 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     /***************************************
      *          ProjectComponent         *
      ***************************************/
+    @Override
     public void projectOpened() {}
+    @Override
     public void projectClosed() {}
+    @Override
     public void initComponent() {}
+    @Override
     public void disposeComponent() {
         super.disposeComponent();
         mappings.clear();

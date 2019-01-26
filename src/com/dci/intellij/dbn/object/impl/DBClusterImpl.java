@@ -18,14 +18,16 @@ public class DBClusterImpl extends DBSchemaObjectImpl implements DBCluster {
     }
 
     @Override
-    protected void initObject(ResultSet resultSet) throws SQLException {
-        name = resultSet.getString("CLUSTER_NAME");
+    protected String initObject(ResultSet resultSet) throws SQLException {
+        return resultSet.getString("CLUSTER_NAME");
     }
 
+    @Override
     public DBObjectType getObjectType() {
         return DBObjectType.CLUSTER;
     }
 
+    @Override
     public void buildToolTip(HtmlToolTipBuilder ttb) {
         ttb.append(true, getObjectType().getName(), true);
         ttb.createEmptyRow();
@@ -36,10 +38,12 @@ public class DBClusterImpl extends DBSchemaObjectImpl implements DBCluster {
      *                     TreeElement                       *
      *********************************************************/
 
+    @Override
     public boolean isLeaf() {
         return true;
     }
 
+    @Override
     @NotNull
     public List<BrowserTreeNode> buildAllPossibleTreeChildren() {
         return EMPTY_TREE_NODE_LIST;

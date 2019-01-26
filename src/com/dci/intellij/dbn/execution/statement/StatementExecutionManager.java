@@ -487,6 +487,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     /*********************************************************
      *                    ProjectComponent                   *
      *********************************************************/
+    @Override
     @NotNull
     @NonNls
     public String getComponentName() {

@@ -129,6 +129,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
         return true;
     }
 
+    @Override
     public ConnectionHandler getConnectionHandler() {
         return connectionHandlerRef.getnn();
     }
@@ -143,11 +144,13 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
         return (DBRunConfig<T>) getSession().getRunProfile();
     }
 
+    @Override
     @NotNull
     public Project getProject() {
         return getSession().getProject();
     }
 
+    @Override
     public DatabaseDebuggerInterface getDebuggerInterface() {
         return getConnectionHandler().getInterfaceProvider().getDebuggerInterface();
     }
@@ -172,6 +175,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
         return is(BREAKPOINT_SETTING_ALLOWED);
     }
 
+    @Override
     public DBDebugConsoleLogger getConsole() {
         return console;
     }

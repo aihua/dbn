@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.options;
 
-import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.browser.options.DatabaseBrowserSettings;
 import com.dci.intellij.dbn.code.common.completion.options.CodeCompletionSettings;
 import com.dci.intellij.dbn.code.common.style.options.ProjectCodeStyleSettings;
@@ -186,7 +185,7 @@ public class ProjectSettingsManager extends AbstractProjectComponent implements 
 
     @Override
     public void projectOpened() {
-        FileTemplateManager templateManager = FileTemplateManager.getDefaultInstance();
+        FileTemplateManager templateManager = FileTemplateManager.getInstance();
         FileTemplate sqlTemplate = templateManager.getTemplate("SQL Script");
         if (sqlTemplate == null) {
             templateManager.addTemplate("SQL Script", "sql");

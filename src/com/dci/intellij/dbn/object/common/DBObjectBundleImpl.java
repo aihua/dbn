@@ -7,6 +7,8 @@ import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNodeBase;
 import com.dci.intellij.dbn.browser.model.LoadInProgressTreeNode;
 import com.dci.intellij.dbn.browser.ui.HtmlToolTipBuilder;
+import com.dci.intellij.dbn.code.common.lookup.LookupItemBuilder;
+import com.dci.intellij.dbn.code.common.lookup.ObjectLookupItemBuilder;
 import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.content.DynamicContentElement;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
@@ -15,6 +17,7 @@ import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.latent.Latent;
+import com.dci.intellij.dbn.common.latent.MapLatent;
 import com.dci.intellij.dbn.common.lookup.ConsumerStoppedException;
 import com.dci.intellij.dbn.common.lookup.LookupConsumer;
 import com.dci.intellij.dbn.common.notification.NotificationSupport;
@@ -44,6 +47,9 @@ import com.dci.intellij.dbn.editor.code.SourceCodeManagerAdapter;
 import com.dci.intellij.dbn.editor.code.SourceCodeManagerListener;
 import com.dci.intellij.dbn.execution.compiler.CompileManagerListener;
 import com.dci.intellij.dbn.execution.statement.DataDefinitionChangeListener;
+import com.dci.intellij.dbn.language.common.DBLanguage;
+import com.dci.intellij.dbn.language.psql.PSQLLanguage;
+import com.dci.intellij.dbn.language.sql.SQLLanguage;
 import com.dci.intellij.dbn.object.DBCharset;
 import com.dci.intellij.dbn.object.DBGrantedPrivilege;
 import com.dci.intellij.dbn.object.DBGrantedRole;
@@ -70,6 +76,8 @@ import com.dci.intellij.dbn.object.impl.DBSystemPrivilegeImpl;
 import com.dci.intellij.dbn.object.impl.DBUserImpl;
 import com.dci.intellij.dbn.object.impl.DBUserPrivilegeRelation;
 import com.dci.intellij.dbn.object.impl.DBUserRoleRelation;
+import com.dci.intellij.dbn.object.lookup.DBObjectRef;
+import com.dci.intellij.dbn.vfs.file.DBObjectVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBSourceCodeVirtualFile;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.openapi.project.Project;
@@ -108,6 +116,24 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     private DBObjectRelationListContainer objectRelationLists;
     private int connectionConfigHash;
 
+    private MapLatent<DBObjectRef, LookupItemBuilder> sqlLookupItemBuilders =
+            MapLatent.create((objectRef) ->
+                    new ObjectLookupItemBuilder(objectRef, SQLLanguage.INSTANCE));
+
+    private MapLatent<DBObjectRef, LookupItemBuilder> psqlLookupItemBuilders =
+            MapLatent.create((objectRef) ->
+                    new ObjectLookupItemBuilder(objectRef, PSQLLanguage.INSTANCE));
+
+    private MapLatent<DBObjectRef, DBObjectPsiFacade> objectPsiFacades =
+            MapLatent.create((objectRef) ->
+                    new DBObjectPsiFacade(objectRef));
+
+    private MapLatent<DBObjectRef, DBObjectVirtualFile> virtualFiles =
+            MapLatent.create((objectRef) ->
+                    new DBObjectVirtualFile(getProject(), objectRef));
+
+
+
     public DBObjectBundleImpl(ConnectionHandler connectionHandler, BrowserTreeNode treeParent) {
         this.connectionHandlerRef = ConnectionHandlerRef.from(connectionHandler);
         this.treeParent = treeParent;
@@ -140,6 +166,12 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
         objectLists.compact();
         objectRelationLists.compact();
+
+        DisposerUtil.register(this, sqlLookupItemBuilders);
+        DisposerUtil.register(this, psqlLookupItemBuilders);
+        DisposerUtil.register(this, objectPsiFacades);
+        DisposerUtil.register(this, virtualFiles);
+
         Project project = connectionHandler.getProject();
         EventUtil.subscribe(project, this, DataDefinitionChangeListener.TOPIC, dataDefinitionChangeListener);
         EventUtil.subscribe(project, this, SourceCodeManagerListener.TOPIC, sourceCodeManagerListener);
@@ -202,6 +234,27 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             refreshObjectsStatus(object);
         }
     };
+
+    @Override
+    public LookupItemBuilder getLookupItemBuilder(DBObjectRef objectRef, DBLanguage language) {
+        if (language == SQLLanguage.INSTANCE) {
+            return sqlLookupItemBuilders.get(objectRef);
+        }
+        if (language == PSQLLanguage.INSTANCE) {
+            return psqlLookupItemBuilders.get(objectRef);
+        }
+        return null;
+    }
+
+    @Override
+    public DBObjectPsiFacade getObjectPsiFacade(DBObjectRef objectRef) {
+        return objectPsiFacades.get(objectRef);
+    }
+
+    @Override
+    public DBObjectVirtualFile getObjectVirtualFile(DBObjectRef objectRef) {
+        return virtualFiles.get(objectRef);
+    }
 
     @Override
     public boolean isValid() {

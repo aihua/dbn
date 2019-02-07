@@ -87,6 +87,7 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
                 if (newResultSet != null) {
                     checkDisposed();
                     setHeader(new DatasetEditorModelHeader(getDatasetEditor(), newResultSet));
+
                     setResultSet(newResultSet);
                     setResultSetExhausted(false);
                     if (keepChanges) snapshotChanges(); else clearChanges();

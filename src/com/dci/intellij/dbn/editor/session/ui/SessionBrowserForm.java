@@ -1,8 +1,7 @@
 package com.dci.intellij.dbn.editor.session.ui;
 
 import com.dci.intellij.dbn.common.Colors;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
-import com.dci.intellij.dbn.common.latent.DisposableLatent;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
@@ -44,7 +43,7 @@ public class SessionBrowserForm extends DBNFormImpl implements SearchableDataCom
     private JPanel editorPanel;
     private SessionBrowserTable editorTable;
 
-    private Latent<DataSearchComponent> dataSearchComponent = DisposableLatent.create(this, () -> {
+    private Latent<DataSearchComponent> dataSearchComponent = Latent.disposable(this, () -> {
         DataSearchComponent dataSearchComponent = new DataSearchComponent(SessionBrowserForm.this);
         searchPanel.add(dataSearchComponent.getComponent(), BorderLayout.CENTER);
         ActionUtil.registerDataProvider(dataSearchComponent.getSearchField(), getSessionBrowser());
@@ -104,7 +103,7 @@ public class SessionBrowserForm extends DBNFormImpl implements SearchableDataCom
     }
 
     public void showLoadingHint() {
-        ConditionalLaterInvocator.invoke(() -> {
+        ConditionalLaterInvocator.invoke(this, () -> {
             loadingLabel.setVisible(true);
             loadingIconPanel.setVisible(true);
             loadTimestampLabel.setVisible(false);
@@ -113,7 +112,7 @@ public class SessionBrowserForm extends DBNFormImpl implements SearchableDataCom
     }
 
     public void hideLoadingHint() {
-        ConditionalLaterInvocator.invoke(() -> {
+        ConditionalLaterInvocator.invoke(this, () -> {
             loadingLabel.setVisible(false);
             loadingIconPanel.setVisible(false);
             refreshLoadTimestamp();
@@ -139,7 +138,7 @@ public class SessionBrowserForm extends DBNFormImpl implements SearchableDataCom
 
     @NotNull
     public SessionBrowserTable getEditorTable() {
-        return FailsafeUtil.get(editorTable);
+        return Failsafe.get(editorTable);
     }
 
     @Override
@@ -153,7 +152,7 @@ public class SessionBrowserForm extends DBNFormImpl implements SearchableDataCom
 
     @NotNull
     public SessionBrowser getSessionBrowser() {
-        return FailsafeUtil.get(sessionBrowser);
+        return Failsafe.get(sessionBrowser);
     }
 
     @NotNull

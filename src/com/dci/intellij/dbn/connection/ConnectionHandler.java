@@ -28,7 +28,7 @@ import org.jetbrains.annotations.Nullable;
 import java.sql.SQLException;
 import java.util.List;
 
-public interface ConnectionHandler extends Disposable, EnvironmentTypeProvider, ConnectionProvider, Presentable {
+public interface ConnectionHandler extends Disposable, EnvironmentTypeProvider, ConnectionProvider, Presentable, ConnectionIdProvider {
     @NotNull
     Project getProject();
     DBNConnection getTestConnection() throws SQLException;
@@ -114,16 +114,10 @@ public interface ConnectionHandler extends Disposable, EnvironmentTypeProvider, 
     void setLoggingEnabled(boolean loggingEnabled);
     void disconnect() throws SQLException;
 
-    ConnectionId getId();
+    ConnectionId getConnectionId();
     String getUserName();
     String getPresentableText();
     String getQualifiedName();
-
-    @Deprecated
-    void commit() throws SQLException;
-
-    @Deprecated
-    void rollback() throws SQLException;
 
     @Nullable
     DBLanguageDialect resolveLanguageDialect(Language language);

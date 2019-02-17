@@ -1,12 +1,8 @@
 package com.dci.intellij.dbn.execution.script.options.ui;
 
-import com.dci.intellij.dbn.common.options.SettingsChangeNotifier;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorUtil;
-import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.connection.DatabaseType;
-import com.dci.intellij.dbn.execution.ExecutionTarget;
-import com.dci.intellij.dbn.execution.common.options.TimeoutSettingsListener;
 import com.dci.intellij.dbn.execution.script.CmdLineInterfaceBundle;
 import com.dci.intellij.dbn.execution.script.ScriptExecutionManager;
 import com.dci.intellij.dbn.execution.script.options.ScriptExecutionSettings;
@@ -102,17 +98,13 @@ public class ScriptExecutionSettingsForm extends ConfigurationEditorForm<ScriptE
     
     @Override
     public void applyFormChanges() throws ConfigurationException {
-        ScriptExecutionSettings settings = getConfiguration();
+        ScriptExecutionSettings configuration = getConfiguration();
         int executionTimeout = ConfigurationEditorUtil.validateIntegerInputValue(executionTimeoutTextField, "Execution timeout", true, 0, 6000, "\nUse value 0 for no timeout");
         CmdLineInterfacesTableModel model = cmdLineInterfacesTable.getModel();
         model.validate();
         CmdLineInterfaceBundle executorBundle = model.getBundle();
-        settings.setCommandLineInterfaces(executorBundle);
-
-        boolean timeoutSettingsChanged = settings.setExecutionTimeout(executionTimeout);
-        if (timeoutSettingsChanged) {
-            SettingsChangeNotifier.register(() -> EventUtil.notify(getProject(), TimeoutSettingsListener.TOPIC).settingsChanged(ExecutionTarget.SCRIPT));
-        }
+        configuration.setCommandLineInterfaces(executorBundle);
+        configuration.setExecutionTimeout(executionTimeout);
     }
 
     @Override

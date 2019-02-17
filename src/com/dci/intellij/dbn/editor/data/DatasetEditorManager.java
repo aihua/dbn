@@ -2,8 +2,8 @@ package com.dci.intellij.dbn.editor.data;
 
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
-import com.dci.intellij.dbn.common.options.setting.SettingsUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.options.setting.SettingsSupport;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.data.record.ColumnSortingType;
@@ -69,7 +69,7 @@ public class DatasetEditorManager extends AbstractProjectComponent implements Pe
     }
 
     public static DatasetEditorManager getInstance(@NotNull Project project) {
-        return FailsafeUtil.getComponent(project, DatasetEditorManager.class);
+        return Failsafe.getComponent(project, DatasetEditorManager.class);
     }
 
     public void reloadEditorData(DBDataset dataset) {
@@ -210,17 +210,17 @@ public class DatasetEditorManager extends AbstractProjectComponent implements Pe
     @Override
     public Element getState() {
         Element element = new Element("state");
-        SettingsUtil.setEnum(element, "record-view-column-sorting-type", recordViewColumnSortingType);
-        SettingsUtil.setBoolean(element, "value-preview-text-wrapping", valuePreviewTextWrapping);
-        SettingsUtil.setBoolean(element, "value-preview-pinned", valuePreviewPinned);
+        SettingsSupport.setEnum(element, "record-view-column-sorting-type", recordViewColumnSortingType);
+        SettingsSupport.setBoolean(element, "value-preview-text-wrapping", valuePreviewTextWrapping);
+        SettingsSupport.setBoolean(element, "value-preview-pinned", valuePreviewPinned);
         return element;
     }
 
     @Override
     public void loadState(Element element) {
-        recordViewColumnSortingType = SettingsUtil.getEnum(element, "record-view-column-sorting-type", recordViewColumnSortingType);
-        valuePreviewTextWrapping = SettingsUtil.getBoolean(element, "value-preview-text-wrapping", valuePreviewTextWrapping);
-        valuePreviewTextWrapping = SettingsUtil.getBoolean(element, "value-preview-pinned", valuePreviewPinned);
+        recordViewColumnSortingType = SettingsSupport.getEnum(element, "record-view-column-sorting-type", recordViewColumnSortingType);
+        valuePreviewTextWrapping = SettingsSupport.getBoolean(element, "value-preview-text-wrapping", valuePreviewTextWrapping);
+        valuePreviewTextWrapping = SettingsSupport.getBoolean(element, "value-preview-pinned", valuePreviewPinned);
     }
 
 }

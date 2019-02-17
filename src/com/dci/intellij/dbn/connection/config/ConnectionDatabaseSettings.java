@@ -3,7 +3,7 @@ package com.dci.intellij.dbn.connection.config;
 import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.database.DatabaseInfo;
-import com.dci.intellij.dbn.common.options.Configuration;
+import com.dci.intellij.dbn.common.options.BasicConfiguration;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.FileUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
@@ -27,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-public class ConnectionDatabaseSettings extends Configuration<ConnectionDatabaseSettingsForm> {
+public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSettings, ConnectionDatabaseSettingsForm> {
     public static final Logger LOGGER = LoggerFactory.createLogger();
 
     private transient ConnectivityStatus connectivityStatus = ConnectivityStatus.UNKNOWN;
@@ -44,12 +44,10 @@ public class ConnectionDatabaseSettings extends Configuration<ConnectionDatabase
     private String driver;
 
     private ConnectionConfigType configType = ConnectionConfigType.BASIC;
-    private AuthenticationInfo authenticationInfo = new AuthenticationInfo();
-
-    private ConnectionSettings parent;
+    private AuthenticationInfo authenticationInfo = new AuthenticationInfo(this, false);
 
     public ConnectionDatabaseSettings(ConnectionSettings parent, DatabaseType databaseType, ConnectionConfigType configType) {
-        this.parent = parent;
+        super(parent);
         this.databaseType = databaseType;
         this.configType = configType;
         if (databaseType != DatabaseType.UNKNOWN) {
@@ -64,10 +62,6 @@ public class ConnectionDatabaseSettings extends Configuration<ConnectionDatabase
     @NotNull
     public ConnectionDatabaseSettingsForm createConfigurationEditor() {
         return new ConnectionDatabaseSettingsForm(this);
-    }
-
-    public ConnectionSettings getParent() {
-        return parent;
     }
 
     public ConnectivityStatus getConnectivityStatus() {
@@ -123,6 +117,7 @@ public class ConnectionDatabaseSettings extends Configuration<ConnectionDatabase
         this.description = description;
     }
 
+    @NotNull
     public DatabaseType getDatabaseType() {
         return CommonUtil.nvl(databaseType, DatabaseType.UNKNOWN);
     }
@@ -273,7 +268,7 @@ public class ConnectionDatabaseSettings extends Configuration<ConnectionDatabase
 
     @NotNull
     public ConnectionId getConnectionId() {
-        return parent.getConnectionId();
+        return getParent().getConnectionId();
     }
 
     /*********************************************************
@@ -283,7 +278,7 @@ public class ConnectionDatabaseSettings extends Configuration<ConnectionDatabase
     public void readConfiguration(Element element) {
         ConnectionId connectionId = ConnectionId.get(getString(element, "id", null));
         if (connectionId != null) {
-            parent.setConnectionId(connectionId);
+            getParent().setConnectionId(connectionId);
         }
 
         name             = getString(element, "name", name);
@@ -337,12 +332,7 @@ public class ConnectionDatabaseSettings extends Configuration<ConnectionDatabase
         driverLibrary = FileUtil.convertToAbsolutePath(getProject(), getString(element, "driver-library", driverLibrary));
         driver        = getString(element, "driver", driver);
 
-        authenticationInfo.setUser(getString(element, "user", authenticationInfo.getUser()));
-        authenticationInfo.setPassword(PasswordUtil.decodePassword(getString(element, "password", authenticationInfo.getPassword())));
-        authenticationInfo.setEmptyPassword(getBoolean(element, "empty-password", authenticationInfo.isEmptyPassword()));
-        authenticationInfo.setOsAuthentication(getBoolean(element, "os-authentication", authenticationInfo.isOsAuthentication()));
-        authenticationInfo.setSupported(databaseType.isAuthenticationSupported());
-
+        authenticationInfo.readConfiguration(element);
 
         // TODO backward compatibility (to remove)
         Element propertiesElement = element.getChild("properties");
@@ -390,13 +380,10 @@ public class ConnectionDatabaseSettings extends Configuration<ConnectionDatabase
             setString(element, "url", nvl(databaseInfo.getUrl()));
         }
 
-        setBoolean(element, "os-authentication", authenticationInfo.isOsAuthentication());
-        setBoolean(element, "empty-password", authenticationInfo.isEmptyPassword());
-        setString(element, "user", nvl(authenticationInfo.getUser()));
-        setString(element, "password", PasswordUtil.encodePassword(authenticationInfo.getPassword()));
+        authenticationInfo.writeConfiguration(element);
     }
 
     public Project getProject() {
-        return parent.getProject();
+        return getParent().getProject();
     }
 }

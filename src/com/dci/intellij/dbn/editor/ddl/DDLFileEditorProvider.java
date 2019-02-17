@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.editor.ddl;
 
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.editor.BasicTextEditor;
 import com.dci.intellij.dbn.common.editor.BasicTextEditorProvider;
 import com.dci.intellij.dbn.common.util.VirtualFileUtil;
@@ -33,21 +33,21 @@ public abstract class DDLFileEditorProvider extends BasicTextEditorProvider impl
 
     @Override
     public boolean accept(@NotNull Project project, @NotNull VirtualFile virtualFile) {
-        if (virtualFile instanceof DBEditableObjectVirtualFile) {
-            List<VirtualFile> ddlFiles = FailsafeUtil.lenient(() -> {
+        return Failsafe.lenient(false, () -> {
+            if (virtualFile instanceof DBEditableObjectVirtualFile) {
                 DBEditableObjectVirtualFile databaseFile = (DBEditableObjectVirtualFile) virtualFile;
-                return databaseFile.getAttachedDDLFiles();
-            });
-            return ddlFiles != null && ddlFiles.size() > index;
-        }
-        return false;
+                List<VirtualFile> ddlFiles = databaseFile.getAttachedDDLFiles();
+                return ddlFiles != null && ddlFiles.size() > index;
+            }
+            return false;
+        });
     }
 
     @Override
     @NotNull
     public FileEditor createEditor(@NotNull Project project, @NotNull VirtualFile file) {
         DBEditableObjectVirtualFile databaseFile = (DBEditableObjectVirtualFile) file;
-        List<VirtualFile> ddlFiles = FailsafeUtil.get(databaseFile.getAttachedDDLFiles());
+        List<VirtualFile> ddlFiles = Failsafe.get(databaseFile.getAttachedDDLFiles());
         VirtualFile virtualFile = ddlFiles.get(index);
 
         BasicTextEditor textEditor = new DDLFileEditor(project, virtualFile, getEditorProviderId());

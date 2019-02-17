@@ -2,7 +2,7 @@ package com.dci.intellij.dbn.connection.session;
 
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.message.MessageCallback;
 import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
 import com.dci.intellij.dbn.common.thread.RunnableTask;
@@ -13,6 +13,7 @@ import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionManager;
 import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.session.ui.CreateRenameSessionDialog;
+import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
@@ -36,7 +37,7 @@ public class DatabaseSessionManager extends AbstractProjectComponent implements 
     }
 
     public static DatabaseSessionManager getInstance(@NotNull Project project) {
-        return FailsafeUtil.getComponent(project, DatabaseSessionManager.class);
+        return Failsafe.getComponent(project, DatabaseSessionManager.class);
     }
 
     public void showCreateSessionDialog(ConnectionHandler connectionHandler, @Nullable RunnableTask<DatabaseSession> callback) {
@@ -48,8 +49,8 @@ public class DatabaseSessionManager extends AbstractProjectComponent implements 
     }
 
 
-    private void showCreateRenameSessionDialog(final ConnectionHandler connectionHandler, final DatabaseSession session, @Nullable final RunnableTask<DatabaseSession> callback) {
-        ConditionalLaterInvocator.invoke(() -> {
+    private void showCreateRenameSessionDialog(ConnectionHandler connectionHandler, DatabaseSession session, @Nullable RunnableTask<DatabaseSession> callback) {
+        ConditionalLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
             CreateRenameSessionDialog dialog = session == null ?
                     new CreateRenameSessionDialog(connectionHandler) :
                     new CreateRenameSessionDialog(connectionHandler, session);
@@ -113,7 +114,7 @@ public class DatabaseSessionManager extends AbstractProjectComponent implements 
         for (ConnectionHandler connectionHandler : connectionHandlers) {
             Element connectionElement = new Element("connection");
             element.addContent(connectionElement);
-            connectionElement.setAttribute("id", connectionHandler.getId().id());
+            connectionElement.setAttribute("id", connectionHandler.getConnectionId().id());
 
             List<DatabaseSession> sessions = connectionHandler.getSessionBundle().getSessions();
             for (DatabaseSession session : sessions) {

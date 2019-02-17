@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.editor.data;
 
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.editor.EditorProviderId;
 import com.dci.intellij.dbn.editor.data.state.DatasetEditorState;
@@ -30,14 +30,16 @@ public class DatasetEditorProvider implements FileEditorProvider, ApplicationCom
 
     @Override
     public boolean accept(@NotNull Project project, @NotNull VirtualFile virtualFile) {
-        if (virtualFile instanceof DBEditableObjectVirtualFile) {
-            DBContentType contentType = FailsafeUtil.lenient(() -> {
+
+        return Failsafe.lenient(false, () -> {
+            if (virtualFile instanceof DBEditableObjectVirtualFile) {
                 DBEditableObjectVirtualFile databaseFile = (DBEditableObjectVirtualFile) virtualFile;
-                return databaseFile.getObject().getContentType();
-            });
-            return contentType == DBContentType.DATA || contentType == DBContentType.CODE_AND_DATA;
-        }
-        return false;
+                DBContentType contentType = databaseFile.getObject().getContentType();
+                return contentType == DBContentType.DATA || contentType == DBContentType.CODE_AND_DATA;
+
+            }
+            return false;
+        });
     }
 
     @Override
@@ -45,7 +47,7 @@ public class DatasetEditorProvider implements FileEditorProvider, ApplicationCom
     public FileEditor createEditor(@NotNull Project project, @NotNull VirtualFile file) {
         DBEditableObjectVirtualFile databaseFile = (DBEditableObjectVirtualFile) file;
         DBDatasetVirtualFile datasetFile = (DBDatasetVirtualFile) databaseFile.getContentFile(DBContentType.DATA);
-        datasetFile = FailsafeUtil.get(datasetFile);
+        datasetFile = Failsafe.get(datasetFile);
         DBDataset dataset = datasetFile.getObject();
         return new DatasetEditor(databaseFile, dataset);
     }

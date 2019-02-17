@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.object.common.loader;
 
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.EditorUtil;
@@ -9,6 +9,7 @@ import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionLoadListener;
 import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingManager;
+import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
@@ -25,8 +26,8 @@ public class DatabaseLoaderManager extends AbstractProjectComponent {
         super(project);
         EventUtil.subscribe(project, this,
                 ConnectionLoadListener.TOPIC,
-                connectionHandler -> SimpleLaterInvocator.invoke(() -> {
-                    FailsafeUtil.ensure(project);
+                connectionHandler -> SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
+                    Failsafe.ensure(project);
                     FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
                     FileConnectionMappingManager connectionMappingManager = FileConnectionMappingManager.getInstance(project);
                     VirtualFile[] openFiles = fileEditorManager.getOpenFiles();
@@ -37,7 +38,7 @@ public class DatabaseLoaderManager extends AbstractProjectComponent {
                             for (FileEditor fileEditor : fileEditors) {
                                 Editor editor = EditorUtil.getEditor(fileEditor);
                                 if (editor != null) {
-                                    FailsafeUtil.ensure(project);
+                                    Failsafe.ensure(project);
                                     DocumentUtil.refreshEditorAnnotations(editor);
                                 }
 
@@ -49,7 +50,7 @@ public class DatabaseLoaderManager extends AbstractProjectComponent {
     }
 
     public static DatabaseLoaderManager getInstance(@NotNull Project project) {
-        return FailsafeUtil.getComponent(project, DatabaseLoaderManager.class);
+        return Failsafe.getComponent(project, DatabaseLoaderManager.class);
     }
 
     @Override

@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.language.common;
 
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.language.common.element.ChameleonElementType;
 import com.dci.intellij.dbn.language.common.element.TokenPairTemplate;
@@ -19,9 +19,9 @@ import java.util.Set;
 public abstract class DBLanguageDialect extends Language implements DBFileElementTypeProvider {
     private DBLanguageDialectIdentifier identifier;
 
-    private Latent<DBLanguageSyntaxHighlighter> syntaxHighlighter = Latent.create(this::createSyntaxHighlighter);
-    private Latent<DBLanguageParserDefinition> parserDefinition = Latent.create(this::createParserDefinition);
-    private Latent<IFileElementType> fileElementType = Latent.create(this::createFileElementType);
+    private Latent<DBLanguageSyntaxHighlighter> syntaxHighlighter = Latent.basic(this::createSyntaxHighlighter);
+    private Latent<DBLanguageParserDefinition> parserDefinition = Latent.basic(this::createParserDefinition);
+    private Latent<IFileElementType> fileElementType = Latent.basic(this::createFileElementType);
 
     private Set<ChameleonTokenType> chameleonTokens;
     private static Map<DBLanguageDialectIdentifier, DBLanguageDialect> register = new EnumMap<>(DBLanguageDialectIdentifier.class);
@@ -55,7 +55,7 @@ public abstract class DBLanguageDialect extends Language implements DBFileElemen
     @Override
     @NotNull
     public DBLanguage getBaseLanguage() {
-        return FailsafeUtil.get((DBLanguage) super.getBaseLanguage());
+        return Failsafe.get((DBLanguage) super.getBaseLanguage());
     }
 
     public SharedTokenTypeBundle getSharedTokenTypes() {

@@ -3,9 +3,9 @@ package com.dci.intellij.dbn.connection.console;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.action.DBNDataKeys;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.message.MessageCallback;
-import com.dci.intellij.dbn.common.options.setting.SettingsUtil;
+import com.dci.intellij.dbn.common.options.setting.SettingsSupport;
 import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
@@ -20,6 +20,7 @@ import com.dci.intellij.dbn.connection.session.DatabaseSessionBundle;
 import com.dci.intellij.dbn.connection.session.SessionManagerListener;
 import com.dci.intellij.dbn.vfs.DBConsoleType;
 import com.dci.intellij.dbn.vfs.file.DBConsoleVirtualFile;
+import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
@@ -53,7 +54,7 @@ public class DatabaseConsoleManager extends AbstractProjectComponent implements 
     }
 
     public static DatabaseConsoleManager getInstance(@NotNull Project project) {
-        return FailsafeUtil.getComponent(project, DatabaseConsoleManager.class);
+        return Failsafe.getComponent(project, DatabaseConsoleManager.class);
     }
 
     public void showCreateConsoleDialog(ConnectionHandler connectionHandler, DBConsoleType consoleType) {
@@ -67,7 +68,7 @@ public class DatabaseConsoleManager extends AbstractProjectComponent implements 
 
 
     private void showCreateRenameConsoleDialog(final ConnectionHandler connectionHandler, final DBConsoleVirtualFile consoleVirtualFile, final DBConsoleType consoleType) {
-        ConditionalLaterInvocator.invoke(() -> {
+        ConditionalLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
             CreateRenameConsoleDialog createConsoleDialog = consoleVirtualFile == null ?
                     new CreateRenameConsoleDialog(connectionHandler, consoleType) :
                     new CreateRenameConsoleDialog(connectionHandler, consoleVirtualFile);
@@ -155,7 +156,7 @@ public class DatabaseConsoleManager extends AbstractProjectComponent implements 
         for (ConnectionHandler connectionHandler : connectionHandlers) {
             Element connectionElement = new Element("connection");
             element.addContent(connectionElement);
-            connectionElement.setAttribute("id", connectionHandler.getId().id());
+            connectionElement.setAttribute("id", connectionHandler.getConnectionId().id());
 
             List<DBConsoleVirtualFile> consoles = connectionHandler.getConsoleBundle().getConsoles();
             for (DBConsoleVirtualFile console : consoles) {
@@ -199,9 +200,9 @@ public class DatabaseConsoleManager extends AbstractProjectComponent implements 
                             sessionBundle.getSession(session);
 
 
-                    DBConsoleType consoleType = SettingsUtil.getEnumAttribute(consoleElement, "type", DBConsoleType.class);
+                    DBConsoleType consoleType = SettingsSupport.getEnumAttribute(consoleElement, "type", DBConsoleType.class);
 
-                    String consoleText = SettingsUtil.readCdata(consoleElement);
+                    String consoleText = SettingsSupport.readCdata(consoleElement);
 
                     DBConsoleVirtualFile consoleVirtualFile = consoleBundle.getConsole(consoleName, consoleType, true);
                     consoleVirtualFile.putUserData(DBNDataKeys.CONSOLE_TEXT, consoleText);

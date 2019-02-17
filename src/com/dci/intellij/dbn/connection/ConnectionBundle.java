@@ -82,17 +82,17 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
 
     public ConnectionHandler getVirtualConnection(ConnectionId id) {
         for (ConnectionHandler virtualConnection : virtualConnections) {
-            if (virtualConnection.getId() == id) {
+            if (virtualConnection.getConnectionId() == id) {
                 return virtualConnection;
             }
         }
         return null;
     }
 
-    public void applySettings(ConnectionBundleSettings settings) {
+    public void applySettings(ConnectionBundleSettings configuration) {
         AbstractFiltrableList<ConnectionHandler> newConnectionHandlers = new FiltrableListImpl<>(ACTIVE_CONNECTIONS_FILTER);
         List<ConnectionHandler> oldConnectionHandlers = new ArrayList<>(this.connectionHandlers.getFullList());
-        List<ConnectionSettings> connectionSettings = settings.getConnections();
+        List<ConnectionSettings> connectionSettings = configuration.getConnections();
         boolean listChanged = false;
         for (ConnectionSettings connectionSetting : connectionSettings) {
             ConnectionId connectionId = connectionSetting.getConnectionId();
@@ -113,9 +113,9 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
 
 
 
-        final Project project = getProject();
         listChanged = listChanged || oldConnectionHandlers.size() > 0;
         if (listChanged) {
+            Project project = configuration.getProject();
             SettingsChangeNotifier.register(() -> {
                 EventUtil.notify(project, ConnectionSettingsListener.TOPIC).connectionsChanged();
                 ConnectionManager connectionManager = ConnectionManager.getInstance(project);
@@ -126,7 +126,7 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
 
     ConnectionHandler getConnectionHandler(List<ConnectionHandler> list, ConnectionId connectionId) {
         for (ConnectionHandler connectionHandler : list) {
-            if (connectionHandler.getId() == connectionId) {
+            if (connectionHandler.getConnectionId() == connectionId) {
                 return connectionHandler;
             }
         }
@@ -177,7 +177,7 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
 
     public ConnectionHandler getConnection(ConnectionId id) {
         for (ConnectionHandler connectionHandler : connectionHandlers.getFullList()){
-            if (connectionHandler.getId() == id) return connectionHandler;
+            if (connectionHandler.getConnectionId() == id) return connectionHandler;
         }
         return null;
     }

@@ -2,7 +2,7 @@ package com.dci.intellij.dbn.editor.code.diff;
 
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.common.util.EventUtil;
@@ -17,6 +17,7 @@ import com.intellij.diff.DiffManager;
 import com.intellij.diff.DiffRequestFactory;
 import com.intellij.diff.InvalidDiffRequestException;
 import com.intellij.diff.merge.MergeRequest;
+import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
@@ -43,13 +44,13 @@ public class SourceCodeDiffManager extends AbstractProjectComponent implements P
         super(project);
     }
     public static SourceCodeDiffManager getInstance(@NotNull Project project) {
-        return FailsafeUtil.getComponent(project, SourceCodeDiffManager.class);
+        return Failsafe.getComponent(project, SourceCodeDiffManager.class);
     }
 
 
     @Deprecated
-    public void openCodeMergeDialogOld(final String databaseContent, final DBSourceCodeVirtualFile sourceCodeFile, final SourceCodeEditor fileEditor, final MergeAction action) {
-        SimpleLaterInvocator.invoke(() -> {
+    public void openCodeMergeDialogOld(String databaseContent, DBSourceCodeVirtualFile sourceCodeFile, SourceCodeEditor fileEditor, MergeAction action) {
+        SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
             com.intellij.openapi.diff.DiffRequestFactory diffRequestFactory = new com.intellij.openapi.diff.impl.mergeTool.DiffRequestFactoryImpl();
             Project project = sourceCodeFile.getProject();
             if (project != null) {
@@ -96,7 +97,7 @@ public class SourceCodeDiffManager extends AbstractProjectComponent implements P
     }
 
     public void openCodeMergeDialog(final String databaseContent, final DBSourceCodeVirtualFile sourceCodeFile, final SourceCodeEditor fileEditor, final MergeAction action) {
-        SimpleLaterInvocator.invoke(() -> {
+        SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
             final Project project = getProject();
             SourceCodeDiffContent leftContent = new SourceCodeDiffContent("Database version", databaseContent);
             SourceCodeDiffContent targetContent = new SourceCodeDiffContent("Merge result", sourceCodeFile.getOriginalContent());
@@ -149,7 +150,7 @@ public class SourceCodeDiffManager extends AbstractProjectComponent implements P
 
     public void openDiffWindow(@NotNull final DBSourceCodeVirtualFile sourceCodeFile,  final String referenceText, final String referenceTitle, final String windowTitle) {
         final Project project = sourceCodeFile.getProject();
-        SimpleLaterInvocator.invoke(() -> {
+        SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
             SimpleContent originalContent = new SimpleContent(referenceText, sourceCodeFile.getFileType());
             SourceCodeFileContent changedContent = new SourceCodeFileContent(project, sourceCodeFile);
 

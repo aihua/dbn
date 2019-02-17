@@ -10,15 +10,15 @@ import com.dci.intellij.dbn.common.content.dependency.SubcontentDependencyAdapte
 import com.dci.intellij.dbn.common.dispose.Disposable;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.common.util.Compactable;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.GenericDatabaseElement;
 import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
+import com.dci.intellij.dbn.language.common.WeakRef;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBObjectType;
-import com.intellij.openapi.progress.ProcessCanceledException;
 import gnu.trove.THashMap;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -28,14 +28,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.dci.intellij.dbn.common.dispose.FailsafeUtil.check;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.check;
 
 public class DBObjectListContainer extends DisposableBase implements Disposable, Compactable {
     private Map<DBObjectType, DBObjectList<DBObject>> objectLists;
-    private GenericDatabaseElement owner;
+    private WeakRef<GenericDatabaseElement> owner;
 
     public DBObjectListContainer(@NotNull GenericDatabaseElement owner) {
-        this.owner = owner;
+        this.owner = WeakRef.from(owner);
     }
 
     @Override
@@ -49,7 +49,7 @@ public class DBObjectListContainer extends DisposableBase implements Disposable,
     }
 
     public void visitLists(DBObjectListVisitor visitor, boolean visitInternal) {
-        try {
+        Failsafe.lenient(() -> {
             if (objectLists != null) {
                 checkDisposed(visitor);
                 for (DBObjectList<DBObject> objectList : objectLists.values()) {
@@ -59,12 +59,12 @@ public class DBObjectListContainer extends DisposableBase implements Disposable,
                     }
                 }
             }
-        } catch (ProcessCanceledException ignore) {}
+        });
     }
 
     private void checkDisposed(DBObjectListVisitor visitor) {
-        FailsafeUtil.ensure(this);
-        FailsafeUtil.ensure(visitor);
+        Failsafe.ensure(this);
+        Failsafe.ensure(visitor);
     }
 
     @NotNull
@@ -177,9 +177,10 @@ public class DBObjectListContainer extends DisposableBase implements Disposable,
     }
 
     private boolean isSupported(DBObjectType objectType) {
+        GenericDatabaseElement owner = getOwner();
         ConnectionHandler connectionHandler = owner.getConnectionHandler();
-        return connectionHandler == null ||
-                DatabaseCompatibilityInterface.getInstance(connectionHandler).supportsObjectType(objectType.getTypeId());
+        DatabaseCompatibilityInterface compatibilityInterface = DatabaseCompatibilityInterface.getInstance(connectionHandler);
+        return compatibilityInterface.supportsObjectType(objectType.getTypeId());
     }
 
     public DBObject getObjectNoLoad(String name, int overload) {
@@ -188,6 +189,7 @@ public class DBObjectListContainer extends DisposableBase implements Disposable,
                 if (check(objectList) && objectList.isLoaded() && !objectList.isDirty()) {
                     DBObject object = objectList.getObject(name, overload);
                     if (object != null) {
+                        GenericDatabaseElement owner = getOwner();
                         if (owner instanceof DBObject) {
                             DBObject ownerObject = (DBObject) owner;
                             if (ownerObject.isParentOf(object)) {
@@ -200,6 +202,11 @@ public class DBObjectListContainer extends DisposableBase implements Disposable,
         }
         return null;
 
+    }
+
+    @NotNull
+    private GenericDatabaseElement getOwner() {
+        return owner.getnn();
     }
 
 
@@ -338,7 +345,6 @@ public class DBObjectListContainer extends DisposableBase implements Disposable,
     public void dispose() {
         if (!isDisposed()) {
             super.dispose();
-            owner = null;
             DisposerUtil.dispose(objectLists);
         }
     }

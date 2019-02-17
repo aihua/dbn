@@ -2,7 +2,7 @@ package com.dci.intellij.dbn.editor.session;
 
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.option.InteractiveOptionHandler;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.ReadActionRunner;
@@ -25,6 +25,7 @@ import com.dci.intellij.dbn.editor.session.options.SessionBrowserSettings;
 import com.dci.intellij.dbn.editor.session.options.SessionInterruptionOption;
 import com.dci.intellij.dbn.options.ProjectSettingsManager;
 import com.dci.intellij.dbn.vfs.file.DBSessionBrowserVirtualFile;
+import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
@@ -32,7 +33,6 @@ import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
-import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jdom.Element;
@@ -65,7 +65,7 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
     }
 
     public static SessionBrowserManager getInstance(@NotNull Project project) {
-        return FailsafeUtil.getComponent(project, SessionBrowserManager.class);
+        return Failsafe.getComponent(project, SessionBrowserManager.class);
     }
 
     public SessionBrowserSettings getSessionBrowserSettings() {
@@ -131,7 +131,7 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
     }
 
     public void interruptSessions(@NotNull SessionBrowser sessionBrowser, final Map<Object, Object> sessionIds, SessionInterruptionType type) {
-        final ConnectionHandler connectionHandler = FailsafeUtil.get(sessionBrowser.getConnectionHandler());
+        final ConnectionHandler connectionHandler = Failsafe.get(sessionBrowser.getConnectionHandler());
         if (DatabaseFeature.SESSION_INTERRUPTION_TIMING.isSupported(connectionHandler)) {
 
             SessionBrowserSettings sessionBrowserSettings = getSessionBrowserSettings();
@@ -160,11 +160,11 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
         BackgroundTask.invoke(project,
                 TaskInstructions.create(taskAction, TaskInstruction.CANCELLABLE),
                 (data, progress) -> {
-                    ConnectionHandler connectionHandler = FailsafeUtil.get(sessionBrowser.getConnectionHandler());
+                    ConnectionHandler connectionHandler = Failsafe.get(sessionBrowser.getConnectionHandler());
                     DBNConnection connection = null;
                     try {
                         connection = connectionHandler.getPoolConnection(true);
-                        Map<Object, SQLException> errors = new HashMap<Object, SQLException>();
+                        Map<Object, SQLException> errors = new HashMap<>();
                         DatabaseInterfaceProvider interfaceProvider = connectionHandler.getInterfaceProvider();
                         final DatabaseMetadataInterface metadataInterface = interfaceProvider.getMetadataInterface();
 
@@ -224,31 +224,28 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
         @Override
         public void run() {
             if (openFiles.size() > 0) {
-                ReadActionRunner.invoke(false, () -> {
-                    try {
-                        Project project = getProject();
-                        if (!project.isDisposed()) {
-                            final List<SessionBrowser> sessionBrowsers = new ArrayList<SessionBrowser>();
-                            FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
-                            FileEditor[] editors = fileEditorManager.getAllEditors();
-                            for (FileEditor editor : editors) {
-                                if (editor instanceof SessionBrowser) {
-                                    SessionBrowser sessionBrowser = (SessionBrowser) editor;
-                                    sessionBrowsers.add(sessionBrowser);
+                ReadActionRunner.invoke(false, () ->
+                        Failsafe.lenient(null, () -> {
+                            Project project = getProject();
+                            if (!project.isDisposed()) {
+                                final List<SessionBrowser> sessionBrowsers = new ArrayList<>();
+                                FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
+                                FileEditor[] editors = fileEditorManager.getAllEditors();
+                                for (FileEditor editor : editors) {
+                                    if (editor instanceof SessionBrowser) {
+                                        SessionBrowser sessionBrowser = (SessionBrowser) editor;
+                                        sessionBrowsers.add(sessionBrowser);
+                                    }
                                 }
+
+                                SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
+                                    for (SessionBrowser sessionBrowser : sessionBrowsers) {
+                                        sessionBrowser.refreshLoadTimestamp();
+                                    }
+                                });
                             }
-
-                            SimpleLaterInvocator.invoke(() -> {
-                                for (SessionBrowser sessionBrowser : sessionBrowsers) {
-                                    sessionBrowser.refreshLoadTimestamp();
-                                }
-                            });
-                        }
-                    } catch (ProcessCanceledException ignore) {
-
-                    }
-                    return null;
-                });
+                            return null;
+                        }));
             }
         }
     }
@@ -314,11 +311,10 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
     @Nullable
     @Override
     public Element getState() {
-        Element element = new Element("state");
-        return element;
+        return new Element("state");
     }
 
     @Override
-    public void loadState(Element element) {
+    public void loadState(@NotNull Element element) {
     }
 }

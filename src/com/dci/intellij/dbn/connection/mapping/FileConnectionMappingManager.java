@@ -3,7 +3,7 @@ package com.dci.intellij.dbn.connection.mapping;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.Icons;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.list.FiltrableList;
 import com.dci.intellij.dbn.common.message.MessageCallback;
 import com.dci.intellij.dbn.common.thread.RunnableTask;
@@ -44,6 +44,7 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.actionSystem.impl.SimpleDataContext;
+import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.ProjectComponent;
 import com.intellij.openapi.components.State;
@@ -51,7 +52,6 @@ import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
-import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.DumbAwareAction;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
@@ -94,7 +94,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
     @NotNull
     public static FileConnectionMappingManager getInstance(@NotNull Project project) {
-        return FailsafeUtil.getComponent(project, FileConnectionMappingManager.class);
+        return Failsafe.getComponent(project, FileConnectionMappingManager.class);
     }
 
     @Override
@@ -115,7 +115,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
         if (VirtualFileUtil.isLocalFileSystem(virtualFile)) {
             virtualFile.putUserData(CONNECTION_HANDLER, connectionHandlerRef);
 
-            ConnectionId connectionId = connectionHandler == null ? null : connectionHandler.getId();
+            ConnectionId connectionId = connectionHandler == null ? null : connectionHandler.getConnectionId();
             String currentSchema = connectionHandler == null ? null  : connectionHandler.getUserName().toUpperCase();
 
             FileConnectionMapping mapping = lookupMapping(virtualFile);
@@ -205,7 +205,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
     @Nullable
     public ConnectionHandler getConnectionHandler(@NotNull VirtualFile virtualFile) {
-        try {
+        return Failsafe.lenient(null, () -> {
             Project project = getProject();
             if (virtualFile instanceof LightVirtualFile) {
                 ConnectionHandlerRef connectionHandlerRef = virtualFile.getUserData(CONNECTION_HANDLER);
@@ -257,10 +257,8 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                 }
                 return ConnectionHandlerRef.get(connectionHandlerRef);
             }
-        } catch (ProcessCanceledException e) {
             return null;
-        }
-        return null;
+        });
     }
 
     @Nullable
@@ -402,7 +400,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
         LocalFileSystem localFileSystem = LocalFileSystem.getInstance();
         for (FileConnectionMapping mapping : mappings) {
             ConnectionId connectionId = mapping.getConnectionId();
-            if (connectionHandler.getId() == connectionId) {
+            if (connectionHandler.getConnectionId() == connectionId) {
                 VirtualFile file = localFileSystem.findFileByPath(mapping.getFileUrl());
                 if (file != null) {
                     list.add(file);
@@ -475,8 +473,8 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     }
 
 
-    public void selectConnectionAndSchema(@NotNull final DBLanguagePsiFile file, @NotNull final ConnectionAction callback) {
-        SimpleLaterInvocator.invoke(() -> {
+    public void selectConnectionAndSchema(@NotNull DBLanguagePsiFile file, @NotNull ConnectionAction callback) {
+        SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
             Project project = getProject();
             ConnectionHandler activeConnection = file.getConnectionHandler();
             if (activeConnection == null || activeConnection.isVirtual()) {
@@ -592,7 +590,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
             DBLanguagePsiFile file = fileRef.get();
             if (file != null) {
                 ConnectionHandler connectionHandler = file.getConnectionHandler();
-                return connectionHandler != null && connectionHandler.getId().equals(getConnectionHandler().getId());
+                return connectionHandler != null && connectionHandler.getConnectionId().equals(getConnectionHandler().getConnectionId());
             }
             return false;
 

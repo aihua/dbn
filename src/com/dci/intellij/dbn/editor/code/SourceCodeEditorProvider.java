@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.editor.code;
 
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.editor.EditorProviderId;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
@@ -17,17 +17,19 @@ public class SourceCodeEditorProvider extends BasicSourceCodeEditorProvider {
 
     @Override
     public boolean accept(@NotNull Project project, @NotNull VirtualFile virtualFile) {
-        if (virtualFile instanceof DBEditableObjectVirtualFile) {
-            DBContentType contentType = FailsafeUtil.lenient(() -> {
+        return Failsafe.lenient(false, () -> {
+            if (virtualFile instanceof DBEditableObjectVirtualFile) {
                 DBEditableObjectVirtualFile databaseFile = (DBEditableObjectVirtualFile) virtualFile;
-                DBSchemaObject object = databaseFile.getObject();
-                return object.getContentType();
-            });
-            return contentType != null && contentType.isOneOf(DBContentType.CODE, DBContentType.CODE_AND_DATA);
 
-        }
-        return false;
+                DBSchemaObject object = databaseFile.getObject();
+                DBContentType contentType = object.getContentType();
+                return contentType != null && contentType.isOneOf(DBContentType.CODE, DBContentType.CODE_AND_DATA);
+
+            }
+            return false;
+        });
     }
+
 
     @Override
     public DBContentType getContentType() {

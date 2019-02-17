@@ -4,7 +4,7 @@ import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.action.DBNDataKeys;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.Disposable;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.message.MessageCallback;
 import com.dci.intellij.dbn.common.thread.SimpleBackgroundTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
@@ -115,7 +115,7 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
 
     @NotNull
     public DBDataset getDataset() {
-        return FailsafeUtil.get(datasetRef.get(project));
+        return Failsafe.get(datasetRef.get(project));
     }
 
     public DataEditorSettings getSettings() {
@@ -129,7 +129,7 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
 
     @NotNull
     public DatasetEditorForm getEditorForm() {
-        return FailsafeUtil.get(editorForm);
+        return Failsafe.get(editorForm);
     }
 
     public void showSearchHeader() {
@@ -328,9 +328,9 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
 
     }
 
-    private void handleLoadError(final SQLException e, final DatasetLoadInstructions instr) {
-        SimpleLaterInvocator.invoke(() -> {
-            final DBDataset dataset = getDataset();
+    private void handleLoadError(SQLException e, DatasetLoadInstructions instr) {
+        SimpleLaterInvocator.invoke(getComponent(), () -> {
+            DBDataset dataset = getDataset();
             if (!isDisposed()) {
                 focusEditor();
                 ConnectionHandler connectionHandler = getConnectionHandler();
@@ -398,9 +398,7 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
         if (status.set(LOADING, loading)) {
             DatasetEditorTable editorTable = getEditorTable();
             editorTable.setLoading(loading);
-            SimpleLaterInvocator.invoke(() -> {
-                GUIUtil.repaint(editorTable);
-            });
+            GUIUtil.repaint(editorTable);
         }
 
     }
@@ -529,21 +527,23 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
      *******************************************************/
     private ConnectionStatusListener connectionStatusListener = (connectionId, sessionId) -> {
         ConnectionHandler connectionHandler = getConnectionHandler();
-        if (connectionHandler.getId() == connectionId && sessionId == SessionId.MAIN) {
+        if (connectionHandler.getConnectionId() == connectionId && sessionId == SessionId.MAIN) {
             boolean connected = connectionHandler.isConnected(SessionId.MAIN);
             boolean statusChanged = getStatus().set(CONNECTED, connected);
 
             if (statusChanged) {
-                SimpleLaterInvocator.invoke(() -> {
-                    DatasetEditorTable editorTable = getEditorTable();
-                    editorTable.updateBackground(!connected);
-                    if (connected) {
-                        loadData(CON_STATUS_CHANGE_LOAD_INSTRUCTIONS);
-                    } else {
-                        editorTable.cancelEditing();
-                        GUIUtil.repaint(editorTable);
-                    }
-                });
+                SimpleLaterInvocator.invoke(
+                        getComponent(),
+                        () -> {
+                            DatasetEditorTable editorTable = getEditorTable();
+                            editorTable.updateBackground(!connected);
+                            if (connected) {
+                                loadData(CON_STATUS_CHANGE_LOAD_INSTRUCTIONS);
+                            } else {
+                                editorTable.cancelEditing();
+                                GUIUtil.repaint(editorTable);
+                            }
+                        });
             }
         }
     };

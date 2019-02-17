@@ -2,7 +2,7 @@ package com.dci.intellij.dbn.common.ui.table;
 
 import com.dci.intellij.dbn.common.ProjectRef;
 import com.dci.intellij.dbn.common.dispose.Disposable;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.intellij.openapi.project.Project;
@@ -112,7 +112,7 @@ public class DBNTable<T extends DBNTableModel> extends JTable implements Disposa
     @Override
     @NotNull
     public T getModel() {
-        return FailsafeUtil.get((T) super.getModel());
+        return Failsafe.get((T) super.getModel());
     }
 
     private void calculateScrollDistance() {
@@ -261,7 +261,7 @@ public class DBNTable<T extends DBNTableModel> extends JTable implements Disposa
         @Override
         public void run() {
             if (scrollPane != null && scrollDistance != 0) {
-                SimpleLaterInvocator.invoke(() -> {
+                SimpleLaterInvocator.invoke(DBNTable.this, () -> {
                     JViewport viewport = scrollPane.getViewport();
                     Point viewPosition = viewport.getViewPosition();
                     viewport.setViewPosition(new Point((int) (viewPosition.x + scrollDistance), viewPosition.y));
@@ -299,6 +299,20 @@ public class DBNTable<T extends DBNTableModel> extends JTable implements Disposa
         if (isEditing()) {
             getCellEditor().stopCellEditing();
         }
+    }
+
+    public TableColumn getColumnByName(String columnName) {
+        TableColumnModel columnModel = getColumnModel();
+        int columnCount = columnModel.getColumnCount();
+        for (int i=0; i < columnCount; i++) {
+            TableColumn column = columnModel.getColumn(i);
+            Object modelColumnIdentifier = column.getIdentifier();
+            String modelColumnName = modelColumnIdentifier == null ? null : modelColumnIdentifier.toString();
+            if (columnName.equalsIgnoreCase(modelColumnName)) {
+                return column;
+            }
+        }
+        return null;
     }
 
     @Override

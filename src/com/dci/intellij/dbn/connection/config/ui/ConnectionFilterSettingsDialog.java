@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.connection.config.ui;
 
+import com.dci.intellij.dbn.common.options.Configuration;
 import com.dci.intellij.dbn.common.ui.DBNContentWithHeaderForm;
 import com.dci.intellij.dbn.common.ui.DBNForm;
 import com.dci.intellij.dbn.common.ui.DBNHeaderForm;
@@ -39,7 +40,7 @@ public class ConnectionFilterSettingsDialog extends DBNDialog<DBNContentWithHead
             @Override
             public DBNForm createContentForm() {
                 ProjectSettingsManager settingsManager = ProjectSettingsManager.getInstance(getProject());
-                ConnectionSettings connectionSettings = settingsManager.getConnectionSettings().getConnectionSettings(connectionHandler.getId());
+                ConnectionSettings connectionSettings = settingsManager.getConnectionSettings().getConnectionSettings(connectionHandler.getConnectionId());
                 configurationEditor = connectionSettings.getFilterSettings().createConfigurationEditor();
                 return configurationEditor;
             }
@@ -62,7 +63,7 @@ public class ConnectionFilterSettingsDialog extends DBNDialog<DBNContentWithHead
             // !!workaround!! apply settings is normally cascaded from top level settings
             configurationEditor.applyFormChanges();
             configuration.apply();
-            configuration.notifyChanges();
+            Configuration.notifyChanges();
             super.doOKAction();
         } catch (ConfigurationException e) {
             MessageUtil.showErrorDialog(getProject(), "Configuration error", e.getMessage());

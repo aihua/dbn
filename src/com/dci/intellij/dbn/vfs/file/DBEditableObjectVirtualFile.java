@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.vfs.file;
 
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.message.MessageCallback;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
@@ -48,7 +48,7 @@ import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
 
 public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObject> {
     private static final List<DBContentVirtualFile> EMPTY_CONTENT_FILES = Collections.emptyList();
-    private Latent<List<DBContentVirtualFile>> contentFiles = Latent.create(() -> computeContentFiles());
+    private Latent<List<DBContentVirtualFile>> contentFiles = Latent.basic(() -> computeContentFiles());
     private transient EditorProviderId selectedEditorProviderId;
     private SessionId databaseSessionId;
 
@@ -207,12 +207,12 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
     @Override
     @NotNull
     public FileType getFileType() {
-        DDLFileType type = FailsafeUtil.lenient(() -> {
+        return Failsafe.lenient(SQLFileType.INSTANCE, () -> {
             DBSchemaObject object = getObject();
             DDLFileManager ddlFileManager = DDLFileManager.getInstance(object.getProject());
-            return ddlFileManager.getDDLFileType(object.getObjectType(), getMainContentType());
+            DDLFileType type =  ddlFileManager.getDDLFileType(object.getObjectType(), getMainContentType());
+            return type == null ? SQLFileType.INSTANCE : type.getLanguageFileType();
         });
-        return type == null ? SQLFileType.INSTANCE : type.getLanguageFileType();
     }
 
     @Override

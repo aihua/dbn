@@ -2,7 +2,7 @@ package com.dci.intellij.dbn.execution.method;
 
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.message.MessageCallback;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.RunnableTask;
@@ -26,6 +26,7 @@ import com.dci.intellij.dbn.execution.method.ui.MethodExecutionHistory;
 import com.dci.intellij.dbn.execution.method.ui.MethodExecutionInputDialog;
 import com.dci.intellij.dbn.object.DBMethod;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
+import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
@@ -60,7 +61,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
     }
 
     public static MethodExecutionManager getInstance(@NotNull Project project) {
-        return FailsafeUtil.getComponent(project, MethodExecutionManager.class);
+        return Failsafe.getComponent(project, MethodExecutionManager.class);
     }
 
     public MethodBrowserSettings getBrowserSettings() {
@@ -114,7 +115,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
                         } else {
                             // load the arguments in background
                             executionInput.getMethod().getArguments();
-                            SimpleLaterInvocator.invoke(() -> {
+                            SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
                                 MethodExecutionInputDialog executionDialog = new MethodExecutionInputDialog(executionInput, debuggerType);
                                 executionDialog.show();
                                 if (executionDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
@@ -144,7 +145,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
                 (data, progress) -> {
                     initMethodExecutionHistory();
 
-                    SimpleLaterInvocator.invoke(() -> {
+                    SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
                         MethodExecutionHistoryDialog executionHistoryDialog = new MethodExecutionHistoryDialog(project, executionHistory, selected, editable, debug);
                         executionHistoryDialog.show();
                         MethodExecutionInput newlySelected = executionHistoryDialog.getSelectedExecutionInput();
@@ -184,7 +185,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
             MessageUtil.showErrorDialog(getProject(), "Could not resolve " + methodRef.getQualifiedNameWithType() + "\".");
         } else {
             final Project project = method.getProject();
-            ConnectionHandler connectionHandler = FailsafeUtil.get(method.getConnectionHandler());
+            ConnectionHandler connectionHandler = Failsafe.get(method.getConnectionHandler());
             DatabaseExecutionInterface executionInterface = connectionHandler.getInterfaceProvider().getDatabaseExecutionInterface();
             final MethodExecutionProcessor executionProcessor = executionInterface.createExecutionProcessor(method);
 
@@ -221,7 +222,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
         if (connectionHandler != null) {
             Set<MethodExecutionArgumentValue> argumentValues = executionInput.getArgumentValues();
             for (MethodExecutionArgumentValue argumentValue : argumentValues) {
-                argumentValuesCache.cacheVariable(connectionHandler.getId(), argumentValue.getName(), argumentValue.getValue());
+                argumentValuesCache.cacheVariable(connectionHandler.getConnectionId(), argumentValue.getName(), argumentValue.getValue());
             }
         }
     }

@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.editor.code.ui;
 
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.util.ActionUtil;
@@ -45,7 +45,9 @@ public class SourceCodeEditorActionsPanel extends DBNFormImpl{
         public void sourceCodeLoading(DBSourceCodeVirtualFile sourceCodeFile) {
             DBSourceCodeVirtualFile virtualFile = getSourceCodeEditor().getVirtualFile();
             if (virtualFile.equals(sourceCodeFile)) {
-                SimpleLaterInvocator.invoke(() -> loadingDataPanel.setVisible(true));
+                SimpleLaterInvocator.invoke(
+                        SourceCodeEditorActionsPanel.this,
+                        () -> loadingDataPanel.setVisible(true));
             }
         }
 
@@ -53,13 +55,15 @@ public class SourceCodeEditorActionsPanel extends DBNFormImpl{
         public void sourceCodeLoaded(DBSourceCodeVirtualFile sourceCodeFile, boolean initialLoad) {
             DBSourceCodeVirtualFile virtualFile = getSourceCodeEditor().getVirtualFile();
             if (virtualFile.equals(sourceCodeFile)) {
-                SimpleLaterInvocator.invoke(() -> loadingDataPanel.setVisible(false));
+                SimpleLaterInvocator.invoke(
+                        SourceCodeEditorActionsPanel.this,
+                        () -> loadingDataPanel.setVisible(false));
             }
         }
     };
 
     public SourceCodeEditor getSourceCodeEditor() {
-        return FailsafeUtil.get(sourceCodeEditor);
+        return Failsafe.get(sourceCodeEditor);
     }
 
     @Override

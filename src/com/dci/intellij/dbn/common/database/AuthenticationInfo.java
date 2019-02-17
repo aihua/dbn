@@ -97,12 +97,15 @@ public class AuthenticationInfo extends BasicConfiguration<ConnectionDatabaseSet
     public void readConfiguration(Element element) {
         user = getString(element, "user", user);
         DatabaseCredentialManager credentialManager = DatabaseCredentialManager.getInstance();
-        password = credentialManager.getPassword(getConnectionId(), user);
+
+        if (DatabaseCredentialManager.USE) {
+            password = credentialManager.getPassword(getConnectionId(), user);
+        }
 
         // old storage fallback - TODO cleanup
         if (StringUtil.isEmpty(password)) {
             password = PasswordUtil.decodePassword(getString(element, "password", null));
-            if (StringUtil.isNotEmpty(password)) {
+            if (StringUtil.isNotEmpty(password) && DatabaseCredentialManager.USE) {
                 credentialManager.setPassword(getConnectionId(), user, password);
             }
         }
@@ -117,7 +120,11 @@ public class AuthenticationInfo extends BasicConfiguration<ConnectionDatabaseSet
         setBoolean(element, "os-authentication", osAuthentication);
         setBoolean(element, "empty-password", emptyPassword);
         setString(element, "user", nvl(user));
-        setString(element, "deprecated-pwd", PasswordUtil.encodePassword(password));
+
+        String encodedPassword = PasswordUtil.encodePassword(password);
+        if (DatabaseCredentialManager.USE)
+            setString(element, "deprecated-pwd", encodedPassword); else
+            setString(element, "password", encodedPassword);
     }
 
     @Override
@@ -139,10 +146,15 @@ public class AuthenticationInfo extends BasicConfiguration<ConnectionDatabaseSet
             String newUserName = nvl(user);
             String newPassword = nvl(password);
 
-            if (!CommonUtil.safeEqual(oldUserName, newUserName) || !CommonUtil.safeEqual(oldPassword, newPassword)) {
+            boolean userNameChanged = !CommonUtil.safeEqual(oldUserName, newUserName);
+            boolean passwordChanged = !CommonUtil.safeEqual(oldPassword, newPassword);
+            if (userNameChanged || passwordChanged) {
                 DatabaseCredentialManager credentialManager = DatabaseCredentialManager.getInstance();
                 ConnectionId connectionId = getConnectionId();
-                credentialManager.removePassword(connectionId, oldUserName);
+
+                if (userNameChanged) {
+                    credentialManager.removePassword(connectionId, oldUserName);
+                }
                 if (StringUtil.isNotEmpty(newUserName) && StringUtil.isNotEmpty(newPassword)) {
                     credentialManager.setPassword(connectionId, newUserName, newPassword);
                 }

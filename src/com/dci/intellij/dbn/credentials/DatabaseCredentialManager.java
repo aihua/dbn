@@ -9,6 +9,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 public class DatabaseCredentialManager implements BaseComponent {
+    public static boolean USE = false;
 
     public static DatabaseCredentialManager getInstance() {
         return ApplicationManager.getApplication().getComponent(DatabaseCredentialManager.class);
@@ -21,14 +22,16 @@ public class DatabaseCredentialManager implements BaseComponent {
 
     public void setPassword(ConnectionId connectionId, String userName, @Nullable String password) {
         String serviceName = getConnectionServiceName(connectionId);
-        PasswordSafe.getInstance().setPassword(new CredentialAttributes(serviceName, userName, null, false), password);
+        CredentialAttributes credentialAttributes = new CredentialAttributes(serviceName, userName, this.getClass(), false);
+        PasswordSafe.getInstance().setPassword(credentialAttributes, password);
     }
 
     @Nullable
     public String getPassword(ConnectionId connectionId, String userName) {
         String serviceName = getConnectionServiceName(connectionId);
         PasswordSafe passwordSafe = PasswordSafe.getInstance();
-        return passwordSafe.getPassword(new CredentialAttributes(serviceName, userName, null, false));
+        CredentialAttributes credentialAttributes = new CredentialAttributes(serviceName, userName, this.getClass(), false);
+        return passwordSafe.getPassword(credentialAttributes);
     }
 
     private boolean isMemoryStorage() {

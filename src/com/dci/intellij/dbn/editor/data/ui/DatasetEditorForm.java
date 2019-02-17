@@ -2,10 +2,10 @@ package com.dci.intellij.dbn.editor.data.ui;
 
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
-import com.dci.intellij.dbn.common.latent.DisposableLatent;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
+import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.ui.AutoCommitLabel;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
@@ -54,7 +54,7 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
     private DatasetEditorTable datasetEditorTable;
     private DatasetEditor datasetEditor;
 
-    private Latent<DataSearchComponent> dataSearchComponent = DisposableLatent.create(this, () -> {
+    private Latent<DataSearchComponent> dataSearchComponent = Latent.disposable(this, () -> {
         DataSearchComponent dataSearchComponent = new DataSearchComponent(DatasetEditorForm.this);
         searchPanel.add(dataSearchComponent.getComponent(), BorderLayout.CENTER);
         ActionUtil.registerDataProvider(dataSearchComponent.getSearchField(), getDatasetEditor());
@@ -118,9 +118,11 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
         for (DatasetColumnState columnState : datasetEditor.getColumnSetup().getColumnStates()) {
 
             if (!columnState.isVisible() || !trackingColumnSettings.isColumnVisible(columnState.getName())) {
-                int columnIndex = columnState.getPosition();
-                TableColumn tableColumn = datasetEditorTable.getColumnModel().getColumn(columnIndex);
-                hiddenColumns.add(tableColumn);
+                String columnName = columnState.getName();
+                TableColumn tableColumn = datasetEditorTable.getColumnByName(columnName);
+                if (tableColumn != null) {
+                    hiddenColumns.add(tableColumn);
+                }
             }
         }
         for (TableColumn hiddenColumn : hiddenColumns) {
@@ -131,7 +133,7 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
 
     public void afterRebuild(final DatasetEditorTable oldEditorTable) {
         if (oldEditorTable != null) {
-            ConditionalLaterInvocator.invoke(() -> {
+            SimpleLaterInvocator.invoke(this, () -> {
                 DatasetEditorTable datasetEditorTable = getEditorTable();
                 datasetTableScrollPane.setViewportView(datasetEditorTable);
                 datasetEditorTable.initTableGutter();
@@ -154,20 +156,20 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
 
     @NotNull
     public DatasetEditor getDatasetEditor() {
-        return FailsafeUtil.get(datasetEditor);
+        return Failsafe.get(datasetEditor);
     }
 
     public void showLoadingHint() {
-        ConditionalLaterInvocator.invoke(() -> loadingDataPanel.setVisible(true));
+        ConditionalLaterInvocator.invoke(this, () -> loadingDataPanel.setVisible(true));
     }
 
     public void hideLoadingHint() {
-        ConditionalLaterInvocator.invoke(() -> loadingDataPanel.setVisible(false));
+        ConditionalLaterInvocator.invoke(this, () -> loadingDataPanel.setVisible(false));
     }
 
     @NotNull
     public DatasetEditorTable getEditorTable() {
-        return FailsafeUtil.get(datasetEditorTable);
+        return Failsafe.get(datasetEditorTable);
     }
 
     @Override

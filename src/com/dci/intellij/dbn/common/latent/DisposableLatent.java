@@ -1,29 +1,20 @@
 package com.dci.intellij.dbn.common.latent;
 
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.intellij.openapi.Disposable;
 
-public abstract class DisposableLatent<T extends Disposable, P extends Disposable> extends Latent<T> {
+abstract class DisposableLatent<T extends Disposable, P extends Disposable> extends BasicLatent<T> {
     private P parent;
 
-    private DisposableLatent(P parent) {
+    DisposableLatent(P parent) {
         super();
-        this.parent = FailsafeUtil.ensure(parent);
-    }
-
-    public static <T extends Disposable, P extends Disposable> DisposableLatent<T, P> create(P parent, Loader<T> loader) {
-        return new DisposableLatent<T, P>(parent) {
-            @Override
-            public Loader<T> getLoader() {
-                return loader;
-            }
-        };
+        this.parent = Failsafe.ensure(parent);
     }
 
     @Override
     protected boolean shouldLoad() {
-        FailsafeUtil.ensure(parent);
+        Failsafe.ensure(parent);
         return super.shouldLoad();
     }
 

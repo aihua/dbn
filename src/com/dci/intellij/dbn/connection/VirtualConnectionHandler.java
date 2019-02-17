@@ -6,6 +6,8 @@ import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.database.DatabaseInfo;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.filter.Filter;
+import com.dci.intellij.dbn.common.latent.Latent;
+import com.dci.intellij.dbn.connection.config.ConnectionBundleSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSettings;
 import com.dci.intellij.dbn.connection.console.DatabaseConsoleBundle;
 import com.dci.intellij.dbn.connection.info.ConnectionInfo;
@@ -44,6 +46,10 @@ public class VirtualConnectionHandler implements ConnectionHandler {
     private ConnectionHandlerRef ref;
     private DBObjectBundle objectBundle;
     private ConnectionInstructions instructions = new ConnectionInstructions();
+    private Latent<ConnectionSettings> connectionSettings = Latent.basic(() -> {
+        ConnectionBundleSettings connectionBundleSettings = ConnectionBundleSettings.getInstance(project);
+        return new ConnectionSettings(connectionBundleSettings);
+    });
 
     public VirtualConnectionHandler(ConnectionId id, String name, DatabaseType databaseType, double databaseVersion, Project project){
         this.id = id;
@@ -111,7 +117,8 @@ public class VirtualConnectionHandler implements ConnectionHandler {
         return true;
     }
 
-    @Override public ConnectionId getId() {return id;}
+    @Override public ConnectionId getConnectionId() {return id;}
+
     @NotNull
     @Override public String getName() {return name;}
     @Override public String getPresentableText() {
@@ -191,7 +198,8 @@ public class VirtualConnectionHandler implements ConnectionHandler {
     @Override public void closeConnection(DBNConnection connection) {}
     @Override public void freePoolConnection(DBNConnection connection) {}
 
-    @Override public ConnectionSettings getSettings() {return null;}
+    @Override public ConnectionSettings getSettings() {return connectionSettings.get();}
+
     @Override public void setSettings(ConnectionSettings connectionSettings) {}
 
     @NotNull
@@ -224,7 +232,7 @@ public class VirtualConnectionHandler implements ConnectionHandler {
     @NotNull
     @Override
     public AuthenticationInfo getTemporaryAuthenticationInfo() {
-        return new AuthenticationInfo();
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -303,8 +311,6 @@ public class VirtualConnectionHandler implements ConnectionHandler {
     }
 
     @Override
-    public ConnectionHandler clone() {return null;}
-    @Override
     public boolean hasUncommittedChanges() {return false;}
 
     @NotNull
@@ -313,10 +319,5 @@ public class VirtualConnectionHandler implements ConnectionHandler {
         throw new UnsupportedOperationException();
     }
 
-    @Override
-    public void commit() throws SQLException {}
-    @Override
-    public void rollback() throws SQLException {}
-    @Override
     public void dispose() {}
 }

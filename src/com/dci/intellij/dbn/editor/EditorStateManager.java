@@ -4,11 +4,11 @@ import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.browser.options.DatabaseBrowserEditorSettings;
 import com.dci.intellij.dbn.browser.options.DatabaseBrowserSettings;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.environment.EnvironmentManager;
 import com.dci.intellij.dbn.common.environment.options.listener.EnvironmentManagerAdapter;
 import com.dci.intellij.dbn.common.environment.options.listener.EnvironmentManagerListener;
-import com.dci.intellij.dbn.common.options.setting.SettingsUtil;
+import com.dci.intellij.dbn.common.options.setting.SettingsSupport;
 import com.dci.intellij.dbn.common.util.EditorUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.editor.code.SourceCodeEditor;
@@ -55,7 +55,7 @@ public class EditorStateManager extends AbstractProjectComponent implements Pers
     }
 
     public static EditorStateManager getInstance(@NotNull Project project) {
-        return FailsafeUtil.getComponent(project, EditorStateManager.class);
+        return Failsafe.getComponent(project, EditorStateManager.class);
     }
 
     private SourceCodeManagerListener sourceCodeManagerListener = new SourceCodeManagerAdapter() {
@@ -170,8 +170,8 @@ public class EditorStateManager extends AbstractProjectComponent implements Pers
         for (DBObjectType objectType : lastUsedEditorProviders.keySet()) {
             Element objectTypeElement = new Element("object-type");
             EditorProviderId editorProviderId = lastUsedEditorProviders.get(objectType);
-            SettingsUtil.setEnumAttribute(objectTypeElement, "object-type", objectType);
-            SettingsUtil.setEnumAttribute(objectTypeElement, "editor-provider", editorProviderId);
+            SettingsSupport.setEnumAttribute(objectTypeElement, "object-type", objectType);
+            SettingsSupport.setEnumAttribute(objectTypeElement, "editor-provider", editorProviderId);
             editorProvidersElement.addContent(objectTypeElement);
         }
         return element;
@@ -183,8 +183,8 @@ public class EditorStateManager extends AbstractProjectComponent implements Pers
         Element editorProvidersElement = element.getChild("last-used-providers");
         if (editorProvidersElement != null) {
             for (Element objectTypeElement : editorProvidersElement.getChildren()) {
-                DBObjectType objectType = SettingsUtil.getEnumAttribute(objectTypeElement, "object-type", DBObjectType.class);
-                EditorProviderId editorProviderId = SettingsUtil.getEnumAttribute(objectTypeElement, "editor-provider", EditorProviderId.class);
+                DBObjectType objectType = SettingsSupport.getEnumAttribute(objectTypeElement, "object-type", DBObjectType.class);
+                EditorProviderId editorProviderId = SettingsSupport.getEnumAttribute(objectTypeElement, "editor-provider", EditorProviderId.class);
                 lastUsedEditorProviders.put(objectType, editorProviderId);
             }
         }

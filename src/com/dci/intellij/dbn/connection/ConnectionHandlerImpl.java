@@ -7,10 +7,9 @@ import com.dci.intellij.dbn.common.cache.Cache;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.database.DatabaseInfo;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.filter.Filter;
-import com.dci.intellij.dbn.common.latent.DisposableLatent;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.latent.MapLatent;
 import com.dci.intellij.dbn.common.thread.Synchronized;
@@ -60,23 +59,27 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     private DatabaseConsoleBundle consoleBundle;
     private DatabaseSessionBundle sessionBundle;
     private Latent<DBSessionBrowserVirtualFile> sessionBrowserFile =
-            DisposableLatent.create(this, () -> new DBSessionBrowserVirtualFile(this));
+            Latent.disposable(this, () -> new DBSessionBrowserVirtualFile(this));
 
     private ConnectionInstructions instructions = new ConnectionInstructions();
 
     private boolean enabled;
     private ConnectionHandlerRef ref;
-    private AuthenticationInfo temporaryAuthenticationInfo = new AuthenticationInfo();
     private ConnectionInfo connectionInfo;
     private Cache metaDataCache = new Cache(TimeUtil.ONE_MINUTE);
+
+    private Latent<AuthenticationInfo> temporaryAuthenticationInfo = Latent.basic(() -> {
+        ConnectionDatabaseSettings databaseSettings = getSettings().getDatabaseSettings();
+        return new AuthenticationInfo(databaseSettings, true);
+    });
 
     private MapLatent<SessionId, StatementExecutionQueue> executionQueues =
             MapLatent.create(key -> new StatementExecutionQueue(ConnectionHandlerImpl.this));
 
-    private Latent<DBConnectionPsiDirectory> psiDirectory = Latent.create(() -> new DBConnectionPsiDirectory(this));
+    private Latent<DBConnectionPsiDirectory> psiDirectory = Latent.basic(() -> new DBConnectionPsiDirectory(this));
 
     private Latent<DBObjectBundle> objectBundle =
-            DisposableLatent.create(this, () -> new DBObjectBundleImpl(this, connectionBundle));
+            Latent.disposable(this, () -> new DBObjectBundleImpl(this, connectionBundle));
 
 
     ConnectionHandlerImpl(ConnectionBundle connectionBundle, ConnectionSettings connectionSettings) {
@@ -104,7 +107,8 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
 
     @Override
     public void setTemporaryAuthenticationInfo(AuthenticationInfo temporaryAuthenticationInfo) {
-        this.temporaryAuthenticationInfo = temporaryAuthenticationInfo;
+        temporaryAuthenticationInfo.setTemporary(true);
+        this.temporaryAuthenticationInfo.set(temporaryAuthenticationInfo);;
     }
 
     @Override
@@ -132,14 +136,15 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     @Override
     @NotNull
     public AuthenticationInfo getTemporaryAuthenticationInfo() {
-        if (temporaryAuthenticationInfo.isProvided()) {
+        AuthenticationInfo authenticationInfo = temporaryAuthenticationInfo.get();
+        if (authenticationInfo.isProvided()) {
             int passwordExpiryTime = getSettings().getDetailSettings().getPasswordExpiryTime() * 60000;
             long lastAccessTimestamp = getConnectionPool().getLastAccessTimestamp();
-            if (lastAccessTimestamp > 0 && temporaryAuthenticationInfo.isOlderThan(passwordExpiryTime) && TimeUtil.isOlderThan(lastAccessTimestamp, passwordExpiryTime)) {
-                temporaryAuthenticationInfo = new AuthenticationInfo();
+            if (lastAccessTimestamp > 0 && authenticationInfo.isOlderThan(passwordExpiryTime) && TimeUtil.isOlderThan(lastAccessTimestamp, passwordExpiryTime)) {
+                temporaryAuthenticationInfo.reset();
             }
         }
-        return temporaryAuthenticationInfo;
+        return temporaryAuthenticationInfo.get();
     }
 
     @Override
@@ -173,7 +178,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     @Override
     @NotNull
     public ConnectionBundle getConnectionBundle() {
-        return FailsafeUtil.get(connectionBundle);
+        return Failsafe.get(connectionBundle);
     }
 
     @Override
@@ -250,18 +255,6 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     }
 
     @Override
-    public void commit() throws SQLException {
-        DBNConnection mainConnection = getConnectionPool().getMainConnection();
-        ConnectionUtil.commit(mainConnection);
-    }
-
-    @Override
-    public void rollback() throws SQLException {
-        DBNConnection mainConnection = getConnectionPool().getMainConnection();
-        ConnectionUtil.rollback(mainConnection);
-    }
-
-    @Override
     public boolean isConnected() {
         return connectionStatus.isConnected();
     }
@@ -334,14 +327,14 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     @Override
     public void disconnect() {
         // explicit disconnect (reset auto-connect data)
-        temporaryAuthenticationInfo = new AuthenticationInfo();
+        temporaryAuthenticationInfo.reset();
         instructions.setAllowAutoConnect(false);
         connectionStatus.setConnected(false);
         getConnectionPool().closeConnections();
     }
 
     @Override
-    public ConnectionId getId() {
+    public ConnectionId getConnectionId() {
         return connectionSettings.getConnectionId();
     }
 
@@ -473,7 +466,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     @Override
     @NotNull
     public ConnectionPool getConnectionPool() {
-        return FailsafeUtil.get(connectionPool);
+        return Failsafe.get(connectionPool);
     }
 
     @Override

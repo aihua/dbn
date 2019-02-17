@@ -3,7 +3,7 @@ package com.dci.intellij.dbn.debugger.jdbc.config.ui;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.action.GroupPopupAction;
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.SimpleTask;
@@ -106,18 +106,20 @@ public class DBMethodJdbcRunConfigEditorForm extends DBProgramRunConfigurationEd
 
                         ObjectTreeModel objectTreeModel = new ObjectTreeModel(settings.getSchema(), settings.getVisibleObjectTypes(), settings.getMethod());
 
-                        SimpleLaterInvocator.invoke(() -> {
-                            FailsafeUtil.ensure(project);
-                            MethodExecutionBrowserDialog browserDialog = new MethodExecutionBrowserDialog(project, objectTreeModel, true);
-                            browserDialog.show();
-                            if (browserDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
-                                DBMethod method = browserDialog.getSelectedMethod();
-                                MethodExecutionInput methodExecutionInput = executionManager.getExecutionInput(method);
-                                if (methodExecutionInput != null) {
-                                    setExecutionInput(methodExecutionInput, true);
-                                }
-                            }
-                        });
+                        SimpleLaterInvocator.invoke(
+                                DBMethodJdbcRunConfigEditorForm.this,
+                                () -> {
+                                    Failsafe.ensure(project);
+                                    MethodExecutionBrowserDialog browserDialog = new MethodExecutionBrowserDialog(project, objectTreeModel, true);
+                                    browserDialog.show();
+                                    if (browserDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
+                                        DBMethod method = browserDialog.getSelectedMethod();
+                                        MethodExecutionInput methodExecutionInput = executionManager.getExecutionInput(method);
+                                        if (methodExecutionInput != null) {
+                                            setExecutionInput(methodExecutionInput, true);
+                                        }
+                                    }
+                                });
 
                     });
         }
@@ -201,10 +203,5 @@ public class DBMethodJdbcRunConfigEditorForm extends DBProgramRunConfigurationEd
     public void dispose() {
         super.dispose();
         methodExecutionInputForm = null;
-    }
-
-    @Override
-    protected Object clone() throws CloneNotSupportedException {
-        return super.clone();
     }
 }

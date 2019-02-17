@@ -1,10 +1,8 @@
 package com.dci.intellij.dbn.execution.statement.result.ui;
 
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
-import com.dci.intellij.dbn.common.latent.DisposableLatent;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
-import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
 import com.dci.intellij.dbn.common.thread.ReadActionRunner;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
@@ -43,7 +41,7 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
     private StatementExecutionCursorResult executionResult;
     private RecordViewInfo recordViewInfo;
 
-    private Latent<DataSearchComponent> dataSearchComponent = DisposableLatent.create(this, () -> {
+    private Latent<DataSearchComponent> dataSearchComponent = Latent.disposable(this, () -> {
         DataSearchComponent dataSearchComponent = new DataSearchComponent(StatementExecutionResultForm.this);
         searchPanel.add(dataSearchComponent.getComponent(), BorderLayout.CENTER);
         ActionUtil.registerDataProvider(dataSearchComponent.getSearchField(), executionResult);
@@ -93,11 +91,11 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
     @Override
     @NotNull
     public StatementExecutionCursorResult getExecutionResult() {
-        return FailsafeUtil.get(executionResult);
+        return Failsafe.get(executionResult);
     }
 
     public void reloadTableModel() {
-        SimpleLaterInvocator.invoke(() -> {
+        SimpleLaterInvocator.invoke(this, () -> {
             StatementExecutionCursorResult executionResult = getExecutionResult();
             JScrollBar horizontalScrollBar = resultScrollPane.getHorizontalScrollBar();
             int horizontalScrolling = horizontalScrollBar.getValue();
@@ -114,7 +112,7 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
     }
 
     public void updateVisibleComponents() {
-        ConditionalLaterInvocator.invoke(() -> {
+        SimpleLaterInvocator.invoke(this, () -> {
             StatementExecutionCursorResult executionResult = getExecutionResult();
             ResultSetDataModel dataModel = executionResult.getTableModel();
             String connectionName = executionResult.getConnectionHandler().getPresentableText();

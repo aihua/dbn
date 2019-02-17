@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.database.DatabaseInfo;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
+import com.dci.intellij.dbn.common.options.Configuration;
 import com.dci.intellij.dbn.common.options.SettingsChangeNotifier;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorUtil;
@@ -27,6 +28,7 @@ import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
 import com.intellij.ui.DocumentAdapter;
+import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -189,7 +191,7 @@ public class ConnectionDatabaseSettingsForm extends ConfigurationEditorForm<Conn
     protected DocumentListener createDocumentListener() {
         return new DocumentAdapter() {
             @Override
-            protected void textChanged(DocumentEvent e) {
+            protected void textChanged(@NotNull DocumentEvent e) {
                 ConnectionDatabaseSettings configuration = getConfiguration();
                 configuration.setModified(true);
 
@@ -266,7 +268,12 @@ public class ConnectionDatabaseSettingsForm extends ConfigurationEditorForm<Conn
         databaseInfo.setFiles(databaseFileSettingsForm.getDatabaseFiles());
 
         AuthenticationInfo authenticationInfo = configuration.getAuthenticationInfo();
+        String oldUserName = authenticationInfo.getUser();
+        String oldPassword = authenticationInfo.getPassword();
         authenticationSettingsForm.applyFormChanges(authenticationInfo);
+        if (!Configuration.IS_TRANSITORY.get()) {
+            authenticationInfo.updateKeyChain(oldUserName, oldPassword);
+        }
 
         configuration.setDriverSource(getSelection(driverSourceComboBox));
         configuration.updateHashCode();
@@ -275,7 +282,7 @@ public class ConnectionDatabaseSettingsForm extends ConfigurationEditorForm<Conn
     @Override
     public void applyFormChanges() throws ConfigurationException {
         ConfigurationEditorUtil.validateStringInputValue(nameTextField, "Name", true);
-        final ConnectionDatabaseSettings configuration = getConfiguration();
+        ConnectionDatabaseSettings configuration = getConfiguration();
 
         TextFieldWithBrowseButton driverLibraryTextField = driverSettingsForm.getDriverLibraryTextField();
         JComboBox<DriverOption> driverComboBox = driverSettingsForm.getDriverComboBox();
@@ -287,10 +294,10 @@ public class ConnectionDatabaseSettingsForm extends ConfigurationEditorForm<Conn
             throw new ConfigurationException("The provided driver library is not a valid " + selectedDatabaseType.getDisplayName() + " driver library.");
         }
 
-        final boolean nameChanged = !nameTextField.getText().equals(configuration.getName());
+        boolean nameChanged = !nameTextField.getText().equals(configuration.getName());
 
         DatabaseInfo databaseInfo = configuration.getDatabaseInfo();
-        final boolean settingsChanged =
+        boolean settingsChanged =
                 //!connectionConfig.getProperties().equals(propertiesEditorForm.getProperties()) ||
                 !CommonUtil.safeEqual(configuration.getDriverLibrary(), driverLibraryTextField.getText()) ||
                 !CommonUtil.safeEqual(databaseInfo.getHost(), hostTextField.getText()) ||
@@ -303,19 +310,18 @@ public class ConnectionDatabaseSettingsForm extends ConfigurationEditorForm<Conn
 
         applyFormChanges(configuration);
 
-         SettingsChangeNotifier.register(() -> {
-             if (nameChanged) {
-                 Project project = configuration.getProject();
-                 ConnectionSettingsListener listener = EventUtil.notify(project, ConnectionSettingsListener.TOPIC);
-                 listener.connectionNameChanged(configuration.getConnectionId());
-             }
+        Project project = configuration.getProject();
+        SettingsChangeNotifier.register(() -> {
+            if (nameChanged) {
+                ConnectionSettingsListener listener = EventUtil.notify(project, ConnectionSettingsListener.TOPIC);
+                listener.connectionNameChanged(configuration.getConnectionId());
+            }
 
-             if (settingsChanged) {
-                 Project project = configuration.getProject();
-                 ConnectionSettingsListener listener = EventUtil.notify(project, ConnectionSettingsListener.TOPIC);
-                 listener.connectionChanged(configuration.getConnectionId());
-             }
-         });
+            if (settingsChanged) {
+                ConnectionSettingsListener listener = EventUtil.notify(project, ConnectionSettingsListener.TOPIC);
+                listener.connectionChanged(configuration.getConnectionId());
+            }
+        });
     }
 
 

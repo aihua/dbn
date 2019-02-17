@@ -2,7 +2,7 @@ package com.dci.intellij.dbn.execution.statement;
 
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.message.MessageCallback;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.RunnableTask;
@@ -44,6 +44,7 @@ import com.dci.intellij.dbn.language.common.psi.ExecutablePsiElement;
 import com.dci.intellij.dbn.language.common.psi.PsiUtil;
 import com.dci.intellij.dbn.language.common.psi.RootPsiElement;
 import com.dci.intellij.dbn.object.DBSchema;
+import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
@@ -100,12 +101,12 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     public StatementExecutionQueue getExecutionQueue(ConnectionId connectionId, SessionId sessionId) {
         ConnectionManager connectionManager = ConnectionManager.getInstance(getProject());
         ConnectionHandler connectionHandler = connectionManager.getConnectionHandler(connectionId);
-        connectionHandler = FailsafeUtil.get(connectionHandler);
+        connectionHandler = Failsafe.get(connectionHandler);
         return connectionHandler.getExecutionQueue(sessionId);
     }
 
     public static StatementExecutionManager getInstance(@NotNull Project project) {
-        return FailsafeUtil.getComponent(project, StatementExecutionManager.class);
+        return Failsafe.getComponent(project, StatementExecutionManager.class);
     }
 
     public void cacheVariable(VirtualFile virtualFile, StatementExecutionVariable variable) {
@@ -278,7 +279,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
             try {
                 StatementExecutionInput executionInput = executionProcessor.getExecutionInput();
                 DBSchema schema = executionInput.getTargetSchema();
-                ConnectionHandler connectionHandler = FailsafeUtil.get(executionProcessor.getConnectionHandler());
+                ConnectionHandler connectionHandler = Failsafe.get(executionProcessor.getConnectionHandler());
                 connection = connectionHandler.getConnection(executionInput.getTargetSessionId(), schema);
             } catch (SQLException e) {
                 sendErrorNotification("Error executing " + executionProcessor.getStatementName() + ". Failed to ensure connectivity.", e.getMessage());
@@ -324,7 +325,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     }
 
     private void promptExecutionDialogs(@NotNull List<StatementExecutionProcessor> processors, DBDebuggerType debuggerType, @NotNull RunnableTask callback) {
-        SimpleLaterInvocator.invoke(() -> {
+        SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
             if (promptExecutionDialogs(processors, debuggerType)) {
                 callback.start();
             }
@@ -396,7 +397,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     public void promptPendingTransactionDialog(final StatementExecutionProcessor executionProcessor) {
         final ExecutionContext context = executionProcessor.getExecutionContext();
         context.set(PROMPTED, true);
-        SimpleLaterInvocator.invoke(() -> {
+        SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
             try {
                 PendingTransactionDialog dialog = new PendingTransactionDialog(executionProcessor);
                 dialog.show();

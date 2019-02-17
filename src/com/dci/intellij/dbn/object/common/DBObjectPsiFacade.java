@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.object.common;
 
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.navigation.psi.DBObjectPsiDirectory;
 import com.dci.intellij.dbn.navigation.psi.DBObjectPsiFile;
@@ -13,9 +13,9 @@ import com.intellij.psi.PsiFile;
 public final class DBObjectPsiFacade extends DisposableBase {
     private DBObjectRef objectRef;
 
-    private Latent<PsiFile> psiFile = Latent.create(() -> new DBObjectPsiFile(objectRef));
-    private Latent<PsiElement> psiElement = Latent.create(() -> new DBObjectPsiElement(objectRef));
-    private Latent<PsiDirectory> psiDirectory = Latent.create(() -> new DBObjectPsiDirectory(objectRef));
+    private Latent<PsiFile> psiFile = Latent.weak(() -> new DBObjectPsiFile(objectRef));
+    private Latent<PsiElement> psiElement = Latent.weak(() -> new DBObjectPsiElement(objectRef));
+    private Latent<PsiDirectory> psiDirectory = Latent.weak(() -> new DBObjectPsiDirectory(objectRef));
 
     public DBObjectPsiFacade() {
     }
@@ -41,15 +41,15 @@ public final class DBObjectPsiFacade extends DisposableBase {
     }
 
     public static PsiDirectory getPsiDirectory(DBObject object) {
-        return object == null ? null : FailsafeUtil.get(object).getPsiFacade().getPsiDirectory();
+        return object == null ? null : Failsafe.get(object).getPsiFacade().getPsiDirectory();
     }
 
     public static PsiElement getPsiElement(DBObject object) {
-        return object == null ? null : FailsafeUtil.get(object).getPsiFacade().getPsiElement();
+        return object == null ? null : Failsafe.get(object).getPsiFacade().getPsiElement();
     }
 
     public static PsiFile getPsiFile(DBObject object) {
-        return object == null ? null : FailsafeUtil.get(object).getPsiFacade().getPsiFile();
+        return object == null ? null : Failsafe.get(object).getPsiFacade().getPsiFile();
     }
 
 }

@@ -3,7 +3,7 @@ package com.dci.intellij.dbn.editor.session;
 import com.dci.intellij.dbn.common.action.DBNDataKeys;
 import com.dci.intellij.dbn.common.dispose.Disposable;
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.TaskInstruction;
 import com.dci.intellij.dbn.common.thread.TaskInstructions;
@@ -64,7 +64,7 @@ public class SessionBrowser extends UserDataHolderBase implements FileEditor, Di
 
     @NotNull
     public SessionBrowserForm getEditorForm() {
-        return FailsafeUtil.get(editorForm);
+        return Failsafe.get(editorForm);
     }
 
     public void showSearchHeader() {
@@ -115,9 +115,9 @@ public class SessionBrowser extends UserDataHolderBase implements FileEditor, Di
         return !loading && !isPreventLoading(force);
     }
 
-    private void replaceModel(final SessionBrowserModel newModel) {
+    private void replaceModel(SessionBrowserModel newModel) {
         if (newModel != null) {
-            SimpleLaterInvocator.invoke(() -> {
+            SimpleLaterInvocator.invoke(getComponent(), () -> {
                 SessionBrowserTable editorTable = getEditorTable();
                 SessionBrowserModel oldModel = editorTable.getModel();
                 SessionBrowserState state = oldModel.getState();
@@ -191,7 +191,7 @@ public class SessionBrowser extends UserDataHolderBase implements FileEditor, Di
     }
 
     public Project getProject() {
-        return FailsafeUtil.get(sessionBrowserFile.getProject());
+        return Failsafe.get(sessionBrowserFile.getProject());
     }
 
     @Override
@@ -294,7 +294,7 @@ public class SessionBrowser extends UserDataHolderBase implements FileEditor, Di
         if (this.loading != loading) {
             this.loading = loading;
 
-            SimpleLaterInvocator.invoke(() -> {
+            SimpleLaterInvocator.invoke(getComponent(), () -> {
                 if (editorForm != null) {
                     if (SessionBrowser.this.loading)
                         editorForm.showLoadingHint(); else

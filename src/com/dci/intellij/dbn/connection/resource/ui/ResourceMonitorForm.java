@@ -95,7 +95,7 @@ public class ResourceMonitorForm extends DBNFormImpl<ResourceMonitorDialog> {
     public void showChangesForm(ConnectionHandler connectionHandler) {
         detailsPanel.removeAll();
         if (connectionHandler != null) {
-            ConnectionId connectionId = connectionHandler.getId();
+            ConnectionId connectionId = connectionHandler.getConnectionId();
             ResourceMonitorDetailForm detailForm = resourceMonitorForms.get(connectionId);
             if (detailForm == null) {
                 detailForm = new ResourceMonitorDetailForm(connectionHandler);
@@ -137,7 +137,7 @@ public class ResourceMonitorForm extends DBNFormImpl<ResourceMonitorDialog> {
     };
 
     private void refreshForm() {
-        SimpleLaterInvocator.invoke(this::updateListModel);
+        SimpleLaterInvocator.invoke(this, () -> updateListModel());
 
     }
 }

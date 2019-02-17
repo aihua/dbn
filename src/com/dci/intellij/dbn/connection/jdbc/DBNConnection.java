@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.connection.jdbc;
 
 import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.ProjectRef;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.dci.intellij.dbn.connection.ConnectionCache;
@@ -119,7 +120,7 @@ public class DBNConnection extends DBNConnectionBase {
 
         if (isPoolConnection()) {
             for (DBNStatement currentStatement : statements) {
-                if (TimeUtil.isOlderThan(currentStatement.getInitTimestamp(), TimeUtil.THREE_MINUTES)) {
+                if (TimeUtil.isOlderThan(currentStatement.getInitTimestamp(), TimeUtil.TEN_MINUTES)) {
                     LOGGER.error("Statement not released", new SQLException(currentStatement.traceable.getTrace()));
                 }
             }
@@ -282,8 +283,10 @@ public class DBNConnection extends DBNConnectionBase {
     }
 
     protected void notifyStatusChange() {
-        ConnectionStatusListener statusListener = EventUtil.notify(getProject(), ConnectionStatusListener.TOPIC);
-        statusListener.statusChanged(id, sessionId);
+        Failsafe.lenient(() -> {
+            ConnectionStatusListener statusListener = EventUtil.notify(getProject(), ConnectionStatusListener.TOPIC);
+            statusListener.statusChanged(id, sessionId);
+        });
     }
 
     public String getCurrentSchema() {

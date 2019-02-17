@@ -5,15 +5,13 @@ import com.dci.intellij.dbn.common.dispose.Disposable;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.options.PersistentConfiguration;
-import com.dci.intellij.dbn.common.options.setting.SettingsUtil;
-import com.dci.intellij.dbn.common.util.EventUtil;
+import com.dci.intellij.dbn.common.options.setting.SettingsSupport;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionProvider;
 import com.dci.intellij.dbn.execution.common.options.ExecutionEngineSettings;
 import com.dci.intellij.dbn.execution.common.options.ExecutionTimeoutSettings;
-import com.dci.intellij.dbn.execution.common.options.TimeoutSettingsListener;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.intellij.openapi.project.Project;
@@ -30,7 +28,7 @@ public abstract class ExecutionInput extends DisposableBase implements Disposabl
     protected ConnectionHandlerRef targetConnectionRef;
     protected DBObjectRef<DBSchema> targetSchemaRef;
 
-    private Latent<ExecutionContext> executionContext = Latent.create(this::createExecutionContext);
+    private Latent<ExecutionContext> executionContext = Latent.basic(() -> createExecutionContext());
 
     @NotNull
     public final ExecutionContext getExecutionContext() {
@@ -43,24 +41,11 @@ public abstract class ExecutionInput extends DisposableBase implements Disposabl
 
     protected abstract ExecutionContext createExecutionContext();
 
-    private final TimeoutSettingsListener timeoutSettingsListener = new TimeoutSettingsListener() {
-        @Override
-        public void settingsChanged(ExecutionTarget executionTarget) {
-            if (executionTarget == ExecutionInput.this.executionTarget) {
-                ExecutionTimeoutSettings timeoutSettings = getExecutionTimeoutSettings();
-                executionTimeout.updateSettingsValue(timeoutSettings.getExecutionTimeout());
-                debugExecutionTimeout.updateSettingsValue(timeoutSettings.getDebugExecutionTimeout());
-            }
-        }
-    };
-
     public ExecutionInput(Project project, ExecutionTarget executionTarget) {
         projectRef = ProjectRef.from(project);
         this.executionTarget = executionTarget;
-        ExecutionTimeoutSettings timeoutSettings = getExecutionTimeoutSettings();
-        executionTimeout = new ExecutionTimeout(timeoutSettings.getExecutionTimeout());
-        debugExecutionTimeout = new ExecutionTimeout(timeoutSettings.getDebugExecutionTimeout());
-        EventUtil.subscribe(getProject(), this, TimeoutSettingsListener.TOPIC, timeoutSettingsListener);
+        executionTimeout = new ExecutionTimeout(project, executionTarget, false);
+        debugExecutionTimeout = new ExecutionTimeout(project, executionTarget, true);
     }
 
     @NotNull
@@ -120,14 +105,14 @@ public abstract class ExecutionInput extends DisposableBase implements Disposabl
 
     @Override
     public void readConfiguration(Element element) {
-        executionTimeout.set(SettingsUtil.getIntegerAttribute(element, "execution-timeout", executionTimeout.get()));
-        debugExecutionTimeout.set(SettingsUtil.getIntegerAttribute(element, "debug-execution-timeout", debugExecutionTimeout.get()));
+        executionTimeout.set(SettingsSupport.getIntegerAttribute(element, "execution-timeout", executionTimeout.get()));
+        debugExecutionTimeout.set(SettingsSupport.getIntegerAttribute(element, "debug-execution-timeout", debugExecutionTimeout.get()));
     }
 
     @Override
     public void writeConfiguration(Element element) {
-        SettingsUtil.setIntegerAttribute(element, "execution-timeout", executionTimeout.get());
-        SettingsUtil.setIntegerAttribute(element, "debug-execution-timeout", debugExecutionTimeout.get());
+        SettingsSupport.setIntegerAttribute(element, "execution-timeout", executionTimeout.get());
+        SettingsSupport.setIntegerAttribute(element, "debug-execution-timeout", debugExecutionTimeout.get());
     }
 
     @NotNull

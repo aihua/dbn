@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.execution.method.history.ui;
 
-import com.dci.intellij.dbn.common.dispose.FailsafeUtil;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
 import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.common.ui.tree.DBNTree;
 import com.dci.intellij.dbn.connection.ConnectionAction;
@@ -9,7 +9,6 @@ import com.dci.intellij.dbn.execution.method.MethodExecutionInput;
 import com.dci.intellij.dbn.execution.method.ui.MethodExecutionHistory;
 import com.dci.intellij.dbn.object.DBMethod;
 import com.intellij.openapi.Disposable;
-import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.ColoredTreeCellRenderer;
 import com.intellij.ui.SimpleTextAttributes;
@@ -93,7 +92,7 @@ public class MethodExecutionHistoryTree extends DBNTree implements Disposable {
     private class TreeCellRenderer extends ColoredTreeCellRenderer {
         @Override
         public void customizeCellRenderer(@NotNull JTree tree, Object value, boolean selected, boolean expanded, boolean leaf, int row, boolean hasFocus) {
-            try {
+            Failsafe.lenient(() -> {
                 MethodExecutionHistoryTreeNode node = (MethodExecutionHistoryTreeNode) value;
                 setIcon(node.getIcon());
                 append(node.getName(), SimpleTextAttributes.REGULAR_ATTRIBUTES);
@@ -104,7 +103,7 @@ public class MethodExecutionHistoryTree extends DBNTree implements Disposable {
                         append(" #" + overload, SimpleTextAttributes.GRAY_ATTRIBUTES);
                     }
                 }
-            } catch (ProcessCanceledException ignore) {}
+            });
         }
     }
 
@@ -137,8 +136,8 @@ public class MethodExecutionHistoryTree extends DBNTree implements Disposable {
                                 method.getArguments();
                             }
 
-                            SimpleLaterInvocator.invoke(() -> {
-                                FailsafeUtil.ensure(dialog);
+                            ConditionalLaterInvocator.invoke(MethodExecutionHistoryTree.this, () -> {
+                                Failsafe.ensure(dialog);
                                 dialog.showMethodExecutionPanel(executionInput);
                                 dialog.setSelectedExecutionInput(executionInput);
                                 dialog.updateMainButtons(executionInput);

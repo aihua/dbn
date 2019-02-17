@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.credentials;
 
+import com.dci.intellij.dbn.common.thread.ReadActionRunner;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.intellij.ide.passwordSafe.PasswordSafe;
@@ -30,21 +31,26 @@ public class DatabaseCredentialManager implements BaseComponent {
             } else {
                 passwordSafe.storePassword(null, this.getClass(), key, password);
             }
+            System.out.println("Setting: " + key + " " + password);
         } catch (Exception e) {
-
+            e.printStackTrace();
         }
     }
 
     @Nullable
     public String getPassword(ConnectionId connectionId, String userName) {
-        try {
-            String key = getPasswordKey(connectionId, userName);
-            PasswordSafe passwordSafe = PasswordSafe.getInstance();
-            return passwordSafe.getPassword(null, this.getClass(), key);
-        } catch (Exception e) {
-
-            return null;
-        }
+        return ReadActionRunner.invoke(false, () -> {
+            try {
+                String key = getPasswordKey(connectionId, userName);
+                PasswordSafe passwordSafe = PasswordSafe.getInstance();
+                String password = passwordSafe.getPassword(null, DatabaseCredentialManager.this.getClass(), key);
+                System.out.println("Getting: " + key + " " + password);
+                return password;
+            } catch (Exception e) {
+                e.printStackTrace();
+                return null;
+            }
+        });
     }
 
     private boolean isMemoryStorage() {

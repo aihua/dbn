@@ -13,7 +13,6 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFilePathWrapper;
 import com.intellij.openapi.vfs.ex.dummy.DummyFileIdGenerator;
 import com.intellij.psi.PsiFile;
-import com.intellij.psi.impl.DebugUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -193,7 +192,7 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
             disposed = true;
             DatabaseFileViewProvider cachedViewProvider = getCachedViewProvider();
             if (cachedViewProvider != null) {
-                DebugUtil.performPsiModification("disposing database view provider", () -> cachedViewProvider.markInvalidated());
+                cachedViewProvider.markInvalidated();
                 List<PsiFile> cachedPsiFiles = cachedViewProvider.getCachedPsiFiles();
                 for (PsiFile cachedPsiFile: cachedPsiFiles) {
                     if (cachedPsiFile instanceof DBLanguagePsiFile) {

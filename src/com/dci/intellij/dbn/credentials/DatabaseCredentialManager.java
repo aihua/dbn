@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.credentials;
 
+import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionId;
-import com.intellij.credentialStore.CredentialAttributes;
 import com.intellij.ide.passwordSafe.PasswordSafe;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.BaseComponent;
@@ -20,24 +20,39 @@ public class DatabaseCredentialManager implements BaseComponent {
     }
 
     public void setPassword(ConnectionId connectionId, String userName, @Nullable String password) {
-        String serviceName = getConnectionServiceName(connectionId);
-        PasswordSafe.getInstance().setPassword(new CredentialAttributes(serviceName, userName, null, false), password);
+        try {
+            String key = getPasswordKey(connectionId, userName);
+            PasswordSafe passwordSafe = PasswordSafe.getInstance();
+
+            if (StringUtil.isEmpty(password)) {
+                passwordSafe.removePassword(null, this.getClass(), key);
+            } else {
+                passwordSafe.storePassword(null, this.getClass(), key, password);
+            }
+        } catch (Exception e) {
+
+        }
     }
 
     @Nullable
     public String getPassword(ConnectionId connectionId, String userName) {
-        String serviceName = getConnectionServiceName(connectionId);
-        PasswordSafe passwordSafe = PasswordSafe.getInstance();
-        return passwordSafe.getPassword(new CredentialAttributes(serviceName, userName, null, false));
+        try {
+            String key = getPasswordKey(connectionId, userName);
+            PasswordSafe passwordSafe = PasswordSafe.getInstance();
+            return passwordSafe.getPassword(null, this.getClass(), key);
+        } catch (Exception e) {
+
+            return null;
+        }
     }
 
     private boolean isMemoryStorage() {
-        return PasswordSafe.getInstance().isMemoryOnly();
+        return false;//PasswordSafe.getInstance().isMemoryOnly();
     }
 
     @NotNull
-    protected String getConnectionServiceName(ConnectionId connectionId) {
-        return "DBNavigator.Connection." + connectionId;
+    protected String getPasswordKey(ConnectionId connectionId, String userName) {
+        return "DBNavigator.Connection." + connectionId + "." + userName;
     }
 
     @Override

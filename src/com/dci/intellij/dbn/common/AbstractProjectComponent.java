@@ -53,18 +53,18 @@ public abstract class AbstractProjectComponent extends SettingsSupport implement
     }
 
     @Override
-    public void beforeWriteActionStart(@NotNull Object action) {
+    public void beforeWriteActionStart(Object action) {
     }
 
     @Override
-    public void writeActionStarted(@NotNull Object action) {
+    public void writeActionStarted(Object action) {
     }
 
     @Override
-    public void writeActionFinished(@NotNull Object action) {
+    public void writeActionFinished(Object action) {
     }
 
-    public void afterWriteActionFinished(@NotNull Object action) {
+    public void afterWriteActionFinished(Object action) {
     }
 
     /***********************************************

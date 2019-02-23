@@ -6,13 +6,11 @@ import com.dci.intellij.dbn.common.Colors;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.TaskInstruction;
-import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.project.DumbAwareAction;
 import com.intellij.openapi.ui.popup.ComponentPopupBuilder;
 import com.intellij.openapi.ui.popup.JBPopup;
@@ -26,6 +24,8 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import java.awt.*;
 import java.util.List;
+
+import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
 
 public abstract class ObjectListShowAction extends DumbAwareAction {
     private DBObjectRef sourceObjectRef;
@@ -54,14 +54,17 @@ public abstract class ObjectListShowAction extends DumbAwareAction {
     @Override
     public final void actionPerformed(@NotNull AnActionEvent e) {
         DBObject sourceObject = getSourceObject();
-        ConnectionAction.invoke("loading " + getListName(), sourceObject,
-                TaskInstructions.create("Loading " + getListName(), TaskInstruction.CANCELLABLE),
+        String listName = getListName();
+        ConnectionAction.invoke(
+                "loading " + listName,
+                instructions("Loading " + listName, TaskInstruction.CANCELLABLE),
+                sourceObject,
                 action -> {
                     if (!action.isCancelled()) {
                         List<? extends DBObject> recentObjectList = getRecentObjectList();
                         List<? extends DBObject> objects = getObjectList();
                         if (!action.isCancelled()) {
-                            SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
+                            SimpleLaterInvocator.invokeNonModal(() -> {
                                 if (objects.size() > 0) {
                                     ObjectListActionGroup actionGroup = new ObjectListActionGroup(ObjectListShowAction.this, objects, recentObjectList);
                                     JBPopup popup = JBPopupFactory.getInstance().createActionGroupPopup(

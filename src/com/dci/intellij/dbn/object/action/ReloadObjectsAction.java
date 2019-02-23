@@ -1,11 +1,12 @@
 package com.dci.intellij.dbn.object.action;
 
-import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.project.DumbAwareAction;
 import org.jetbrains.annotations.NotNull;
+
+import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
 
 public class ReloadObjectsAction extends DumbAwareAction {
 
@@ -21,15 +22,12 @@ public class ReloadObjectsAction extends DumbAwareAction {
         String listName = objectList.getName();
         boolean loaded = objectList.isLoaded();
 
-        String actionDescription = loaded ? "reloading the " + listName : "loading the " + listName;
         ConnectionAction.invoke(
-                actionDescription,
+                loaded ? "reloading the " + listName : "loading the " + listName,
+                instructions("Reloading " + objectList.getObjectType().getListName()),
                 objectList,
-                TaskInstructions.create("Reloading " + objectList.getObjectType().getListName()),
                 action -> {
-                    if (loaded)
-                        objectList.reload(); else
-                        objectList.load(true);
+                    objectList.reload();
                 });
     }
 }

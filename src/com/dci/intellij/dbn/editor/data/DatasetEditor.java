@@ -67,8 +67,13 @@ import java.beans.PropertyChangeListener;
 import java.sql.SQLException;
 import java.util.List;
 
-import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.*;
-import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.*;
+import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.CONNECTED;
+import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.LOADED;
+import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.LOADING;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.DELIBERATE_ACTION;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.PRESERVE_CHANGES;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.REBUILD;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.USE_CURRENT_FILTER;
 import static com.dci.intellij.dbn.editor.data.model.RecordStatus.INSERTING;
 import static com.dci.intellij.dbn.editor.data.model.RecordStatus.MODIFIED;
 
@@ -287,104 +292,104 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
 
     public void loadData(final DatasetLoadInstructions instructions) {
         if (status.isNot(LOADING)) {
-            ConnectionAction.invoke("loading table data", this, (Integer) null, action -> {
-                setLoading(true);
-                EventUtil.notify(project, DatasetLoadListener.TOPIC).datasetLoading(databaseFile);
-                SimpleBackgroundTask.invoke(() -> {
-                    DatasetEditorForm editorForm = getEditorForm();
-                    try {
-                        editorForm.showLoadingHint();
-                        editorForm.getEditorTable().cancelEditing();
-                        DatasetEditorTable oldEditorTable = instructions.isRebuild() ? editorForm.beforeRebuild() : null;
-                        try {
-                            DatasetEditorModel tableModel = getTableModel();
-                            tableModel.load(instructions.isUseCurrentFilter(), instructions.isPreserveChanges());
-                            DatasetEditorTable editorTable = getEditorTable();
-                            editorTable.clearSelection();
-                        } finally {
-                            if (!isDisposed()) {
-                                editorForm.afterRebuild(oldEditorTable);
-                            }
-                        }
-                        dataLoadError = null;
-                    } catch (ProcessCanceledException ignore) {
+            ConnectionAction.invoke("loading table data", this,
+                    action -> {
+                        setLoading(true);
+                        EventUtil.notify(project, DatasetLoadListener.TOPIC).datasetLoading(databaseFile);
+                        SimpleBackgroundTask.invoke(() -> {
+                            DatasetEditorForm editorForm = getEditorForm();
+                            try {
+                                editorForm.showLoadingHint();
+                                editorForm.getEditorTable().cancelEditing();
+                                DatasetEditorTable oldEditorTable = instructions.isRebuild() ? editorForm.beforeRebuild() : null;
+                                try {
+                                    DatasetEditorModel tableModel = getTableModel();
+                                    tableModel.load(instructions.isUseCurrentFilter(), instructions.isPreserveChanges());
+                                    DatasetEditorTable editorTable = getEditorTable();
+                                    editorTable.clearSelection();
+                                } finally {
+                                    if (!isDisposed()) {
+                                        editorForm.afterRebuild(oldEditorTable);
+                                    }
+                                }
+                                dataLoadError = null;
+                            } catch (ProcessCanceledException ignore) {
 
-                    } catch (SQLException e) {
-                        dataLoadError = e.getMessage();
-                        handleLoadError(e, instructions);
-                    } catch (Exception e) {
-                        if (e != AlreadyDisposedException.INSTANCE) {
-                            LOGGER.error("Error loading table data", e);
-                        }
-                    } finally {
-                        status.set(LOADED, true);
-                        editorForm.hideLoadingHint();
-                        setLoading(false);
-                        EventUtil.notify(getProject(), DatasetLoadListener.TOPIC).datasetLoaded(databaseFile);
-                    }
-                });
-            });
+                            } catch (SQLException e) {
+                                dataLoadError = e.getMessage();
+                                handleLoadError(e, instructions);
+                            } catch (Exception e) {
+                                if (e != AlreadyDisposedException.INSTANCE) {
+                                    LOGGER.error("Error loading table data", e);
+                                }
+                            } finally {
+                                status.set(LOADED, true);
+                                editorForm.hideLoadingHint();
+                                setLoading(false);
+                                EventUtil.notify(getProject(), DatasetLoadListener.TOPIC).datasetLoaded(databaseFile);
+                            }
+                        });
+                    });
         }
 
     }
 
     private void handleLoadError(SQLException e, DatasetLoadInstructions instr) {
-        SimpleLaterInvocator.invoke(getComponent(), () -> {
+        SimpleLaterInvocator.invokeNonModal(() -> {
+            checkDisposed();
+            focusEditor();
+            ConnectionHandler connectionHandler = getConnectionHandler();
+            DatabaseMessageParserInterface messageParserInterface = connectionHandler.getInterfaceProvider().getMessageParserInterface();
+            DatasetFilterManager filterManager = DatasetFilterManager.getInstance(getProject());
+
             DBDataset dataset = getDataset();
-            if (!isDisposed()) {
-                focusEditor();
-                ConnectionHandler connectionHandler = getConnectionHandler();
-                DatabaseMessageParserInterface messageParserInterface = connectionHandler.getInterfaceProvider().getMessageParserInterface();
-                final DatasetFilterManager filterManager = DatasetFilterManager.getInstance(getProject());
-
-                final DatasetFilter filter = filterManager.getActiveFilter(dataset);
-                String datasetName = dataset.getQualifiedNameWithType();
-                if (connectionHandler.isValid()) {
-                    if (filter == null || filter == DatasetFilterManager.EMPTY_FILTER || filter.getError() != null) {
-                        if (instr.isDeliberateAction()) {
-                            String message =
-                                    "Error loading data for " + datasetName + ".\n" + (
-                                            messageParserInterface.isTimeoutException(e) ?
-                                                    "The operation was timed out. Please check your timeout configuration in Data Editor settings." :
-                                                    "Database error message: " + e.getMessage());
-
-                            MessageUtil.showErrorDialog(project, message);
-                        }
-                    } else {
+            DatasetFilter filter = filterManager.getActiveFilter(dataset);
+            String datasetName = dataset.getQualifiedNameWithType();
+            if (connectionHandler.isValid()) {
+                if (filter == null || filter == DatasetFilterManager.EMPTY_FILTER || filter.getError() != null) {
+                    if (instr.isDeliberateAction()) {
                         String message =
                                 "Error loading data for " + datasetName + ".\n" + (
                                         messageParserInterface.isTimeoutException(e) ?
                                                 "The operation was timed out. Please check your timeout configuration in Data Editor settings." :
-                                                "Filter \"" + filter.getName() + "\" may be invalid.\n" +
-                                                        "Database error message: " + e.getMessage());
-                        String[] options = {"Edit filter", "Remove filter", "Ignore filter", "Cancel"};
+                                                "Database error message: " + e.getMessage());
 
-                        MessageUtil.showErrorDialog(project, "Error", message, options, 0,
-                                MessageCallback.create(null, option -> {
-                                    DatasetLoadInstructions instructions = instr.clone();
-                                    instructions.setDeliberateAction(true);
-
-                                    if (option == 0) {
-                                        filterManager.openFiltersDialog(dataset, false, false, DatasetFilterType.NONE);
-                                        instructions.setUseCurrentFilter(true);
-                                        loadData(instructions);
-                                    } else if (option == 1) {
-                                        filterManager.setActiveFilter(dataset, null);
-                                        instructions.setUseCurrentFilter(true);
-                                        loadData(instructions);
-                                    } else if (option == 2) {
-                                        filter.setError(e.getMessage());
-                                        instructions.setUseCurrentFilter(false);
-                                        loadData(instructions);
-                                    }
-                                }));
+                        MessageUtil.showErrorDialog(project, message);
                     }
                 } else {
                     String message =
-                            "Error loading data for " + datasetName + ". Could not connect to database.\n" +
-                                    "Database error message: " + e.getMessage();
-                    MessageUtil.showErrorDialog(project, message);
+                            "Error loading data for " + datasetName + ".\n" + (
+                                    messageParserInterface.isTimeoutException(e) ?
+                                            "The operation was timed out. Please check your timeout configuration in Data Editor settings." :
+                                            "Filter \"" + filter.getName() + "\" may be invalid.\n" +
+                                                    "Database error message: " + e.getMessage());
+                    String[] options = {"Edit filter", "Remove filter", "Ignore filter", "Cancel"};
+
+                    MessageUtil.showErrorDialog(project, "Error", message, options, 0,
+                            MessageCallback.create(null, option -> {
+                                DatasetLoadInstructions instructions = instr.clone();
+                                instructions.setDeliberateAction(true);
+
+                                if (option == 0) {
+                                    filterManager.openFiltersDialog(dataset, false, false, DatasetFilterType.NONE);
+                                    instructions.setUseCurrentFilter(true);
+                                    loadData(instructions);
+                                } else if (option == 1) {
+                                    filterManager.setActiveFilter(dataset, null);
+                                    instructions.setUseCurrentFilter(true);
+                                    loadData(instructions);
+                                } else if (option == 2) {
+                                    filter.setError(e.getMessage());
+                                    instructions.setUseCurrentFilter(false);
+                                    loadData(instructions);
+                                }
+                            }));
                 }
+            } else {
+                String message =
+                        "Error loading data for " + datasetName + ". Could not connect to database.\n" +
+                                "Database error message: " + e.getMessage();
+                MessageUtil.showErrorDialog(project, message);
             }
         });
     }
@@ -532,18 +537,16 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
             boolean statusChanged = getStatus().set(CONNECTED, connected);
 
             if (statusChanged) {
-                SimpleLaterInvocator.invoke(
-                        getComponent(),
-                        () -> {
-                            DatasetEditorTable editorTable = getEditorTable();
-                            editorTable.updateBackground(!connected);
-                            if (connected) {
-                                loadData(CON_STATUS_CHANGE_LOAD_INSTRUCTIONS);
-                            } else {
-                                editorTable.cancelEditing();
-                                GUIUtil.repaint(editorTable);
-                            }
-                        });
+                SimpleLaterInvocator.invokeNonModal(() -> {
+                    DatasetEditorTable editorTable = getEditorTable();
+                    editorTable.updateBackground(!connected);
+                    if (connected) {
+                        loadData(CON_STATUS_CHANGE_LOAD_INSTRUCTIONS);
+                    } else {
+                        editorTable.cancelEditing();
+                        GUIUtil.repaint(editorTable);
+                    }
+                });
             }
         }
     };
@@ -564,7 +567,7 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
                         try {
                             model.postInsertRecord(true, false, true);
                         } catch (SQLException e1) {
-                            MessageUtil.showErrorDialog(project, "Could not create row in " + getDataset().getQualifiedNameWithType() + '.', e1);
+                            MessageUtil.showErrorDialog(project, "Could not instructions row in " + getDataset().getQualifiedNameWithType() + '.', e1);
                             model.cancelInsert(true);
                         }
                     }
@@ -625,14 +628,10 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
     }
 
 
-    public List<DatasetColumnState> initColumnStates() {
+    public List<DatasetColumnState> refreshColumnStates(@Nullable List<String> columnNames) {
         DatasetColumnSetup columnSetup = editorState.getColumnSetup();
-        List<DatasetColumnState> columnStates = columnSetup.getColumnStates();
-        DBDataset dataset = getDataset();
-        if (columnStates.size() != dataset.getColumns().size()) {
-            columnSetup.init(dataset);
-        }
-        return columnStates;
+        columnSetup.init(columnNames, getDataset());
+        return columnSetup.getColumnStates();
     }
 
     /********************************************************

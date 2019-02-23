@@ -128,14 +128,7 @@ public class MethodExecutionHistory implements PersistentStateElement, Disposabl
         return null;
     }
 
-    public void initialize() {
-        for (MethodExecutionInput executionInput : executionInputs) {
-            // try to locate method
-            executionInput.getMethod();
-        }
-    }
-
-
+    @Nullable
     public MethodExecutionInput getLastSelection() {
         if (selection != null) {
             for (MethodExecutionInput executionInput : executionInputs) {

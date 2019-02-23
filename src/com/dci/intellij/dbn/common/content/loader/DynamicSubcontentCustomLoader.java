@@ -39,12 +39,6 @@ public abstract class DynamicSubcontentCustomLoader<T extends DynamicContentElem
             }
         }
         dynamicContent.setElements(list);
-    }
-
-    @Override
-    public void reloadContent(DynamicContent<T> dynamicContent) {
-        SubcontentDependencyAdapter dependencyAdapter = (SubcontentDependencyAdapter) dynamicContent.getDependencyAdapter();
-        dependencyAdapter.getSourceContent().reload();
-        loadContent(dynamicContent, true);
+        dynamicContent.set(DynamicContentStatus.MASTER, false);
     }
 }

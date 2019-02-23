@@ -134,7 +134,7 @@ public class GUIUtil{
                     try {
                         listeners = comp.getListeners(params[0]);
                     } catch (Exception e) {
-                        // It is possible that someone could create a listener
+                        // It is possible that someone could instructions a listener
                         // that doesn't extend from EventListener.  If so, ignore it
                         System.out.println("Listener " + params[0] + " does not extend EventListener");
                         continue;
@@ -207,14 +207,14 @@ public class GUIUtil{
     }
 
     public static void repaint(JComponent component) {
-        ConditionalLaterInvocator.invoke(component, () -> {
+        ConditionalLaterInvocator.invoke(() -> {
             component.revalidate();
             component.repaint();
         });
     }
 
     public static void repaintAndFocus(JComponent component) {
-        ConditionalLaterInvocator.invoke(component, () -> {
+        ConditionalLaterInvocator.invoke(() -> {
             component.revalidate();
             component.repaint();
             component.requestFocus();

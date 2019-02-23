@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.common.thread;
 
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
+import com.dci.intellij.dbn.common.routine.BackgroundRunnable;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.Task;
 import com.intellij.openapi.project.Project;
@@ -52,16 +53,16 @@ public abstract class ModalTask<T> extends Task.Modal implements RunnableTask<T>
         TaskUtil.startTask(this, getProject());
     }
 
-    public static void invoke(
+    public static <T> void invoke(
             @NotNull Project project,
             String title,
             boolean cancellable,
-            BackgroundRunnable runnable) {
+            BackgroundRunnable.Unsafe<T> runnable) {
         create(project, title, cancellable, runnable).start();
     }
 
     @NotNull
-    public static <T> ModalTask<T> create(@NotNull Project project, String title, boolean cancellable, BackgroundRunnable<T> runnable) {
+    public static <T> ModalTask<T> create(@NotNull Project project, String title, boolean cancellable, BackgroundRunnable.Unsafe<T> runnable) {
         return new ModalTask<T>(project, title, cancellable) {
             @Override
             protected void execute(@NotNull ProgressIndicator progressIndicator) {

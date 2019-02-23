@@ -3,8 +3,8 @@ package com.dci.intellij.dbn.ddl;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.routine.WriteAction;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
-import com.dci.intellij.dbn.common.thread.WriteActionRunner;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.database.DatabaseDDLInterface;
@@ -15,7 +15,6 @@ import com.dci.intellij.dbn.language.common.DBLanguageFileType;
 import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.vfs.file.DBSourceCodeVirtualFile;
-import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
@@ -47,7 +46,7 @@ public class DDLFileManager extends AbstractProjectComponent implements Persiste
     private static boolean isRegisteringFileTypes = false;
 
     public static void registerExtensions(final DDLFileExtensionSettings settings) {
-        WriteActionRunner.invoke(() -> {
+        WriteAction.invoke(() -> {
             try {
                 isRegisteringFileTypes = true;
                 FileTypeManager fileTypeManager = FileTypeManager.getInstance();
@@ -180,7 +179,7 @@ public class DDLFileManager extends AbstractProjectComponent implements Persiste
 
     @Override
     public void projectOpened() {
-        SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> registerExtensions(getExtensionSettings()));
+        SimpleLaterInvocator.invokeNonModal(() -> registerExtensions(getExtensionSettings()));
     }
 
     @Override

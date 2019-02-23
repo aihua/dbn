@@ -64,7 +64,7 @@ public class ObjectQuickFilterForm extends DBNFormImpl<ObjectQuickFilterDialog> 
 
         Filter filter = objectList.getConfigFilter();
         if (filter != null) {
-            String hintText = "NOTE: This list is filtered according to connection \"Filter\" settings. Any additional condition will narrow down the already filtered list." ;
+            String hintText = "NOTE: This actions is filtered according to connection \"Filter\" settings. Any additional condition will narrow down the already filtered actions." ;
             DBNHintForm hintForm = new DBNHintForm(hintText, null, true);
             hintPanel.add(hintForm.getComponent());
         }
@@ -148,6 +148,7 @@ public class ObjectQuickFilterForm extends DBNFormImpl<ObjectQuickFilterDialog> 
         return objectList;
     }
 
+    @NotNull
     @Override
     public JComponent getComponent() {
         return mainPanel;

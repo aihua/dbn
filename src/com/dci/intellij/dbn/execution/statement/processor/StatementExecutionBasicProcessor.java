@@ -7,8 +7,8 @@ import com.dci.intellij.dbn.common.editor.BasicTextEditor;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.message.MessageType;
+import com.dci.intellij.dbn.common.routine.ReadAction;
 import com.dci.intellij.dbn.common.thread.CancellableDatabaseCall;
-import com.dci.intellij.dbn.common.thread.ReadActionRunner;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.EditorUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
@@ -235,8 +235,8 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     }
 
     @Override
-    public ExecutionContext getExecutionContext(boolean reset) {
-        return executionInput.getExecutionContext(reset);
+    public ExecutionContext initExecutionContext() {
+        return executionInput.initExecutionContext();
     }
 
     @Override
@@ -271,8 +271,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     public void execute(@Nullable DBNConnection connection, boolean debug) throws SQLException {
         ProgressMonitor.setTaskDescription("Executing " + getStatementName());
         try {
-            ExecutionContext context = getExecutionContext();
-            context.setExecutionTimestamp(System.currentTimeMillis());
+            ExecutionContext context = initExecutionContext();
             context.set(EXECUTING, true);
 
             resultName.reset();
@@ -556,7 +555,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
         if (isDdlStatement && DatabaseFeature.OBJECT_INVALIDATION.isSupported(connectionHandler)) {
             final BasePsiElement compilablePsiElement = getCompilableBlockPsiElement();
             if (compilablePsiElement != null) {
-                hasCompilerErrors = ReadActionRunner.invoke(false, () -> {
+                hasCompilerErrors = ReadAction.invoke(() -> {
                     DBContentType contentType = getCompilableContentType();
                     CompilerAction compilerAction = new CompilerAction(CompilerActionSource.DDL, contentType, getVirtualFile(), getFileEditor());
                     compilerAction.setSourceStartOffset(compilablePsiElement.getTextOffset());

@@ -25,17 +25,17 @@ public class VoidDynamicContent implements DynamicContent{
     }
 
     @Override
-    public boolean shouldLoad(boolean force) {
-        return false;
-    }
-
-    @Override
-    public void load(boolean force) {
+    public void load() {
 
     }
 
     @Override
-    public void loadInBackground(boolean force) {
+    public void ensure() {
+
+    }
+
+    @Override
+    public void loadInBackground() {
 
     }
 
@@ -141,7 +141,7 @@ public class VoidDynamicContent implements DynamicContent{
     @NotNull
     @Override
     public GenericDatabaseElement getParentElement() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override

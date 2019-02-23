@@ -33,7 +33,10 @@ import java.sql.SQLException;
 import java.util.List;
 
 import static com.dci.intellij.dbn.common.content.DynamicContentStatus.INDEXED;
-import static com.dci.intellij.dbn.object.common.DBObjectType.*;
+import static com.dci.intellij.dbn.object.common.DBObjectType.PACKAGE;
+import static com.dci.intellij.dbn.object.common.DBObjectType.PACKAGE_FUNCTION;
+import static com.dci.intellij.dbn.object.common.DBObjectType.PACKAGE_PROCEDURE;
+import static com.dci.intellij.dbn.object.common.DBObjectType.PACKAGE_TYPE;
 
 public class DBPackageImpl extends DBProgramImpl implements DBPackage {
     protected DBObjectList<DBPackageType> types;
@@ -114,11 +117,11 @@ public class DBPackageImpl extends DBProgramImpl implements DBPackage {
 
             @Override
             public DynamicContentLoader<DBPackageFunction> createAlternativeLoader() {
-                return new DynamicContentResultSetLoader<DBPackageFunction>(PACKAGE, PACKAGE_FUNCTION, false) {
+                return new DynamicContentResultSetLoader<DBPackageFunction>(PACKAGE, PACKAGE_FUNCTION, false, true) {
 
                     @Override
                     public ResultSet createResultSet(DynamicContent<DBPackageFunction> dynamicContent, DBNConnection connection) throws SQLException {
-                        DatabaseMetadataInterface metadataInterface = dynamicContent.getConnectionHandler().getInterfaceProvider().getMetadataInterface();
+                        DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
                         DBPackage packagee = (DBPackage) dynamicContent.getParentElement();
                         return metadataInterface.loadPackageFunctions(packagee.getSchema().getName(), packagee.getName(), connection);
                     }
@@ -148,11 +151,11 @@ public class DBPackageImpl extends DBProgramImpl implements DBPackage {
 
             @Override
             public DynamicContentLoader<DBPackageProcedure> createAlternativeLoader() {
-                return new DynamicContentResultSetLoader<DBPackageProcedure>(PACKAGE, PACKAGE_PROCEDURE, false) {
+                return new DynamicContentResultSetLoader<DBPackageProcedure>(PACKAGE, PACKAGE_PROCEDURE, false, true) {
 
                     @Override
                     public ResultSet createResultSet(DynamicContent<DBPackageProcedure> dynamicContent, DBNConnection connection) throws SQLException {
-                        DatabaseMetadataInterface metadataInterface = dynamicContent.getConnectionHandler().getInterfaceProvider().getMetadataInterface();
+                        DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
                         DBPackage packagee = (DBPackage) dynamicContent.getParentElement();
                         return metadataInterface.loadPackageProcedures(packagee.getSchema().getName(), packagee.getName(), connection);
                     }
@@ -176,11 +179,11 @@ public class DBPackageImpl extends DBProgramImpl implements DBPackage {
 
             @Override
             public DynamicContentLoader<DBPackageType> createAlternativeLoader() {
-                return new DynamicContentResultSetLoader<DBPackageType>(PACKAGE, PACKAGE_TYPE, false) {
+                return new DynamicContentResultSetLoader<DBPackageType>(PACKAGE, PACKAGE_TYPE, false, true) {
 
                     @Override
                     public ResultSet createResultSet(DynamicContent<DBPackageType> dynamicContent, DBNConnection connection) throws SQLException {
-                        DatabaseMetadataInterface metadataInterface = dynamicContent.getConnectionHandler().getInterfaceProvider().getMetadataInterface();
+                        DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
                         DBPackage packagee = (DBPackage) dynamicContent.getParentElement();
                         return metadataInterface.loadPackageTypes(packagee.getSchema().getName(), packagee.getName(), connection);
                     }

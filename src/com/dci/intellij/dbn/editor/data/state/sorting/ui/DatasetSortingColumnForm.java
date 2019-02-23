@@ -14,6 +14,7 @@ import com.dci.intellij.dbn.object.DBColumn;
 import com.dci.intellij.dbn.object.DBDataset;
 import com.intellij.openapi.actionSystem.ActionToolbar;
 import com.intellij.util.ui.UIUtil;
+import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
@@ -64,7 +65,7 @@ public class DatasetSortingColumnForm extends DBNFormImpl<DatasetEditorSortingFo
 
         @Override
         public List<DBColumn> loadValues() {
-            DBDataset dataset = getParentComponent().getDataset();
+            DBDataset dataset = ensureParentComponent().getDataset();
             List<DBColumn> columns = new ArrayList<DBColumn>(dataset.getColumns());
             Collections.sort(columns);
             return columns;
@@ -72,7 +73,7 @@ public class DatasetSortingColumnForm extends DBNFormImpl<DatasetEditorSortingFo
 
         @Override
         public boolean isVisible(DBColumn value) {
-            List<DatasetSortingColumnForm> sortingInstructionForms = getParentComponent().getSortingInstructionForms();
+            List<DatasetSortingColumnForm> sortingInstructionForms = ensureParentComponent().getSortingInstructionForms();
             for (DatasetSortingColumnForm sortingColumnForm : sortingInstructionForms) {
                 if (sortingColumnForm.getSortingInstruction().getColumnName().equalsIgnoreCase(value.getName())) {
                     return false;
@@ -88,6 +89,7 @@ public class DatasetSortingColumnForm extends DBNFormImpl<DatasetEditorSortingFo
         indexLabel.setText(Integer.toString(index));
     }
 
+    @NotNull
     @Override
     public JComponent getComponent() {
         return mainPanel;
@@ -98,11 +100,11 @@ public class DatasetSortingColumnForm extends DBNFormImpl<DatasetEditorSortingFo
     }
 
     public void remove() {
-        getParentComponent().removeSortingColumn(this);
+        ensureParentComponent().removeSortingColumn(this);
     }
 
     public DBDataset getDataset() {
-        return getParentComponent().getDataset();
+        return ensureParentComponent().getDataset();
     }
 
     @Override

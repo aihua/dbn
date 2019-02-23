@@ -4,7 +4,6 @@ import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.thread.RunnableTask;
 import com.dci.intellij.dbn.common.thread.TaskInstruction;
-import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionUtil;
@@ -26,6 +25,8 @@ import org.jetbrains.annotations.Nullable;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+
+import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
 
 public class ExplainPlanManager extends AbstractProjectComponent {
     private ExplainPlanManager(Project project) {
@@ -56,8 +57,8 @@ public class ExplainPlanManager extends AbstractProjectComponent {
         connectionMappingManager.selectConnectionAndSchema(psiFile,
                 ConnectionAction.create(
                         "generating the explain plan",
+                        instructions("Extracting explain plan for " + elementDescription, TaskInstruction.CANCELLABLE),
                         executable.getFile(),
-                        TaskInstructions.create("Extracting explain plan for " + elementDescription, TaskInstruction.CANCELLABLE),
                         action -> {
                             ConnectionHandler connectionHandler = action.getConnectionHandler();
                             SchemaId currentSchema = executable.getFile().getSchemaId();

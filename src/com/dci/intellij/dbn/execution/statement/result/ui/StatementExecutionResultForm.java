@@ -3,11 +3,12 @@ package com.dci.intellij.dbn.execution.statement.result.ui;
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
-import com.dci.intellij.dbn.common.thread.ReadActionRunner;
+import com.dci.intellij.dbn.common.routine.ReadAction;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.common.util.ActionUtil;
+import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.data.find.DataSearchComponent;
 import com.dci.intellij.dbn.data.find.SearchableDataComponent;
@@ -30,14 +31,14 @@ import javax.swing.*;
 import java.awt.*;
 
 public class StatementExecutionResultForm extends DBNFormImpl implements ExecutionResultForm<StatementExecutionCursorResult>, SearchableDataComponent {
+    private JScrollPane resultScrollPane;
     private JPanel mainPanel;
     private JPanel actionsPanel;
     private JPanel statusPanel;
-    private JScrollPane resultScrollPane;
-    private ResultSetTable<ResultSetDataModel> resultTable;
-    private JLabel statusLabel;
     private JPanel searchPanel;
     private JPanel resultPanel;
+    private JLabel statusLabel;
+    private ResultSetTable<ResultSetDataModel> resultTable;
     private StatementExecutionCursorResult executionResult;
     private RecordViewInfo recordViewInfo;
 
@@ -55,13 +56,13 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
 
         actionsPanel.add(actionToolbar.getComponent());
 
-        recordViewInfo = ReadActionRunner.invoke(false, () ->
+        recordViewInfo = ReadAction.invoke(() ->
                 new RecordViewInfo(
                     executionResult.getName(),
                     executionResult.getIcon()));
 
         resultPanel.setBorder(IdeBorderFactory.createBorder());
-        resultTable = new ResultSetTable<ResultSetDataModel>(executionResult.getTableModel(), true, recordViewInfo);
+        resultTable = new ResultSetTable<>(executionResult.getTableModel(), true, recordViewInfo);
         resultTable.setName(executionResult.getName());
 
         resultScrollPane.setViewportView(resultTable);
@@ -95,11 +96,11 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
     }
 
     public void reloadTableModel() {
-        SimpleLaterInvocator.invoke(this, () -> {
+        SimpleLaterInvocator.invokeNonModal(() -> {
             StatementExecutionCursorResult executionResult = getExecutionResult();
             JScrollBar horizontalScrollBar = resultScrollPane.getHorizontalScrollBar();
             int horizontalScrolling = horizontalScrollBar.getValue();
-            resultTable = new ResultSetTable<ResultSetDataModel>(executionResult.getTableModel(), true, recordViewInfo);
+            resultTable = new ResultSetTable<>(executionResult.getTableModel(), true, recordViewInfo);
             resultScrollPane.setViewportView(resultTable);
             resultTable.initTableGutter();
             resultTable.setName(StatementExecutionResultForm.this.executionResult.getName());
@@ -112,17 +113,19 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
     }
 
     public void updateVisibleComponents() {
-        SimpleLaterInvocator.invoke(this, () -> {
+        SimpleLaterInvocator.invokeNonModal(() -> {
             StatementExecutionCursorResult executionResult = getExecutionResult();
             ResultSetDataModel dataModel = executionResult.getTableModel();
-            String connectionName = executionResult.getConnectionHandler().getPresentableText();
+            ConnectionHandler connectionHandler = executionResult.getConnectionHandler();
+            String connectionName = connectionHandler.getPresentableText();
             SessionId sessionId = executionResult.getExecutionInput().getTargetSessionId();
             String connectionType =
                     sessionId == SessionId.MAIN ? " (main)" :
-                            sessionId == SessionId.POOL ? " (pool)" : " (session)";
+                    sessionId == SessionId.POOL ? " (pool)" : " (session)";
             int rowCount = dataModel.getRowCount();
             String partialResultInfo = dataModel.isResultSetExhausted() ? "" : " (partial)";
             statusLabel.setText(connectionName + connectionType + ": " + rowCount + " records" + partialResultInfo);
+            statusLabel.setIcon(connectionHandler.getIcon());
         });
     }
 
@@ -138,6 +141,7 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
         ExecutionManager.getInstance(project).selectResultTab(executionResult);
     }
 
+    @NotNull
     @Override
     public JPanel getComponent() {
         return mainPanel;

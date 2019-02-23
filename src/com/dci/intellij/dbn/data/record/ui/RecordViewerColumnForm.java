@@ -8,6 +8,7 @@ import com.dci.intellij.dbn.data.type.DBDataType;
 import com.dci.intellij.dbn.object.DBColumn;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.ui.UIUtil;
+import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.awt.*;
@@ -52,6 +53,7 @@ public class RecordViewerColumnForm extends DBNFormImpl<RecordViewerForm> {
         updateColumnValue(column);
     }
 
+    @NotNull
     @Override
     public JPanel getComponent() {
         return mainPanel;
@@ -107,11 +109,11 @@ public class RecordViewerColumnForm extends DBNFormImpl<RecordViewerForm> {
     /*********************************************************
      *                     Listeners                         *
      *********************************************************/
-    KeyListener keyAdapter = new KeyAdapter() {
+    private KeyListener keyAdapter = new KeyAdapter() {
         @Override
         public void keyPressed(KeyEvent e) {
             if (!e.isConsumed()) {
-                RecordViewerForm parentForm = getParentComponent();
+                RecordViewerForm parentForm = ensureParentComponent();
                 if (e.getKeyCode() == 38) {//UP
                     parentForm.focusPreviousColumnPanel(RecordViewerColumnForm.this);
                     e.consume();

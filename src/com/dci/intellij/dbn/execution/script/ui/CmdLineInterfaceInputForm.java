@@ -70,10 +70,11 @@ public class CmdLineInterfaceInputForm extends DBNFormImpl<CmdLineInterfaceInput
         boolean isNameUsed = usedNames.contains(name);
         nameInUseLabel.setVisible(isNameUsed);
 
-        CmdLineInterfaceInputDialog parentComponent = getParentComponent();
+        CmdLineInterfaceInputDialog parentComponent = ensureParentComponent();
         parentComponent.setActionEnabled(!isNameUsed && StringUtil.isNotEmpty(nameTextField.getText()));
     }
 
+    @NotNull
     @Override
     public JComponent getComponent() {
         return mainPanel;

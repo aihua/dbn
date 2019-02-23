@@ -4,12 +4,11 @@ import com.dci.intellij.dbn.common.Constants;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.notification.NotificationSupport;
+import com.dci.intellij.dbn.common.routine.WriteAction;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.RunnableTask;
 import com.dci.intellij.dbn.common.thread.Synchronized;
 import com.dci.intellij.dbn.common.thread.TaskInstruction;
-import com.dci.intellij.dbn.common.thread.TaskInstructions;
-import com.dci.intellij.dbn.common.thread.WriteActionRunner;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -63,6 +62,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
 import static com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointUtil.getBreakpointId;
 import static com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointUtil.setBreakpointId;
 import static com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStatus.*;
@@ -153,7 +153,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
             sessionImpl.getSessionData().setBreakpointsMuted(false);
         }
         BackgroundTask.invoke(project,
-                TaskInstructions.create("Initialize debug environment", TaskInstruction.BACKGROUNDED),
+                instructions("Initialize debug environment", TaskInstruction.BACKGROUNDED),
                 (data, progress) -> {
                     try {
                         T executionInput = getExecutionInput();
@@ -186,7 +186,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
     private void synchronizeSession() {
         Project project = getProject();
         BackgroundTask.invoke(project,
-                TaskInstructions.create("Initialize debug environment", TaskInstruction.BACKGROUNDED),
+                instructions("Initialize debug environment", TaskInstruction.BACKGROUNDED),
                 (data, progress) -> {
                     if (is(PROCESS_TERMINATING) || is(TARGET_EXECUTION_TERMINATED)) {
                         getSession().stop();
@@ -196,7 +196,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
                         progress.setText("Registering breakpoints");
                         registerBreakpoints(
                                 BackgroundTask.create(project,
-                                        TaskInstructions.create("Synchronizing debug session"),
+                                        instructions("Synchronizing debug session"),
                                         (data1, progress1) -> {
                                             DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
                                             try {
@@ -224,7 +224,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
 
     private void startTargetProgram() {
         BackgroundTask.invoke(getProject(),
-                TaskInstructions.create("Running debugger target program", TaskInstruction.BACKGROUNDED, TaskInstruction.CANCELLABLE),
+                instructions("Running debugger target program", TaskInstruction.BACKGROUNDED, TaskInstruction.CANCELLABLE),
                 (data, progress) -> {
                     if (is(PROCESS_TERMINATING)) return;
                     if (is(SESSION_INITIALIZATION_THREW_EXCEPTION)) return;
@@ -264,7 +264,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
         console.system("Registering breakpoints...");
         List<XLineBreakpoint<XBreakpointProperties>> breakpoints = DBBreakpointUtil.getDatabaseBreakpoints(getConnectionHandler());
 
-        WriteActionRunner.invoke(() -> {
+        WriteAction.invoke(() -> {
             getBreakpointHandler().registerBreakpoints(breakpoints, null);
             registerDefaultBreakpoint();
             console.system("Done registering breakpoints");
@@ -312,7 +312,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
     private void stopDebugger() {
         Project project = getProject();
         BackgroundTask.invoke(project,
-                TaskInstructions.create("Stopping debugger", TaskInstruction.BACKGROUNDED),
+                instructions("Stopping debugger", TaskInstruction.BACKGROUNDED),
                 (data, progress) -> {
                     progress.setText("Stopping debug environment.");
                     ConnectionHandler connectionHandler = getConnectionHandler();

@@ -3,7 +3,6 @@ package com.dci.intellij.dbn.generator.action;
 import com.dci.intellij.dbn.common.thread.CommandWriteActionRunner;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.TaskInstruction;
-import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.common.util.EditorUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
@@ -12,7 +11,6 @@ import com.dci.intellij.dbn.generator.StatementGeneratorResult;
 import com.dci.intellij.dbn.language.common.psi.PsiUtil;
 import com.dci.intellij.dbn.language.sql.SQLFileType;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.EditorModificationUtil;
 import com.intellij.openapi.project.DumbAwareAction;
@@ -23,6 +21,8 @@ import java.awt.*;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.StringSelection;
 
+import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
+
 public abstract class GenerateStatementAction extends DumbAwareAction implements ConnectionProvider {
     GenerateStatementAction(String text) {
         super(text);
@@ -30,8 +30,10 @@ public abstract class GenerateStatementAction extends DumbAwareAction implements
 
     @Override
     public final void actionPerformed(@NotNull AnActionEvent e) {
-        ConnectionAction.invoke("generating the statement", this,
-                TaskInstructions.create("Extracting select statement", TaskInstruction.CANCELLABLE),
+        ConnectionAction.invoke(
+                "generating the statement",
+                instructions("Extracting select statement", TaskInstruction.CANCELLABLE),
+                this,
                 action -> {
                     Project project = action.getProject();
                     StatementGeneratorResult result = generateStatement(project);
@@ -44,7 +46,7 @@ public abstract class GenerateStatementAction extends DumbAwareAction implements
     }
 
     private void pasteStatement(StatementGeneratorResult result, Project project) {
-        SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
+        SimpleLaterInvocator.invokeNonModal(() -> {
             Editor editor = EditorUtil.getSelectedEditor(project, SQLFileType.INSTANCE);
             if (editor != null)
                 pasteToEditor(editor, result); else

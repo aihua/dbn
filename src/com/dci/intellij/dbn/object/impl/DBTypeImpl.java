@@ -44,7 +44,10 @@ import java.util.Collections;
 import java.util.List;
 
 import static com.dci.intellij.dbn.common.content.DynamicContentStatus.INDEXED;
-import static com.dci.intellij.dbn.object.common.DBObjectType.*;
+import static com.dci.intellij.dbn.object.common.DBObjectType.TYPE;
+import static com.dci.intellij.dbn.object.common.DBObjectType.TYPE_ATTRIBUTE;
+import static com.dci.intellij.dbn.object.common.DBObjectType.TYPE_FUNCTION;
+import static com.dci.intellij.dbn.object.common.DBObjectType.TYPE_PROCEDURE;
 
 public class DBTypeImpl extends DBProgramImpl implements DBType {
     private static final List<DBTypeAttribute> EMPTY_ATTRIBUTE_LIST = Collections.unmodifiableList(new ArrayList<>(0));
@@ -133,7 +136,8 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
     public DBType getSuperType() {
         ConnectionHandler connectionHandler = getConnectionHandler();
         if (superType == null && superTypeOwner != null && superTypeName != null) {
-            DBType type = connectionHandler.getObjectBundle().getSchema(superTypeOwner).getType(superTypeName);
+            DBSchema schema = connectionHandler.getObjectBundle().getSchema(superTypeOwner);
+            DBType type = schema == null ? null : schema.getType(superTypeName);
             superType = DBObjectRef.from(type);
             superTypeOwner = null;
             superTypeName = null;
@@ -221,11 +225,11 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
 
             @Override
             public DynamicContentLoader<DBTypeAttribute> createAlternativeLoader() {
-                return new DynamicContentResultSetLoader<DBTypeAttribute>(TYPE, TYPE_ATTRIBUTE, false) {
+                return new DynamicContentResultSetLoader<DBTypeAttribute>(TYPE, TYPE_ATTRIBUTE, false, true) {
 
                     @Override
                     public ResultSet createResultSet(DynamicContent<DBTypeAttribute> dynamicContent, DBNConnection connection) throws SQLException {
-                        DatabaseMetadataInterface metadataInterface = dynamicContent.getConnectionHandler().getInterfaceProvider().getMetadataInterface();
+                        DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
                         DBType type = (DBType) dynamicContent.getParentElement();
                         return metadataInterface.loadTypeAttributes(type.getSchema().getName(), type.getName(), connection);
                     }
@@ -250,11 +254,11 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
 
             @Override
             public DynamicContentLoader<DBTypeFunction> createAlternativeLoader() {
-                return new DynamicContentResultSetLoader<DBTypeFunction>(TYPE, TYPE_FUNCTION, false) {
+                return new DynamicContentResultSetLoader<DBTypeFunction>(TYPE, TYPE_FUNCTION, false, true) {
 
                     @Override
                     public ResultSet createResultSet(DynamicContent<DBTypeFunction> dynamicContent, DBNConnection connection) throws SQLException {
-                        DatabaseMetadataInterface metadataInterface = dynamicContent.getConnectionHandler().getInterfaceProvider().getMetadataInterface();
+                        DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
                         DBType type = (DBType) dynamicContent.getParentElement();
                         return metadataInterface.loadTypeFunctions(type.getSchema().getName(), type.getName(), connection);
                     }
@@ -278,11 +282,11 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
 
             @Override
             public DynamicContentLoader<DBTypeProcedure> createAlternativeLoader() {
-                return new DynamicContentResultSetLoader<DBTypeProcedure>(TYPE, TYPE_PROCEDURE, false) {
+                return new DynamicContentResultSetLoader<DBTypeProcedure>(TYPE, TYPE_PROCEDURE, false, true) {
 
                     @Override
                     public ResultSet createResultSet(DynamicContent<DBTypeProcedure> dynamicContent, DBNConnection connection) throws SQLException {
-                        DatabaseMetadataInterface metadataInterface = dynamicContent.getConnectionHandler().getInterfaceProvider().getMetadataInterface();
+                        DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
                         DBType type = (DBType) dynamicContent.getParentElement();
                         return metadataInterface.loadTypeProcedures(type.getSchema().getName(), type.getName(), connection);
                     }

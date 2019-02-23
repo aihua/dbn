@@ -4,9 +4,12 @@ import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.options.setting.SettingsSupport;
+import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
+import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.dependency.ui.ObjectDependencyTreeDialog;
+import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
@@ -40,11 +43,17 @@ public class ObjectDependencyManager extends AbstractProjectComponent implements
         this.lastUserDependencyType = lastUserDependencyType;
     }
 
-    public void openDependencyTree(final DBSchemaObject schemaObject) {
-        ConnectionAction.invoke("opening object dependency tree", schemaObject, (Integer) null, action -> {
-            ObjectDependencyTreeDialog dependencyTreeDialog = new ObjectDependencyTreeDialog(getProject(), schemaObject);
-            dependencyTreeDialog.show();
-        });
+    public void openDependencyTree(DBSchemaObject schemaObject) {
+        ConnectionAction.invoke(
+                "opening object dependency tree",
+                TaskInstructions.instructions("Opening object dependency tree"),
+                schemaObject,
+                action -> {
+                    SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
+                        ObjectDependencyTreeDialog dependencyTreeDialog = new ObjectDependencyTreeDialog(getProject(), schemaObject);
+                        dependencyTreeDialog.show();
+                    });
+                });
     }
 
     @Override

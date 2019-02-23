@@ -4,7 +4,7 @@ import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.message.MessageCallback;
-import com.dci.intellij.dbn.common.thread.WriteActionRunner;
+import com.dci.intellij.dbn.common.routine.WriteAction;
 import com.dci.intellij.dbn.common.ui.ListUtil;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
@@ -244,7 +244,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
             if (selectedDirectories.length > 0) {
                 String fileName = fileNameProvider.getFileName();
                 VirtualFile parentDirectory = selectedDirectories[0];
-                WriteActionRunner.invoke(() -> {
+                WriteAction.invoke(() -> {
                     try {
                         DBSchemaObject object = objectRef.getnn();
                         VirtualFile virtualFile = parentDirectory.createChildData(this, fileName);
@@ -253,7 +253,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
                         updateDDLFiles(editableObjectFile);
                         DatabaseFileSystem.getInstance().reopenEditor(object);
                     } catch (IOException e) {
-                        MessageUtil.showErrorDialog(project, "Could not create file " + parentDirectory + File.separator + fileName + ".", e);
+                        MessageUtil.showErrorDialog(project, "Could not instructions file " + parentDirectory + File.separator + fileName + ".", e);
                     }
                 });
             }
@@ -367,7 +367,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
                     ListUtil.BASIC_TO_STRING_ASPECT,
                     "Select DDL file type",
                     ListSelectionModel.SINGLE_SELECTION);
-            JList list = (JList) fileTypeDialog.getPreferredFocusedComponent();
+            JList list = Failsafe.ensure((JList) fileTypeDialog.getPreferredFocusedComponent());
             list.setCellRenderer(new DDLFileNameListCellRenderer());
             fileTypeDialog.show();
             Object[] selectedFileTypes = fileTypeDialog.getSelection();

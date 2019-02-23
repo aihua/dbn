@@ -6,7 +6,6 @@ import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.TaskInstruction;
-import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.common.util.DataProviderSupplier;
 import com.dci.intellij.dbn.common.util.EventUtil;
@@ -41,6 +40,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+
+import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
 
 public class SessionBrowser extends UserDataHolderBase implements FileEditor, Disposable, ConnectionProvider, DataProviderSupplier {
     private DBSessionBrowserVirtualFile sessionBrowserFile;
@@ -86,10 +87,11 @@ public class SessionBrowser extends UserDataHolderBase implements FileEditor, Di
         return preventLoading || editorTable.getSelectedRowCount() > 1;
     }
 
-    public void loadSessions(final boolean force) {
+    public void loadSessions(boolean force) {
         if (shouldLoad(force)) {
-            ConnectionAction.invoke("loading the sessions", this,
-                    TaskInstructions.create("Loading sessions", TaskInstruction.BACKGROUNDED),
+            ConnectionAction.invoke("loading the sessions",
+                    instructions("Loading sessions", TaskInstruction.BACKGROUNDED),
+                    this,
                     action -> {
                         if (shouldLoad(force)) {
                             try {
@@ -117,7 +119,7 @@ public class SessionBrowser extends UserDataHolderBase implements FileEditor, Di
 
     private void replaceModel(SessionBrowserModel newModel) {
         if (newModel != null) {
-            SimpleLaterInvocator.invoke(getComponent(), () -> {
+            SimpleLaterInvocator.invokeNonModal(() -> {
                 SessionBrowserTable editorTable = getEditorTable();
                 SessionBrowserModel oldModel = editorTable.getModel();
                 SessionBrowserState state = oldModel.getState();
@@ -294,7 +296,7 @@ public class SessionBrowser extends UserDataHolderBase implements FileEditor, Di
         if (this.loading != loading) {
             this.loading = loading;
 
-            SimpleLaterInvocator.invoke(getComponent(), () -> {
+            SimpleLaterInvocator.invokeNonModal(() -> {
                 if (editorForm != null) {
                     if (SessionBrowser.this.loading)
                         editorForm.showLoadingHint(); else

@@ -7,7 +7,6 @@ import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.SimpleTask;
-import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.common.ui.DBNHeaderForm;
 import com.dci.intellij.dbn.common.ui.DBNHintForm;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
@@ -37,6 +36,8 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.*;
 import java.awt.*;
 
+import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
+
 public class DBMethodJdbcRunConfigEditorForm extends DBProgramRunConfigurationEditorForm<DBMethodJdbcRunConfig> {
     private JPanel headerPanel;
     private JPanel mainPanel;
@@ -64,6 +65,7 @@ public class DBMethodJdbcRunConfigEditorForm extends DBProgramRunConfigurationEd
         }
     }
 
+    @NotNull
     @Override
     public JPanel getComponent() {
         return mainPanel;
@@ -92,7 +94,7 @@ public class DBMethodJdbcRunConfigEditorForm extends DBProgramRunConfigurationEd
         public void actionPerformed(@NotNull AnActionEvent e) {
             Project project = ActionUtil.ensureProject(e);
             BackgroundTask.invoke(project,
-                    TaskInstructions.create("Loading executable elements"),
+                    instructions("Loading executable elements"),
                     (data, progress) -> {
                         MethodExecutionManager executionManager = MethodExecutionManager.getInstance(project);
                         MethodBrowserSettings settings = executionManager.getBrowserSettings();
@@ -106,20 +108,18 @@ public class DBMethodJdbcRunConfigEditorForm extends DBProgramRunConfigurationEd
 
                         ObjectTreeModel objectTreeModel = new ObjectTreeModel(settings.getSchema(), settings.getVisibleObjectTypes(), settings.getMethod());
 
-                        SimpleLaterInvocator.invoke(
-                                DBMethodJdbcRunConfigEditorForm.this,
-                                () -> {
-                                    Failsafe.ensure(project);
-                                    MethodExecutionBrowserDialog browserDialog = new MethodExecutionBrowserDialog(project, objectTreeModel, true);
-                                    browserDialog.show();
-                                    if (browserDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
-                                        DBMethod method = browserDialog.getSelectedMethod();
-                                        MethodExecutionInput methodExecutionInput = executionManager.getExecutionInput(method);
-                                        if (methodExecutionInput != null) {
-                                            setExecutionInput(methodExecutionInput, true);
-                                        }
-                                    }
-                                });
+                        SimpleLaterInvocator.invoke(() -> {
+                            Failsafe.ensure(project);
+                            MethodExecutionBrowserDialog browserDialog = new MethodExecutionBrowserDialog(project, objectTreeModel, true);
+                            browserDialog.show();
+                            if (browserDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
+                                DBMethod method = browserDialog.getSelectedMethod();
+                                MethodExecutionInput methodExecutionInput = executionManager.getExecutionInput(method);
+                                if (methodExecutionInput != null) {
+                                    setExecutionInput(methodExecutionInput, true);
+                                }
+                            }
+                        });
 
                     });
         }

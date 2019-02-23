@@ -2,10 +2,9 @@ package com.dci.intellij.dbn.vfs;
 
 import com.dci.intellij.dbn.browser.DatabaseBrowserManager;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
-import com.dci.intellij.dbn.common.thread.ReadActionRunner;
+import com.dci.intellij.dbn.common.routine.ReadAction;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.TaskInstruction;
-import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.common.util.EditorUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionCache;
@@ -36,7 +35,6 @@ import com.dci.intellij.dbn.vfs.file.DBObjectVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBSessionBrowserVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBSessionStatementVirtualFile;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.components.ApplicationComponent;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
@@ -55,6 +53,7 @@ import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
 
+import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
 import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.*;
 
 public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysicalFileSystem, */ApplicationComponent {
@@ -242,7 +241,7 @@ public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysic
         if (databaseFile == null || databaseFile.isDisposed()){
             databaseFile = filesCache.get(objectRef);
             if (databaseFile == null || databaseFile.isDisposed()){
-                databaseFile = ReadActionRunner.invoke(false, () -> new DBEditableObjectVirtualFile(project, objectRef));
+                databaseFile = ReadAction.invoke(() -> new DBEditableObjectVirtualFile(project, objectRef));
                 filesCache.put(objectRef, databaseFile);
             }
         }
@@ -422,8 +421,8 @@ public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysic
     public void openEditor(DBObject object, @Nullable EditorProviderId editorProviderId, boolean scrollBrowser, boolean focusEditor) {
         ConnectionAction.invoke(
                 "opening the object editor",
+                instructions("Opening editor", TaskInstruction.CANCELLABLE, TaskInstruction.CONDITIONAL),
                 object,
-                TaskInstructions.create("Opening editor", TaskInstruction.CANCELLABLE, TaskInstruction.CONDITIONAL),
                 action -> {
                     EditorProviderId providerId = editorProviderId;
                     if (editorProviderId == null) {
@@ -450,7 +449,7 @@ public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysic
         DBEditableObjectVirtualFile databaseFile = findOrCreateDatabaseFile(project, object.getRef());
         databaseFile.setSelectedEditorProviderId(editorProviderId);
         if (!ProgressMonitor.isCancelled()) {
-            SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
+            SimpleLaterInvocator.invokeNonModal(() -> {
                 if (isFileOpened(object) || databaseFile.preOpen()) {
                     DatabaseBrowserManager.AUTOSCROLL_FROM_EDITOR.set(scrollBrowser);
                     FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
@@ -470,7 +469,7 @@ public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysic
         SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
         sourceCodeManager.ensureSourcesLoaded(schemaObject);
         if (!ProgressMonitor.isCancelled()) {
-            SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
+            SimpleLaterInvocator.invokeNonModal(() -> {
                 if (isFileOpened(schemaObject) || databaseFile.preOpen()) {
                     DatabaseBrowserManager.AUTOSCROLL_FROM_EDITOR.set(scrollBrowser);
                     FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);

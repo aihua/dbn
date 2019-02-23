@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.common.Constants;
 import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
+import com.dci.intellij.dbn.common.routine.BackgroundRunnable;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.PerformInBackgroundOption;
 import com.intellij.openapi.progress.ProcessCanceledException;
@@ -110,7 +111,7 @@ public abstract class BackgroundTask<T> extends Task.Backgroundable implements R
         });
     }
 
-    public static <T> BackgroundTask<T> create(@Nullable Project project, TaskInstructions instructions, BackgroundRunnable<T> runnable) {
+    public static <T> BackgroundTask<T> create(@Nullable Project project, TaskInstructions instructions, BackgroundRunnable.Unsafe<T> runnable) {
         return new BackgroundTask<T>(project, instructions) {
             @Override
             protected void execute(@NotNull ProgressIndicator progressIndicator) {
@@ -118,7 +119,7 @@ public abstract class BackgroundTask<T> extends Task.Backgroundable implements R
             }
         };
     }
-    public static <T> void invoke(@Nullable Project project, TaskInstructions instructions, BackgroundRunnable<T> runnable) {
+    public static <T> void invoke(@Nullable Project project, TaskInstructions instructions, BackgroundRunnable.Unsafe<T> runnable) {
         create(project, instructions, runnable).start();
     }
 }

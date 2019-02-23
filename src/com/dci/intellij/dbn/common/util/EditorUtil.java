@@ -2,8 +2,8 @@ package com.dci.intellij.dbn.common.util;
 
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.editor.BasicTextEditor;
+import com.dci.intellij.dbn.common.routine.ReadAction;
 import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
-import com.dci.intellij.dbn.common.thread.ReadActionRunner;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.ddl.DDLFileAttachmentManager;
@@ -19,7 +19,6 @@ import com.dci.intellij.dbn.vfs.file.DBContentVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBDatasetVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBSourceCodeVirtualFile;
-import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.EditorFactory;
@@ -217,8 +216,7 @@ public class EditorUtil {
         editor.setViewer(readonly);
         EditorColorsScheme scheme = editor.getColorsScheme();
         Color defaultBackground = scheme.getDefaultBackground();
-        SimpleLaterInvocator.invoke(
-                editor.getComponent(),
+        SimpleLaterInvocator.invokeNonModal(
                 () -> {
                     editor.setBackgroundColor(readonly ? GUIUtil.adjustColor(defaultBackground, -0.03) : defaultBackground);
                     scheme.setColor(EditorColors.CARET_ROW_COLOR, readonly ?
@@ -232,10 +230,10 @@ public class EditorUtil {
 
         if (contentFile instanceof DBSourceCodeVirtualFile) {
             DBSourceCodeVirtualFile sourceCodeFile = (DBSourceCodeVirtualFile) contentFile;
-            ReadActionRunner.invoke(false, () -> {
+            ReadAction.invoke(() -> {
                 FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
                 FileEditor[] allEditors = fileEditorManager.getAllEditors();
-                SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
+                SimpleLaterInvocator.invokeNonModal(() -> {
                     for (FileEditor fileEditor : allEditors) {
                         if (fileEditor instanceof SourceCodeEditor) {
                             SourceCodeEditor sourceCodeEditor = (SourceCodeEditor) fileEditor;
@@ -351,7 +349,7 @@ public class EditorUtil {
         }
     }
     public static void focusEditor(@Nullable final Editor editor) {
-        SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
+        SimpleLaterInvocator.invokeNonModal(() -> {
             if (editor != null) {
                 Project project = editor.getProject();
                 IdeFocusManager.getInstance(project).requestFocus(editor.getContentComponent(), true);
@@ -408,9 +406,10 @@ public class EditorUtil {
 
     public static void releaseEditor(@Nullable Editor editor) {
         if (editor != null) {
-            ConditionalLaterInvocator.invoke(
-                    editor.getComponent(),
-                    () -> EditorFactory.getInstance().releaseEditor(editor));
+            ConditionalLaterInvocator.invoke(() -> {
+                EditorFactory editorFactory = EditorFactory.getInstance();
+                editorFactory.releaseEditor(editor);
+            });
         }
 
     }

@@ -190,7 +190,7 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
                 runnable.run();
             } finally {
                 model.set(UPDATING, false);
-                SimpleLaterInvocator.invoke(this, () -> {
+                SimpleLaterInvocator.invokeNonModal(() -> {
                     DBNTableGutter tableGutter = getTableGutter();
                     GUIUtil.repaint(tableGutter);
                     GUIUtil.repaint(DatasetEditorTable.this);
@@ -200,7 +200,7 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
     }
 
     public void showErrorPopup(DatasetEditorModelCell cell) {
-        SimpleLaterInvocator.invoke(this, () -> {
+        SimpleLaterInvocator.invokeNonModal(() -> {
             checkDisposed();
 
             if (!isShowing()) {
@@ -222,16 +222,16 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
 
     @Override
     public void clearSelection() {
-        SimpleLaterInvocator.invoke(this, () -> DatasetEditorTable.super.clearSelection());
+        SimpleLaterInvocator.invokeNonModal(() -> DatasetEditorTable.super.clearSelection());
     }
 
     @Override
     public void removeEditor() {
-        SimpleLaterInvocator.invoke(this, () -> DatasetEditorTable.super.removeEditor());
+        SimpleLaterInvocator.invokeNonModal(() -> DatasetEditorTable.super.removeEditor());
     }
 
     public void updateTableGutter() {
-        SimpleLaterInvocator.invoke(this, () -> {
+        SimpleLaterInvocator.invokeNonModal(() -> {
             DBNTableGutter tableGutter = getTableGutter();
             GUIUtil.repaint(tableGutter);
         });
@@ -262,7 +262,9 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
         if (editor instanceof DatasetTableCellEditor) {
             DatasetTableCellEditor cellEditor = (DatasetTableCellEditor) editor;
             DatasetEditorModelCell cell = (DatasetEditorModelCell) getCellAtPosition(rowIndex, columnIndex);
-            cellEditor.prepareEditor(cell);
+            if (cell != null) {
+                cellEditor.prepareEditor(cell);
+            }
         }
         return component;
     }
@@ -364,7 +366,7 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
 
     public void fireEditingCancel() {
         if (isEditing()) {
-            SimpleLaterInvocator.invoke(this, () -> cancelEditing());
+            SimpleLaterInvocator.invokeNonModal(() -> cancelEditing());
         }
     }
 
@@ -462,7 +464,7 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
                     try {
                         model.postInsertRecord(false, true, false);
                     } catch (SQLException e1) {
-                        MessageUtil.showErrorDialog(getProject(), "Could not create row in " + getDataset().getQualifiedNameWithType() + ".", e1);
+                        MessageUtil.showErrorDialog(getProject(), "Could not instructions row in " + getDataset().getQualifiedNameWithType() + ".", e1);
                     }
                 }
             }
@@ -518,7 +520,7 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
             if (!progress.isCanceled()) {
                 ActionPopupMenu actionPopupMenu = ActionManager.getInstance().createActionPopupMenu("", actionGroup);
                 JPopupMenu popupMenu = actionPopupMenu.getComponent();
-                SimpleLaterInvocator.invoke(this, () -> {
+                SimpleLaterInvocator.invokeNonModal(() -> {
                     Component component = (Component) event.getSource();
                     if (component.isShowing()) {
                         int x = event.getX();

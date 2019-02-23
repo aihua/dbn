@@ -16,8 +16,8 @@ import javax.swing.*;
 
 public class MessageUtil {
 
-    public static final String[] OPTIONS_OK = new String[]{"OK"};
-    public static final String[] OPTIONS_YES_NO = new String[]{"Yes", "No"};
+    public static final String[] OPTIONS_OK = options("OK");
+    public static final String[] OPTIONS_YES_NO = options("Yes", "No");
 
     public static void showErrorDialog(@Nullable Project project, String title, MessageBundle messages) {
         StringBuilder buffer = new StringBuilder();
@@ -92,13 +92,14 @@ public class MessageUtil {
     }
 
     private static void showDialog(
-            @Nullable final Project project, final String message,
-            final String title,
-            final String[] options,
-            final int defaultOptionIndex,
-            final Icon icon,
-            final RunnableTask<Integer> callback,
-            final @Nullable DialogWrapper.DoNotAskOption doNotAskOption) {
+            @Nullable Project project,
+            String message,
+            String title,
+            String[] options,
+            int defaultOptionIndex,
+            @Nullable Icon icon,
+            @Nullable RunnableTask<Integer> callback,
+            @Nullable DialogWrapper.DoNotAskOption doNotAskOption) {
 
         SimpleLaterInvocator.invoke(() -> {
             int option = Messages.showDialog(project, message, Constants.DBN_TITLE_PREFIX + title, options, defaultOptionIndex, icon, doNotAskOption);
@@ -109,5 +110,8 @@ public class MessageUtil {
         });
     }
 
+    public static String[] options(String ... options) {
+        return CommonUtil.list(options);
+    }
 
 }

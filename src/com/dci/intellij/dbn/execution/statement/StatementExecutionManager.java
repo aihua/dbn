@@ -9,7 +9,6 @@ import com.dci.intellij.dbn.common.thread.RunnableTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.SimpleTask;
 import com.dci.intellij.dbn.common.thread.TaskInstruction;
-import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.EditorUtil;
@@ -44,7 +43,6 @@ import com.dci.intellij.dbn.language.common.psi.ExecVariablePsiElement;
 import com.dci.intellij.dbn.language.common.psi.ExecutablePsiElement;
 import com.dci.intellij.dbn.language.common.psi.PsiUtil;
 import com.dci.intellij.dbn.language.common.psi.RootPsiElement;
-import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
@@ -75,6 +73,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.EXECUTING;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.PROMPTED;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.QUEUED;
@@ -262,7 +261,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
                                             if (context.isNot(EXECUTING) && context.isNot(QUEUED)) {
                                                 if (sessionId == SessionId.POOL) {
                                                     BackgroundTask.invoke(project,
-                                                            TaskInstructions.create("Executing statement", TaskInstruction.BACKGROUNDED, TaskInstruction.CANCELLABLE),
+                                                            instructions("Executing statement", TaskInstruction.BACKGROUNDED, TaskInstruction.CANCELLABLE),
                                                             (data1, progress) -> process(executionProcessor));
                                                 } else {
                                                     StatementExecutionQueue executionQueue = getExecutionQueue(connectionId, sessionId);
@@ -328,7 +327,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     }
 
     private void promptExecutionDialogs(@NotNull List<StatementExecutionProcessor> processors, DBDebuggerType debuggerType, @NotNull RunnableTask callback) {
-        SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
+        SimpleLaterInvocator.invokeNonModal(() -> {
             if (promptExecutionDialogs(processors, debuggerType)) {
                 callback.start();
             }
@@ -400,7 +399,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     public void promptPendingTransactionDialog(final StatementExecutionProcessor executionProcessor) {
         final ExecutionContext context = executionProcessor.getExecutionContext();
         context.set(PROMPTED, true);
-        SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
+        SimpleLaterInvocator.invokeNonModal(() -> {
             try {
                 PendingTransactionDialog dialog = new PendingTransactionDialog(executionProcessor);
                 dialog.show();

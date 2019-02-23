@@ -15,7 +15,7 @@ import java.util.List;
 
 /**
  * This loader is to be used from building the elements of a dynamic content, based on a source content.
- * e.g. Constraints of a table are loaded from the complete list of constraints of a Schema.
+ * e.g. Constraints of a table are loaded from the complete actions of constraints of a Schema.
  */
 public abstract class DynamicSubcontentLoader<T extends DynamicContentElement> extends DynamicContentLoaderImpl<T> implements DynamicContentLoader<T> {
     private DynamicContentLoader<T> alternativeLoader = createAlternativeLoader();
@@ -38,7 +38,7 @@ public abstract class DynamicSubcontentLoader<T extends DynamicContentElement> e
 
         DynamicContent sourceContent = dependencyAdapter.getSourceContent();
         DynamicContentLoader<T> alternativeLoader = getAlternativeLoader();
-        if (alternativeLoader == null || dependencyAdapter.isSourceContentReady() || force || BackgroundMonitor.getBackgroundProcessCount() > 10) {
+        if (alternativeLoader == null || dependencyAdapter.isSourceContentReady() || BackgroundMonitor.getBackgroundProcessCount() > 10) {
             //load from sub-content
             boolean matchedOnce = false;
             List<T> list = null;
@@ -64,8 +64,9 @@ public abstract class DynamicSubcontentLoader<T extends DynamicContentElement> e
                 }
             }
             dynamicContent.setElements(list);
+            dynamicContent.set(DynamicContentStatus.MASTER, false);
         } else {
-            sourceContent.loadInBackground(false);
+            sourceContent.loadInBackground();
             alternativeLoader.loadContent(dynamicContent, false);
         }
     }
@@ -77,10 +78,5 @@ public abstract class DynamicSubcontentLoader<T extends DynamicContentElement> e
     @org.jetbrains.annotations.Nullable
     protected DynamicContentLoader<T> createAlternativeLoader() {
         return null;
-    }
-
-    @Override
-    public void reloadContent(DynamicContent<T> dynamicContent) throws DynamicContentLoadException, InterruptedException {
-        loadContent(dynamicContent, true);
     }
 }

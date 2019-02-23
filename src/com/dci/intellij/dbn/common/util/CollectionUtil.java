@@ -76,9 +76,7 @@ public class CollectionUtil {
 
     public static <T> void forEach(@Nullable Iterable<T> iterable, @NotNull Consumer<? super T> action) {
         if (iterable != null) {
-            for (T element : iterable) {
-                action.accept(element);
-            }
+            iterable.forEach(action);
         }
     }
 
@@ -86,5 +84,13 @@ public class CollectionUtil {
     @Contract(value = " -> new", pure = true)
     public static <T> List<T> createConcurrentList() {
         return new CopyOnWriteArrayList<>();
+    }
+
+    public static <T> boolean isLast(@NotNull List<T> collection, @NotNull T element) {
+        return collection.indexOf(element) == collection.size() - 1;
+    }
+
+    public static <T> List<T> wrap(Collection<T> collection) {
+        return new ArrayList<>(collection);
     }
 }

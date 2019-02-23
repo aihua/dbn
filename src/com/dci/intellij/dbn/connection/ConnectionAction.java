@@ -4,13 +4,14 @@ import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.message.MessageCallback;
+import com.dci.intellij.dbn.common.routine.ParametricCallable;
+import com.dci.intellij.dbn.common.routine.ParametricRunnable;
 import com.dci.intellij.dbn.common.thread.BackgroundMonitor;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
-import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
+import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.SimpleTask;
 import com.dci.intellij.dbn.common.thread.TaskInstruction;
 import com.dci.intellij.dbn.common.thread.TaskInstructions;
-import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
@@ -67,9 +68,7 @@ public abstract class ConnectionAction extends SimpleTask<Integer> {
 
     @Override
     public final void start() {
-        ConditionalLaterInvocator.invoke(
-                ModalityState.NON_MODAL,
-                () -> ConnectionAction.super.start());
+        SimpleLaterInvocator.invoke(() -> ConnectionAction.super.start());
     }
 
     @Override
@@ -182,16 +181,15 @@ public abstract class ConnectionAction extends SimpleTask<Integer> {
     public static void invoke(
             String description,
             ConnectionProvider connectionProvider,
-            Integer executeOption,
-            Runnable action) {
-        create(description, connectionProvider, executeOption, action).start();
+            ParametricRunnable.Unsafe<ConnectionAction> action) {
+        create(description, connectionProvider, null, action).start();
     }
 
     public static ConnectionAction create(
             String description,
             ConnectionProvider connectionProvider,
             Integer executeOption,
-            Runnable action) {
+            ParametricRunnable.Unsafe<ConnectionAction> action) {
         return new ConnectionAction(description, connectionProvider, executeOption) {
             @Override
             protected void execute() {
@@ -202,38 +200,38 @@ public abstract class ConnectionAction extends SimpleTask<Integer> {
 
     public static void invoke(
             String description,
-            ConnectionProvider connectionProvider,
             TaskInstructions taskInstructions,
-            Runnable runnable) {
-        create(description, connectionProvider, taskInstructions, runnable, null, null).start();
+            ConnectionProvider connectionProvider,
+            ParametricRunnable.Unsafe<ConnectionAction> runnable) {
+        create(description, taskInstructions, connectionProvider, runnable, null, null).start();
     }
 
     public static ConnectionAction create(
             String description,
-            ConnectionProvider connectionProvider,
             TaskInstructions taskInstructions,
-            Runnable action) {
-        return create(description, connectionProvider, taskInstructions, action, null, null);
+            ConnectionProvider connectionProvider,
+            ParametricRunnable.Unsafe<ConnectionAction> action) {
+        return create(description, taskInstructions, connectionProvider, action, null, null);
     }
 
     public static void invoke(
             String description,
-            ConnectionProvider connectionProvider,
             TaskInstructions taskInstructions,
-            Runnable action,
-            Runnable cancel,
-            Callable<Boolean> canExecute) {
+            ConnectionProvider connectionProvider,
+            ParametricRunnable.Unsafe<ConnectionAction> action,
+            ParametricRunnable.Unsafe<ConnectionAction> cancel,
+            ParametricCallable.Unsafe<ConnectionAction, Boolean> canExecute) {
 
-        create(description, connectionProvider, taskInstructions, action, cancel, canExecute).start();
+        create(description, taskInstructions, connectionProvider, action, cancel, canExecute).start();
     }
 
     public static ConnectionAction create(
             String description,
-            ConnectionProvider connectionProvider,
             TaskInstructions taskInstructions,
-            Runnable action,
-            Runnable cancel,
-            Callable<Boolean> canExecute) {
+            ConnectionProvider connectionProvider,
+            ParametricRunnable.Unsafe<ConnectionAction> action,
+            ParametricRunnable.Unsafe<ConnectionAction> cancel,
+            ParametricCallable.Unsafe<ConnectionAction, Boolean> canExecute) {
 
         return new ConnectionAction(description, connectionProvider, taskInstructions) {
             @Override
@@ -258,13 +256,5 @@ public abstract class ConnectionAction extends SimpleTask<Integer> {
                 }
             }
         };
-    }
-    @FunctionalInterface
-    public interface Runnable {
-        void run(ConnectionAction action);
-    }
-
-    public interface Callable<V> {
-        V call(ConnectionAction action);
     }
 }

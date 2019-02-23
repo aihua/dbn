@@ -11,9 +11,9 @@ import com.dci.intellij.dbn.browser.model.TabbedBrowserTreeModel;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.ModalTask;
+import com.dci.intellij.dbn.common.thread.SimpleBackgroundTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.SimpleTimeoutCall;
-import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.common.ui.tree.DBNTree;
 import com.dci.intellij.dbn.common.util.EventUtil;
@@ -49,6 +49,8 @@ import java.awt.event.KeyListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
+
+import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
 
 public class DatabaseBrowserTree extends DBNTree {
     private BrowserTreeNode targetSelection;
@@ -90,7 +92,7 @@ public class DatabaseBrowserTree extends DBNTree {
     }
 
     public void expandConnectionManagers() {
-        SimpleLaterInvocator.invoke(this, () -> {
+        SimpleLaterInvocator.invokeNonModal(() -> {
             ConnectionManager connectionManager = ConnectionManager.getInstance(getProject());
             ConnectionBundle connectionBundle = connectionManager.getConnectionBundle();
             TreePath treePath = DatabaseBrowserUtils.createTreePath(connectionBundle);
@@ -113,31 +115,35 @@ public class DatabaseBrowserTree extends DBNTree {
 
     public void scrollToSelectedElement() {
         if (getProject().isOpen() && targetSelection != null) {
-            targetSelection = (BrowserTreeNode) targetSelection.getUndisposedElement();
-            TreePath treePath = DatabaseBrowserUtils.createTreePath(targetSelection);
-            if (treePath != null) {
-                for (Object object : treePath.getPath()) {
-                    BrowserTreeNode treeNode = (BrowserTreeNode) object;
-                    if (treeNode == null || treeNode.isDisposed()) {
+            SimpleBackgroundTask.invoke(() -> {
+                if (targetSelection != null) {
+                    targetSelection = (BrowserTreeNode) targetSelection.getUndisposedElement();
+                    TreePath treePath = DatabaseBrowserUtils.createTreePath(targetSelection);
+                    if (treePath != null) {
+                        for (Object object : treePath.getPath()) {
+                            BrowserTreeNode treeNode = (BrowserTreeNode) object;
+                            if (treeNode == null || treeNode.isDisposed()) {
+                                targetSelection = null;
+                                return;
+                            }
+
+
+                            if (treeNode.equals(targetSelection)) {
+                                break;
+                            }
+
+                            if (!treeNode.isLeaf() && !treeNode.isTreeStructureLoaded()) {
+                                selectPath(DatabaseBrowserUtils.createTreePath(treeNode));
+                                treeNode.getChildren();
+                                return;
+                            }
+                        }
+
                         targetSelection = null;
-                        return;
-                    }
-
-
-                    if (treeNode.equals(targetSelection)) {
-                        break;
-                    }
-
-                    if (!treeNode.isLeaf() && !treeNode.isTreeStructureLoaded()) {
-                        selectPath(DatabaseBrowserUtils.createTreePath(treeNode));
-                        treeNode.getChildren();
-                        return;
+                        selectPath(treePath);
                     }
                 }
-
-                targetSelection = null;
-                selectPath(treePath);
-            }
+            });
         }
     }
 
@@ -153,7 +159,7 @@ public class DatabaseBrowserTree extends DBNTree {
     }
 
     private void selectPath(final TreePath treePath) {
-        SimpleLaterInvocator.invoke(this, () -> TreeUtil.selectPath(DatabaseBrowserTree.this, treePath, true));
+        SimpleLaterInvocator.invokeNonModal(() -> TreeUtil.selectPath(DatabaseBrowserTree.this, treePath, true));
     }
 
 
@@ -248,11 +254,11 @@ public class DatabaseBrowserTree extends DBNTree {
                     event.consume();
                 } else if (deliberate) {
                     BackgroundTask.invoke(getProject(),
-                            TaskInstructions.create("Loading Object Reference"),
+                            instructions("Loading object reference"),
                             (data, progress) -> {
                                 DBObject navigationObject = object.getDefaultNavigationObject();
                                 if (navigationObject != null) {
-                                    SimpleLaterInvocator.invoke(this, () -> navigationObject.navigate(true));
+                                    SimpleLaterInvocator.invokeNonModal(() -> navigationObject.navigate(true));
                                 }
                             });
 
@@ -348,10 +354,9 @@ public class DatabaseBrowserTree extends DBNTree {
                         if (actionGroup != null && !progress.isCanceled()) {
                             ActionPopupMenu actionPopupMenu = ActionManager.getInstance().createActionPopupMenu("", actionGroup);
                             popupMenu = actionPopupMenu.getComponent();
-                            DatabaseBrowserTree browserTree = DatabaseBrowserTree.this;
-                            SimpleLaterInvocator.invoke(browserTree, () -> {
+                            SimpleLaterInvocator.invokeNonModal(() -> {
                                 if (isShowing()) {
-                                    popupMenu.show(browserTree, event.getX(), event.getY());
+                                    popupMenu.show(DatabaseBrowserTree.this, event.getX(), event.getY());
                                 }
                             });
                         } else {

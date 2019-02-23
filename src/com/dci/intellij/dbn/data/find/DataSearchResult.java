@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.data.find;
 
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.list.ReversedList;
 import com.dci.intellij.dbn.common.ui.ListUtil;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
@@ -15,7 +14,7 @@ import java.util.List;
 import java.util.Set;
 
 public class DataSearchResult implements Disposable {
-    private Set<DataSearchResultListener> listeners = new HashSet<DataSearchResultListener>();
+    private Set<DataSearchResultListener> listeners = new HashSet<>();
     private List<DataSearchResultMatch> matches = CollectionUtil.createConcurrentList();
     private DataSearchResultMatch selectedMatch;
     private int matchesLimit;
@@ -24,9 +23,7 @@ public class DataSearchResult implements Disposable {
 
     public void clear() {
         selectedMatch = null;
-        List<DataSearchResultMatch> oldMatches = matches;
         matches = new ArrayList<>();
-        DisposerUtil.dispose(oldMatches);
     }
 
     public int size() {
@@ -210,7 +207,7 @@ public class DataSearchResult implements Disposable {
                     }
                 }
             }
-            //reached beginning of the matches list without resolving selection
+            //reached beginning of the matches actions without resolving selection
             // scroll to the end
             return ListUtil.getLast(matches);
         }
@@ -221,8 +218,6 @@ public class DataSearchResult implements Disposable {
 
     @Override
     public void dispose() {
-        DisposerUtil.dispose(matches);
-        DisposerUtil.dispose(selectedMatch);
         CollectionUtil.clear(matches);
         CollectionUtil.clear(listeners);
         selectedMatch = null;

@@ -57,10 +57,10 @@ public class MethodExecutionInput extends LocalExecutionInput implements Compara
         }
     }
 
-    public void initExecution(DBDebuggerType debuggerType) {
+    public ExecutionContext initExecution(DBDebuggerType debuggerType) {
         MethodExecutionResultForm resultForm = executionResult == null ? null : executionResult.getForm(false);
         executionResult = new MethodExecutionResult(this, resultForm, debuggerType);
-        getExecutionContext().setExecutionTimestamp(System.currentTimeMillis());
+        return initExecutionContext();
     }
 
     @Override
@@ -132,7 +132,7 @@ public class MethodExecutionInput extends LocalExecutionInput implements Compara
     }
 
     public boolean isObsolete() {
-        ConnectionHandler connectionHandler = methodRef.lookupConnectionHandler();
+        ConnectionHandler connectionHandler = methodRef.resolveConnectionHandler();
         return connectionHandler == null/* || getMethod() == null*/;
     }
 
@@ -236,7 +236,7 @@ public class MethodExecutionInput extends LocalExecutionInput implements Compara
         super.readConfiguration(element);
         methodRef.readState(element);
         targetSchemaId = SchemaId.get(element.getAttributeValue("execution-schema"));;
-        Element argumentsElement = element.getChild("argument-list");
+        Element argumentsElement = element.getChild("argument-actions");
         if (argumentsElement != null) {
             for (Object object : argumentsElement.getChildren()) {
                 Element argumentElement = (Element) object;
@@ -252,7 +252,7 @@ public class MethodExecutionInput extends LocalExecutionInput implements Compara
         methodRef.writeState(element);
         element.setAttribute("execution-schema", targetSchemaId == null ? "" : targetSchemaId.id());
 
-        Element argumentsElement = new Element("argument-list");
+        Element argumentsElement = new Element("argument-actions");
         element.addContent(argumentsElement);
 
         for (MethodExecutionArgumentValue executionVariable : argumentValues) {

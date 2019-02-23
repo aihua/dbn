@@ -116,7 +116,7 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
     public void setResultSet(DBNResultSet resultSet) throws SQLException {
         super.setResultSet(resultSet);
 
-        // create the adapter
+        // instructions the adapter
         DisposerUtil.dispose(resultSetAdapter);
         ConnectionHandler connectionHandler = getConnectionHandler();
         resultSetAdapter = DatabaseFeature.UPDATABLE_RESULT_SETS.isSupported(connectionHandler) ?
@@ -254,6 +254,7 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
         return getDataset().isEditable(DBContentType.DATA);
     }
 
+    @NotNull
     @Override
     public DatasetEditorModelHeader getHeader() {
         return (DatasetEditorModelHeader) super.getHeader();
@@ -296,8 +297,11 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
                             if (constraintColumn != null) {
                                 DBColumn foreignKeyColumn = constraintColumn.getForeignKeyColumn();
                                 if (foreignKeyColumn != null) {
-                                    Object value = cell.getRow().getCellForColumn(constraintColumn).getUserValue();
-                                    filterInput.setColumnValue(foreignKeyColumn, value);
+                                    DatasetEditorModelCell constraintCell = cell.getRow().getCellForColumn(constraintColumn);
+                                    if (constraintCell != null) {
+                                        Object value = constraintCell.getUserValue();
+                                        filterInput.setColumnValue(foreignKeyColumn, value);
+                                    }
                                 }
                             }
                         }
@@ -478,12 +482,16 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
     @Override
     public void setValueAt(Object value, int rowIndex, int columnIndex) {
         DatasetEditorModelCell cell = getCellAt(rowIndex, columnIndex);
-        cell.updateUserValue(value, false);
+        if (cell != null) {
+            cell.updateUserValue(value, false);
+        }
     }
 
     public void setValueAt(Object value, String errorMessage,  int rowIndex, int columnIndex) {
         DatasetEditorModelCell cell = getCellAt(rowIndex, columnIndex);
-        cell.updateUserValue(value, errorMessage);
+        if (cell != null) {
+            cell.updateUserValue(value, errorMessage);
+        }
     }
 
     @Override

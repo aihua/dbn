@@ -14,7 +14,7 @@ public class MultipleContentDependencyAdapter extends BasicDependencyAdapter imp
     public MultipleContentDependencyAdapter(DynamicContent... sourceContents) {
         for (DynamicContent sourceContent : sourceContents) {
             if (sourceContent != null) {
-                if (dependencies == null) dependencies = new ArrayList<ContentDependency>();
+                if (dependencies == null) dependencies = new ArrayList<>();
                 dependencies.add(new BasicContentDependency(sourceContent));
             }
         }
@@ -31,15 +31,6 @@ public class MultipleContentDependencyAdapter extends BasicDependencyAdapter imp
             return true;
         }
         return false;
-    }
-
-    @Override
-    public void markSourcesDirty() {
-        if (dependencies != null) {
-            for (ContentDependency dependency : dependencies) {
-                dependency.markSourcesDirty();
-            }
-        }
     }
 
     @Override
@@ -67,11 +58,11 @@ public class MultipleContentDependencyAdapter extends BasicDependencyAdapter imp
     }
 
     @Override
-    public void beforeLoad() {
-        // assuming all dependencies are hard, load them first
-        if (dependencies != null) {
+    public void beforeLoad(boolean force) {
+        if (force && dependencies != null) {
             for (ContentDependency dependency : dependencies) {
-                dependency.getSourceContent().load(false);
+                DynamicContent sourceContent = dependency.getSourceContent();
+                sourceContent.refresh();
             }
         }
     }
@@ -83,16 +74,6 @@ public class MultipleContentDependencyAdapter extends BasicDependencyAdapter imp
                 dependency.reset();
             }
         }
-    }
-
-    @Override
-    public void beforeReload(DynamicContent dynamicContent) {
-        beforeLoad();
-    }
-
-    @Override
-    public void afterReload(DynamicContent dynamicContent) {
-        afterLoad();
     }
 
     @Override

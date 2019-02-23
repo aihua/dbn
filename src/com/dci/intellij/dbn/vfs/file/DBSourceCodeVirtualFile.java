@@ -2,8 +2,8 @@ package com.dci.intellij.dbn.vfs.file;
 
 import com.dci.intellij.dbn.common.DevNullStreams;
 import com.dci.intellij.dbn.common.LoggerFactory;
+import com.dci.intellij.dbn.common.routine.WriteAction;
 import com.dci.intellij.dbn.common.thread.SynchronizedTask;
-import com.dci.intellij.dbn.common.thread.WriteActionRunner;
 import com.dci.intellij.dbn.common.util.ChangeTimestamp;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
@@ -221,7 +221,7 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
     }
 
     private void updateFileContent(final SourceCodeContent newContent, final CharSequence newText) {
-        WriteActionRunner.invoke(() -> {
+        WriteAction.invoke(() -> {
             if (newContent != null) {
                 localContent = newContent;
             } else {
@@ -273,7 +273,7 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
     @Override
     public <T> void putUserData(@NotNull Key<T> key, T value) {
         if (key == FileDocumentManagerImpl.HARD_REF_TO_DOCUMENT_KEY && contentType.isOneOf(DBContentType.CODE, DBContentType.CODE_BODY) ) {
-            mainDatabaseFile.putUserData(FileDocumentManagerImpl.HARD_REF_TO_DOCUMENT_KEY, (Document) value);
+            getMainDatabaseFile().putUserData(FileDocumentManagerImpl.HARD_REF_TO_DOCUMENT_KEY, (Document) value);
         }
         super.putUserData(key, value);
     }

@@ -9,7 +9,6 @@ import com.dci.intellij.dbn.common.options.ui.CompositeConfigurationEditorForm;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
-import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.common.ui.tab.TabbedPane;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -30,7 +29,6 @@ import com.intellij.ide.plugins.PluginInstaller;
 import com.intellij.ide.plugins.PluginManagerMain;
 import com.intellij.ide.plugins.PluginNode;
 import com.intellij.ide.plugins.RepositoryHelper;
-import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.editor.colors.EditorColors;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.extensions.PluginId;
@@ -51,6 +49,8 @@ import java.awt.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
 
 public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<ProjectSettings> {
     private JPanel mainPanel;
@@ -113,7 +113,7 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
 
                     Project project = generalSettings.getProject();
                     BackgroundTask.invoke(project,
-                            TaskInstructions.create("Updating plugin"),
+                            instructions("Updating plugin"),
                             (task, progress) -> {
                                 try {
                                     List<PluginNode> updateDescriptors = new ArrayList<>();
@@ -132,7 +132,7 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
                                         }
                                     }
 
-                                    SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
+                                    SimpleLaterInvocator.invokeNonModal(() -> {
                                         try {
                                             PluginManagerMain.downloadPlugins(updateDescriptors, pluginIds, () -> PluginManagerMain.notifyPluginsUpdated(project), null);
                                         } catch (IOException e1) {
@@ -170,6 +170,7 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
         configurationTabs.addTab(tabInfo);
     }
 
+    @NotNull
     @Override
     public JComponent getComponent() {
         return mainPanel;

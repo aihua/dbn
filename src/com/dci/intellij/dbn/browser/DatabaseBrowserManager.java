@@ -18,7 +18,6 @@ import com.dci.intellij.dbn.common.options.setting.BooleanSetting;
 import com.dci.intellij.dbn.common.thread.BackgroundTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.TaskInstruction;
-import com.dci.intellij.dbn.common.thread.TaskInstructions;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.connection.ConnectionBundle;
@@ -54,6 +53,8 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.tree.TreePath;
 import java.util.ArrayList;
 import java.util.List;
+
+import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
 
 @State(
     name = DatabaseBrowserManager.COMPONENT_NAME,
@@ -126,12 +127,12 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
     }
 
     public void navigateToElement(@Nullable final BrowserTreeNode treeNode, final boolean focus, final boolean scroll) {
-        DatabaseBrowserForm browserForm = getBrowserForm();
-        SimpleLaterInvocator.invoke(browserForm, () -> {
+        SimpleLaterInvocator.invokeNonModal(() -> {
             ToolWindow toolWindow = getBrowserToolWindow();
 
             toolWindow.show(null);
             if (treeNode != null) {
+                DatabaseBrowserForm browserForm = getBrowserForm();
                 browserForm.selectElement(treeNode, focus, scroll);
             }
         });
@@ -143,8 +144,10 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
 
     private void navigateToElement(@Nullable BrowserTreeNode treeNode, boolean scroll) {
         if (treeNode != null) {
-            DatabaseBrowserForm browserForm = getBrowserForm();
-            SimpleLaterInvocator.invoke(browserForm, () -> browserForm.selectElement(treeNode, false, scroll));
+            SimpleLaterInvocator.invokeNonModal(() -> {
+                DatabaseBrowserForm browserForm = getBrowserForm();
+                browserForm.selectElement(treeNode, false, scroll);
+            });
         }
     }
 
@@ -187,7 +190,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
             BrowserToolWindowForm toolWindowForm = browserManager.getToolWindowForm();
             DatabaseBrowserTree browserTree = toolWindowForm.getBrowserTree(connectionHandler);
             if (browserTree != null && browserTree.getTargetSelection() != null) {
-                SimpleLaterInvocator.invoke(browserTree, () -> browserTree.scrollToSelectedElement());
+                SimpleLaterInvocator.invokeNonModal(() -> browserTree.scrollToSelectedElement());
             }
         }
     }
@@ -271,11 +274,16 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
                         FileEditor oldEditor = event.getOldEditor();
                         SchemaId schemaId = databaseVirtualFile.getSchemaId();
                         boolean scroll = oldEditor != null && oldEditor.isValid();
-                        BrowserTreeNode treeNode = schemaId == null ?
-                                connectionHandler.getObjectBundle() :
-                                connectionHandler.getSchema(schemaId);
+                        BackgroundTask.invoke(
+                                getProject(),
+                                instructions("Loading data dictionary"), (data, progress) -> {
 
-                        navigateToElement(treeNode, scroll);
+                            BrowserTreeNode treeNode = schemaId == null ?
+                                    connectionHandler.getObjectBundle() :
+                                    connectionHandler.getSchema(schemaId);
+
+                            navigateToElement(treeNode, scroll);
+                        });
                     }
                 }
             }
@@ -396,7 +404,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
                             DBSchema schema = objectBundle.getSchema(schemaName);
                             if (schema != null) {
                                 BackgroundTask.invoke(project,
-                                        TaskInstructions.create("Loading data dictionary" + connectionString, TaskInstruction.BACKGROUNDED, TaskInstruction.CANCELLABLE),
+                                        instructions("Loading data dictionary" + connectionString, TaskInstruction.BACKGROUNDED, TaskInstruction.CANCELLABLE),
                                         (data, progress) -> {
                                             String objectTypesAttr = schemaElement.getAttributeValue("object-types");
                                             List<DBObjectType> objectTypes = DBObjectType.fromCsv(objectTypesAttr);

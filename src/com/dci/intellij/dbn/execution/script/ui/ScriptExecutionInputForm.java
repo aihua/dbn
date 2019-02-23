@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.execution.script.ui;
 
-import com.dci.intellij.dbn.common.thread.SimpleCallback;
+import com.dci.intellij.dbn.common.routine.ParametricRunnable;
 import com.dci.intellij.dbn.common.ui.DBNComboBox;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.ui.DBNHeaderForm;
@@ -72,7 +72,7 @@ public class ScriptExecutionInputForm extends DBNFormImpl<ScriptExecutionInputDi
         cmdLineExecutableComboBox.set(ValueSelectorOption.HIDE_ICON, true);
         cmdLineExecutableComboBox.setValueFactory(new PresentableFactory<CmdLineInterface>("New Cmd-Line Interface...") {
             @Override
-            public void create(SimpleCallback<CmdLineInterface> callback) {
+            public void create(ParametricRunnable.Unsafe<CmdLineInterface> callback) {
                 ConnectionHandler connectionHandler = connectionComboBox.getSelectedValue();
                 if (connectionHandler != null) {
                     ScriptExecutionManager scriptExecutionManager = ScriptExecutionManager.getInstance(project);
@@ -154,7 +154,7 @@ public class ScriptExecutionInputForm extends DBNFormImpl<ScriptExecutionInputDi
     }
 
     private void updateButtons() {
-        ScriptExecutionInputDialog parentComponent = getParentComponent();
+        ScriptExecutionInputDialog parentComponent = ensureParentComponent();
         parentComponent.setActionEnabled(
                 connectionComboBox.getSelectedValue() != null &&
                 schemaComboBox.getSelectedValue() != null &&
@@ -162,6 +162,7 @@ public class ScriptExecutionInputForm extends DBNFormImpl<ScriptExecutionInputDi
                 !executionTimeoutForm.hasErrors());
     }
 
+    @NotNull
     @Override
     public JComponent getComponent() {
         return mainPanel;

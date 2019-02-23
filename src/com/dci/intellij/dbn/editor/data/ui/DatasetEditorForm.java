@@ -4,7 +4,6 @@ import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
-import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.ui.AutoCommitLabel;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
@@ -133,7 +132,7 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
 
     public void afterRebuild(final DatasetEditorTable oldEditorTable) {
         if (oldEditorTable != null) {
-            SimpleLaterInvocator.invoke(this, () -> {
+            SimpleLaterInvocator.invokeNonModal(() -> {
                 DatasetEditorTable datasetEditorTable = getEditorTable();
                 datasetTableScrollPane.setViewportView(datasetEditorTable);
                 datasetEditorTable.initTableGutter();
@@ -144,6 +143,7 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
         }
     }
 
+    @NotNull
     @Override
     public JPanel getComponent() {
         return mainPanel;
@@ -160,11 +160,11 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
     }
 
     public void showLoadingHint() {
-        ConditionalLaterInvocator.invoke(this, () -> loadingDataPanel.setVisible(true));
+        SimpleLaterInvocator.invokeNonModal(() -> loadingDataPanel.setVisible(true));
     }
 
     public void hideLoadingHint() {
-        ConditionalLaterInvocator.invoke(this, () -> loadingDataPanel.setVisible(false));
+        SimpleLaterInvocator.invokeNonModal(() -> loadingDataPanel.setVisible(false));
     }
 
     @NotNull

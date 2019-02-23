@@ -9,7 +9,7 @@ import com.dci.intellij.dbn.common.thread.RunnableTask;
 import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
 import com.dci.intellij.dbn.common.thread.SimpleTask;
 import com.dci.intellij.dbn.common.thread.TaskInstruction;
-import com.dci.intellij.dbn.common.thread.TaskInstructions;
+import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -26,7 +26,6 @@ import com.dci.intellij.dbn.execution.method.ui.MethodExecutionHistory;
 import com.dci.intellij.dbn.execution.method.ui.MethodExecutionInputDialog;
 import com.dci.intellij.dbn.object.DBMethod;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
-import com.intellij.openapi.application.ModalityState;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
@@ -42,6 +41,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Set;
 
+import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.CANCELLED;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.EXECUTING;
 
@@ -84,12 +84,12 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
         return argumentValuesCache;
     }
 
-    public void startMethodExecution(final @NotNull MethodExecutionInput executionInput, @NotNull DBDebuggerType debuggerType) {
+    public void startMethodExecution(@NotNull MethodExecutionInput executionInput, @NotNull DBDebuggerType debuggerType) {
         promptExecutionDialog(executionInput, debuggerType,
                 SimpleTask.create(data -> MethodExecutionManager.this.execute(executionInput)));
     }
 
-    public void startMethodExecution(final @NotNull DBMethod method, @NotNull DBDebuggerType debuggerType) {
+    public void startMethodExecution(@NotNull DBMethod method, @NotNull DBDebuggerType debuggerType) {
         promptExecutionDialog(method, debuggerType,
                 SimpleTask.create(data -> MethodExecutionManager.this.execute(method)));
     }
@@ -99,9 +99,11 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
         promptExecutionDialog(executionInput, debuggerType, callback);
     }
 
-    public void promptExecutionDialog(final MethodExecutionInput executionInput, final @NotNull DBDebuggerType debuggerType, final RunnableTask callback) {
-        ConnectionAction.invoke("the method execution", executionInput,
-                TaskInstructions.create("Loading method details"),
+    public void promptExecutionDialog(MethodExecutionInput executionInput, @NotNull DBDebuggerType debuggerType, RunnableTask callback) {
+        ConnectionAction.invoke(
+                "the method execution",
+                instructions("Loading method details"),
+                executionInput,
                 action -> {
                     Project project = getProject();
                     ConnectionHandler connectionHandler = action.getConnectionHandler();
@@ -115,7 +117,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
                         } else {
                             // load the arguments in background
                             executionInput.getMethod().getArguments();
-                            SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
+                            SimpleLaterInvocator.invokeNonModal(() -> {
                                 MethodExecutionInputDialog executionDialog = new MethodExecutionInputDialog(executionInput, debuggerType);
                                 executionDialog.show();
                                 if (executionDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
@@ -134,38 +136,20 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
     }
 
 
-    private void initMethodExecutionHistory() {
-        executionHistory.initialize();
-    }
-
-    public void showExecutionHistoryDialog(@Nullable MethodExecutionInput selected, boolean editable, boolean debug, @Nullable RunnableTask<MethodExecutionInput> callback) {
-        Project project = getProject();
-        BackgroundTask.invoke(project,
-                TaskInstructions.create("Loading method execution history", TaskInstruction.CANCELLABLE),
-                (data, progress) -> {
-                    initMethodExecutionHistory();
-
-                    SimpleLaterInvocator.invoke(ModalityState.NON_MODAL, () -> {
-                        MethodExecutionHistoryDialog executionHistoryDialog = new MethodExecutionHistoryDialog(project, executionHistory, selected, editable, debug);
-                        executionHistoryDialog.show();
-                        MethodExecutionInput newlySelected = executionHistoryDialog.getSelectedExecutionInput();
-                        if (newlySelected != null && callback != null) {
-                            if (executionHistoryDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
-                                callback.setData(newlySelected);
-                                callback.start();
-                            }
-                        }
-                    });
-                });
-    }
-
-    public MethodExecutionInput selectHistoryMethodExecutionInput(@Nullable MethodExecutionInput selectedExecutionInput, boolean debug) {
-        MethodExecutionHistoryDialog executionHistoryDialog = new MethodExecutionHistoryDialog(getProject(), executionHistory, selectedExecutionInput, false, debug);
-        executionHistoryDialog.show();
-        if (executionHistoryDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
-            return executionHistoryDialog.getSelectedExecutionInput();   
-        }
-        return null;
+    public void showExecutionHistoryDialog(@Nullable MethodExecutionInput selection, boolean editable, boolean debug, @Nullable RunnableTask<MethodExecutionInput> callback) {
+        SimpleLaterInvocator.invoke(() -> {
+            Project project = getProject();
+            MethodExecutionInput selectedInput = CommonUtil.nvln(selection, executionHistory.getLastSelection());
+            MethodExecutionHistoryDialog executionHistoryDialog = new MethodExecutionHistoryDialog(project, selectedInput, editable, debug);
+            executionHistoryDialog.show();
+            MethodExecutionInput newlySelected = executionHistoryDialog.getSelectedExecutionInput();
+            if (newlySelected != null && callback != null) {
+                if (executionHistoryDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
+                    callback.setData(newlySelected);
+                    callback.start();
+                }
+            }
+        });
     }
 
     public void execute(DBMethod method) {
@@ -173,24 +157,24 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
         execute(executionInput);
     }
 
-    public void execute(final MethodExecutionInput executionInput) {
+    public void execute(MethodExecutionInput executionInput) {
         cacheArgumentValues(executionInput);
         executionHistory.setSelection(executionInput.getMethodRef());
-        final DBMethod method = executionInput.getMethod();
-        final ExecutionContext context = executionInput.getExecutionContext();
+        DBMethod method = executionInput.getMethod();
+        ExecutionContext context = executionInput.getExecutionContext();
         context.set(EXECUTING, true);
 
         if (method == null) {
             DBObjectRef<DBMethod> methodRef = executionInput.getMethodRef();
             MessageUtil.showErrorDialog(getProject(), "Could not resolve " + methodRef.getQualifiedNameWithType() + "\".");
         } else {
-            final Project project = method.getProject();
+            Project project = method.getProject();
             ConnectionHandler connectionHandler = Failsafe.get(method.getConnectionHandler());
             DatabaseExecutionInterface executionInterface = connectionHandler.getInterfaceProvider().getDatabaseExecutionInterface();
-            final MethodExecutionProcessor executionProcessor = executionInterface.createExecutionProcessor(method);
+            MethodExecutionProcessor executionProcessor = executionInterface.createExecutionProcessor(method);
 
             BackgroundTask.invoke(project,
-                    TaskInstructions.create("Executing method", TaskInstruction.CANCELLABLE),
+                    instructions("Executing method", TaskInstruction.CANCELLABLE),
                     (data, progress) -> {
                         try {
                             BackgroundTask.initProgressIndicator(progress, true, "Executing " + method.getQualifiedNameWithType());
@@ -202,7 +186,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
                             }
 
                             context.set(CANCELLED, false);
-                        } catch (final SQLException e) {
+                        } catch (SQLException e) {
                             context.set(EXECUTING, false);
                             if (context.isNot(CANCELLED)) {
                                 MessageUtil.showErrorDialog(project,
@@ -227,12 +211,12 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
         }
     }
 
-    public void debugExecute(final MethodExecutionInput executionInput, @NotNull DBNConnection connection, DBDebuggerType debuggerType) throws SQLException {
-        final DBMethod method = executionInput.getMethod();
+    public void debugExecute(MethodExecutionInput executionInput, @NotNull DBNConnection connection, DBDebuggerType debuggerType) throws SQLException {
+        DBMethod method = executionInput.getMethod();
         if (method != null) {
             ConnectionHandler connectionHandler = method.getConnectionHandler();
             DatabaseExecutionInterface executionInterface = connectionHandler.getInterfaceProvider().getDatabaseExecutionInterface();
-            final MethodExecutionProcessor executionProcessor = debuggerType == DBDebuggerType.JDWP ?
+            MethodExecutionProcessor executionProcessor = debuggerType == DBDebuggerType.JDWP ?
                     executionInterface.createExecutionProcessor(method) :
                     executionInterface.createDebugExecutionProcessor(method);
 

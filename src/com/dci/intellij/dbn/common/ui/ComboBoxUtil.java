@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.common.ui;
 
 import com.intellij.ui.ColoredListCellRenderer;
-import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.util.ArrayList;
@@ -32,7 +31,7 @@ public class ComboBoxUtil {
         comboBox.setModel(model);
         comboBox.setRenderer(new ColoredListCellRenderer<T>() {
             @Override
-            protected void customizeCellRenderer(@NotNull JList<? extends T> list, T value, int index, boolean selected, boolean hasFocus) {
+            protected void customizeCellRenderer(JList list, T value, int index, boolean selected, boolean hasFocus) {
                 if (value != null) {
                     append(value.getName());
                     setIcon(value.getIcon());

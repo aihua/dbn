@@ -4,7 +4,7 @@ import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.Disposable;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
-import com.dci.intellij.dbn.common.thread.SimpleBackgroundTask;
+import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
@@ -13,7 +13,6 @@ import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public class ObjectDependencyTreeNode extends DisposableBase implements Disposable {
@@ -54,13 +53,13 @@ public class ObjectDependencyTreeNode extends DisposableBase implements Disposab
     public synchronized List<ObjectDependencyTreeNode> getChildren(final boolean load) {
         final ObjectDependencyTreeModel model = getModel();
         if (objectRef == null || model == null)  {
-            return Collections.emptyList();
+            return java.util.Collections.emptyList();
         }
 
         if (dependencies == null && load) {
             DBObject object = getObject();
             if (isDisposed() || object == null || isRecursive(object)) {
-                dependencies = Collections.emptyList();
+                dependencies = java.util.Collections.emptyList();
                 shouldLoad = false;
             } else {
                 dependencies = new ArrayList<>();
@@ -78,7 +77,7 @@ public class ObjectDependencyTreeNode extends DisposableBase implements Disposab
             if (loaderCount < 10) {
                 shouldLoad = false;
                 loaderCount++;
-                SimpleBackgroundTask.invoke(() -> {
+                Background.run(() -> {
                     try {
                         DBObject object = getObject();
                         if (object instanceof DBSchemaObject) {

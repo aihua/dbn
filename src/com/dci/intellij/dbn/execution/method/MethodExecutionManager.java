@@ -3,12 +3,9 @@ package com.dci.intellij.dbn.execution.method;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.message.MessageCallback;
-import com.dci.intellij.dbn.common.thread.BackgroundTask;
-import com.dci.intellij.dbn.common.thread.RunnableTask;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
-import com.dci.intellij.dbn.common.thread.SimpleTask;
-import com.dci.intellij.dbn.common.thread.TaskInstruction;
+import com.dci.intellij.dbn.common.routine.ParametricRunnable;
+import com.dci.intellij.dbn.common.thread.Dispatch;
+import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
@@ -16,15 +13,19 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseExecutionInterface;
+import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.database.common.execution.MethodExecutionProcessor;
 import com.dci.intellij.dbn.debugger.DBDebuggerType;
 import com.dci.intellij.dbn.execution.ExecutionContext;
 import com.dci.intellij.dbn.execution.ExecutionManager;
 import com.dci.intellij.dbn.execution.method.browser.MethodBrowserSettings;
+import com.dci.intellij.dbn.execution.method.browser.ui.MethodExecutionBrowserDialog;
 import com.dci.intellij.dbn.execution.method.history.ui.MethodExecutionHistoryDialog;
 import com.dci.intellij.dbn.execution.method.ui.MethodExecutionHistory;
 import com.dci.intellij.dbn.execution.method.ui.MethodExecutionInputDialog;
 import com.dci.intellij.dbn.object.DBMethod;
+import com.dci.intellij.dbn.object.DBSchema;
+import com.dci.intellij.dbn.object.common.ui.ObjectTreeModel;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
@@ -41,7 +42,7 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Set;
 
-import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
+import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.CANCELLED;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.EXECUTING;
 
@@ -85,59 +86,60 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
     }
 
     public void startMethodExecution(@NotNull MethodExecutionInput executionInput, @NotNull DBDebuggerType debuggerType) {
-        promptExecutionDialog(executionInput, debuggerType,
-                SimpleTask.create(data -> MethodExecutionManager.this.execute(executionInput)));
+        promptExecutionDialog(executionInput, debuggerType, () -> MethodExecutionManager.this.execute(executionInput));
     }
 
     public void startMethodExecution(@NotNull DBMethod method, @NotNull DBDebuggerType debuggerType) {
-        promptExecutionDialog(method, debuggerType,
-                SimpleTask.create(data -> MethodExecutionManager.this.execute(method)));
+        promptExecutionDialog(method, debuggerType, () -> MethodExecutionManager.this.execute(method));
     }
 
-    private void promptExecutionDialog(DBMethod method, @NotNull DBDebuggerType debuggerType, RunnableTask callback) {
+    private void promptExecutionDialog(DBMethod method, @NotNull DBDebuggerType debuggerType, Runnable callback) {
         MethodExecutionInput executionInput = getExecutionInput(method);
         promptExecutionDialog(executionInput, debuggerType, callback);
     }
 
-    public void promptExecutionDialog(MethodExecutionInput executionInput, @NotNull DBDebuggerType debuggerType, RunnableTask callback) {
-        ConnectionAction.invoke(
-                "the method execution",
-                instructions("Loading method details"),
-                executionInput,
-                action -> {
-                    Project project = getProject();
-                    ConnectionHandler connectionHandler = action.getConnectionHandler();
-                    if (connectionHandler.isValid()) {
-                        DBMethod method = executionInput.getMethod();
-                        if (method == null) {
-                            String message =
-                                    "Can not execute method " +
-                                            executionInput.getMethodRef().getPath() + ".\nMethod not found!";
-                            MessageUtil.showErrorDialog(project, message);
-                        } else {
-                            // load the arguments in background
-                            executionInput.getMethod().getArguments();
-                            SimpleLaterInvocator.invokeNonModal(() -> {
-                                MethodExecutionInputDialog executionDialog = new MethodExecutionInputDialog(executionInput, debuggerType);
-                                executionDialog.show();
-                                if (executionDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
-                                    callback.start();
+    public void promptExecutionDialog(MethodExecutionInput executionInput, @NotNull DBDebuggerType debuggerType, Runnable callback) {
+        ConnectionAction.invoke("the method execution", false, executionInput,
+                (action) -> Progress.prompt(executionInput.getProject(), "Loading method details", true,
+                        (progress) -> {
+                            Project project = getProject();
+                            ConnectionHandler connectionHandler = action.getConnectionHandler();
+                            if (connectionHandler.isValid()) {
+                                DBMethod method = executionInput.getMethod();
+                                if (method == null) {
+                                    String message =
+                                            "Can not execute method " +
+                                                    executionInput.getMethodRef().getPath() + ".\nMethod not found!";
+                                    MessageUtil.showErrorDialog(project, message);
+                                } else {
+                                    // load the arguments in background
+                                    executionInput.getMethod().getArguments();
+                                    Dispatch.invokeNonModal(() -> {
+                                        MethodExecutionInputDialog executionDialog = new MethodExecutionInputDialog(executionInput, debuggerType);
+                                        executionDialog.show();
+                                        if (executionDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
+                                            callback.run();
+                                        }
+                                    });
                                 }
-                            });
-                        }
-                    } else {
-                        String message =
-                                "Can not execute method " + executionInput.getMethodRef().getPath() + ".\n" +
-                                        "No connectivity to '" + connectionHandler.getQualifiedName() + "'. " +
-                                        "Please check your connection settings and try again.";
-                        MessageUtil.showErrorDialog(project, message);
-                    }
-                });
+                            } else {
+                                String message =
+                                        "Can not execute method " + executionInput.getMethodRef().getPath() + ".\n" +
+                                                "No connectivity to '" + connectionHandler.getQualifiedName() + "'. " +
+                                                "Please check your connection settings and try again.";
+                                MessageUtil.showErrorDialog(project, message);
+                            }
+                        }));
     }
 
 
-    public void showExecutionHistoryDialog(@Nullable MethodExecutionInput selection, boolean editable, boolean debug, @Nullable RunnableTask<MethodExecutionInput> callback) {
-        SimpleLaterInvocator.invoke(() -> {
+    public void showExecutionHistoryDialog(
+            @Nullable MethodExecutionInput selection,
+            boolean editable,
+            boolean debug,
+            @Nullable ParametricRunnable<MethodExecutionInput> callback) {
+
+        Dispatch.invoke(() -> {
             Project project = getProject();
             MethodExecutionInput selectedInput = CommonUtil.nvln(selection, executionHistory.getLastSelection());
             MethodExecutionHistoryDialog executionHistoryDialog = new MethodExecutionHistoryDialog(project, selectedInput, editable, debug);
@@ -145,8 +147,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
             MethodExecutionInput newlySelected = executionHistoryDialog.getSelectedExecutionInput();
             if (newlySelected != null && callback != null) {
                 if (executionHistoryDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
-                    callback.setData(newlySelected);
-                    callback.start();
+                    callback.run(newlySelected);
                 }
             }
         });
@@ -173,11 +174,10 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
             DatabaseExecutionInterface executionInterface = connectionHandler.getInterfaceProvider().getDatabaseExecutionInterface();
             MethodExecutionProcessor executionProcessor = executionInterface.createExecutionProcessor(method);
 
-            BackgroundTask.invoke(project,
-                    instructions("Executing method", TaskInstruction.CANCELLABLE),
-                    (data, progress) -> {
+            Progress.prompt(project, "Executing method", true,
+                    (progress) -> {
                         try {
-                            BackgroundTask.initProgressIndicator(progress, true, "Executing " + method.getQualifiedNameWithType());
+                            progress.setText("Executing " + method.getQualifiedNameWithType());
                             executionProcessor.execute(executionInput, DBDebuggerType.NONE);
                             if (context.isNot(CANCELLED)) {
                                 ExecutionManager executionManager = ExecutionManager.getInstance(project);
@@ -193,8 +193,8 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
                                         "Method execution error",
                                         "Error executing " + method.getQualifiedNameWithType() + ".\n" + e.getMessage().trim(),
                                         new String[]{"Try Again", "Cancel"}, 0,
-                                        MessageCallback.create(0, option ->
-                                                startMethodExecution(executionInput, DBDebuggerType.NONE)));
+                                        (option) -> conditional(option == 0,
+                                                () -> startMethodExecution(executionInput, DBDebuggerType.NONE)));
                             }
                         }
                     });
@@ -228,6 +228,40 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
             }
             context.set(CANCELLED, false);
         }
+    }
+
+    public void promptMethodBrowserDialog(MethodExecutionInput executionInput, boolean debug, ParametricRunnable<MethodExecutionInput> callback) {
+        Project project = getProject();
+        Progress.prompt(project, "Loading executable elements", true,
+                (progress) -> {
+                    MethodExecutionManager executionManager = MethodExecutionManager.getInstance(project);
+                    MethodBrowserSettings settings = executionManager.getBrowserSettings();
+                    DBMethod currentMethod = executionInput == null ? null : executionInput.getMethod();
+                    if (currentMethod != null) {
+                        currentMethod.getArguments();
+                        settings.setConnectionHandler(currentMethod.getConnectionHandler());
+                        settings.setSchema(currentMethod.getSchema());
+                        settings.setMethod(currentMethod);
+                    }
+
+                    DBSchema schema = settings.getSchema();
+                    ObjectTreeModel objectTreeModel = !debug || DatabaseFeature.DEBUGGING.isSupported(schema) ?
+                            new ObjectTreeModel(schema, settings.getVisibleObjectTypes(), settings.getMethod()) :
+                            new ObjectTreeModel(null, settings.getVisibleObjectTypes(), null);
+
+                    Dispatch.invoke(() -> {
+                        Failsafe.ensure(project);
+                        MethodExecutionBrowserDialog browserDialog = new MethodExecutionBrowserDialog(project, objectTreeModel, true);
+                        browserDialog.show();
+                        if (browserDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
+                            DBMethod method = browserDialog.getSelectedMethod();
+                            MethodExecutionInput methodExecutionInput = executionManager.getExecutionInput(method);
+                            if (methodExecutionInput != null) {
+                                callback.run(methodExecutionInput);
+                            }
+                        }
+                    });
+                });
     }
 
 

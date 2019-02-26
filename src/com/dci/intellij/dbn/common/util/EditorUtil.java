@@ -3,8 +3,7 @@ package com.dci.intellij.dbn.common.util;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.editor.BasicTextEditor;
 import com.dci.intellij.dbn.common.routine.ReadAction;
-import com.dci.intellij.dbn.common.thread.ConditionalLaterInvocator;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
+import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.ddl.DDLFileAttachmentManager;
 import com.dci.intellij.dbn.editor.EditorProviderId;
@@ -216,7 +215,7 @@ public class EditorUtil {
         editor.setViewer(readonly);
         EditorColorsScheme scheme = editor.getColorsScheme();
         Color defaultBackground = scheme.getDefaultBackground();
-        SimpleLaterInvocator.invokeNonModal(
+        Dispatch.invokeNonModal(
                 () -> {
                     editor.setBackgroundColor(readonly ? GUIUtil.adjustColor(defaultBackground, -0.03) : defaultBackground);
                     scheme.setColor(EditorColors.CARET_ROW_COLOR, readonly ?
@@ -233,7 +232,7 @@ public class EditorUtil {
             ReadAction.invoke(() -> {
                 FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
                 FileEditor[] allEditors = fileEditorManager.getAllEditors();
-                SimpleLaterInvocator.invokeNonModal(() -> {
+                Dispatch.invokeNonModal(() -> {
                     for (FileEditor fileEditor : allEditors) {
                         if (fileEditor instanceof SourceCodeEditor) {
                             SourceCodeEditor sourceCodeEditor = (SourceCodeEditor) fileEditor;
@@ -349,7 +348,7 @@ public class EditorUtil {
         }
     }
     public static void focusEditor(@Nullable final Editor editor) {
-        SimpleLaterInvocator.invokeNonModal(() -> {
+        Dispatch.invokeNonModal(() -> {
             if (editor != null) {
                 Project project = editor.getProject();
                 IdeFocusManager.getInstance(project).requestFocus(editor.getContentComponent(), true);
@@ -406,7 +405,7 @@ public class EditorUtil {
 
     public static void releaseEditor(@Nullable Editor editor) {
         if (editor != null) {
-            ConditionalLaterInvocator.invoke(() -> {
+            Dispatch.invoke(() -> {
                 EditorFactory editorFactory = EditorFactory.getInstance();
                 editorFactory.releaseEditor(editor);
             });

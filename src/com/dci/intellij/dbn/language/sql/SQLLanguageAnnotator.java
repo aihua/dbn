@@ -1,7 +1,8 @@
 package com.dci.intellij.dbn.language.sql;
 
 import com.dci.intellij.dbn.code.sql.color.SQLTextAttributesKeys;
-import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.thread.ThreadMonitor;
+import com.dci.intellij.dbn.common.thread.ThreadProperty;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerStatus;
 import com.dci.intellij.dbn.debugger.DatabaseDebuggerManager;
@@ -26,7 +27,7 @@ public class SQLLanguageAnnotator implements Annotator {
     @Override
     public void annotate(@NotNull final PsiElement psiElement, @NotNull final AnnotationHolder holder) {
         //SimpleTimeoutTask.invoke(1, true, () -> {
-        Failsafe.lenient(() -> {
+        ThreadMonitor.run(ThreadProperty.CODE_ANNOTATING, () -> {
             if (psiElement instanceof ExecutablePsiElement)  {
                 annotateExecutable((ExecutablePsiElement) psiElement, holder);
 

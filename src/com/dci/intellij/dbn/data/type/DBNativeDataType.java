@@ -64,7 +64,12 @@ public class DBNativeDataType implements DynamicContentElement{
 
         GenericDataType genericDataType = dataTypeDefinition.getGenericDataType();
         if (ValueAdapter.supports(genericDataType)) {
-            return ValueAdapter.create(genericDataType, resultSet, columnIndex);
+            try {
+                return ValueAdapter.create(genericDataType, resultSet, columnIndex);
+            } catch (Throwable e) {
+                return null;
+            }
+
         }
 
 /*
@@ -103,13 +108,17 @@ public class DBNativeDataType implements DynamicContentElement{
                     //clazz == Array.class ? resultSet.getArray(columnIndex) :
                             resultSet.getObject(columnIndex);
         } catch (SQLException e) {
-            Object object = resultSet.getObject(columnIndex);
-            String objectClass = object == null ? "" : object.getClass().getName();
-            if (object instanceof String && StringUtils.isEmpty((String) object)) {
+            try {
+                Object object = resultSet.getObject(columnIndex);
+                String objectClass = object == null ? "" : object.getClass().getName();
+                if (object instanceof String && StringUtils.isEmpty((String) object)) {
+                    return null;
+                } else {
+                    LOGGER.error("Error resolving result-set value for " + objectClass + " \"" + object + "\". (data type definition " + dataTypeDefinition + ')', e);
+                    return object;
+                }
+            } catch (SQLException e1) {
                 return null;
-            } else {
-                LOGGER.error("Error resolving result-set value for " + objectClass + " \"" + object + "\". (data type definition " + dataTypeDefinition + ')', e);
-                return object;
             }
         }
     }

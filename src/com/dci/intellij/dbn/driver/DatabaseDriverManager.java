@@ -37,7 +37,7 @@ public class DatabaseDriverManager implements ApplicationComponent {
     static {
         HashMap<String, String> mysql = new HashMap<>();
         //mysql.put("1.", "mysql-connector-java-5.1.35-bin.jar");
-        mysql.put("1.", "mysql-connector-java-5.1.46.jar");
+        mysql.put("1.", "mysql-connector-java-8.0.15.jar");
         INTERNAL_LIB_MAP.put(DatabaseType.MYSQL, mysql);
 
         HashMap<String, String> sqlite = new HashMap<>();
@@ -45,10 +45,7 @@ public class DatabaseDriverManager implements ApplicationComponent {
         INTERNAL_LIB_MAP.put(DatabaseType.SQLITE, sqlite);
 
         HashMap<String, String> postgres = new HashMap<>();
-        postgres.put("1.6", "postgresql-9.4-1201.jdbc4.jar");
-        postgres.put("1.7", "postgresql-9.4-1201.jdbc41.jar");
-        postgres.put("1.8", "postgresql-9.4-1201.jdbc41.jar");
-        postgres.put("1.9", "postgresql-9.4-1201.jdbc41.jar");
+        postgres.put("1.", "postgresql-42.2.5.jar");
         INTERNAL_LIB_MAP.put(DatabaseType.POSTGRES, postgres);
     }
 

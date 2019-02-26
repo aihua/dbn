@@ -11,6 +11,7 @@ import com.dci.intellij.dbn.common.dispose.Disposable;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.common.util.Compactable;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -24,7 +25,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -56,6 +56,8 @@ public class DBObjectListContainer extends DisposableBase implements Disposable,
                 for (DBObjectList<DBObject> objectList : objectLists.values()) {
                     if (check(objectList) && (visitInternal || !objectList.isInternal())) {
                         checkDisposed(visitor);
+                        ProgressMonitor.checkCancelled();
+
                         visitor.visitObjectList(objectList);
                     }
                 }
@@ -74,7 +76,7 @@ public class DBObjectListContainer extends DisposableBase implements Disposable,
                 getInternalObjectList(objectType) :
                 getObjectList(objectType);
         if (objectList == null) {
-            return Collections.emptyList();
+            return java.util.Collections.emptyList();
         } else {
             return objectList.getObjects();
         }

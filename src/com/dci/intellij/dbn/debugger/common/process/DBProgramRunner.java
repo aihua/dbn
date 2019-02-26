@@ -1,12 +1,8 @@
 package com.dci.intellij.dbn.debugger.common.process;
 
-import com.dci.intellij.dbn.common.message.MessageCallback;
 import com.dci.intellij.dbn.common.notification.NotificationUtil;
-import com.dci.intellij.dbn.common.thread.BackgroundTask;
-import com.dci.intellij.dbn.common.thread.RunnableTask;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
-import com.dci.intellij.dbn.common.thread.SimpleTask;
-import com.dci.intellij.dbn.common.thread.TaskInstruction;
+import com.dci.intellij.dbn.common.thread.Dispatch;
+import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -43,7 +39,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
+import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
 import static com.dci.intellij.dbn.common.util.MessageUtil.options;
 import static com.dci.intellij.dbn.common.util.MessageUtil.showWarningDialog;
 
@@ -64,19 +60,18 @@ public abstract class DBProgramRunner<T extends ExecutionInput> extends GenericP
             ExecutionEnvironment environment) throws ExecutionException {
 
         DBRunConfig runProfile = (DBRunConfig) environment.getRunProfile();
-        ConnectionAction.invoke("the debug execution",
-                instructions("Checking debug privileges", TaskInstruction.CANCELLABLE),
-                runProfile.getConnectionHandler(),
-                action -> {
-                    performPrivilegeCheck(
-                            project,
-                            (T) runProfile.getExecutionInput(),
-                            environment,
-                            null);
-                },
+        ConnectionHandler connectionHandler = runProfile.getConnectionHandler();
+        ConnectionAction.invoke("the debug execution", false, connectionHandler,
+                (action) -> Progress.prompt(project, "Checking debug privileges", true,
+                        (progress)-> {
+                            performPrivilegeCheck(
+                                    project,
+                                    (T) runProfile.getExecutionInput(),
+                                    environment,
+                                    null);
+                        }),
                 null,
                 (action) -> {
-                    ConnectionHandler connectionHandler = action.getConnectionHandler();
                     DatabaseDebuggerManager databaseDebuggerManager = DatabaseDebuggerManager.getInstance(project);
                     return databaseDebuggerManager.checkForbiddenOperation(connectionHandler,
                             "Another debug session is active on this connection. You can only run one debug session at the time.");
@@ -108,13 +103,12 @@ public abstract class DBProgramRunner<T extends ExecutionInput> extends GenericP
                 showWarningDialog(
                         project, "Insufficient privileges", buffer.toString(),
                         options("Continue anyway", "Cancel"), 0,
-                        MessageCallback.create(0, option -> {
-                            performInitialize(
-                                    connectionHandler,
-                                    executionInput,
-                                    environment,
-                                    callback);
-                        }));
+                        (option) -> conditional(option == 0,
+                                () -> performInitialize(
+                                        connectionHandler,
+                                        executionInput,
+                                        environment,
+                                        callback)));
             } else {
                 performInitialize(
                         connectionHandler,
@@ -134,11 +128,12 @@ public abstract class DBProgramRunner<T extends ExecutionInput> extends GenericP
         if (runProfile.isCompileDependencies()) {
             Project project = connectionHandler.getProject();
 
-            BackgroundTask.invoke(project,
-                    instructions("Initializing debug environment", TaskInstruction.CANCELLABLE),
-                    (data, progress) -> {
+            Progress.prompt( project,
+                    "Initializing debug environment", true,
+                    (progress) -> {
                         DatabaseDebuggerManager debuggerManager = DatabaseDebuggerManager.getInstance(project);
-                        BackgroundTask.initProgressIndicator(progress, true, "Loading method dependencies");
+                        progress.setText2("Loading method dependencies");
+
                         if (!project.isDisposed() && !progress.isCanceled()) {
                             List<DBMethod> methods = runProfile.getMethods();
                             List<DBSchemaObject> dependencies = debuggerManager.loadCompileDependencies(methods, progress);
@@ -169,7 +164,7 @@ public abstract class DBProgramRunner<T extends ExecutionInput> extends GenericP
             @Nullable Callback callback,
             List<DBSchemaObject> dependencies) {
 
-        SimpleLaterInvocator.invokeNonModal(() -> {
+        Dispatch.invokeNonModal(() -> {
             Project project = connectionHandler.getProject();
             DBRunConfig runConfiguration = (DBRunConfig) environment.getRunProfile();
             CompileDebugDependenciesDialog dependenciesDialog = new CompileDebugDependenciesDialog(runConfiguration, dependencies);
@@ -179,26 +174,24 @@ public abstract class DBProgramRunner<T extends ExecutionInput> extends GenericP
             if (dependenciesDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE){
                 if (selectedDependencies.size() > 0) {
 
-                    BackgroundTask.invoke(project,
-                            instructions("Compiling dependencies", TaskInstruction.CANCELLABLE),
-                            (data, progress) -> {
+                    Progress.prompt(project, "Compiling dependencies", true,
+                            (progress) -> {
                                 DatabaseCompilerManager compilerManager = DatabaseCompilerManager.getInstance(project);
                                 for (DBSchemaObject schemaObject : selectedDependencies) {
-                                    if (!progress.isCanceled()) {
-                                        progress.setText("Compiling " + schemaObject.getQualifiedNameWithType());
-                                        DBContentType contentType = schemaObject.getContentType();
-                                        CompilerAction compilerAction = new CompilerAction(CompilerActionSource.BULK_COMPILE, contentType);
-                                        compilerManager.compileObject(schemaObject, CompileType.DEBUG, compilerAction);
-                                    }
+                                    Progress.check(progress);
+
+                                    progress.setText("Compiling " + schemaObject.getQualifiedNameWithType());
+                                    DBContentType contentType = schemaObject.getContentType();
+                                    CompilerAction compilerAction = new CompilerAction(CompilerActionSource.BULK_COMPILE, contentType);
+                                    compilerManager.compileObject(schemaObject, CompileType.DEBUG, compilerAction);
                                 }
                                 EventUtil.notify(project, CompileManagerListener.TOPIC).compileFinished(connectionHandler, null);
-                                if (!progress.isCanceled()) {
-                                    performExecution(
-                                            executionInput,
-                                            environment,
-                                            callback);
-                                }
+                                Progress.check(progress);
 
+                                performExecution(
+                                        executionInput,
+                                        environment,
+                                        callback);
                             });
                 } else {
                     performExecution(
@@ -214,46 +207,47 @@ public abstract class DBProgramRunner<T extends ExecutionInput> extends GenericP
             T executionInput,
             ExecutionEnvironment environment,
             Callback callback) {
-        SimpleLaterInvocator.invokeNonModal(() -> {
+        Dispatch.invokeNonModal(() -> {
             ConnectionHandler connectionHandler = executionInput.getConnectionHandler();
             Project project = environment.getProject();
 
-            promptExecutionDialog(executionInput, SimpleTask.create(data -> {
-                DBDebugProcessStarter debugProcessStarter = createProcessStarter(connectionHandler);
-                try {
-                    XDebugSession session = XDebuggerManager.getInstance(project).startSession(
-                            environment,
-                            debugProcessStarter);
+            promptExecutionDialog(executionInput,
+                    () -> {
+                        DBDebugProcessStarter debugProcessStarter = createProcessStarter(connectionHandler);
+                        try {
+                            XDebugSession session = XDebuggerManager.getInstance(project).startSession(
+                                    environment,
+                                    debugProcessStarter);
 
-                    RunContentDescriptor descriptor = session.getRunContentDescriptor();
+                            RunContentDescriptor descriptor = session.getRunContentDescriptor();
 
-                    if (callback != null) callback.processStarted(descriptor);
-                    Executor executor = environment.getExecutor();
-                    if (true /*LocalHistoryConfiguration.getInstance().ADD_LABEL_ON_RUNNING*/) {
-                        RunProfile runProfile = environment.getRunProfile();
-                        LocalHistory.getInstance().putSystemLabel(project, executor.getId() + " " + runProfile.getName());
-                    }
+                            if (callback != null) callback.processStarted(descriptor);
+                            Executor executor = environment.getExecutor();
+                            if (true /*LocalHistoryConfiguration.getInstance().ADD_LABEL_ON_RUNNING*/) {
+                                RunProfile runProfile = environment.getRunProfile();
+                                LocalHistory.getInstance().putSystemLabel(project, executor.getId() + " " + runProfile.getName());
+                            }
 
-                    ExecutionManager.getInstance(project).getContentManager().showRunContent(executor, descriptor);
+                            ExecutionManager.getInstance(project).getContentManager().showRunContent(executor, descriptor);
 
-                    ProcessHandler processHandler = descriptor.getProcessHandler();
-                    if (processHandler != null) {
-                        processHandler.startNotify();
-                        ExecutionConsole executionConsole = descriptor.getExecutionConsole();
-                        if (executionConsole instanceof ConsoleView) {
-                            ConsoleView consoleView = (ConsoleView) executionConsole;
-                            consoleView.attachToProcess(processHandler);
+                            ProcessHandler processHandler = descriptor.getProcessHandler();
+                            if (processHandler != null) {
+                                processHandler.startNotify();
+                                ExecutionConsole executionConsole = descriptor.getExecutionConsole();
+                                if (executionConsole instanceof ConsoleView) {
+                                    ConsoleView consoleView = (ConsoleView) executionConsole;
+                                    consoleView.attachToProcess(processHandler);
+                                }
+                            }
+
+                        } catch (ExecutionException e) {
+                            NotificationUtil.sendErrorNotification(project, "Debugger", "Error initializing debug environment: " + e.getMessage());
                         }
-                    }
-
-                } catch (ExecutionException e) {
-                    NotificationUtil.sendErrorNotification(project, "Debugger", "Error initializing debug environment: " + e.getMessage());
-                }
-            }));
+                    });
         });
     }
 
     protected abstract DBDebugProcessStarter createProcessStarter(ConnectionHandler connectionHandler);
 
-    protected abstract void promptExecutionDialog(T executionInput, RunnableTask callback);
+    protected abstract void promptExecutionDialog(T executionInput, Runnable callback);
 }

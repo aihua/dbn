@@ -4,7 +4,7 @@ import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
+import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.ui.AutoCommitLabel;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
@@ -132,7 +132,7 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
 
     public void afterRebuild(final DatasetEditorTable oldEditorTable) {
         if (oldEditorTable != null) {
-            SimpleLaterInvocator.invokeNonModal(() -> {
+            Dispatch.invokeNonModal(() -> {
                 DatasetEditorTable datasetEditorTable = getEditorTable();
                 datasetTableScrollPane.setViewportView(datasetEditorTable);
                 datasetEditorTable.initTableGutter();
@@ -160,11 +160,11 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
     }
 
     public void showLoadingHint() {
-        SimpleLaterInvocator.invokeNonModal(() -> loadingDataPanel.setVisible(true));
+        Dispatch.invokeNonModal(() -> loadingDataPanel.setVisible(true));
     }
 
     public void hideLoadingHint() {
-        SimpleLaterInvocator.invokeNonModal(() -> loadingDataPanel.setVisible(false));
+        Dispatch.invokeNonModal(() -> loadingDataPanel.setVisible(false));
     }
 
     @NotNull
@@ -202,13 +202,13 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
         DataSearchComponent dataSearchComponent = getSearchComponent();
         dataSearchComponent.initializeFindModel();
 
+        JTextField searchField = dataSearchComponent.getSearchField();
         if (searchPanel.isVisible()) {
-            dataSearchComponent.getSearchField().selectAll();
+            searchField.selectAll();
         } else {
             searchPanel.setVisible(true);    
         }
-        dataSearchComponent.getSearchField().requestFocus();
-
+        Dispatch.invoke(() -> searchField.requestFocus());
     }
 
     private DataSearchComponent getSearchComponent() {
@@ -238,6 +238,7 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
         return null;
     }
 
+    @NotNull
     @Override
     public BasicTable getTable() {
         return getEditorTable();

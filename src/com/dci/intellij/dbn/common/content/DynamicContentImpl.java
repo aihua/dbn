@@ -10,35 +10,35 @@ import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.list.AbstractFiltrableList;
 import com.dci.intellij.dbn.common.list.FiltrableList;
 import com.dci.intellij.dbn.common.property.PropertyHolderImpl;
-import com.dci.intellij.dbn.common.thread.BackgroundMonitor;
-import com.dci.intellij.dbn.common.thread.BackgroundTask;
-import com.dci.intellij.dbn.common.thread.TaskInstruction;
+import com.dci.intellij.dbn.common.thread.Progress;
+import com.dci.intellij.dbn.common.thread.ThreadMonitor;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.GenericDatabaseElement;
 import com.intellij.openapi.util.Disposer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.Map;
-import java.util.TreeMap;
 
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.*;
-import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.CHANGING;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.DIRTY;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.DISPOSED;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.LOADED;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.LOADING;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.MASTER;
 
 public abstract class DynamicContentImpl<T extends DynamicContentElement> extends PropertyHolderImpl<DynamicContentStatus> implements DynamicContent<T> {
-    protected static final List EMPTY_CONTENT = Collections.unmodifiableList(new ArrayList(0));
-    protected static final List EMPTY_DISPOSED_CONTENT = Collections.unmodifiableList(new ArrayList(0));
-    protected static final List EMPTY_UNTOUCHED_CONTENT = Collections.unmodifiableList(new ArrayList(0));
+    protected static final List EMPTY_CONTENT = java.util.Collections.unmodifiableList(new ArrayList(0));
+    protected static final List EMPTY_DISPOSED_CONTENT = java.util.Collections.unmodifiableList(new ArrayList(0));
+    protected static final List EMPTY_UNTOUCHED_CONTENT = java.util.Collections.unmodifiableList(new ArrayList(0));
 
     private long changeTimestamp = 0;
 
     private GenericDatabaseElement parent;
     private ContentDependencyAdapter dependencyAdapter;
-    private Map<String, T> index;
 
     protected List<T> elements = EMPTY_UNTOUCHED_CONTENT;
 
@@ -74,6 +74,10 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
         return Failsafe.get(parent);
     }
 
+    public ConnectionId getConnectionId() {
+        return getParentElement().getConnectionId();
+    }
+
     @Override
     @NotNull
     public ConnectionHandler getConnectionHandler() {
@@ -101,10 +105,6 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
     @Override
     public boolean isLoading() {
         return is(LOADING);
-    }
-
-    public boolean isIndexed() {
-        return is(INDEXED);
     }
 
     /**
@@ -181,10 +181,11 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
                     try {
                         performLoad(true);
                         List<T> elements = getAllElements();
-                        for (T element : elements) {
-                            checkDisposed();
-                            element.refresh();
-                        }
+                        CollectionUtil.forEach(elements,
+                                (element) -> {
+                                    checkDisposed();
+                                    element.refresh();
+                                });
                         set(LOADED, true);
                     } catch (Exception e) {
                         setElements(EMPTY_CONTENT);
@@ -219,11 +220,13 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
     @Override
     public final void loadInBackground() {
         if (shouldLoad()) {
+            //System.out.println( this + " :invoked by " + ThreadMonitor.thread());
             ConnectionHandler connectionHandler = getConnectionHandler();
             String connectionString = " (" + connectionHandler.getName() + ')';
-            BackgroundTask.invoke(getProject(),
-                    instructions("Loading data dictionary" + connectionString, TaskInstruction.BACKGROUNDED),
-                    (data, progress) -> ensure());
+            Progress.background(
+                    getProject(),
+                    "Loading data dictionary" + connectionString, false,
+                    (progress) -> ensure());
         }
     }
 
@@ -267,7 +270,6 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
         List<T> oldElements = this.elements;
         if (isDisposed() || elements == null || elements.size() == 0) {
             elements = EMPTY_CONTENT;
-            index = null;
         } else {
             sortElements(elements);
         }
@@ -278,7 +280,6 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
                 return DynamicContentImpl.this.getFilter();
             }
         };
-        updateIndex();
         compact();
         if (oldElements.size() != 0 || elements.size() != 0 ){
             notifyChangeListeners();
@@ -289,13 +290,13 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
     }
 
     public void sortElements(List<T> elements) {
-        Collections.sort(elements);
+        java.util.Collections.sort(elements);
     }
 
     @Override
     @NotNull
     public List<T> getElements() {
-        if (BackgroundMonitor.isBackgroundProcess() || BackgroundMonitor.isTimeoutProcess() || getDependencyAdapter().canLoadFast()) {
+        if (ThreadMonitor.isBackgroundProcess() || ThreadMonitor.isTimeoutProcess() || getDependencyAdapter().canLoadFast()) {
             ensure();
         } else{
             loadInBackground();
@@ -326,60 +327,24 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
         return elements;
     }
 
-
-    private void updateIndex() {
-        if (isIndexed()) {
-            List<T> elements = this.elements;
-            if (elements instanceof FiltrableList) {
-                elements = ((FiltrableList) elements).getFullList();
-            }
-            if (elements.size() > 30) {
-                if (index == null)
-                    index = new TreeMap<>(String.CASE_INSENSITIVE_ORDER); else
-                    index.clear();
-
-                for (T element : elements) {
-                    String name = element.getName();
-                    index.put(name, element);
-                }
-            } else {
-                index = null;
-            }
-        }
-    }
-
     @Override
     public T getElement(String name, int overload) {
         if (name != null) {
             List<T> elements = getAllElements();
-            if (/*isIndexed() && */index != null) {
-                return index.get(name);
-            } else {
-                for (T element : elements) {
-                    if (element.getName().equalsIgnoreCase(name)) {
-                        if (overload == 0 || overload == element.getOverload()) {
-                            return element;
-                        }
-                    }
-                }
-            }
+            return CollectionUtil.first(elements,
+                    (element) -> matchElement(element, name, overload));
         }
         return null;
+    }
+
+    protected boolean matchElement(T element, String name, int overload) {
+        return (overload == 0 || overload == element.getOverload()) && element.getName().equalsIgnoreCase(name);
     }
 
     @Override
     @Nullable
     public List<T> getElements(String name) {
-        List<T> elements = null;
-        for (T element : getAllElements()) {
-            if (element.getName().equalsIgnoreCase(name)) {
-                if (elements == null) {
-                    elements = new ArrayList<T>();
-                }
-                elements.add(element);
-            }
-        }
-        return elements;
+        return CollectionUtil.filter(getAllElements(), false, false, (element) -> element.getName().equalsIgnoreCase(name));
     }
 
     @Override
@@ -402,7 +367,6 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
                 }
                 elements = EMPTY_DISPOSED_CONTENT;
             }
-            CollectionUtil.clearMap(index);
             Disposer.dispose(dependencyAdapter);
             dependencyAdapter = VoidContentDependencyAdapter.INSTANCE;
             parent = null;

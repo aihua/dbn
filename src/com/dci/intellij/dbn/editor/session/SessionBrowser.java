@@ -4,13 +4,14 @@ import com.dci.intellij.dbn.common.action.DBNDataKeys;
 import com.dci.intellij.dbn.common.dispose.Disposable;
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
-import com.dci.intellij.dbn.common.thread.TaskInstruction;
+import com.dci.intellij.dbn.common.thread.Dispatch;
+import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.common.util.DataProviderSupplier;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionProvider;
 import com.dci.intellij.dbn.connection.operation.options.OperationSettings;
 import com.dci.intellij.dbn.editor.session.model.SessionBrowserModel;
@@ -40,8 +41,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
-
-import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
 
 public class SessionBrowser extends UserDataHolderBase implements FileEditor, Disposable, ConnectionProvider, DataProviderSupplier {
     private DBSessionBrowserVirtualFile sessionBrowserFile;
@@ -89,23 +88,24 @@ public class SessionBrowser extends UserDataHolderBase implements FileEditor, Di
 
     public void loadSessions(boolean force) {
         if (shouldLoad(force)) {
-            ConnectionAction.invoke("loading the sessions",
-                    instructions("Loading sessions", TaskInstruction.BACKGROUNDED),
-                    this,
-                    action -> {
-                        if (shouldLoad(force)) {
-                            try {
-                                setLoading(true);
-                                SessionBrowserManager sessionBrowserManager = SessionBrowserManager.getInstance(getProject());
-                                SessionBrowserModel model = sessionBrowserManager.loadSessions(sessionBrowserFile);
-                                replaceModel(model);
-                            } finally {
-                                EventUtil.notify(getProject(), SessionBrowserLoadListener.TOPIC).sessionsLoaded(sessionBrowserFile);
-                                setLoading(false);
-                            }
-                        }
+            ConnectionAction.invoke("loading the sessions", false, this,
+                    (action) -> {
+                        Progress.background(getProject(), "Loading sessions", false,
+                                (progress) -> {
+                                    if (shouldLoad(force)) {
+                                        try {
+                                            setLoading(true);
+                                            SessionBrowserManager sessionBrowserManager = SessionBrowserManager.getInstance(getProject());
+                                            SessionBrowserModel model = sessionBrowserManager.loadSessions(sessionBrowserFile);
+                                            replaceModel(model);
+                                        } finally {
+                                            EventUtil.notify(getProject(), SessionBrowserLoadListener.TOPIC).sessionsLoaded(sessionBrowserFile);
+                                            setLoading(false);
+                                        }
+                                    }
+                                });
                     },
-                    cancel -> {
+                    (cancel) -> {
                         setLoading(false);
                         setRefreshInterval(0);
                     },
@@ -119,7 +119,7 @@ public class SessionBrowser extends UserDataHolderBase implements FileEditor, Di
 
     private void replaceModel(SessionBrowserModel newModel) {
         if (newModel != null) {
-            SimpleLaterInvocator.invokeNonModal(() -> {
+            Dispatch.invokeNonModal(() -> {
                 SessionBrowserTable editorTable = getEditorTable();
                 SessionBrowserModel oldModel = editorTable.getModel();
                 SessionBrowserState state = oldModel.getState();
@@ -296,7 +296,7 @@ public class SessionBrowser extends UserDataHolderBase implements FileEditor, Di
         if (this.loading != loading) {
             this.loading = loading;
 
-            SimpleLaterInvocator.invokeNonModal(() -> {
+            Dispatch.invokeNonModal(() -> {
                 if (editorForm != null) {
                     if (SessionBrowser.this.loading)
                         editorForm.showLoadingHint(); else
@@ -382,6 +382,12 @@ public class SessionBrowser extends UserDataHolderBase implements FileEditor, Di
                 detailsForm.update(null);
             }
         }
+    }
+
+
+    @NotNull
+    public ConnectionId getConnectionId() {
+        return sessionBrowserFile.getConnectionId();
     }
 
     @Override

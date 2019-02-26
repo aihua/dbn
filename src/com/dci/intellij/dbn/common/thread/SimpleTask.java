@@ -1,8 +1,8 @@
 package com.dci.intellij.dbn.common.thread;
 
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.routine.ParametricRunnable;
 
+@Deprecated
 public abstract class SimpleTask<T> extends AbstractTask<T>{
     protected SimpleTask() {
     }
@@ -29,13 +29,4 @@ public abstract class SimpleTask<T> extends AbstractTask<T>{
     }
 
     protected abstract void execute();
-
-    public static <T> SimpleTask<T> create(ParametricRunnable.Unsafe<T> runnable) {
-        return new SimpleTask<T>() {
-            @Override
-            protected void execute() {
-                runnable.run(getData());
-            }
-        };
-    }
 }

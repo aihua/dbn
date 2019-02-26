@@ -3,52 +3,26 @@ package com.dci.intellij.dbn.connection;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
-import com.dci.intellij.dbn.common.message.MessageCallback;
 import com.dci.intellij.dbn.common.routine.ParametricCallable;
 import com.dci.intellij.dbn.common.routine.ParametricRunnable;
-import com.dci.intellij.dbn.common.thread.BackgroundMonitor;
-import com.dci.intellij.dbn.common.thread.BackgroundTask;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
-import com.dci.intellij.dbn.common.thread.SimpleTask;
-import com.dci.intellij.dbn.common.thread.TaskInstruction;
-import com.dci.intellij.dbn.common.thread.TaskInstructions;
+import com.dci.intellij.dbn.common.thread.Dispatch;
+import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 
-public abstract class ConnectionAction extends SimpleTask<Integer> {
-    public static final String[] OPTIONS_CONNECT_CANCEL = new String[]{"Connect", "Cancel"};
+public abstract class ConnectionAction implements Runnable{
+    static final String[] OPTIONS_CONNECT_CANCEL = CommonUtil.list("Connect", "Cancel");
 
     private String description;
+    private boolean interactive;
     private ConnectionProvider connectionProvider;
-    private TaskInstructions taskInstructions;
-    private Integer executeOption;
-    protected ProgressIndicator progressIndicator = ProgressMonitor.getProgressIndicator();
+    private boolean cancelled;
 
-    private ConnectionAction(String description, ConnectionProvider connectionProvider, Integer executeOption) {
+    private ConnectionAction(String description, boolean interactive, ConnectionProvider connectionProvider) {
         this.description = description;
+        this.interactive = interactive;
         this.connectionProvider = connectionProvider;
-        this.executeOption = executeOption;
-    }
-
-    private ConnectionAction(String description, ConnectionProvider connectionProvider, TaskInstructions taskInstructions) {
-        this(description, connectionProvider, taskInstructions, null);
-    }
-
-    public ConnectionAction(String description, ConnectionProvider connectionProvider, TaskInstructions taskInstructions, Integer executeOption) {
-        this.description = description;
-        this.connectionProvider = connectionProvider;
-        this.taskInstructions = taskInstructions;
-        this.executeOption = executeOption;
-    }
-
-    @Override
-    protected boolean canExecute() {
-        return executeOption == null || executeOption.equals(getData());
-    }
-
-    protected boolean isManaged() {
-        return taskInstructions != null && taskInstructions.is(TaskInstruction.MANAGED);
     }
 
     @NotNull
@@ -56,9 +30,8 @@ public abstract class ConnectionAction extends SimpleTask<Integer> {
         return getConnectionHandler().getProject();
     }
 
-    @Override
     public boolean isCancelled() {
-        if (super.isCancelled()) {
+        if (cancelled) {
             return true;
         } else {
             ProgressIndicator progressIndicator = ProgressMonitor.getProgressIndicator();
@@ -66,38 +39,31 @@ public abstract class ConnectionAction extends SimpleTask<Integer> {
         }
     }
 
-    @Override
-    public final void start() {
-        SimpleLaterInvocator.invoke(() -> ConnectionAction.super.start());
+    protected void cancel() {
+        cancelled = true;
     }
 
-    @Override
-    public final void run() {
-        trace(this);
-        Failsafe.lenient(() -> {
-            if (canExecute()) {
-                ConnectionHandler connectionHandler = getConnectionHandler();
-                if (connectionHandler.isVirtual() || connectionHandler.canConnect()) {
-                    if (isManaged() || connectionHandler.isValid()) {
-                        executeAction();
-                    } else {
-                        String connectionName = connectionHandler.getName();
-                        Throwable connectionException = connectionHandler.getConnectionStatus().getConnectionException();
-                        ConnectionManager.showErrorConnectionMessage(getProject(), connectionName, connectionException);
-                    }
+    public final void start() {
+        Dispatch.invoke(() -> {
+            ConnectionHandler connectionHandler = getConnectionHandler();
+            if (connectionHandler.isVirtual() || connectionHandler.canConnect()) {
+                if (interactive || connectionHandler.isValid()) {
+                    run();
                 } else {
-                    if (connectionHandler.isDatabaseInitialized()) {
-                        if (connectionHandler.isAuthenticationProvided()) {
-                            promptConnectDialog();
-                        } else {
-                            promptAuthenticationDialog();
-                        }
-                    } else {
-                        promptDatabaseInitDialog();
-                    }
+                    String connectionName = connectionHandler.getName();
+                    Throwable connectionException = connectionHandler.getConnectionStatus().getConnectionException();
+                    ConnectionManager.showErrorConnectionMessage(getProject(), connectionName, connectionException);
                 }
             } else {
-                cancel();
+                if (connectionHandler.isDatabaseInitialized()) {
+                    if (connectionHandler.isAuthenticationProvided()) {
+                        promptConnectDialog();
+                    } else {
+                        promptAuthenticationDialog();
+                    }
+                } else {
+                    promptDatabaseInitDialog();
+                }
             }
         });
     }
@@ -106,21 +72,20 @@ public abstract class ConnectionAction extends SimpleTask<Integer> {
         ConnectionHandler connectionHandler = getConnectionHandler();
         ConnectionManager.promptDatabaseInitDialog(
                 connectionHandler,
-                MessageCallback.create(null, option -> {
+                (option) -> {
                     if (option == 0) {
                         ConnectionInstructions instructions = connectionHandler.getInstructions();
                         instructions.setAllowAutoInit(true);
                         instructions.setAllowAutoConnect(true);
                         if (connectionHandler.isAuthenticationProvided()) {
-                            executeAction();
+                            run();
                         } else {
                             promptAuthenticationDialog();
                         }
                     } else {
-                        ConnectionAction.this.cancel();
                         cancel();
                     }
-                }));
+                });
     }
 
     private void promptAuthenticationDialog() {
@@ -130,14 +95,13 @@ public abstract class ConnectionAction extends SimpleTask<Integer> {
         ConnectionManager.promptAuthenticationDialog(
                 connectionHandler,
                 temporaryAuthenticationInfo,
-                SimpleTask.create(authenticationInfo -> {
+                (authenticationInfo) -> {
                     if (authenticationInfo != null) {
-                        executeAction();
+                        run();
                     } else {
-                        ConnectionAction.this.cancel();
                         cancel();
                     }
-                }));
+                });
     }
 
     private void promptConnectDialog() {
@@ -145,28 +109,14 @@ public abstract class ConnectionAction extends SimpleTask<Integer> {
         ConnectionManager.promptConnectDialog(
                 connectionHandler,
                 description,
-                MessageCallback.create(null, option -> {
+                (option) -> {
                     if (option == 0) {
                         connectionHandler.getInstructions().setAllowAutoConnect(true);
-                        executeAction();
+                        run();
                     } else {
-                        ConnectionAction.this.cancel();
                         cancel();
                     }
-                }));
-    }
-
-    private void executeAction() {
-        if (taskInstructions == null || BackgroundMonitor.isBackgroundProcess()) {
-            if (!ProgressMonitor.isCancelled()) {
-                execute();
-            }
-        } else {
-            BackgroundTask.invoke(
-                    getProject(),
-                    taskInstructions,
-                    (task, progress) -> ConnectionAction.this.execute());
-        }
+                });
     }
 
     @NotNull
@@ -175,68 +125,33 @@ public abstract class ConnectionAction extends SimpleTask<Integer> {
         return Failsafe.get(connectionHandler);
     }
 
-    @Override
-    protected abstract void execute();
-
     public static void invoke(
             String description,
+            boolean interactive,
             ConnectionProvider connectionProvider,
-            ParametricRunnable.Unsafe<ConnectionAction> action) {
-        create(description, connectionProvider, null, action).start();
-    }
-
-    public static ConnectionAction create(
-            String description,
-            ConnectionProvider connectionProvider,
-            Integer executeOption,
-            ParametricRunnable.Unsafe<ConnectionAction> action) {
-        return new ConnectionAction(description, connectionProvider, executeOption) {
+            ParametricRunnable<ConnectionAction> action) {
+        new ConnectionAction(description, interactive, connectionProvider) {
             @Override
-            protected void execute() {
+            public void run() {
                 action.run(this);
             }
-        };
+        }.start();
     }
 
-    public static void invoke(
+    public static <T extends Throwable> void invoke(
             String description,
-            TaskInstructions taskInstructions,
+            boolean interactive,
             ConnectionProvider connectionProvider,
-            ParametricRunnable.Unsafe<ConnectionAction> runnable) {
-        create(description, taskInstructions, connectionProvider, runnable, null, null).start();
-    }
+            ParametricRunnable<ConnectionAction> action,
+            ParametricRunnable<ConnectionAction> cancel,
+            ParametricCallable<ConnectionAction, Boolean> canExecute) {
 
-    public static ConnectionAction create(
-            String description,
-            TaskInstructions taskInstructions,
-            ConnectionProvider connectionProvider,
-            ParametricRunnable.Unsafe<ConnectionAction> action) {
-        return create(description, taskInstructions, connectionProvider, action, null, null);
-    }
-
-    public static void invoke(
-            String description,
-            TaskInstructions taskInstructions,
-            ConnectionProvider connectionProvider,
-            ParametricRunnable.Unsafe<ConnectionAction> action,
-            ParametricRunnable.Unsafe<ConnectionAction> cancel,
-            ParametricCallable.Unsafe<ConnectionAction, Boolean> canExecute) {
-
-        create(description, taskInstructions, connectionProvider, action, cancel, canExecute).start();
-    }
-
-    public static ConnectionAction create(
-            String description,
-            TaskInstructions taskInstructions,
-            ConnectionProvider connectionProvider,
-            ParametricRunnable.Unsafe<ConnectionAction> action,
-            ParametricRunnable.Unsafe<ConnectionAction> cancel,
-            ParametricCallable.Unsafe<ConnectionAction, Boolean> canExecute) {
-
-        return new ConnectionAction(description, connectionProvider, taskInstructions) {
+        new ConnectionAction(description, interactive, connectionProvider) {
             @Override
-            protected void execute() {
-                ProgressMonitor.invoke(progressIndicator, () -> action.run(this));
+            public void run() {
+                if (canExecute == null || canExecute.call(this)) {
+                    action.run(this);
+                }
             }
 
             @Override
@@ -247,14 +162,8 @@ public abstract class ConnectionAction extends SimpleTask<Integer> {
                 }
             }
 
-            @Override
-            protected boolean canExecute() {
-                if (canExecute != null) {
-                    return canExecute.call(this);
-                } else {
-                    return super.canExecute();
-                }
-            }
-        };
+        }.start();
     }
+
+
 }

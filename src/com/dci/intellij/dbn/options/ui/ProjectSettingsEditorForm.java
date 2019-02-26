@@ -7,8 +7,8 @@ import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.options.Configuration;
 import com.dci.intellij.dbn.common.options.ui.CompositeConfigurationEditorForm;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
-import com.dci.intellij.dbn.common.thread.BackgroundTask;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
+import com.dci.intellij.dbn.common.thread.Dispatch;
+import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.ui.tab.TabbedPane;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -50,8 +50,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
-
 public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<ProjectSettings> {
     private JPanel mainPanel;
     private JPanel tabsPanel;
@@ -64,7 +62,6 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
 
     public ProjectSettingsEditorForm(ProjectSettings globalSettings) {
         super(globalSettings);
-        globalSettings.reset();
 
         configurationTabs = new TabbedPane(this);
         //configurationTabs.setAdjustBorders(false);
@@ -81,7 +78,7 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
         ExecutionEngineSettings executionEngineSettings = globalSettings.getExecutionEngineSettings();
         OperationSettings operationSettings = globalSettings.getOperationSettings();
         DDLFileSettings ddlFileSettings = globalSettings.getDdlFileSettings();
-        final GeneralProjectSettings generalSettings = globalSettings.getGeneralSettings();
+        GeneralProjectSettings generalSettings = globalSettings.getGeneralSettings();
 
         addSettingsPanel(connectionSettings);
         addSettingsPanel(browserSettings);
@@ -94,6 +91,8 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
         addSettingsPanel(operationSettings);
         addSettingsPanel(ddlFileSettings);
         addSettingsPanel(generalSettings);
+        globalSettings.reset();
+
         tabsPanel.setFocusable(true);
 
         newVersionLabel.setForeground(JBColor.DARK_GRAY);
@@ -101,6 +100,7 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
         DatabaseNavigator databaseNavigator = DatabaseNavigator.getInstance();
         String pluginVersion = databaseNavigator.getPluginVersion();
         String repositoryPluginVersion = databaseNavigator.getRepositoryPluginVersion();
+
         if (StringUtil.isNotEmpty(pluginVersion) && StringUtil.isNotEmpty(repositoryPluginVersion)&& repositoryPluginVersion.compareTo(pluginVersion) > 0) {
             Color panelBackground = EditorColorsManager.getInstance().getGlobalScheme().getColor(EditorColors.NOTIFICATION_BACKGROUND);
             newVersionLabel.setText("A new version of the plugin is available (" + repositoryPluginVersion + ")");
@@ -112,9 +112,8 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
                     if (dialog != null) dialog.doCancelAction();
 
                     Project project = generalSettings.getProject();
-                    BackgroundTask.invoke(project,
-                            instructions("Updating plugin"),
-                            (task, progress) -> {
+                    Progress.prompt(project, "Updating plugin", false,
+                            (progress) -> {
                                 try {
                                     List<PluginNode> updateDescriptors = new ArrayList<>();
                                     List<IdeaPluginDescriptor> descriptors = RepositoryHelper.loadCachedPlugins();
@@ -132,7 +131,7 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
                                         }
                                     }
 
-                                    SimpleLaterInvocator.invokeNonModal(() -> {
+                                    Dispatch.invokeNonModal(() -> {
                                         try {
                                             PluginManagerMain.downloadPlugins(updateDescriptors, pluginIds, () -> PluginManagerMain.notifyPluginsUpdated(project), null);
                                         } catch (IOException e1) {

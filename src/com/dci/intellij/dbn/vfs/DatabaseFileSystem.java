@@ -3,8 +3,8 @@ package com.dci.intellij.dbn.vfs;
 import com.dci.intellij.dbn.browser.DatabaseBrowserManager;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.routine.ReadAction;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
-import com.dci.intellij.dbn.common.thread.TaskInstruction;
+import com.dci.intellij.dbn.common.thread.Dispatch;
+import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.util.EditorUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionCache;
@@ -38,6 +38,7 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.ApplicationComponent;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -52,8 +53,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.UUID;
 
-import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
 import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.*;
 
 public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysicalFileSystem, */ApplicationComponent {
@@ -253,71 +254,71 @@ public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysic
         return DatabaseFileManager.getInstance(project).isFileOpened(object);
     }
 
-    private static String createPath(ConnectionHandler connectionHandler) {
-        return connectionHandler.getConnectionId().id();
-    }
-
     /********************************************************
      *                    GENERIC                           *
      ********************************************************/
     @NotNull
     static String createPath(DBVirtualFile virtualFile) {
-        ConnectionHandler connectionHandler = virtualFile.getConnectionHandler();
-        if (virtualFile instanceof DBConnectionVirtualFile) {
-            DBConnectionVirtualFile file = (DBConnectionVirtualFile) virtualFile;
-            return createPath(file.getConnectionHandler());
+        try {
+            ConnectionId connectionId = virtualFile.getConnectionId();
+            if (virtualFile instanceof DBConnectionVirtualFile) {
+                DBConnectionVirtualFile file = (DBConnectionVirtualFile) virtualFile;
+                return file.getConnectionId() + "";
+            }
+
+            if (virtualFile instanceof DBObjectVirtualFile) {
+                DBObjectVirtualFile file = (DBObjectVirtualFile) virtualFile;
+                DBObjectRef objectRef = file.getObjectRef();
+                return objectRef.getConnectionId() + PS + OBJECTS + objectRef.serialize();
+
+            }
+
+            if (virtualFile instanceof DBContentVirtualFile) {
+                DBContentVirtualFile file = (DBContentVirtualFile) virtualFile;
+                DBObjectRef objectRef = file.getObject().getRef();
+                DBContentType contentType = file.getContentType();
+                return objectRef.getConnectionId() + PS + OBJECT_CONTENTS + contentType.name() + PS + objectRef.serialize();
+            }
+
+            if (virtualFile instanceof DBObjectListVirtualFile) {
+                DBObjectListVirtualFile file = (DBObjectListVirtualFile) virtualFile;
+                DBObjectList objectList = file.getObjectList();
+                GenericDatabaseElement parentElement = objectList.getParentElement();
+                String listName = objectList.getObjectType().getListName();
+                String connectionPath = connectionId.id();
+                if (parentElement instanceof DBObject) {
+                    DBObject object = (DBObject) parentElement;
+                    DBObjectRef objectRef = object.getRef();
+                    return connectionPath + PS + objectRef.serialize() + PS + listName;
+                } else {
+                    return connectionPath + PS + listName; }
+            }
+
+            if (virtualFile instanceof DBDatasetFilterVirtualFile) {
+                DBDatasetFilterVirtualFile file = (DBDatasetFilterVirtualFile) virtualFile;
+                return connectionId + PS + DATASET_FILTERS + file.getDataset().getRef().serialize();
+            }
+
+            if (virtualFile instanceof DBConsoleVirtualFile) {
+                DBConsoleVirtualFile file = (DBConsoleVirtualFile) virtualFile;
+                return connectionId + PS + CONSOLES + file.getName();
+            }
+
+            if (virtualFile instanceof DBSessionBrowserVirtualFile) {
+                DBSessionBrowserVirtualFile file = (DBSessionBrowserVirtualFile) virtualFile;
+                return connectionId + PS + SESSION_BROWSERS + file.getName();
+
+            }
+
+            if (virtualFile instanceof DBSessionStatementVirtualFile) {
+                DBSessionStatementVirtualFile file = (DBSessionStatementVirtualFile) virtualFile;
+                return connectionId + PS + SESSION_STATEMENTS + file.getName();
+            }
+
+            throw new IllegalArgumentException("File of type " + virtualFile.getClass() + " is not supported");
+        } catch (ProcessCanceledException e) {
+            return "DISPOSED\""+ UUID.randomUUID().toString();
         }
-
-        if (virtualFile instanceof DBObjectVirtualFile) {
-            DBObjectVirtualFile file = (DBObjectVirtualFile) virtualFile;
-            DBObjectRef objectRef = file.getObjectRef();
-            return objectRef.getConnectionId() + PS + OBJECTS + objectRef.serialize();
-
-        }
-
-        if (virtualFile instanceof DBContentVirtualFile) {
-            DBContentVirtualFile file = (DBContentVirtualFile) virtualFile;
-            DBObjectRef objectRef = file.getObject().getRef();
-            DBContentType contentType = file.getContentType();
-            return objectRef.getConnectionId() + PS + OBJECT_CONTENTS + contentType.name() + PS + objectRef.serialize();
-        }
-
-        if (virtualFile instanceof DBObjectListVirtualFile) {
-            DBObjectListVirtualFile file = (DBObjectListVirtualFile) virtualFile;
-            DBObjectList objectList = file.getObjectList();
-            GenericDatabaseElement parentElement = objectList.getParentElement();
-            String listName = objectList.getObjectType().getListName();
-            String connectionPath = createPath(connectionHandler);
-            if (parentElement instanceof DBObject) {
-                DBObject object = (DBObject) parentElement;
-                DBObjectRef objectRef = object.getRef();
-                return connectionPath + PS + objectRef.serialize() + PS + listName;
-            } else {
-                return connectionPath + PS + listName; }
-        }
-
-        if (virtualFile instanceof DBDatasetFilterVirtualFile) {
-            DBDatasetFilterVirtualFile file = (DBDatasetFilterVirtualFile) virtualFile;
-            return createPath(connectionHandler) + PS + DATASET_FILTERS + file.getDataset().getRef().serialize();
-        }
-
-        if (virtualFile instanceof DBConsoleVirtualFile) {
-            DBConsoleVirtualFile file = (DBConsoleVirtualFile) virtualFile;
-            return createPath(connectionHandler) + PS + CONSOLES + file.getName();
-        }
-
-        if (virtualFile instanceof DBSessionBrowserVirtualFile) {
-            DBSessionBrowserVirtualFile file = (DBSessionBrowserVirtualFile) virtualFile;
-            return createPath(connectionHandler) + PS + SESSION_BROWSERS + file.getName();
-
-        }
-
-        if (virtualFile instanceof DBSessionStatementVirtualFile) {
-            DBSessionStatementVirtualFile file = (DBSessionStatementVirtualFile) virtualFile;
-            return createPath(connectionHandler) + PS + SESSION_STATEMENTS + file.getName();
-        }
-
-        throw new IllegalArgumentException("File of type " + virtualFile.getClass() + " is not supported");
     }
 
     @NotNull
@@ -419,29 +420,27 @@ public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysic
     }
 
     public void openEditor(DBObject object, @Nullable EditorProviderId editorProviderId, boolean scrollBrowser, boolean focusEditor) {
-        ConnectionAction.invoke(
-                "opening the object editor",
-                instructions("Opening editor", TaskInstruction.CANCELLABLE, TaskInstruction.CONDITIONAL),
-                object,
-                action -> {
-                    EditorProviderId providerId = editorProviderId;
-                    if (editorProviderId == null) {
-                        EditorStateManager editorStateManager = EditorStateManager.getInstance(object.getProject());
-                        providerId = editorStateManager.getEditorProvider(object.getObjectType());
-                    }
+        ConnectionAction.invoke("opening the object editor", false, object,
+                (action) -> Progress.prompt(object.getProject(), "Opening editor", true,
+                        (progress) -> {
+                            EditorProviderId providerId = editorProviderId;
+                            if (editorProviderId == null) {
+                                EditorStateManager editorStateManager = EditorStateManager.getInstance(object.getProject());
+                                providerId = editorStateManager.getEditorProvider(object.getObjectType());
+                            }
 
-                    if (object.is(DBObjectProperty.SCHEMA_OBJECT)) {
-                        DBObjectListContainer childObjects = object.getChildObjects();
-                        if (childObjects != null) childObjects.load();
+                            if (object.is(DBObjectProperty.SCHEMA_OBJECT)) {
+                                DBObjectListContainer childObjects = object.getChildObjects();
+                                if (childObjects != null) childObjects.load();
 
-                        openSchemaObject((DBSchemaObject) object, providerId, scrollBrowser, focusEditor);
+                                openSchemaObject((DBSchemaObject) object, providerId, scrollBrowser, focusEditor);
 
-                    } else if (object.getParentObject().is(DBObjectProperty.SCHEMA_OBJECT)) {
-                        DBObjectListContainer childObjects = object.getParentObject().getChildObjects();
-                        if (childObjects != null) childObjects.load();
-                        openChildObject(object, providerId, scrollBrowser, focusEditor);
-                    }
-                });
+                            } else if (object.getParentObject().is(DBObjectProperty.SCHEMA_OBJECT)) {
+                                DBObjectListContainer childObjects = object.getParentObject().getChildObjects();
+                                if (childObjects != null) childObjects.load();
+                                openChildObject(object, providerId, scrollBrowser, focusEditor);
+                            }
+                        }));
     }
 
     private void openSchemaObject(@NotNull DBSchemaObject object, EditorProviderId editorProviderId, boolean scrollBrowser, boolean focusEditor) {
@@ -449,7 +448,7 @@ public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysic
         DBEditableObjectVirtualFile databaseFile = findOrCreateDatabaseFile(project, object.getRef());
         databaseFile.setSelectedEditorProviderId(editorProviderId);
         if (!ProgressMonitor.isCancelled()) {
-            SimpleLaterInvocator.invokeNonModal(() -> {
+            Dispatch.invokeNonModal(() -> {
                 if (isFileOpened(object) || databaseFile.preOpen()) {
                     DatabaseBrowserManager.AUTOSCROLL_FROM_EDITOR.set(scrollBrowser);
                     FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
@@ -469,7 +468,7 @@ public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysic
         SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
         sourceCodeManager.ensureSourcesLoaded(schemaObject);
         if (!ProgressMonitor.isCancelled()) {
-            SimpleLaterInvocator.invokeNonModal(() -> {
+            Dispatch.invokeNonModal(() -> {
                 if (isFileOpened(schemaObject) || databaseFile.preOpen()) {
                     DatabaseBrowserManager.AUTOSCROLL_FROM_EDITOR.set(scrollBrowser);
                     FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);

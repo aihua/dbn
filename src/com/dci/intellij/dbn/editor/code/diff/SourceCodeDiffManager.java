@@ -3,7 +3,8 @@ package com.dci.intellij.dbn.editor.code.diff;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
+import com.dci.intellij.dbn.common.thread.Dispatch;
+import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
@@ -27,8 +28,6 @@ import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static com.dci.intellij.dbn.common.thread.TaskInstruction.CANCELLABLE;
-import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
 
 @State(
@@ -49,7 +48,7 @@ public class SourceCodeDiffManager extends AbstractProjectComponent implements P
 
     @Deprecated
     public void openCodeMergeDialogOld(String databaseContent, DBSourceCodeVirtualFile sourceCodeFile, SourceCodeEditor fileEditor, MergeAction action) {
-        SimpleLaterInvocator.invokeNonModal(() -> {
+        Dispatch.invokeNonModal(() -> {
             com.intellij.openapi.diff.DiffRequestFactory diffRequestFactory = new com.intellij.openapi.diff.impl.mergeTool.DiffRequestFactoryImpl();
             Project project = sourceCodeFile.getProject();
             if (project != null) {
@@ -96,7 +95,7 @@ public class SourceCodeDiffManager extends AbstractProjectComponent implements P
     }
 
     public void openCodeMergeDialog(String databaseContent, DBSourceCodeVirtualFile sourceCodeFile, SourceCodeEditor fileEditor, MergeAction action) {
-        SimpleLaterInvocator.invokeNonModal(() -> {
+        Dispatch.invoke(() -> {
             Project project = getProject();
             SourceCodeDiffContent leftContent = new SourceCodeDiffContent("Database version", databaseContent);
             SourceCodeDiffContent targetContent = new SourceCodeDiffContent("Merge result", sourceCodeFile.getOriginalContent());
@@ -148,7 +147,7 @@ public class SourceCodeDiffManager extends AbstractProjectComponent implements P
 
 
     public void openDiffWindow(@NotNull DBSourceCodeVirtualFile sourceCodeFile,  String referenceText, String referenceTitle, String windowTitle) {
-        SimpleLaterInvocator.invokeNonModal(() -> {
+        Dispatch.invokeNonModal(() -> {
             Project project = sourceCodeFile.getProject();
             SimpleContent originalContent = new SimpleContent(referenceText, sourceCodeFile.getFileType());
             SourceCodeFileContent changedContent = new SourceCodeFileContent(project, sourceCodeFile);
@@ -168,28 +167,26 @@ public class SourceCodeDiffManager extends AbstractProjectComponent implements P
 
 
     public void opedDatabaseDiffWindow(DBSourceCodeVirtualFile sourceCodeFile) {
-        ConnectionAction.invoke(
-                "comparing changes",
-                instructions("Loading database source code", CANCELLABLE),
-                sourceCodeFile,
-                (action) -> {
-                    DBSchemaObject object = sourceCodeFile.getObject();
-                    Project project = getProject();
-                    try {
-                        SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
-                        SourceCodeContent sourceCodeContent = sourceCodeManager.loadSourceFromDatabase(object, sourceCodeFile.getContentType());
-                        CharSequence referenceText = sourceCodeContent.getText();
+        ConnectionAction.invoke("comparing changes", false, sourceCodeFile,
+                (action) -> Progress.prompt(getProject(), "Loading database source code", true,
+                        (progress) -> {
+                            DBSchemaObject object = sourceCodeFile.getObject();
+                            Project project = getProject();
+                            try {
+                                SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
+                                SourceCodeContent sourceCodeContent = sourceCodeManager.loadSourceFromDatabase(object, sourceCodeFile.getContentType());
+                                CharSequence referenceText = sourceCodeContent.getText();
 
-                        if (!action.isCancelled()) {
-                            openDiffWindow(sourceCodeFile, referenceText.toString(), "Database version", "Local version vs. database version");
-                        }
+                                if (!action.isCancelled()) {
+                                    openDiffWindow(sourceCodeFile, referenceText.toString(), "Database version", "Local version vs. database version");
+                                }
 
-                    } catch (Exception e1) {
-                        MessageUtil.showErrorDialog(
-                                project, "Could not load sourcecode for " +
-                                        object.getQualifiedNameWithType() + " from database.", e1);
-                    }
-                });
+                            } catch (Exception e1) {
+                                MessageUtil.showErrorDialog(
+                                        project, "Could not load sourcecode for " +
+                                                object.getQualifiedNameWithType() + " from database.", e1);
+                            }
+                        }));
     }
 
 

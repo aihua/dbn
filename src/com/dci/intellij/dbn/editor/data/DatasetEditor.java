@@ -5,9 +5,8 @@ import com.dci.intellij.dbn.common.action.DBNDataKeys;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.Disposable;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.message.MessageCallback;
-import com.dci.intellij.dbn.common.thread.SimpleBackgroundTask;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
+import com.dci.intellij.dbn.common.thread.Background;
+import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.common.util.DataProviderSupplier;
 import com.dci.intellij.dbn.common.util.EventUtil;
@@ -67,13 +66,8 @@ import java.beans.PropertyChangeListener;
 import java.sql.SQLException;
 import java.util.List;
 
-import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.CONNECTED;
-import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.LOADED;
-import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.LOADING;
-import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.DELIBERATE_ACTION;
-import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.PRESERVE_CHANGES;
-import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.REBUILD;
-import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.USE_CURRENT_FILTER;
+import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.*;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.*;
 import static com.dci.intellij.dbn.editor.data.model.RecordStatus.INSERTING;
 import static com.dci.intellij.dbn.editor.data.model.RecordStatus.MODIFIED;
 
@@ -292,11 +286,11 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
 
     public void loadData(final DatasetLoadInstructions instructions) {
         if (status.isNot(LOADING)) {
-            ConnectionAction.invoke("loading table data", this,
-                    action -> {
+            ConnectionAction.invoke("loading table data", false, this,
+                    (action) -> {
                         setLoading(true);
                         EventUtil.notify(project, DatasetLoadListener.TOPIC).datasetLoading(databaseFile);
-                        SimpleBackgroundTask.invoke(() -> {
+                        Background.run(() -> {
                             DatasetEditorForm editorForm = getEditorForm();
                             try {
                                 editorForm.showLoadingHint();
@@ -335,7 +329,7 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
     }
 
     private void handleLoadError(SQLException e, DatasetLoadInstructions instr) {
-        SimpleLaterInvocator.invokeNonModal(() -> {
+        Dispatch.invokeNonModal(() -> {
             checkDisposed();
             focusEditor();
             ConnectionHandler connectionHandler = getConnectionHandler();
@@ -366,7 +360,7 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
                     String[] options = {"Edit filter", "Remove filter", "Ignore filter", "Cancel"};
 
                     MessageUtil.showErrorDialog(project, "Error", message, options, 0,
-                            MessageCallback.create(null, option -> {
+                            (option) -> {
                                 DatasetLoadInstructions instructions = instr.clone();
                                 instructions.setDeliberateAction(true);
 
@@ -383,7 +377,7 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
                                     instructions.setUseCurrentFilter(false);
                                     loadData(instructions);
                                 }
-                            }));
+                            });
                 }
             } else {
                 String message =
@@ -537,7 +531,7 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
             boolean statusChanged = getStatus().set(CONNECTED, connected);
 
             if (statusChanged) {
-                SimpleLaterInvocator.invokeNonModal(() -> {
+                Dispatch.invokeNonModal(() -> {
                     DatasetEditorTable editorTable = getEditorTable();
                     editorTable.updateBackground(!connected);
                     if (connected) {

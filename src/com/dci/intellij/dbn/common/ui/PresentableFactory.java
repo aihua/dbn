@@ -13,5 +13,5 @@ public abstract class PresentableFactory<T extends Presentable> {
         return actionName;
     }
 
-    public abstract void create(ParametricRunnable.Unsafe<T> callback);
+    public abstract void create(ParametricRunnable<T> callback);
 }

@@ -3,13 +3,14 @@ package com.dci.intellij.dbn.connection.jdbc;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.dispose.FailsafeWeakRef;
-import com.dci.intellij.dbn.common.thread.SimpleTimeoutCall;
+import com.dci.intellij.dbn.common.thread.Timeout;
 import com.dci.intellij.dbn.common.util.ExceptionUtil;
 import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.intellij.openapi.diagnostic.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.SQLException;
+import java.util.concurrent.atomic.AtomicReference;
 
 public abstract class ResourceStatusAdapterImpl<T extends Resource> implements ResourceStatusAdapter<T> {
     protected static final Logger LOGGER = LoggerFactory.createLogger();
@@ -137,34 +138,47 @@ public abstract class ResourceStatusAdapterImpl<T extends Resource> implements R
         }
     }
 
-    private boolean checkControlled() {
-        return SimpleTimeoutCall.invoke(5, is(subject), true, () -> checkInner());
+    private boolean checkControlled() throws SQLException{
+        AtomicReference<SQLException> exception = new AtomicReference<>();
+        Boolean result = Timeout.call(5, is(subject), true, () -> {
+            try {
+                return checkInner();
+            } catch (SQLException e) {
+                exception.set(e);
+                return false;
+            }
+        });
+        if (exception.get() != null) {
+            throw exception.get();
+        }
+        return result;
     }
 
     private void changeControlled(boolean value) throws SQLException{
         boolean daemon = true;
         T resource = getResource();
-        if (resource.getResourceType() == ResourceType.CONNECTION && subject == ResourceStatus.CLOSED) {
+        ResourceType resourceType = resource.getResourceType();
+        if (resourceType == ResourceType.CONNECTION && subject == ResourceStatus.CLOSED) {
             // non daemon threads for closing connections
             daemon = false;
         }
 
-        SQLException exception = SimpleTimeoutCall.invoke(10, null, daemon, () -> {
+        SQLException exception = Timeout.call(10, null, daemon, () -> {
             try {
                 if (DatabaseNavigator.debugModeEnabled)
-                    LOGGER.info("Started changing " + resource.getResourceType() + " resource " + subject + " status to " + value);
+                    LOGGER.info("Started changing " + resourceType + " resource " + subject + " status to " + value);
 
                 changeInner(value);
                 set(subject, value);
             } catch (Throwable e) {
-                LOGGER.warn("Failed to change " + resource.getResourceType() + " resource " + subject + " status to " + value + ": " + e.getMessage());
+                LOGGER.warn("Failed to change " + resourceType + " resource " + subject + " status to " + value + ": " + e.getMessage());
                 fail();
                 return ExceptionUtil.toSqlException(e);
             } finally {
                 set(changing, false);
 
                 if (DatabaseNavigator.debugModeEnabled)
-                    LOGGER.info("Done changing " + resource.getResourceType() + " resource " + subject + " status to " + value);
+                    LOGGER.info("Done changing " + resourceType + " resource " + subject + " status to " + value);
             }
             return null;
         });

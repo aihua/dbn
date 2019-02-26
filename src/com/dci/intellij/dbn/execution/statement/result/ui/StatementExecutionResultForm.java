@@ -4,7 +4,7 @@ import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.routine.ReadAction;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
+import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.common.util.ActionUtil;
@@ -96,24 +96,27 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
     }
 
     public void reloadTableModel() {
-        SimpleLaterInvocator.invokeNonModal(() -> {
+        Dispatch.invokeNonModal(() -> {
             StatementExecutionCursorResult executionResult = getExecutionResult();
             JScrollBar horizontalScrollBar = resultScrollPane.getHorizontalScrollBar();
             int horizontalScrolling = horizontalScrollBar.getValue();
+            ResultSetTable oldResultTable = resultTable;
             resultTable = new ResultSetTable<>(executionResult.getTableModel(), true, recordViewInfo);
             resultScrollPane.setViewportView(resultTable);
             resultTable.initTableGutter();
             resultTable.setName(StatementExecutionResultForm.this.executionResult.getName());
             horizontalScrollBar.setValue(horizontalScrolling);
+            DisposerUtil.disposeInBackground(oldResultTable);
         });
     }
 
+    @NotNull
     public ResultSetTable getResultTable() {
-        return resultTable;
+        return Failsafe.get(resultTable);
     }
 
     public void updateVisibleComponents() {
-        SimpleLaterInvocator.invokeNonModal(() -> {
+        Dispatch.invokeNonModal(() -> {
             StatementExecutionCursorResult executionResult = getExecutionResult();
             ResultSetDataModel dataModel = executionResult.getTableModel();
             ConnectionHandler connectionHandler = executionResult.getConnectionHandler();
@@ -129,12 +132,6 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
         });
     }
 
-    @Override
-    public void dispose() {
-        super.dispose();
-        executionResult = null;
-    }
-
     public void show() {
         StatementExecutionCursorResult executionResult = getExecutionResult();
         Project project = executionResult.getProject();
@@ -148,6 +145,7 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
     }
 
     public void highlightLoading(boolean loading) {
+        ResultSetTable resultTable = getResultTable();
         resultTable.setLoading(loading);
         GUIUtil.repaint(resultTable);
     }
@@ -157,7 +155,7 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
      *********************************************************/
     @Override
     public void showSearchHeader() {
-        resultTable.clearSelection();
+        getResultTable().clearSelection();
 
         DataSearchComponent dataSearchComponent = getSearchComponent();
         dataSearchComponent.initializeFindModel();
@@ -178,16 +176,17 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
     public void hideSearchHeader() {
         getSearchComponent().resetFindModel();
         searchPanel.setVisible(false);
-        GUIUtil.repaintAndFocus(resultTable);
+        GUIUtil.repaintAndFocus(getResultTable());
     }
 
     @Override
     public void cancelEditActions() {
     }
 
+    @NotNull
     @Override
     public BasicTable getTable() {
-        return resultTable;
+        return getResultTable();
     }
 
     @Override
@@ -198,4 +197,13 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
     private void createUIComponents() {
         resultScrollPane = new BasicTableScrollPane();
     }
+
+    @Override
+    public void dispose() {
+        super.dispose();
+        resultTable = null;
+        executionResult = null;
+    }
+
+
 }

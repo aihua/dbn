@@ -4,9 +4,8 @@ import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.action.DBNDataKeys;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.message.MessageCallback;
 import com.dci.intellij.dbn.common.options.setting.SettingsSupport;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
+import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
@@ -38,6 +37,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
+import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
+
 @State(
     name = DatabaseConsoleManager.COMPONENT_NAME,
     storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
@@ -67,7 +68,7 @@ public class DatabaseConsoleManager extends AbstractProjectComponent implements 
 
 
     private void showCreateRenameConsoleDialog(final ConnectionHandler connectionHandler, final DBConsoleVirtualFile consoleVirtualFile, final DBConsoleType consoleType) {
-        SimpleLaterInvocator.invokeNonModal(() -> {
+        Dispatch.invokeNonModal(() -> {
             CreateRenameConsoleDialog createConsoleDialog = consoleVirtualFile == null ?
                     new CreateRenameConsoleDialog(connectionHandler, consoleType) :
                     new CreateRenameConsoleDialog(connectionHandler, consoleVirtualFile);
@@ -107,13 +108,14 @@ public class DatabaseConsoleManager extends AbstractProjectComponent implements 
                 "You will loose the information contained in this console.\n" +
                         "Are you sure you want to delete the console?",
                 MessageUtil.OPTIONS_YES_NO, 0,
-                MessageCallback.create(0, option -> {
-                    FileEditorManager.getInstance(project).closeFile(consoleFile);
-                    ConnectionHandler connectionHandler = consoleFile.getConnectionHandler();
-                    String fileName = consoleFile.getName();
-                    connectionHandler.getConsoleBundle().removeConsole(fileName);
-                    eventDispatcher.getMulticaster().fileDeleted(new VirtualFileEvent(this, consoleFile, fileName, null));
-                }));
+                (option) -> conditional(option == 0,
+                        () -> {
+                            FileEditorManager.getInstance(project).closeFile(consoleFile);
+                            ConnectionHandler connectionHandler = consoleFile.getConnectionHandler();
+                            String fileName = consoleFile.getName();
+                            connectionHandler.getConsoleBundle().removeConsole(fileName);
+                            eventDispatcher.getMulticaster().fileDeleted(new VirtualFileEvent(this, consoleFile, fileName, null));
+                        }));
     }
 
 

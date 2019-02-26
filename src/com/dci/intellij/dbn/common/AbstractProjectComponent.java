@@ -114,4 +114,10 @@ public abstract class AbstractProjectComponent extends SettingsSupport implement
     protected void closeProject() {
         ProjectUtil.closeProject(getProject());
     }
+
+    @Override
+    public void checkDisposed() {
+        Disposable.super.checkDisposed();
+        getProject();
+    }
 }

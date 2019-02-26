@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.common.ui.tree;
 
 import com.dci.intellij.dbn.common.LoggerFactory;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
+import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.ui.SimpleColoredComponent;
 import com.intellij.ui.speedSearch.SpeedSearchUtil;
@@ -77,17 +77,21 @@ public class TreeUtil {
     }
 
     private static void notifyTreeModelListeners(final Set<TreeModelListener> treeModelListeners, final TreeEventType eventType, final TreeModelEvent event) {
-        SimpleLaterInvocator.invoke(() -> {
-            Object lastPathComponent = event.getTreePath().getLastPathComponent();
-            if (lastPathComponent != null) {
-                for (TreeModelListener treeModelListener : treeModelListeners) {
-                    switch (eventType) {
-                        case NODES_ADDED:       treeModelListener.treeNodesInserted(event);    break;
-                        case NODES_REMOVED:     treeModelListener.treeNodesRemoved(event);     break;
-                        case NODES_CHANGED:     treeModelListener.treeNodesChanged(event);     break;
-                        case STRUCTURE_CHANGED: treeModelListener.treeStructureChanged(event); break;
+        Dispatch.invoke(() -> {
+            try {
+                Object lastPathComponent = event.getTreePath().getLastPathComponent();
+                if (lastPathComponent != null) {
+                    for (TreeModelListener treeModelListener : treeModelListeners) {
+                        switch (eventType) {
+                            case NODES_ADDED:       treeModelListener.treeNodesInserted(event);    break;
+                            case NODES_REMOVED:     treeModelListener.treeNodesRemoved(event);     break;
+                            case NODES_CHANGED:     treeModelListener.treeNodesChanged(event);     break;
+                            case STRUCTURE_CHANGED: treeModelListener.treeStructureChanged(event); break;
+                        }
                     }
                 }
+            } catch (IndexOutOfBoundsException ignore) {
+                // tree may have mutated already
             }
         });
     }

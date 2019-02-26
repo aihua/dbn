@@ -5,10 +5,8 @@ import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.list.FiltrableList;
-import com.dci.intellij.dbn.common.message.MessageCallback;
-import com.dci.intellij.dbn.common.thread.RunnableTask;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
-import com.dci.intellij.dbn.common.thread.SimpleTask;
+import com.dci.intellij.dbn.common.thread.Dispatch;
+import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.util.ActionUtil;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
@@ -72,9 +70,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
-import static com.dci.intellij.dbn.common.action.DBNDataKeys.CONNECTION_HANDLER;
-import static com.dci.intellij.dbn.common.action.DBNDataKeys.DATABASE_SCHEMA;
-import static com.dci.intellij.dbn.common.action.DBNDataKeys.DATABASE_SESSION;
+import static com.dci.intellij.dbn.common.action.DBNDataKeys.*;
+import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
 import static com.dci.intellij.dbn.common.util.MessageUtil.options;
 import static com.dci.intellij.dbn.common.util.MessageUtil.showWarningDialog;
 
@@ -467,8 +464,8 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     }
 
 
-    public void selectConnectionAndSchema(@NotNull DBLanguagePsiFile file, @NotNull ConnectionAction callback) {
-        SimpleLaterInvocator.invokeNonModal(() -> {
+    public void selectConnectionAndSchema(@NotNull DBLanguagePsiFile file, @NotNull Runnable callback) {
+        Dispatch.invokeNonModal(() -> {
             Project project = getProject();
             ConnectionHandler activeConnection = file.getConnectionHandler();
             if (activeConnection == null || activeConnection.isVirtual()) {
@@ -482,8 +479,8 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                 showWarningDialog(project,
                         "No valid connection", message,
                         options("Select Connection", "Cancel"), 0,
-                        MessageCallback.create(0, option ->
-                                promptConnectionSelector(file, false, true, true, callback)));
+                        (option) -> conditional(option == 0,
+                                () -> promptConnectionSelector(file, false, true, true, callback)));
 
             } else if (file.getSchemaId() == null) {
                 String message =
@@ -492,15 +489,15 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                 showWarningDialog(project,
                         "No schema selected", message,
                         options("Use Current Schema", "Select Schema", "Cancel"), 0,
-                        MessageCallback.create(null, option -> {
+                        (option) -> {
                             if (option == 0) {
-                                callback.start();
+                                callback.run();
                             } else if (option == 1) {
                                 promptSchemaSelector(file, callback);
                             }
-                        }));
+                        });
             } else {
-                callback.start();
+                callback.run();
             }
         });
     }
@@ -508,7 +505,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     /***************************************************
      *             Select connection popup             *
      ***************************************************/
-    public void promptConnectionSelector(DBLanguagePsiFile psiFile, boolean showVirtualConnections, boolean showCreateOption, boolean promptSchemaSelection, SimpleTask callback) {
+    public void promptConnectionSelector(DBLanguagePsiFile psiFile, boolean showVirtualConnections, boolean showCreateOption, boolean promptSchemaSelection, Runnable callback) {
         Project project = getProject();
         ConnectionManager connectionManager = ConnectionManager.getInstance(project);
         ConnectionBundle connectionBundle = connectionManager.getConnectionBundle();
@@ -548,10 +545,10 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
     private class ConnectionSelectAction extends AbstractConnectionAction {
         private PsiFileRef<DBLanguagePsiFile> fileRef;
-        private SimpleTask callback;
+        private Runnable callback;
         private boolean promptSchemaSelection;
 
-        private ConnectionSelectAction(ConnectionHandler connectionHandler, DBLanguagePsiFile file, boolean promptSchemaSelection, SimpleTask callback) {
+        private ConnectionSelectAction(ConnectionHandler connectionHandler, DBLanguagePsiFile file, boolean promptSchemaSelection, Runnable callback) {
             super(connectionHandler.getName(), null, connectionHandler.getIcon(), connectionHandler);
             this.fileRef = PsiFileRef.from(file);
             this.callback = callback;
@@ -573,7 +570,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                         file.setDatabaseSchema(defaultSchema);
                     }
                     if (callback != null) {
-                        callback.start();
+                        callback.run();
                     }
                 }
 
@@ -607,37 +604,39 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     /***************************************************
      *             Select schema popup                 *
      ***************************************************/
-    public void promptSchemaSelector(final DBLanguagePsiFile psiFile, final RunnableTask callback) throws IncorrectOperationException {
-        ConnectionAction.invoke("selecting the current schema", psiFile,
-                action -> {
-                    DefaultActionGroup actionGroup = new DefaultActionGroup();
+    public void promptSchemaSelector(DBLanguagePsiFile psiFile, Runnable callback) throws IncorrectOperationException {
+        ConnectionAction.invoke("selecting the current schema", true, psiFile,
+                (action) -> Progress.prompt(psiFile.getProject(), "Loading schemas", true,
+                        (progress) -> {
+                            DefaultActionGroup actionGroup = new DefaultActionGroup();
 
-                    ConnectionHandler connectionHandler = action.getConnectionHandler();
-                    if (!connectionHandler.isVirtual() && !connectionHandler.isDisposed()) {
-                        List<DBSchema> schemas = connectionHandler.getObjectBundle().getSchemas();
-                        for (DBSchema schema : schemas) {
-                            SchemaSelectAction schemaAction = new SchemaSelectAction(psiFile, schema, callback);
-                            actionGroup.add(schemaAction);
-                        }
-                    }
+                            ConnectionHandler connectionHandler = action.getConnectionHandler();
+                            if (!connectionHandler.isVirtual() && !connectionHandler.isDisposed()) {
+                                List<DBSchema> schemas = connectionHandler.getObjectBundle().getSchemas();
+                                for (DBSchema schema : schemas) {
+                                    SchemaSelectAction schemaAction = new SchemaSelectAction(psiFile, schema, callback);
+                                    actionGroup.add(schemaAction);
+                                }
+                            }
 
-                ListPopup popupBuilder = JBPopupFactory.getInstance().createActionGroupPopup(
+                Dispatch.invoke(() -> {ListPopup popupBuilder = JBPopupFactory.getInstance().createActionGroupPopup(
                         "Select Schema",
                         actionGroup,
                         SimpleDataContext.getProjectContext(null),
                         JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
                         true);
 
-                    popupBuilder.showCenteredInCurrentWindow(getProject());
-                });
+                                popupBuilder.showCenteredInCurrentWindow(getProject());
+                            });
+                        }));
     }
 
 
     private static class SchemaSelectAction extends AnObjectAction<DBSchema> {
         private PsiFileRef<DBLanguagePsiFile> fileRef;
-        private RunnableTask callback;
+        private Runnable callback;
 
-        private SchemaSelectAction(DBLanguagePsiFile file, DBSchema schema, RunnableTask callback) {
+        private SchemaSelectAction(DBLanguagePsiFile file, DBSchema schema, Runnable callback) {
             super(schema);
             this.fileRef = PsiFileRef.from(file);
             this.callback = callback;
@@ -649,7 +648,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
             if (file != null) {
                 file.setDatabaseSchema(getSchema());
                 if (callback != null) {
-                    callback.start();
+                    callback.run();
                 }
             }
         }
@@ -672,11 +671,10 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     /***************************************************
      *             Select schema popup                 *
      ***************************************************/
-    public void promptSessionSelector(final DBLanguagePsiFile psiFile, final RunnableTask callback) throws IncorrectOperationException {
-        ConnectionAction.invoke("selecting the current session", psiFile,
-                action -> {
+    public void promptSessionSelector(DBLanguagePsiFile psiFile, Runnable callback) throws IncorrectOperationException {
+        ConnectionAction.invoke("selecting the current session", true, psiFile,
+                (action) -> {
                     DefaultActionGroup actionGroup = new DefaultActionGroup();
-
                     ConnectionHandler connectionHandler = action.getConnectionHandler();
                     if (!connectionHandler.isVirtual() && !connectionHandler.isDisposed()) {
                         List<DatabaseSession> sessions = connectionHandler.getSessionBundle().getSessions();
@@ -696,7 +694,6 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                         true);
 
                     popupBuilder.showCenteredInCurrentWindow(getProject());
-
                 });
     }
 
@@ -704,9 +701,9 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     private class SessionSelectAction extends AnAction {
         private PsiFileRef<DBLanguagePsiFile> fileRef;
         private WeakRef<DatabaseSession> sessionRef;
-        private RunnableTask callback;
+        private Runnable callback;
 
-        private SessionSelectAction(DBLanguagePsiFile file, DatabaseSession session, RunnableTask callback) {
+        private SessionSelectAction(DBLanguagePsiFile file, DatabaseSession session, Runnable callback) {
             super(session.getName(), null, session.getIcon());
             this.fileRef = PsiFileRef.from(file);
             this.sessionRef = WeakRef.from(session);
@@ -720,7 +717,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
             if (file != null && session != null) {
                 file.setDatabaseSession(session);
                 if (callback != null) {
-                    callback.start();
+                    callback.run();
                 }
             }
         }
@@ -747,18 +744,18 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
         @Override
         public void actionPerformed(@NotNull AnActionEvent e) {
-            final DBLanguagePsiFile file = fileRef.get();
+            DBLanguagePsiFile file = fileRef.get();
             if (file != null) {
                 Project project = getProject();
                 DatabaseSessionManager sessionManager = DatabaseSessionManager.getInstance(project);
                 ConnectionHandler connectionHandler = connectionHandlerRef.getnn();
                 sessionManager.showCreateSessionDialog(
                         connectionHandler,
-                        SimpleTask.create(session -> {
+                        (session) -> {
                             if (session != null) {
                                 file.setDatabaseSession(session);
                             }
-                        }));
+                        });
             }
         }
     }

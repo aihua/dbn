@@ -3,12 +3,8 @@ package com.dci.intellij.dbn.execution.statement;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.message.MessageCallback;
-import com.dci.intellij.dbn.common.thread.BackgroundTask;
-import com.dci.intellij.dbn.common.thread.RunnableTask;
-import com.dci.intellij.dbn.common.thread.SimpleLaterInvocator;
-import com.dci.intellij.dbn.common.thread.SimpleTask;
-import com.dci.intellij.dbn.common.thread.TaskInstruction;
+import com.dci.intellij.dbn.common.thread.Dispatch;
+import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.EditorUtil;
@@ -73,7 +69,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static com.dci.intellij.dbn.common.thread.TaskInstructions.instructions;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.EXECUTING;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.PROMPTED;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.QUEUED;
@@ -234,25 +229,22 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
         }
     }
 
-    public void executeStatement(final @NotNull StatementExecutionProcessor executionProcessor) {
+    public void executeStatement(@NotNull StatementExecutionProcessor executionProcessor) {
         executeStatements(executionProcessor.asList(), executionProcessor.getVirtualFile());
     }
 
-    private void executeStatements(final List<StatementExecutionProcessor> executionProcessors, final VirtualFile virtualFile) {
+    private void executeStatements(List<StatementExecutionProcessor> executionProcessors, VirtualFile virtualFile) {
         if (executionProcessors.size() > 0) {
             Project project = getProject();
             FileConnectionMappingManager connectionMappingManager = FileConnectionMappingManager.getInstance(project);
 
             DBLanguagePsiFile file =  executionProcessors.get(0).getPsiFile();
             connectionMappingManager.selectConnectionAndSchema(file,
-                    ConnectionAction.create(
-                            "the statement execution",
+                    () -> ConnectionAction.invoke(
+                            "the statement execution", false,
                             () -> connectionMappingManager.getConnectionHandler(virtualFile),
-                            (Integer) null,
-                            action -> promptExecutionDialogs(
-                                    executionProcessors,
-                                    DBDebuggerType.NONE,
-                                    SimpleTask.create(data -> {
+                            (action) -> promptExecutionDialogs(executionProcessors, DBDebuggerType.NONE,
+                                    () -> {
                                         for (StatementExecutionProcessor executionProcessor : executionProcessors) {
                                             ExecutionContext context = executionProcessor.getExecutionContext();
                                             StatementExecutionInput executionInput = executionProcessor.getExecutionInput();
@@ -260,9 +252,8 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
                                             ConnectionId connectionId = executionInput.getConnectionHandlerId();
                                             if (context.isNot(EXECUTING) && context.isNot(QUEUED)) {
                                                 if (sessionId == SessionId.POOL) {
-                                                    BackgroundTask.invoke(project,
-                                                            instructions("Executing statement", TaskInstruction.BACKGROUNDED, TaskInstruction.CANCELLABLE),
-                                                            (data1, progress) -> process(executionProcessor));
+                                                    Progress.background(project, "Executing statement", true,
+                                                            (progress) -> process(executionProcessor));
                                                 } else {
                                                     StatementExecutionQueue executionQueue = getExecutionQueue(connectionId, sessionId);
                                                     if (!executionQueue.contains(executionProcessor)) {
@@ -271,7 +262,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
                                                 }
                                             }
                                         }
-                                    }))));
+                                    })));
         }
     }
 
@@ -297,8 +288,8 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
         }
     }
 
-    public void executeStatementAtCursor(final FileEditor fileEditor) {
-        final Editor editor = EditorUtil.getEditor(fileEditor);
+    public void executeStatementAtCursor(FileEditor fileEditor) {
+        Editor editor = EditorUtil.getEditor(fileEditor);
         if (editor != null) {
             StatementExecutionProcessor executionProcessor = getExecutionProcessorAtCursor(fileEditor);
             if (executionProcessor != null) {
@@ -308,28 +299,29 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
                         getProject(),
                         "Multiple statement execution",
                         "No statement found under the caret. \nExecute all statements in the file or just the ones after the cursor?",
-                        OPTIONS_MULTIPLE_STATEMENT_EXEC, 0, MessageCallback.create(null, option -> {
+                        OPTIONS_MULTIPLE_STATEMENT_EXEC, 0,
+                        (option) -> {
                             if (option == 0 || option == 1) {
                                 int offset = option == 0 ? 0 : editor.getCaretModel().getOffset();
                                 List<StatementExecutionProcessor> executionProcessors = getExecutionProcessorsFromOffset(fileEditor, offset);
-                                final VirtualFile virtualFile = DocumentUtil.getVirtualFile(editor);
+                                VirtualFile virtualFile = DocumentUtil.getVirtualFile(editor);
                                 executeStatements(executionProcessors, virtualFile);
                             }
-                        }));
+                        });
             }
         }
 
     }
 
-    public void promptExecutionDialog(@NotNull StatementExecutionProcessor executionProcessor, final DBDebuggerType debuggerType, @NotNull final RunnableTask callback) {
+    public void promptExecutionDialog(@NotNull StatementExecutionProcessor executionProcessor, DBDebuggerType debuggerType, @NotNull Runnable callback) {
         promptExecutionDialogs(executionProcessor.asList(), debuggerType, callback);
 
     }
 
-    private void promptExecutionDialogs(@NotNull List<StatementExecutionProcessor> processors, DBDebuggerType debuggerType, @NotNull RunnableTask callback) {
-        SimpleLaterInvocator.invokeNonModal(() -> {
+    private void promptExecutionDialogs(@NotNull List<StatementExecutionProcessor> processors, DBDebuggerType debuggerType, @NotNull Runnable callback) {
+        Dispatch.invokeNonModal(() -> {
             if (promptExecutionDialogs(processors, debuggerType)) {
-                callback.start();
+                callback.run();
             }
         });
     }
@@ -396,10 +388,10 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
         return true;
     }
 
-    public void promptPendingTransactionDialog(final StatementExecutionProcessor executionProcessor) {
-        final ExecutionContext context = executionProcessor.getExecutionContext();
+    public void promptPendingTransactionDialog(StatementExecutionProcessor executionProcessor) {
+        ExecutionContext context = executionProcessor.getExecutionContext();
         context.set(PROMPTED, true);
-        SimpleLaterInvocator.invokeNonModal(() -> {
+        Dispatch.invokeNonModal(() -> {
             try {
                 PendingTransactionDialog dialog = new PendingTransactionDialog(executionProcessor);
                 dialog.show();

@@ -12,7 +12,7 @@ import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseDebuggerInterface;
 import com.dci.intellij.dbn.debugger.DBDebugConsoleLogger;
-import com.dci.intellij.dbn.debugger.DBDebugOperationTask;
+import com.dci.intellij.dbn.debugger.DBDebugOperation;
 import com.dci.intellij.dbn.debugger.DBDebugUtil;
 import com.dci.intellij.dbn.debugger.DatabaseDebuggerManager;
 import com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointHandler;
@@ -240,7 +240,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput> extends JavaD
 
         getDebuggerSession().getProcess().setXDebugProcess(this);
 
-        DBDebugOperationTask.invoke(project, "initialize debug environment", () -> {
+        DBDebugOperation.run(project, "initialize debug environment", () -> {
             try {
                 console.system("Initializing debug environment");
                 T executionInput = getExecutionInput();

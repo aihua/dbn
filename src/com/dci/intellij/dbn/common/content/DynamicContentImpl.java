@@ -23,12 +23,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.CHANGING;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.DIRTY;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.DISPOSED;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.LOADED;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.LOADING;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.MASTER;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.*;
 
 public abstract class DynamicContentImpl<T extends DynamicContentElement> extends PropertyHolderImpl<DynamicContentStatus> implements DynamicContent<T> {
     protected static final List EMPTY_CONTENT = java.util.Collections.unmodifiableList(new ArrayList(0));
@@ -41,6 +36,7 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
     private ContentDependencyAdapter dependencyAdapter;
 
     protected List<T> elements = EMPTY_UNTOUCHED_CONTENT;
+    private final Object ENSURE_SYNC = new Object();
 
     protected DynamicContentImpl(
             @NotNull GenericDatabaseElement parent,
@@ -122,7 +118,7 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
 
     @Override
     public boolean isDirty() {
-        return is(DIRTY) || dependencyAdapter.isDirty();
+        return is(DIRTY) || dependencyAdapter.areSourcesDirty();
     }
 
     @Override
@@ -201,9 +197,9 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
 
     @Override
     public void ensure() {
-        if (shouldLoad()) {
-            synchronized (this) {
-                if (shouldLoad()) {
+        if (!isLoaded() || shouldLoad()) {
+            synchronized (ENSURE_SYNC) {
+                if (!isLoaded() || shouldLoad()) {
                     load();
                 }
             }
@@ -214,6 +210,7 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
     public void refresh() {
         if (isLoaded() && !isLoading()) {
             markDirty();
+            getDependencyAdapter().refreshSources();
         }
     }
 

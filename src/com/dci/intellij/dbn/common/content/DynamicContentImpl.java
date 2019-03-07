@@ -103,6 +103,11 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
         return is(LOADING);
     }
 
+    @Override
+    public boolean isLoadingInBackground() {
+        return is(LOADING_IN_BACKGROUND);
+    }
+
     /**
      * The content can load
      */
@@ -118,7 +123,7 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
 
     @Override
     public boolean isDirty() {
-        return is(DIRTY) || dependencyAdapter.areSourcesDirty();
+        return is(DIRTY);
     }
 
     @Override
@@ -210,24 +215,42 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
     public void refresh() {
         if (isLoaded() && !isLoading()) {
             markDirty();
-            getDependencyAdapter().refreshSources();
+            dependencyAdapter.refreshSources();
+            if (!is(INTERNAL)){
+                CollectionUtil.forEach(elements, element -> element.refresh());
+            }
         }
     }
 
     @Override
     public final void loadInBackground() {
-        if (shouldLoad()) {
-            //System.out.println( this + " :invoked by " + ThreadMonitor.thread());
-            ConnectionHandler connectionHandler = getConnectionHandler();
-            String connectionString = " (" + connectionHandler.getName() + ')';
-            Progress.background(
-                    getProject(),
-                    "Loading data dictionary" + connectionString, false,
-                    (progress) -> ensure());
+        if (shouldLoadInBackground()) {
+            synchronized (this) {
+                if (shouldLoadInBackground()) {
+                    set(LOADING_IN_BACKGROUND, true);
+                    ConnectionHandler connectionHandler = getConnectionHandler();
+                    String connectionString = " (" + connectionHandler.getName() + ')';
+                    Progress.background(
+                            getProject(),
+                            "Loading data dictionary" + connectionString, false,
+                            (progress) -> {
+                                try{
+                                    ensure();
+                                } finally {
+                                    set(LOADING_IN_BACKGROUND, false);
+                                }
+                            });
+                }
+            }
         }
     }
 
+    private boolean shouldLoadInBackground() {
+        return shouldLoad() && !isLoadingInBackground();
+    }
+
     private void performLoad(boolean force) throws InterruptedException {
+        System.out.println( this + " :invoked by " + ThreadMonitor.thread());
         checkDisposed();
         dependencyAdapter.beforeLoad(force);
         checkDisposed();

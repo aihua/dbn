@@ -66,18 +66,10 @@ import java.util.List;
 
 import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
 import static com.dci.intellij.dbn.common.util.CommonUtil.list;
-import static com.dci.intellij.dbn.common.util.MessageUtil.options;
-import static com.dci.intellij.dbn.common.util.MessageUtil.showErrorDialog;
-import static com.dci.intellij.dbn.common.util.MessageUtil.showQuestionDialog;
-import static com.dci.intellij.dbn.common.util.MessageUtil.showWarningDialog;
+import static com.dci.intellij.dbn.common.util.MessageUtil.*;
 import static com.dci.intellij.dbn.common.util.NamingUtil.unquote;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.LOADING;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
-import static com.intellij.openapi.util.text.StringUtil.equalsIgnoreCase;
-import static com.intellij.openapi.util.text.StringUtil.indexOfIgnoreCase;
-import static com.intellij.openapi.util.text.StringUtil.isEmptyOrSpaces;
-import static com.intellij.openapi.util.text.StringUtil.replaceIgnoreCase;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.*;
+import static com.intellij.openapi.util.text.StringUtil.*;
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.LOADING;
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
@@ -197,7 +189,9 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
                         Project project = getProject();
                         DBSchemaObject object = sourceCodeFile.getObject();
 
-                        EventUtil.notify(project, SourceCodeManagerListener.TOPIC).sourceCodeLoading(sourceCodeFile);
+                        EventUtil.notify(project,
+                                SourceCodeManagerListener.TOPIC,
+                                (listener) -> listener.sourceCodeLoading(sourceCodeFile));
                         try {
                             sourceCodeFile.loadSourceFromDatabase();
                         } catch (SQLException e) {
@@ -211,7 +205,9 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
                             }
                         } finally {
                             sourceCodeFile.set(LOADING, false);
-                            EventUtil.notify(project, SourceCodeManagerListener.TOPIC).sourceCodeLoaded(sourceCodeFile, initialLoad);
+                            EventUtil.notify(project,
+                                    SourceCodeManagerListener.TOPIC,
+                                    (listener) -> listener.sourceCodeLoaded(sourceCodeFile, initialLoad));
                         }
                     }
                 });
@@ -396,7 +392,10 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
         Progress.prompt(getProject(), "Saving sources to database", false, (progress) -> {
             try {
                 sourceCodeFile.saveSourceToDatabase();
-                EventUtil.notify(project, SourceCodeManagerListener.TOPIC).sourceCodeSaved(sourceCodeFile, fileEditor);
+                EventUtil.notify(project,
+                        SourceCodeManagerListener.TOPIC,
+                        (listener) -> listener.sourceCodeSaved(sourceCodeFile, fileEditor));
+
             } catch (SQLException e) {
                 showErrorDialog(project, "Could not save changes to database.", e);
             } finally {

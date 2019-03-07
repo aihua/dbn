@@ -176,7 +176,9 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
     public void attachDDLFile(DBObjectRef<DBSchemaObject> objectRef, VirtualFile virtualFile) {
         if (objectRef != null) {
             mappings.put(virtualFile.getUrl(), objectRef);
-            EventUtil.notify(getProject(), DDLFileAttachmentManagerListener.TOPIC).ddlFileAttached(virtualFile);
+            EventUtil.notify(getProject(),
+                    DDLFileAttachmentManagerListener.TOPIC,
+                    (listener) -> listener.ddlFileAttached(virtualFile));
         }
     }
 
@@ -195,7 +197,9 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
             }
         }
 
-        EventUtil.notify(getProject(), DDLFileAttachmentManagerListener.TOPIC).ddlFileDetached(virtualFile);
+        EventUtil.notify(getProject(),
+                DDLFileAttachmentManagerListener.TOPIC,
+                (listener) -> listener.ddlFileDetached(virtualFile));
     }
 
     private List<VirtualFile> lookupApplicableDDLFiles(@NotNull DBObjectRef<DBSchemaObject> objectRef) {

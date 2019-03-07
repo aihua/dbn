@@ -246,8 +246,9 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
             Project project = getProject();
             BrowserTreeNode treeParent = getParent();
             if (isNot(INTERNAL) && isTouched() && Failsafe.check(project) && treeParent.isTreeStructureLoaded()) {
-                BrowserTreeEventListener treeEventListener = EventUtil.notify(project, BrowserTreeEventListener.TOPIC);
-                treeEventListener.nodeChanged(this, TreeEventType.STRUCTURE_CHANGED);
+                EventUtil.notify(project,
+                        BrowserTreeEventListener.TOPIC,
+                        (listener) -> listener.nodeChanged(this, TreeEventType.STRUCTURE_CHANGED));
             }
         });
     }
@@ -326,17 +327,14 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
         } else {
             return Failsafe.lenient(Collections.emptyList(), () -> {
                 boolean scroll = !isTouched();
-                if (!isLoaded()) {
+                if (!isLoaded() || isDirty()) {
                     loadInBackground();
-                    return elements;
+                    scroll = false;
                 }
 
-                if (elements.size() > 0 && elements.get(0).isDisposed()) {
-                    loadInBackground();
-                    return elements;
-                }
                 if (scroll) {
-                    DatabaseBrowserManager.scrollToSelectedElement(getConnectionHandler());
+                    ConnectionHandler connectionHandler = getConnectionHandler();
+                    DatabaseBrowserManager.scrollToSelectedElement(connectionHandler);
                 }
                 return elements;
             });

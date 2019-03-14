@@ -2,7 +2,7 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.1.1024.2</version>
+    <version>3.1.1156.2</version>
     <category>Database</category>
     <depends>com.intellij.modules.lang</depends>
     <vendor email="dancioca@bluewin.ch" logo="/img/project/DatabaseNavigator.png">Dan Cioca</vendor>
@@ -28,7 +28,7 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
-            <li><b>3.1.1024</b>
+            <li><b>3.1.1156</b>
             <ul>
                 <li>Optimized Oracle meta-data interface for large databases
                 <li>SQLite data editor issues
@@ -511,6 +511,7 @@
             <className>com.dci.intellij.dbn.code.common.intention.ExecuteScriptIntentionAction</className>
             <category>DBNavigator</category>
         </intentionAction>-->
+        <fileTemplateGroup implementation="com.dci.intellij.dbn.common.file.DBNFileTemplateGroupDescriptorFactory"/>
     </extensions>
     <helpset file="help.jar" path="/Help.hs"/>
 

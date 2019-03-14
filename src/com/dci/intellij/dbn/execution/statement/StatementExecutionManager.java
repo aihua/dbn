@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.execution.statement;
 
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
+import com.dci.intellij.dbn.common.action.DBNDataKeys;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
@@ -10,6 +11,7 @@ import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.EditorUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
+import com.dci.intellij.dbn.common.util.UserDataUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -82,8 +84,6 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
 
     private static final String[] OPTIONS_MULTIPLE_STATEMENT_EXEC = new String[]{"Execute All", "Execute All from Caret", "Cancel"};
 
-    private final Map<FileEditor, List<StatementExecutionProcessor>> fileExecutionProcessors = new HashMap<>();
-
     private final StatementExecutionVariablesCache variablesCache;
 
     private static final AtomicInteger RESULT_SEQUENCE = new AtomicInteger(0);
@@ -92,7 +92,6 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
         super(project);
         variablesCache = new StatementExecutionVariablesCache(project);
         EventUtil.subscribe(project, this, PsiDocumentTransactionListener.TOPIC, psiDocumentTransactionListener);
-        EventUtil.subscribe(project, this, FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorManagerListener);
     }
 
     public StatementExecutionQueue getExecutionQueue(ConnectionId connectionId, SessionId sessionId) {
@@ -172,8 +171,11 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     }
 
     @NotNull
-    private List<StatementExecutionProcessor> getExecutionProcessors(FileEditor textEditor) {
-        return fileExecutionProcessors.computeIfAbsent(textEditor, k -> CollectionUtil.createConcurrentList());
+    private List<StatementExecutionProcessor> getExecutionProcessors(@NotNull FileEditor textEditor) {
+        return UserDataUtil.ensure(
+                textEditor,
+                DBNDataKeys.STATEMENT_EXECUTION_PROCESSORS,
+                () -> CollectionUtil.createConcurrentList());
     }
 
     private void bindExecutionProcessors(FileEditor fileEditor, MatchType matchType) {

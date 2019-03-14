@@ -12,6 +12,7 @@ import com.dci.intellij.dbn.common.list.FiltrableList;
 import com.dci.intellij.dbn.common.property.PropertyHolderImpl;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.thread.ThreadMonitor;
+import com.dci.intellij.dbn.common.thread.ThreadProperty;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -23,7 +24,15 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.*;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.CHANGING;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.DIRTY;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.DISPOSED;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.INTERNAL;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.LOADED;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.LOADING;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.LOADING_IN_BACKGROUND;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.MASTER;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.REFRESHING;
 
 public abstract class DynamicContentImpl<T extends DynamicContentElement> extends PropertyHolderImpl<DynamicContentStatus> implements DynamicContent<T> {
     protected static final List EMPTY_CONTENT = java.util.Collections.unmodifiableList(new ArrayList(0));
@@ -36,7 +45,6 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
     private ContentDependencyAdapter dependencyAdapter;
 
     protected List<T> elements = EMPTY_UNTOUCHED_CONTENT;
-    private final Object ENSURE_SYNC = new Object();
 
     protected DynamicContentImpl(
             @NotNull GenericDatabaseElement parent,
@@ -103,11 +111,6 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
         return is(LOADING);
     }
 
-    @Override
-    public boolean isLoadingInBackground() {
-        return is(LOADING_IN_BACKGROUND);
-    }
-
     /**
      * The content can load
      */
@@ -150,6 +153,14 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
 
     private boolean shouldReload() {
         return !isDisposed() && isLoaded() && !isLoading();
+    }
+
+    private boolean shouldRefresh() {
+        return !isDisposed() && isLoaded() && !isLoading() && !is(REFRESHING);
+    }
+
+    private boolean shouldLoadInBackground() {
+        return shouldLoad() && !is(LOADING_IN_BACKGROUND);
     }
 
     @Override
@@ -203,7 +214,7 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
     @Override
     public void ensure() {
         if (!isLoaded() || shouldLoad()) {
-            synchronized (ENSURE_SYNC) {
+            synchronized (this) {
                 if (!isLoaded() || shouldLoad()) {
                     load();
                 }
@@ -213,11 +224,20 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
 
     @Override
     public void refresh() {
-        if (isLoaded() && !isLoading()) {
-            markDirty();
-            dependencyAdapter.refreshSources();
-            if (!is(INTERNAL)){
-                CollectionUtil.forEach(elements, element -> element.refresh());
+        if (shouldRefresh()) {
+            synchronized (this) {
+                if (shouldRefresh()) {
+                    try {
+                        set(REFRESHING, true);
+                        markDirty();
+                        dependencyAdapter.refreshSources();
+                        if (!is(INTERNAL)){
+                            CollectionUtil.forEach(elements, element -> element.refresh());
+                        }
+                    } finally {
+                        set(REFRESHING, false);
+                    }
+                }
             }
         }
     }
@@ -245,12 +265,8 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
         }
     }
 
-    private boolean shouldLoadInBackground() {
-        return shouldLoad() && !isLoadingInBackground();
-    }
-
     private void performLoad(boolean force) throws InterruptedException {
-        System.out.println( this + " :invoked by " + ThreadMonitor.thread());
+        //System.out.println( this + " :invoked by " + ThreadMonitor.current());
         checkDisposed();
         dependencyAdapter.beforeLoad(force);
         checkDisposed();
@@ -310,13 +326,18 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
     }
 
     public void sortElements(List<T> elements) {
-        java.util.Collections.sort(elements);
+        elements.sort(null);
     }
 
     @Override
     @NotNull
     public List<T> getElements() {
-        if (ThreadMonitor.isBackgroundProcess() || ThreadMonitor.isTimeoutProcess() || getDependencyAdapter().canLoadFast()) {
+        if (getDependencyAdapter().canLoadFast() ||
+                ThreadMonitor.is(
+                        ThreadProperty.BACKGROUND_TASK,
+                        ThreadProperty.BACKGROUND_THREAD,
+                        ThreadProperty.TIMEOUT_PROCESS,
+                        ThreadProperty.CODE_ANNOTATING)) {
             ensure();
         } else{
             loadInBackground();
@@ -375,6 +396,11 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
     @Override
     public boolean isDisposed() {
         return is(DISPOSED);
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return size() == 0;
     }
 
     @Override

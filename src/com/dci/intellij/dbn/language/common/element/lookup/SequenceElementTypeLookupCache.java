@@ -2,52 +2,53 @@ package com.dci.intellij.dbn.language.common.element.lookup;
 
 import com.dci.intellij.dbn.language.common.TokenType;
 import com.dci.intellij.dbn.language.common.element.ElementType;
-import com.dci.intellij.dbn.language.common.element.LeafElementType;
-import com.dci.intellij.dbn.language.common.element.SequenceElementType;
+import com.dci.intellij.dbn.language.common.element.impl.ElementTypeBase;
 import com.dci.intellij.dbn.language.common.element.impl.ElementTypeRef;
+import com.dci.intellij.dbn.language.common.element.impl.LeafElementType;
+import com.dci.intellij.dbn.language.common.element.impl.SequenceElementType;
 
 import java.util.Set;
 
-public class SequenceElementTypeLookupCache<T extends SequenceElementType> extends ElementTypeLookupCacheBaseIndexed<T> {
+public class SequenceElementTypeLookupCache<T extends SequenceElementType> extends ElementTypeLookupCacheIndexed<T> {
 
     public SequenceElementTypeLookupCache(T elementType) {
         super(elementType);
     }
 
     @Override
-    boolean initAsFirstPossibleLeaf(LeafElementType leaf, ElementType source) {
+    boolean initAsFirstPossibleLeaf(LeafElementType leaf, ElementTypeBase source) {
         boolean notInitialized = !firstPossibleLeafs.contains(leaf);
         return notInitialized && (
                 isWrapperBeginLeaf(leaf) ||
                     (couldStartWithElement(source) &&
-                     source.getLookupCache().couldStartWithLeaf(leaf)));
+                     source.lookupCache.couldStartWithLeaf(leaf)));
     }
 
     @Override
-    boolean initAsFirstRequiredLeaf(LeafElementType leaf, ElementType source) {
+    boolean initAsFirstRequiredLeaf(LeafElementType leaf, ElementTypeBase source) {
         boolean notInitialized = !firstRequiredLeafs.contains(leaf);
         return notInitialized &&
                 shouldStartWithElement(source) &&
-                source.getLookupCache().shouldStartWithLeaf(leaf);
+                source.lookupCache.shouldStartWithLeaf(leaf);
     }
 
     private boolean couldStartWithElement(ElementType elementType) {
-        ElementTypeRef[] children = getElementType().getChildren();
+        ElementTypeRef[] children = this.elementType.getChildren();
         for (ElementTypeRef child : children) {
-            if (child.isOptional()) {
-                if (elementType == child.getElementType()) return true;
+            if (child.optional) {
+                if (elementType == child.elementType) return true;
             } else {
-                return child.getElementType() == elementType;
+                return child.elementType == elementType;
             }
         }
         return false;
     }
 
     private boolean shouldStartWithElement(ElementType elementType) {
-        ElementTypeRef[] children = getElementType().getChildren();
+        ElementTypeRef[] children = this.elementType.getChildren();
         for (ElementTypeRef child : children) {
-            if (!child.isOptional()) {
-                return child.getElementType() == elementType;
+            if (!child.optional) {
+                return child.elementType == elementType;
             }
         }
         return false;
@@ -55,13 +56,13 @@ public class SequenceElementTypeLookupCache<T extends SequenceElementType> exten
 
     @Override
     public boolean checkStartsWithIdentifier() {
-        ElementTypeRef[] children = getElementType().getChildren();
+        ElementTypeRef[] children = this.elementType.getChildren();
         for (ElementTypeRef child : children) {
             if (child.getLookupCache().startsWithIdentifier()) {
                 return true;
             }
 
-            if (!child.isOptional()) {
+            if (!child.optional) {
                 return false;
             }
         }
@@ -73,14 +74,12 @@ public class SequenceElementTypeLookupCache<T extends SequenceElementType> exten
         bucket = super.collectFirstPossibleLeafs(context, bucket);
         bucket = initBucket(bucket);
 
-        T elementType = getElementType();
         ElementTypeRef[] children = elementType.getChildren();
         for (ElementTypeRef child : children) {
             if (context.check(child)) {
-                ElementTypeLookupCache lookupCache = child.getElementType().getLookupCache();
-                lookupCache.collectFirstPossibleLeafs(context, bucket);
+                child.elementType.lookupCache.collectFirstPossibleLeafs(context, bucket);
             }
-            if (!child.isOptional()) break;
+            if (!child.optional) break;
         }
         return bucket;
     }
@@ -90,14 +89,12 @@ public class SequenceElementTypeLookupCache<T extends SequenceElementType> exten
         bucket = super.collectFirstPossibleTokens(context, bucket);
         bucket = initBucket(bucket);
 
-        T elementType = getElementType();
         ElementTypeRef[] children = elementType.getChildren();
         for (ElementTypeRef child : children) {
             if (context.check(child)) {
-                ElementTypeLookupCache lookupCache = child.getElementType().getLookupCache();
-                lookupCache.collectFirstPossibleTokens(context, bucket);
+                child.elementType.lookupCache.collectFirstPossibleTokens(context, bucket);
             }
-            if (!child.isOptional()) break;
+            if (!child.optional) break;
         }
         return bucket;
     }

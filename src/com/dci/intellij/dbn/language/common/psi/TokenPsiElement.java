@@ -2,7 +2,7 @@ package com.dci.intellij.dbn.language.common.psi;
 
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.language.common.TokenType;
-import com.dci.intellij.dbn.language.common.element.TokenElementType;
+import com.dci.intellij.dbn.language.common.element.impl.TokenElementType;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.dci.intellij.dbn.language.common.psi.lookup.PsiLookupAdapter;
 import com.dci.intellij.dbn.object.common.DBObjectType;
@@ -15,14 +15,9 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import java.util.Set;
 
-public class TokenPsiElement extends LeafPsiElement {
+public class TokenPsiElement extends LeafPsiElement<TokenElementType> {
     public TokenPsiElement(ASTNode astNode, TokenElementType elementType) {
         super(astNode, elementType);
-    }
-
-    @Override
-    public TokenElementType getElementType() {
-        return (TokenElementType) super.getElementType();
     }
 
     @Override
@@ -51,7 +46,7 @@ public class TokenPsiElement extends LeafPsiElement {
      *                       PsiReference                    *
      *********************************************************/
     @Override
-    public boolean isReferenceTo(PsiElement element) {
+    public boolean isReferenceTo(@NotNull PsiElement element) {
         return true;
     }
 
@@ -113,6 +108,6 @@ public class TokenPsiElement extends LeafPsiElement {
     }
 
     public TokenType getTokenType() {
-        return getElementType().getTokenType();
+        return elementType.tokenType;
     }
 }

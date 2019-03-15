@@ -6,22 +6,18 @@ import com.dci.intellij.dbn.code.common.style.formatting.IndentDefinition;
 import com.dci.intellij.dbn.code.common.style.formatting.SpacingDefinition;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.LoggerFactory;
-import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
 import com.dci.intellij.dbn.language.common.TokenType;
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.ElementTypeBundle;
-import com.dci.intellij.dbn.language.common.element.LeafElementType;
-import com.dci.intellij.dbn.language.common.element.SequenceElementType;
-import com.dci.intellij.dbn.language.common.element.TokenElementType;
 import com.dci.intellij.dbn.language.common.element.TokenPairTemplate;
 import com.dci.intellij.dbn.language.common.element.lookup.ElementTypeLookupCache;
 import com.dci.intellij.dbn.language.common.element.parser.Branch;
 import com.dci.intellij.dbn.language.common.element.parser.BranchCheck;
 import com.dci.intellij.dbn.language.common.element.parser.ElementTypeParser;
-import com.dci.intellij.dbn.language.common.element.path.PathNode;
+import com.dci.intellij.dbn.language.common.element.path.BasicPathNode;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttributeHolder;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeDefinitionException;
@@ -38,28 +34,32 @@ import javax.swing.*;
 import java.util.Set;
 import java.util.StringTokenizer;
 
-public abstract class AbstractElementType extends IElementType implements ElementType {
+public abstract class ElementTypeBase extends IElementType implements ElementType {
     private static final Logger LOGGER = LoggerFactory.createLogger();
     private static final FormattingDefinition STATEMENT_FORMATTING = new FormattingDefinition(null, IndentDefinition.NORMAL, SpacingDefinition.MIN_LINE_BREAK, null);
 
     private int idx;
 
-    private String id;
-    private int hashCode;
+    private final String id;
+    private final int hashCode;
     private String description;
     private Icon icon;
     private Branch branch;
     private FormattingDefinition formatting;
-    private Latent<ElementTypeLookupCache> lookupCache = Latent.basic(() -> createLookupCache());
-    private Latent<ElementTypeParser> parser = Latent.basic(() -> createParser());
-    private ElementTypeBundle bundle;
-    private ElementType parent;
+
+    public final ElementTypeLookupCache lookupCache = createLookupCache();
+    public final ElementTypeParser parser = createParser();
+    private final ElementTypeBundle bundle;
+    private final ElementTypeBase parent;
     private DBObjectType virtualObjectType;
     private ElementTypeAttributeHolder attributes;
 
     protected WrappingDefinition wrapping;
 
-    public AbstractElementType(ElementTypeBundle bundle, ElementType parent, String id, @Nullable String description) {
+    private boolean scopeDemarcation;
+    private boolean scopeIsolation;
+
+    ElementTypeBase(@NotNull ElementTypeBundle bundle, ElementTypeBase parent, String id, @Nullable String description) {
         super(id, bundle.getLanguageDialect(), false);
         idx = TokenType.INDEXER.incrementAndGet();
         this.id = id;
@@ -69,16 +69,17 @@ public abstract class AbstractElementType extends IElementType implements Elemen
         this.parent = parent;
     }
 
-    public AbstractElementType(ElementTypeBundle bundle, ElementType parent, String id, Element def) throws ElementTypeDefinitionException {
+    ElementTypeBase(@NotNull ElementTypeBundle bundle, ElementTypeBase parent, String id, @NotNull Element def) throws ElementTypeDefinitionException {
         super(id, bundle.getLanguageDialect(), false);
         idx = TokenType.INDEXER.incrementAndGet();
-        this.id = def.getAttributeValue("id");
+        String defId = def.getAttributeValue("id");
         this.hashCode = id.hashCode();
-        if (!id.equals(this.id)) {
-            this.id = id;
-            def.setAttribute("id", this.id);
+        if (!id.equals(defId)) {
+            defId = id;
+            def.setAttribute("id", defId);
             bundle.markIndexesDirty();
         }
+        this.id = defId;
         this.bundle = bundle;
         this.parent = parent;
         if (StringUtil.isNotEmpty(def.getAttributeValue("exit")) && !(parent instanceof SequenceElementType)) {
@@ -87,10 +88,10 @@ public abstract class AbstractElementType extends IElementType implements Elemen
         loadDefinition(def);
     }
 
-    protected Set<BranchCheck> parseBranchChecks(String definitions) {
+    Set<BranchCheck> parseBranchChecks(String definitions) {
         Set<BranchCheck> branches = null;
         if (definitions != null) {
-            branches = new THashSet<BranchCheck>();
+            branches = new THashSet<>();
             StringTokenizer tokenizer = new StringTokenizer(definitions, " ");
             while (tokenizer.hasMoreTokens()) {
                 String branchDef = tokenizer.nextToken().trim();
@@ -110,24 +111,22 @@ public abstract class AbstractElementType extends IElementType implements Elemen
         return wrapping;
     }
 
-    @Override
     public boolean isWrappingBegin(LeafElementType elementType) {
         return wrapping != null && wrapping.getBeginElementType() == elementType;
     }
 
     @Override
     public boolean isWrappingBegin(TokenType tokenType) {
-        return wrapping != null && wrapping.getBeginElementType().getTokenType() == tokenType;
+        return wrapping != null && wrapping.getBeginElementType().tokenType == tokenType;
     }
 
-    @Override
     public boolean isWrappingEnd(LeafElementType elementType) {
         return wrapping != null && wrapping.getEndElementType() == elementType;
     }
 
     @Override
     public boolean isWrappingEnd(TokenType tokenType) {
-        return wrapping != null && wrapping.getEndElementType().getTokenType() == tokenType;
+        return wrapping != null && wrapping.getEndElementType().tokenType == tokenType;
     }
 
     protected abstract ElementTypeLookupCache createLookupCache();
@@ -138,6 +137,16 @@ public abstract class AbstractElementType extends IElementType implements Elemen
     @Override
     public void setDefaultFormatting(FormattingDefinition defaultFormatting) {
         formatting = FormattingDefinitionFactory.mergeDefinitions(formatting, defaultFormatting);
+    }
+
+    @Override
+    public boolean isScopeDemarcation() {
+        return scopeDemarcation;
+    }
+
+    @Override
+    public boolean isScopeIsolation() {
+        return scopeIsolation;
     }
 
     protected void loadDefinition(Element def) throws ElementTypeDefinitionException {
@@ -166,7 +175,7 @@ public abstract class AbstractElementType extends IElementType implements Elemen
         loadWrappingAttributes(def);
     }
 
-    private void loadWrappingAttributes(Element def) throws ElementTypeDefinitionException {
+    private void loadWrappingAttributes(Element def) {
         String templateId = def.getAttributeValue("wrapping-template");
         TokenElementType beginTokenElement = null;
         TokenElementType endTokenElement = null;
@@ -175,15 +184,15 @@ public abstract class AbstractElementType extends IElementType implements Elemen
             String endTokenId = def.getAttributeValue("wrapping-end-token");
 
             if (StringUtil.isNotEmpty(beginTokenId) && StringUtil.isNotEmpty(endTokenId)) {
-                beginTokenElement = new TokenElementTypeImpl(bundle, this, beginTokenId, id);
-                endTokenElement = new TokenElementTypeImpl(bundle, this, endTokenId, id);
+                beginTokenElement = new TokenElementType(bundle, this, beginTokenId, id);
+                endTokenElement = new TokenElementType(bundle, this, endTokenId, id);
             }
         } else {
             TokenPairTemplate template = TokenPairTemplate.valueOf(templateId);
             String beginTokenId = template.getBeginToken();
             String endTokenId = template.getEndToken();
-            beginTokenElement = new TokenElementTypeImpl(bundle, this, beginTokenId, id);
-            endTokenElement = new TokenElementTypeImpl(bundle, this, endTokenId, id);
+            beginTokenElement = new TokenElementType(bundle, this, beginTokenId, id);
+            endTokenElement = new TokenElementType(bundle, this, endTokenId, id);
 
             if (template.isBlock()) {
                 beginTokenElement.setDefaultFormatting(FormattingDefinition.LINE_BREAK_AFTER);
@@ -192,9 +201,12 @@ public abstract class AbstractElementType extends IElementType implements Elemen
             }
         }
 
-        if (beginTokenElement != null && endTokenElement != null) {
+        if (beginTokenElement != null) {
             wrapping = new WrappingDefinition(beginTokenElement, endTokenElement);
         }
+
+        scopeDemarcation = is(ElementTypeAttribute.SCOPE_DEMARCATION) || is(ElementTypeAttribute.STATEMENT);
+        scopeIsolation = is(ElementTypeAttribute.SCOPE_ISOLATION);
     }
 
     @Override
@@ -217,7 +229,7 @@ public abstract class AbstractElementType extends IElementType implements Elemen
     }
 
     @Override
-    public ElementType getParent() {
+    public ElementTypeBase getParent() {
         return parent;
     }
 
@@ -228,13 +240,13 @@ public abstract class AbstractElementType extends IElementType implements Elemen
 
     @Override
     public ElementTypeLookupCache getLookupCache() {
-        return lookupCache.get();
+        return lookupCache;
     }
 
     @Override
     @NotNull
     public ElementTypeParser getParser() {
-        return parser.get();
+        return parser;
     }
 
 
@@ -284,10 +296,10 @@ public abstract class AbstractElementType extends IElementType implements Elemen
     }
 
     @Override
-    public int getIndexInParent(PathNode pathNode) {
-        PathNode parentNode = pathNode.getParent();
-        if (parentNode != null && parentNode.getElementType() instanceof SequenceElementType) {
-            SequenceElementType sequenceElementType = (SequenceElementType) parentNode.getElementType();
+    public int getIndexInParent(BasicPathNode pathNode) {
+        BasicPathNode parentNode = pathNode.parent;
+        if (parentNode != null && parentNode.elementType instanceof SequenceElementType) {
+            SequenceElementType sequenceElementType = (SequenceElementType) parentNode.elementType;
             return sequenceElementType.indexOf(this);
         }
         return 0;
@@ -314,5 +326,10 @@ public abstract class AbstractElementType extends IElementType implements Elemen
             LOGGER.warn('[' + getLanguageDialect().getID() + "] Invalid element boolean attribute '" + attributeName + "' (id=" + this.id + "). Expected 'true' or 'false'");
         }
         return false;
+    }
+
+    @Override
+    public TokenType getTokenType() {
+        return null;
     }
 }

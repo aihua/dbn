@@ -2,11 +2,11 @@ package com.dci.intellij.dbn.language.common.element.parser.impl;
 
 import com.dci.intellij.dbn.language.common.ParseException;
 import com.dci.intellij.dbn.language.common.TokenType;
-import com.dci.intellij.dbn.language.common.element.ElementType;
-import com.dci.intellij.dbn.language.common.element.TokenElementType;
-import com.dci.intellij.dbn.language.common.element.WrapperElementType;
+import com.dci.intellij.dbn.language.common.element.impl.ElementTypeBase;
+import com.dci.intellij.dbn.language.common.element.impl.TokenElementType;
+import com.dci.intellij.dbn.language.common.element.impl.WrapperElementType;
 import com.dci.intellij.dbn.language.common.element.impl.WrappingDefinition;
-import com.dci.intellij.dbn.language.common.element.parser.AbstractElementTypeParser;
+import com.dci.intellij.dbn.language.common.element.parser.ElementTypeParser;
 import com.dci.intellij.dbn.language.common.element.parser.ParseResult;
 import com.dci.intellij.dbn.language.common.element.parser.ParseResultType;
 import com.dci.intellij.dbn.language.common.element.parser.ParserBuilder;
@@ -17,19 +17,18 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Set;
 
-public class WrapperElementTypeParser extends AbstractElementTypeParser<WrapperElementType> {
+public class WrapperElementTypeParser extends ElementTypeParser<WrapperElementType> {
     public WrapperElementTypeParser(WrapperElementType elementType) {
         super(elementType);
     }
 
     @Override
     public ParseResult parse(@NotNull ParsePathNode parentNode, boolean optional, int depth, ParserContext context) throws ParseException {
-        ParserBuilder builder = context.getBuilder();
+        ParserBuilder builder = context.builder;
         logBegin(builder, optional, depth);
         ParsePathNode node = stepIn(parentNode, context);
 
-        WrapperElementType elementType = getElementType();
-        ElementType wrappedElement = elementType.getWrappedElement();
+        ElementTypeBase wrappedElement = elementType.wrappedElement;
         TokenElementType beginTokenElement = elementType.getBeginTokenElement();
         TokenElementType endTokenElement = elementType.getEndTokenElement();
 
@@ -38,8 +37,8 @@ public class WrapperElementTypeParser extends AbstractElementTypeParser<WrapperE
         // parse begin token
         ParseResult beginTokenResult = beginTokenElement.getParser().parse(node, optional, depth + 1, context);
 
-        TokenType beginTokenType = beginTokenElement.getTokenType();
-        TokenType endTokenType = endTokenElement.getTokenType();
+        TokenType beginTokenType = beginTokenElement.tokenType;
+        TokenType endTokenType = endTokenElement.tokenType;
         boolean isStrong = elementType.isStrong();
 
         boolean beginMatched = beginTokenResult.isMatch() || (builder.lookBack(1) == beginTokenType && !builder.isExplicitRange(beginTokenType));
@@ -49,15 +48,15 @@ public class WrapperElementTypeParser extends AbstractElementTypeParser<WrapperE
             builder.setExplicitRange(beginTokenType, true);
 
             ParseResult wrappedResult = wrappedElement.getParser().parse(node, false, depth -1, context);
-            matchedTokens = matchedTokens + wrappedResult.getMatchedTokens();
+            matchedTokens = matchedTokens + wrappedResult.matchedTokens;
 
-            ParseResultType wrappedResultType = wrappedResult.getType();
-            if (wrappedResultType == ParseResultType.NO_MATCH  && !elementType.isWrappedElementOptional()) {
+            ParseResultType wrappedResultType = wrappedResult.type;
+            if (wrappedResultType == ParseResultType.NO_MATCH  && !elementType.wrappedElementOptional) {
                 if (!isStrong && builder.getTokenType() != endTokenType) {
                     builder.setExplicitRange(beginTokenType, initialExplicitRange);
                     return stepOut(node, context, depth, ParseResultType.NO_MATCH, matchedTokens);
                 } else {
-                    Set<TokenType> possibleTokens = wrappedElement.getLookupCache().getFirstPossibleTokens();
+                    Set<TokenType> possibleTokens = wrappedElement.lookupCache.getFirstPossibleTokens();
                     ParseBuilderErrorHandler.updateBuilderError(possibleTokens, context);
 
                 }
@@ -78,13 +77,13 @@ public class WrapperElementTypeParser extends AbstractElementTypeParser<WrapperE
     }
 
     private static boolean isParentWrapping(ParsePathNode node, TokenType tokenType) {
-        ParsePathNode parent = node.getParent();
+        ParsePathNode parent = node.parent;
         while (parent != null && parent.getCursorPosition() == 0) {
-            WrappingDefinition parentWrapping = parent.getElementType().getWrapping();
-            if (parentWrapping != null && parentWrapping.getBeginElementType().getTokenType() == tokenType) {
+            WrappingDefinition parentWrapping = parent.elementType.getWrapping();
+            if (parentWrapping != null && parentWrapping.getBeginElementType().tokenType == tokenType) {
                 return true;
             }
-            parent = parent.getParent();
+            parent = parent.parent;
         }
         return false;
     }

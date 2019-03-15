@@ -6,7 +6,7 @@ import com.dci.intellij.dbn.common.util.Cloneable;
 import com.dci.intellij.dbn.execution.statement.processor.StatementExecutionProcessor;
 import com.dci.intellij.dbn.language.common.WeakRef;
 import com.dci.intellij.dbn.language.common.element.ElementType;
-import com.dci.intellij.dbn.language.common.element.NamedElementType;
+import com.dci.intellij.dbn.language.common.element.impl.NamedElementType;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.intellij.lang.ASTNode;
@@ -26,8 +26,8 @@ public class ExecutablePsiElement extends NamedPsiElement implements Cloneable<E
         }
         BasePsiElement basePsiElement = (BasePsiElement) lastChild;
         String text = getText();
-        if (basePsiElement != null && basePsiElement.getElementType() instanceof NamedElementType) {
-            NamedElementType namedElementType = (NamedElementType) basePsiElement.getElementType();
+        if (basePsiElement != null && basePsiElement.elementType instanceof NamedElementType) {
+            NamedElementType namedElementType = (NamedElementType) basePsiElement.elementType;
             if (namedElementType.truncateOnExecution()) {
                 return text.substring(0, text.length() - basePsiElement.getTextLength());
             }
@@ -36,11 +36,6 @@ public class ExecutablePsiElement extends NamedPsiElement implements Cloneable<E
     }
     public ExecutablePsiElement(ASTNode astNode, NamedElementType elementType) {
         super(astNode, elementType);
-    }
-
-    @Override
-    public NamedElementType getElementType() {
-        return (NamedElementType) super.getElementType();
     }
 
     public boolean isQuery() {

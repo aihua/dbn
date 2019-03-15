@@ -2,21 +2,21 @@ package com.dci.intellij.dbn.code.common.style.presets.iteration;
 
 import com.dci.intellij.dbn.code.common.style.presets.CodeStylePresetImpl;
 import com.dci.intellij.dbn.language.common.element.ElementType;
-import com.dci.intellij.dbn.language.common.element.IterationElementType;
-import com.dci.intellij.dbn.language.common.element.TokenElementType;
+import com.dci.intellij.dbn.language.common.element.impl.IterationElementType;
+import com.dci.intellij.dbn.language.common.element.impl.TokenElementType;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.dci.intellij.dbn.language.common.psi.BasePsiElement;
 import com.intellij.formatting.Spacing;
 import com.intellij.formatting.Wrap;
 
 public abstract class IterationAbstractPreset extends CodeStylePresetImpl {
-    public IterationAbstractPreset(String id, String name) {
+    IterationAbstractPreset(String id, String name) {
         super(id, name);
     }
 
     @Override
     public boolean accepts(BasePsiElement psiElement) {
-        return !psiElement.getElementType().is(ElementTypeAttribute.STATEMENT) &&
+        return !psiElement.elementType.is(ElementTypeAttribute.STATEMENT) &&
                 getParentElementType(psiElement) instanceof IterationElementType;
     }
 

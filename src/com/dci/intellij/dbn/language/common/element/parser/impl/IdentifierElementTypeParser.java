@@ -1,9 +1,8 @@
 package com.dci.intellij.dbn.language.common.element.parser.impl;
 
-import com.dci.intellij.dbn.language.common.ParseException;
 import com.dci.intellij.dbn.language.common.TokenType;
-import com.dci.intellij.dbn.language.common.element.IdentifierElementType;
-import com.dci.intellij.dbn.language.common.element.parser.AbstractElementTypeParser;
+import com.dci.intellij.dbn.language.common.element.impl.IdentifierElementType;
+import com.dci.intellij.dbn.language.common.element.parser.ElementTypeParser;
 import com.dci.intellij.dbn.language.common.element.parser.ParseResult;
 import com.dci.intellij.dbn.language.common.element.parser.ParseResultType;
 import com.dci.intellij.dbn.language.common.element.parser.ParserBuilder;
@@ -12,14 +11,14 @@ import com.dci.intellij.dbn.language.common.element.path.ParsePathNode;
 import com.intellij.lang.PsiBuilder;
 import org.jetbrains.annotations.NotNull;
 
-public class IdentifierElementTypeParser extends AbstractElementTypeParser<IdentifierElementType> {
+public class IdentifierElementTypeParser extends ElementTypeParser<IdentifierElementType> {
     public IdentifierElementTypeParser(IdentifierElementType elementType) {
         super(elementType);
     }
 
     @Override
-    public ParseResult parse(@NotNull ParsePathNode parentNode, boolean optional, int depth, ParserContext context) throws ParseException {
-        ParserBuilder builder = context.getBuilder();
+    public ParseResult parse(@NotNull ParsePathNode parentNode, boolean optional, int depth, ParserContext context) {
+        ParserBuilder builder = context.builder;
         logBegin(builder, optional, depth);
         TokenType tokenType = builder.getTokenType();
         if (tokenType != null && !tokenType.isChameleon()){
@@ -43,7 +42,7 @@ public class IdentifierElementTypeParser extends AbstractElementTypeParser<Ident
                 return true;
             }
 
-            return (getElementType().isDefinition() && !getElementType().isAlias()) || isSuppressibleReservedWord(tokenType, parentNode, context);
+            return (elementType.isDefinition() && !elementType.isAlias()) || isSuppressibleReservedWord(tokenType, parentNode, context);
         }
         return false;
     }

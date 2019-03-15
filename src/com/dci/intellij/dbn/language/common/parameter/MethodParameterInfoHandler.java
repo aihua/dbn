@@ -1,9 +1,9 @@
 package com.dci.intellij.dbn.language.common.parameter;
 
 import com.dci.intellij.dbn.language.common.element.ElementType;
-import com.dci.intellij.dbn.language.common.element.IterationElementType;
-import com.dci.intellij.dbn.language.common.element.TokenElementType;
-import com.dci.intellij.dbn.language.common.element.WrapperElementType;
+import com.dci.intellij.dbn.language.common.element.impl.IterationElementType;
+import com.dci.intellij.dbn.language.common.element.impl.TokenElementType;
+import com.dci.intellij.dbn.language.common.element.impl.WrapperElementType;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.dci.intellij.dbn.language.common.psi.BasePsiElement;
 import com.dci.intellij.dbn.language.common.psi.IdentifierPsiElement;
@@ -114,20 +114,20 @@ public class MethodParameterInfoHandler implements ParameterInfoHandler<BasePsiE
         if (handlerPsiElement != null) {
             BasePsiElement iterationPsiElement = handlerPsiElement.findFirstPsiElement(IterationElementType.class);
             if (iterationPsiElement != null) {
-                IterationElementType iterationElementType = (IterationElementType) iterationPsiElement.getElementType();
+                IterationElementType iterationElementType = (IterationElementType) iterationPsiElement.elementType;
                 PsiElement paramPsiElement = iterationPsiElement.getFirstChild();
                 BasePsiElement iteratedPsiElement = null;
                 while (paramPsiElement != null) {
                     ElementType elementType = PsiUtil.getElementType(paramPsiElement);
                     if (elementType instanceof TokenElementType) {
                         TokenElementType tokenElementType = (TokenElementType) elementType;
-                        if (iterationElementType.isSeparator(tokenElementType.getTokenType())){
+                        if (iterationElementType.isSeparator(tokenElementType.tokenType)){
                             if (paramPsiElement.getTextOffset() >= offset) {
                                 break;
                             }
                         }
                     }
-                    if (elementType == iterationElementType.getIteratedElementType()) {
+                    if (elementType == iterationElementType.iteratedElementType) {
                         iteratedPsiElement = (BasePsiElement) paramPsiElement;
                     }
 
@@ -160,12 +160,12 @@ public class MethodParameterInfoHandler implements ParameterInfoHandler<BasePsiE
                     }
                 }
 
-                IterationElementType iterationElementType = (IterationElementType) iterationPsiElement.getElementType();
+                IterationElementType iterationElementType = (IterationElementType) iterationPsiElement.elementType;
                 int index = 0;
                 PsiElement paramPsiElement = iterationPsiElement.getFirstChild();
                 while (paramPsiElement != null) {
                     ElementType elementType = PsiUtil.getElementType(paramPsiElement);
-                    if (elementType == iterationElementType.getIteratedElementType()) {
+                    if (elementType == iterationElementType.iteratedElementType) {
                         if (paramPsiElement == parameter) {
                             context.setCurrentParameter(index);
                             return;

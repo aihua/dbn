@@ -5,11 +5,12 @@ import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
 import com.dci.intellij.dbn.language.common.TokenType;
 import com.dci.intellij.dbn.language.common.TokenTypeCategory;
+import com.dci.intellij.dbn.language.common.element.impl.LeafElementType;
 import com.dci.intellij.dbn.language.common.element.impl.WrappingDefinition;
 import com.dci.intellij.dbn.language.common.element.lookup.ElementTypeLookupCache;
 import com.dci.intellij.dbn.language.common.element.parser.Branch;
 import com.dci.intellij.dbn.language.common.element.parser.ElementTypeParser;
-import com.dci.intellij.dbn.language.common.element.path.PathNode;
+import com.dci.intellij.dbn.language.common.element.path.BasicPathNode;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.dci.intellij.dbn.language.common.psi.ChameleonPsiElement;
 import com.dci.intellij.dbn.object.common.DBObjectType;
@@ -135,7 +136,22 @@ public class ChameleonElementType extends ILazyParseableElementType implements E
     }
 
     @Override
-    public int getIndexInParent(PathNode pathNode) {
+    public boolean isScopeDemarcation() {
+        return true;
+    }
+
+    @Override
+    public boolean isScopeIsolation() {
+        return true;
+    }
+
+    @Override
+    public TokenType getTokenType() {
+        return null;
+    }
+
+    @Override
+    public int getIndexInParent(BasicPathNode pathNode) {
         return 0;
     }
 

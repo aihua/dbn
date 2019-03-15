@@ -4,8 +4,8 @@ import com.dci.intellij.dbn.language.common.DBLanguageDialect;
 import com.dci.intellij.dbn.language.common.TokenType;
 import com.dci.intellij.dbn.language.common.TokenTypeCategory;
 import com.dci.intellij.dbn.language.common.element.ElementType;
-import com.dci.intellij.dbn.language.common.element.TokenElementType;
 import com.dci.intellij.dbn.language.common.element.TokenPairTemplate;
+import com.dci.intellij.dbn.language.common.element.impl.TokenElementType;
 import com.dci.intellij.dbn.language.common.element.impl.WrappingDefinition;
 import com.dci.intellij.dbn.language.common.element.path.ParsePathNode;
 import com.intellij.lang.ASTNode;
@@ -118,14 +118,14 @@ public class ParserBuilder {
     public PsiBuilder.Marker mark(@Nullable ParsePathNode node){
         PsiBuilder.Marker marker = builder.mark();
         if (node != null) {
-            WrappingDefinition wrapping = node.getElementType().getWrapping();
+            WrappingDefinition wrapping = node.elementType.getWrapping();
             if (wrapping != null) {
                 TokenElementType beginElementType = wrapping.getBeginElementType();
-                TokenType beginTokenType = beginElementType.getTokenType();
+                TokenType beginTokenType = beginElementType.tokenType;
                 while(builder.getTokenType() == beginTokenType) {
                     PsiBuilder.Marker beginTokenMarker = builder.mark();
                     advanceLexer(node, false);
-                    beginTokenMarker.done((IElementType) beginElementType);
+                    beginTokenMarker.done(beginElementType);
                 }
             }
         }
@@ -149,14 +149,14 @@ public class ParserBuilder {
     public void markerDone(PsiBuilder.Marker marker, ElementType elementType, @Nullable ParsePathNode node) {
         if (marker != null) {
             if (node != null) {
-                WrappingDefinition wrapping = node.getElementType().getWrapping();
+                WrappingDefinition wrapping = node.elementType.getWrapping();
                 if (wrapping != null) {
                     TokenElementType endElementType = wrapping.getEndElementType();
-                    TokenType endTokenType = endElementType.getTokenType();
+                    TokenType endTokenType = endElementType.tokenType;
                     while (builder.getTokenType() == endTokenType && !isExplicitRange(endTokenType)) {
                         PsiBuilder.Marker endTokenMarker = builder.mark();
                         advanceLexer(node, false);
-                        endTokenMarker.done((IElementType) endElementType);
+                        endTokenMarker.done(endElementType);
                     }
                 }
             }

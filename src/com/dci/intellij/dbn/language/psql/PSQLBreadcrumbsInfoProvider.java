@@ -51,7 +51,7 @@ public class PSQLBreadcrumbsInfoProvider extends BreadcrumbsInfoProvider {
     public String getElementTooltip(@NotNull PsiElement element) {
         if (element instanceof BasePsiElement) {
             BasePsiElement basePsiElement = (BasePsiElement) element;
-            return basePsiElement.getElementType().getDescription();
+            return basePsiElement.elementType.getDescription();
         }
         return null;
     }

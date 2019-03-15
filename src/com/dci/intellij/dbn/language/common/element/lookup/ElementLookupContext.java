@@ -1,10 +1,10 @@
 package com.dci.intellij.dbn.language.common.element.lookup;
 
 import com.dci.intellij.dbn.language.common.element.ElementType;
-import com.dci.intellij.dbn.language.common.element.NamedElementType;
 import com.dci.intellij.dbn.language.common.element.impl.ElementTypeRef;
+import com.dci.intellij.dbn.language.common.element.impl.NamedElementType;
 import com.dci.intellij.dbn.language.common.element.parser.Branch;
-import com.dci.intellij.dbn.language.common.element.path.PathNode;
+import com.dci.intellij.dbn.language.common.element.path.ParsePathNode;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.tree.IElementType;
@@ -14,18 +14,17 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
 public class ElementLookupContext {
     public static double MAX_DB_VERSION = 9999;
-    private Set<NamedElementType> scannedElements = new THashSet<NamedElementType>();
+    private Set<NamedElementType> scannedElements = new THashSet<>();
     protected Set<Branch> branches;
-    private Map<Branch, NamedElementType> branchMarkers = new HashMap<Branch, NamedElementType>();
-    private Set<ElementTypeAttribute> breakOnAttributes = new HashSet<ElementTypeAttribute>();
+    private Map<Branch, NamedElementType> branchMarkers = new HashMap<>();
+    private Set<ElementTypeAttribute> breakOnAttributes = new HashSet<>();
 
-    protected double databaseVersion = MAX_DB_VERSION;
+    private double databaseVersion = MAX_DB_VERSION;
 
     @Deprecated
     public ElementLookupContext() {}
@@ -55,7 +54,7 @@ public class ElementLookupContext {
         }
     }
 
-    public void addBranchMarker(PathNode pathNode, @NotNull Branch branch) {
+    public void addBranchMarker(ParsePathNode pathNode, @NotNull Branch branch) {
         NamedElementType namedElementType = getNamedElement(pathNode);
         if (namedElementType != null) {
             branchMarkers.put(branch, namedElementType);
@@ -77,20 +76,20 @@ public class ElementLookupContext {
     }
 
     @Nullable
-    private static NamedElementType getNamedElement(@NotNull PathNode pathNode) {
-        pathNode = pathNode.getParent();
+    private static NamedElementType getNamedElement(@NotNull ParsePathNode pathNode) {
+        pathNode = pathNode.parent;
         while (pathNode != null) {
-            ElementType elementType = pathNode.getElementType();
+            ElementType elementType = pathNode.elementType;
             if (elementType instanceof NamedElementType) {
                 return (NamedElementType) elementType;
             }
-            pathNode = pathNode.getParent();
+            pathNode = pathNode.parent;
         }
         return null;
     }
 
-    public void removeBranchMarkers(@NotNull PathNode pathNode) {
-        ElementType elementType = pathNode.getElementType();
+    public void removeBranchMarkers(@NotNull ParsePathNode pathNode) {
+        ElementType elementType = pathNode.elementType;
         if (elementType instanceof NamedElementType) {
             removeBranchMarkers((NamedElementType) elementType);
         }
@@ -98,13 +97,7 @@ public class ElementLookupContext {
 
     public void removeBranchMarkers(NamedElementType elementType) {
         if (branchMarkers.size() > 0 && branchMarkers.containsValue(elementType)) {
-            Iterator<Branch> iterator = branchMarkers.keySet().iterator();
-            while (iterator.hasNext()) {
-                Branch key = iterator.next();
-                if (branchMarkers.get(key) == elementType) {
-                    iterator.remove();
-                }
-            }
+            branchMarkers.keySet().removeIf(key -> branchMarkers.get(key) == elementType);
         }
         branches = branchMarkers.size() == 0 ? null : branchMarkers.keySet();
     }
@@ -115,11 +108,11 @@ public class ElementLookupContext {
         return this;
     }
 
-    public boolean isScanned(NamedElementType elementType) {
+    boolean isScanned(NamedElementType elementType) {
         return scannedElements.contains(elementType);
     }
 
-    public void markScanned(NamedElementType elementType) {
+    void markScanned(NamedElementType elementType) {
         scannedElements.add(elementType);
     }
 

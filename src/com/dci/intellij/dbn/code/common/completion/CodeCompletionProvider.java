@@ -9,10 +9,11 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.ElementTypeBundle;
-import com.dci.intellij.dbn.language.common.element.IdentifierElementType;
-import com.dci.intellij.dbn.language.common.element.LeafElementType;
-import com.dci.intellij.dbn.language.common.element.TokenElementType;
+import com.dci.intellij.dbn.language.common.element.impl.ElementTypeBase;
+import com.dci.intellij.dbn.language.common.element.impl.IdentifierElementType;
+import com.dci.intellij.dbn.language.common.element.impl.LeafElementType;
 import com.dci.intellij.dbn.language.common.element.impl.QualifiedIdentifierVariant;
+import com.dci.intellij.dbn.language.common.element.impl.TokenElementType;
 import com.dci.intellij.dbn.language.common.element.lookup.ElementLookupContext;
 import com.dci.intellij.dbn.language.common.element.lookup.ElementTypeLookupCache;
 import com.dci.intellij.dbn.language.common.element.parser.Branch;
@@ -104,7 +105,7 @@ public class CodeCompletionProvider extends CompletionProvider<CompletionParamet
         DBLanguagePsiFile file = context.getFile();
 
         ElementTypeBundle elementTypeBundle = file.getElementTypeBundle();
-        ElementTypeLookupCache lookupCache = elementTypeBundle.getRootElementType().getLookupCache();
+        ElementTypeLookupCache lookupCache = elementTypeBundle.getRootElementType().lookupCache;
         ElementLookupContext lookupContext = new ElementLookupContext(context.getDatabaseVersion());
         Set<LeafElementType> firstPossibleLeafs = lookupCache.collectFirstPossibleLeafs(lookupContext);
 
@@ -120,7 +121,7 @@ public class CodeCompletionProvider extends CompletionProvider<CompletionParamet
         if (leaf instanceof TokenElementType) {
             TokenElementType tokenElementType = (TokenElementType) leaf;
             String text = tokenElementType.getText();
-            String id = tokenElementType.getTokenType().getId();
+            String id = tokenElementType.tokenType.getId();
             return StringUtils.isEmpty(text) ? id : id + text;
         } else if (leaf instanceof IdentifierElementType){
             IdentifierElementType identifierElementType = (IdentifierElementType) leaf;
@@ -143,9 +144,9 @@ public class CodeCompletionProvider extends CompletionProvider<CompletionParamet
         PsiElement parent = element.getParent();
         if (parent instanceof QualifiedIdentifierPsiElement) {
             QualifiedIdentifierPsiElement qualifiedIdentifier = (QualifiedIdentifierPsiElement) parent;
-            ElementType separator = qualifiedIdentifier.getElementType().getSeparatorToken();
+            ElementType separator = qualifiedIdentifier.elementType.getSeparatorToken();
 
-            if (element.getElementType() == separator){
+            if (element.elementType == separator){
                 BasePsiElement parentPsiElement = element.getPrevElement();
                 if (parentPsiElement instanceof IdentifierPsiElement) {
                     parentIdentifierPsiElement = (IdentifierPsiElement) parentPsiElement;
@@ -165,7 +166,7 @@ public class CodeCompletionProvider extends CompletionProvider<CompletionParamet
                     }
                 }
             }
-        } else if (element.getElementType().getTokenType() == element.getLanguage().getSharedTokenTypes().getChrDot()) {
+        } else if (element.elementType.getTokenType() == element.getLanguage().getSharedTokenTypes().getChrDot()) {
             LeafPsiElement parentPsiElement = element.getPrevLeaf();
             if (parentPsiElement instanceof IdentifierPsiElement) {
                 parentIdentifierPsiElement = (IdentifierPsiElement) parentPsiElement;
@@ -173,9 +174,9 @@ public class CodeCompletionProvider extends CompletionProvider<CompletionParamet
             }
         } else if (parent instanceof BasePsiElement) {
             BasePsiElement basePsiElement = (BasePsiElement) parent;
-            ElementType elementType = basePsiElement.getElementType();
-            if (elementType.isWrappingBegin(element.getElementType())) {
-                Set<LeafElementType> firstPossibleLeafs = elementType.getLookupCache().getFirstPossibleLeafs();
+            ElementTypeBase elementType = basePsiElement.elementType;
+            if (elementType.isWrappingBegin((LeafElementType) element.elementType)) {
+                Set<LeafElementType> firstPossibleLeafs = elementType.lookupCache.getFirstPossibleLeafs();
                 for (LeafElementType leafElementType : firstPossibleLeafs) {
                     String leafUniqueKey = getLeafUniqueKey(leafElementType);
                     if (leafUniqueKey != null) {
@@ -186,9 +187,9 @@ public class CodeCompletionProvider extends CompletionProvider<CompletionParamet
         }
 
         if (nextPossibleLeafs.isEmpty()) {
-            LeafElementType elementType = element.getElementType();
-            PathNode pathNode = new ASTPathNode(element.getNode());
-            ElementLookupContext lookupContext = computeParseBranches(element.getNode(), context.getDatabaseVersion());
+            LeafElementType elementType = (LeafElementType) element.elementType;
+            PathNode pathNode = new ASTPathNode(element.node);
+            ElementLookupContext lookupContext = computeParseBranches(element.node, context.getDatabaseVersion());
             if (!context.isNewLine()) {
                 lookupContext.addBreakOnAttribute(ElementTypeAttribute.STATEMENT);
             }

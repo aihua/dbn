@@ -50,14 +50,14 @@ public class SQLLanguageAnnotator implements Annotator {
                     if (psiElement instanceof NamedPsiElement) {
                         NamedPsiElement namedPsiElement = (NamedPsiElement) psiElement;
                         if (namedPsiElement.hasErrors()) {
-                            holder.createErrorAnnotation(namedPsiElement, "Invalid " + namedPsiElement.getElementType().getDescription());
+                            holder.createErrorAnnotation(namedPsiElement, "Invalid " + namedPsiElement.elementType.getDescription());
                         }
                     }
                 });
     }
 
     private static void annotateToken(@NotNull TokenPsiElement tokenPsiElement, AnnotationHolder holder) {
-        TokenTypeCategory flavor = tokenPsiElement.getElementType().getFlavor();
+        TokenTypeCategory flavor = tokenPsiElement.elementType.getFlavor();
         if (flavor != null) {
             Annotation annotation = holder.createInfoAnnotation(tokenPsiElement, null);
             switch (flavor) {
@@ -109,7 +109,7 @@ public class SQLLanguageAnnotator implements Annotator {
             PsiElement reference = objectReference.resolve();
             if (reference == null && objectReference.getResolveTrialsCount() > 3 && checkConnection(objectReference)) {
                 if (!objectReference.getLanguageDialect().getParserTokenTypes().isFunction(objectReference.getText())) {
-                    Annotation annotation = holder.createWarningAnnotation(objectReference.getNode(),
+                    Annotation annotation = holder.createWarningAnnotation(objectReference.node,
                             "Unknown identifier");
                     annotation.setTextAttributes(SQLTextAttributesKeys.UNKNOWN_IDENTIFIER);
                 }

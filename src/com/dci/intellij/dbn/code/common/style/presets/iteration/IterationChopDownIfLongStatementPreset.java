@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.code.common.style.presets.iteration;
 
 import com.dci.intellij.dbn.language.common.element.ElementType;
-import com.dci.intellij.dbn.language.common.element.IterationElementType;
+import com.dci.intellij.dbn.language.common.element.impl.IterationElementType;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.dci.intellij.dbn.language.common.psi.BasePsiElement;
 import com.dci.intellij.dbn.language.common.psi.NamedPsiElement;
@@ -20,8 +20,8 @@ public class IterationChopDownIfLongStatementPreset extends IterationAbstractPre
     public Wrap getWrap(BasePsiElement psiElement, CodeStyleSettings settings) {
         BasePsiElement parentPsiElement = getParentPsiElement(psiElement);
         if (parentPsiElement != null) {
-            IterationElementType iterationElementType = (IterationElementType) parentPsiElement.getElementType();
-            ElementType elementType = psiElement.getElementType();
+            IterationElementType iterationElementType = (IterationElementType) parentPsiElement.elementType;
+            ElementType elementType = psiElement.elementType;
 
             NamedPsiElement namedPsiElement = (NamedPsiElement) parentPsiElement.findEnclosingPsiElement(ElementTypeAttribute.EXECUTABLE);
             if (namedPsiElement != null) {
@@ -37,8 +37,8 @@ public class IterationChopDownIfLongStatementPreset extends IterationAbstractPre
     public Spacing getSpacing(BasePsiElement psiElement, CodeStyleSettings settings) {
         BasePsiElement parentPsiElement = getParentPsiElement(psiElement);
         if (parentPsiElement != null) {
-            IterationElementType iterationElementType = (IterationElementType) parentPsiElement.getElementType();
-            ElementType elementType = psiElement.getElementType();
+            IterationElementType iterationElementType = (IterationElementType) parentPsiElement.elementType;
+            ElementType elementType = psiElement.elementType;
 
             NamedPsiElement namedPsiElement = (NamedPsiElement) parentPsiElement.findEnclosingPsiElement(ElementTypeAttribute.EXECUTABLE);
             if (namedPsiElement != null) {

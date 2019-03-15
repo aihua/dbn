@@ -4,16 +4,10 @@ import com.dci.intellij.dbn.language.common.TokenType;
 import com.dci.intellij.dbn.language.common.element.ChameleonElementType;
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.ElementTypeBundle;
-import com.dci.intellij.dbn.language.common.element.IterationElementType;
-import com.dci.intellij.dbn.language.common.element.LeafElementType;
-import com.dci.intellij.dbn.language.common.element.NamedElementType;
-import com.dci.intellij.dbn.language.common.element.QualifiedIdentifierElementType;
-import com.dci.intellij.dbn.language.common.element.SequenceElementType;
-import com.dci.intellij.dbn.language.common.element.TokenElementType;
-import com.dci.intellij.dbn.language.common.element.WrapperElementType;
 import com.dci.intellij.dbn.language.common.element.lookup.ElementLookupContext;
 import com.dci.intellij.dbn.language.common.element.lookup.ElementTypeLookupCache;
 import com.dci.intellij.dbn.language.common.element.parser.ParserContext;
+import com.dci.intellij.dbn.language.common.element.path.BasicPathNode;
 import com.dci.intellij.dbn.language.common.element.path.ParsePathNode;
 import com.dci.intellij.dbn.language.common.element.path.PathNode;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
@@ -28,20 +22,19 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
 
-public abstract class LeafElementTypeImpl extends AbstractElementType implements LeafElementType {
-    private TokenType tokenType;
+public abstract class LeafElementType extends ElementTypeBase {
+    public TokenType tokenType;
 
     private boolean optional;
 
-    public LeafElementTypeImpl(ElementTypeBundle bundle, ElementType parent, String id, Element def) throws ElementTypeDefinitionException {
+    LeafElementType(ElementTypeBundle bundle, ElementTypeBase parent, String id, Element def) throws ElementTypeDefinitionException {
         super(bundle, parent, id, def);
     }
 
-    public LeafElementTypeImpl(ElementTypeBundle bundle, ElementType parent, String id, String description) throws ElementTypeDefinitionException {
+    LeafElementType(ElementTypeBundle bundle, ElementTypeBase parent, String id, String description) {
         super(bundle, parent, id, description);
     }
 
-    @Override
     public void setTokenType(TokenType tokenType) {
         this.tokenType = tokenType;
     }
@@ -51,23 +44,19 @@ public abstract class LeafElementTypeImpl extends AbstractElementType implements
         return tokenType;
     }
 
-    @Override
     public void registerLeaf() {
-        getLookupCache().init();
-        getParent().getLookupCache().registerLeaf(this, this);
+        lookupCache.init();
+        getParent().lookupCache.registerLeaf(this, this);
     }
 
-    @Override
     public abstract boolean isSameAs(LeafElementType elementType);
-    @Override
+
     public abstract boolean isIdentifier();
 
-    @Override
     public void setOptional(boolean optional) {
         this.optional = optional;
     }
 
-    @Override
     public boolean isOptional() {
         return optional;
     }
@@ -77,23 +66,22 @@ public abstract class LeafElementTypeImpl extends AbstractElementType implements
         return true;
     }
 
-    public static ElementType getPreviousElement(PathNode pathNode) {
+    public static ElementType getPreviousElement(BasicPathNode pathNode) {
         int position = 0;
         while (pathNode != null) {
-            ElementType elementType = pathNode.getElementType();
+            ElementType elementType = pathNode.elementType;
             if (elementType instanceof SequenceElementType) {
                 SequenceElementType sequenceElementType = (SequenceElementType) elementType;
                 if (position > 0 ) {
-                    return sequenceElementType.getChild(position-1).getElementType();
+                    return sequenceElementType.getChild(position-1).elementType;
                 }
             }
             position = pathNode.getIndexInParent();
-            pathNode = pathNode.getParent();
+            pathNode = pathNode.parent;
         }
         return null;
     }
 
-    @Override
     public Set<LeafElementType> getNextPossibleLeafs(PathNode pathNode, @NotNull ElementLookupContext context) {
         Set<LeafElementType> possibleLeafs = new THashSet<LeafElementType>();
         int position = 1;
@@ -110,7 +98,7 @@ public abstract class LeafElementTypeImpl extends AbstractElementType implements
                     while (child != null) {
                         if (context.check(child)) {
                             child.getLookupCache().collectFirstPossibleLeafs(context.reset(), possibleLeafs);
-                            if (!child.isOptional()) {
+                            if (!child.optional) {
                                 pathNode = null;
                                 break;
                             }
@@ -122,9 +110,9 @@ public abstract class LeafElementTypeImpl extends AbstractElementType implements
                 }
             } else if (elementType instanceof IterationElementType) {
                 IterationElementType iterationElementType = (IterationElementType) elementType;
-                TokenElementType[] separatorTokens = iterationElementType.getSeparatorTokens();
+                TokenElementType[] separatorTokens = iterationElementType.separatorTokens;
                 if (separatorTokens == null) {
-                    ElementTypeLookupCache lookupCache = iterationElementType.getIteratedElementType().getLookupCache();
+                    ElementTypeLookupCache lookupCache = iterationElementType.iteratedElementType.lookupCache;
                     lookupCache.collectFirstPossibleLeafs(context.reset(), possibleLeafs);
                 } else {
                     possibleLeafs.addAll(Arrays.asList(separatorTokens));
@@ -137,7 +125,7 @@ public abstract class LeafElementTypeImpl extends AbstractElementType implements
             } else if (elementType instanceof ChameleonElementType) {
                 ChameleonElementType chameleonElementType = (ChameleonElementType) elementType;
                 ElementTypeBundle elementTypeBundle = chameleonElementType.getParentLanguage().getParserDefinition().getParser().getElementTypes();;
-                ElementTypeLookupCache lookupCache = elementTypeBundle.getRootElementType().getLookupCache();
+                ElementTypeLookupCache lookupCache = elementTypeBundle.getRootElementType().lookupCache;
                 possibleLeafs.addAll(lookupCache.getFirstPossibleLeafs());
             }
             if (pathNode != null) {
@@ -152,17 +140,15 @@ public abstract class LeafElementTypeImpl extends AbstractElementType implements
         return possibleLeafs;
     }
 
-    @Override
     public boolean isNextPossibleToken(TokenType tokenType, ParsePathNode pathNode, ParserContext context) {
         return isNextToken(tokenType, pathNode, context, false);
     }
 
-    @Override
     public boolean isNextRequiredToken(TokenType tokenType, ParsePathNode pathNode, ParserContext context) {
         return isNextToken(tokenType, pathNode, context, true);
     }
 
-    public boolean isNextToken(TokenType tokenType, ParsePathNode pathNode, ParserContext context, boolean required) {
+    private boolean isNextToken(TokenType tokenType, ParsePathNode pathNode, ParserContext context, boolean required) {
         int position = -1;
         while (pathNode != null) {
             ElementType elementType = pathNode.getElementType();
@@ -187,7 +173,7 @@ public abstract class LeafElementTypeImpl extends AbstractElementType implements
                     while (child != null) {
                         ElementTypeLookupCache lookupCache = child.getLookupCache();
                         if (required) {
-                            if (lookupCache.isFirstRequiredToken(tokenType) && !child.isOptional()) {
+                            if (lookupCache.isFirstRequiredToken(tokenType) && !child.optional) {
                                 return true;
                             }
                         } else {
@@ -196,7 +182,7 @@ public abstract class LeafElementTypeImpl extends AbstractElementType implements
                             }
                         }
 
-                        if (!child.isOptional() && !child.isOptionalFromHere()) {
+                        if (!child.optional && !child.isOptionalFromHere()) {
                             return false;
                         }
                         child = child.getNext();
@@ -204,9 +190,9 @@ public abstract class LeafElementTypeImpl extends AbstractElementType implements
                 }
             } else if (elementType instanceof IterationElementType) {
                 IterationElementType iterationElementType = (IterationElementType) elementType;
-                TokenElementType[] separatorTokens = iterationElementType.getSeparatorTokens();
+                TokenElementType[] separatorTokens = iterationElementType.separatorTokens;
                 if (separatorTokens == null) {
-                    ElementTypeLookupCache lookupCache = iterationElementType.getIteratedElementType().getLookupCache();
+                    ElementTypeLookupCache lookupCache = iterationElementType.iteratedElementType.lookupCache;
                     if (required ?
                             lookupCache.isFirstRequiredToken(tokenType) :
                             lookupCache.isFirstPossibleToken(tokenType)) {
@@ -220,17 +206,17 @@ public abstract class LeafElementTypeImpl extends AbstractElementType implements
                 }
             } else if (elementType instanceof WrapperElementType) {
                 WrapperElementType wrapperElementType = (WrapperElementType) elementType;
-                return wrapperElementType.getEndTokenElement().getTokenType() == tokenType;
+                return wrapperElementType.getEndTokenElement().tokenType == tokenType;
             }
 
             position = pathNode.getIndexInParent() + 1;
-            pathNode = pathNode.getParent();
+            pathNode = pathNode.parent;
         }
         return false;
     }
 
     public Set<LeafElementType> getNextRequiredLeafs(PathNode pathNode, ParserContext context) {
-        Set<LeafElementType> requiredLeafs = new THashSet<LeafElementType>();
+        Set<LeafElementType> requiredLeafs = new THashSet<>();
         int position = 0;
         while (pathNode != null) {
             ElementType elementType = pathNode.getElementType();
@@ -240,7 +226,7 @@ public abstract class LeafElementTypeImpl extends AbstractElementType implements
 
                 ElementTypeRef child = sequenceElementType.getChild(position + 1);
                 while (child != null) {
-                    if (!child.isOptional()) {
+                    if (!child.optional) {
                         ElementTypeLookupCache lookupCache = child.getLookupCache();
                         requiredLeafs.addAll(lookupCache.getFirstRequiredLeafs());
                         pathNode = null;
@@ -250,7 +236,7 @@ public abstract class LeafElementTypeImpl extends AbstractElementType implements
                 }
             } else if (elementType instanceof IterationElementType) {
                 IterationElementType iteration = (IterationElementType) elementType;
-                TokenElementType[] separatorTokens = iteration.getSeparatorTokens();
+                TokenElementType[] separatorTokens = iteration.separatorTokens;
                 Collections.addAll(requiredLeafs, separatorTokens);
             }
             if (pathNode != null) {

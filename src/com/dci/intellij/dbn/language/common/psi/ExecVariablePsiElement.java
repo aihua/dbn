@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.language.common.psi;
 
 import com.dci.intellij.dbn.common.util.StringUtil;
-import com.dci.intellij.dbn.language.common.element.ExecVariableElementType;
+import com.dci.intellij.dbn.language.common.element.impl.ExecVariableElementType;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.dci.intellij.dbn.language.common.psi.lookup.PsiLookupAdapter;
 import com.dci.intellij.dbn.object.common.DBObjectType;
@@ -14,19 +14,15 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import java.util.Set;
 
-public class ExecVariablePsiElement extends LeafPsiElement {
+public class ExecVariablePsiElement extends LeafPsiElement<ExecVariableElementType> {
     public ExecVariablePsiElement(ASTNode astNode, ExecVariableElementType elementType) {
         super(astNode, elementType);
     }
 
     @Override
-    public ExecVariableElementType getElementType() {
-        return (ExecVariableElementType) super.getElementType();
-    }
-
-    @Override
     @Nullable
     public BasePsiElement findPsiElement(PsiLookupAdapter lookupAdapter, int scopeCrossCount) {return null;}
+
     @Override
     @Nullable
     public Set<BasePsiElement> collectPsiElements(PsiLookupAdapter lookupAdapter, @Nullable Set<BasePsiElement> bucket, int scopeCrossCount) {return bucket;}
@@ -34,10 +30,13 @@ public class ExecVariablePsiElement extends LeafPsiElement {
 
     @Override
     public void collectExecVariablePsiElements(@NotNull Set<ExecVariablePsiElement> bucket) { bucket.add(this);}
+
     @Override
     public void collectSubjectPsiElements(@NotNull Set<IdentifierPsiElement> bucket) {}
+
     @Override
     public NamedPsiElement findNamedPsiElement(String id) {return null;}
+
     @Override
     public BasePsiElement findPsiElementBySubject(ElementTypeAttribute attribute, CharSequence subjectName, DBObjectType subjectType) {return null;}
 
@@ -46,7 +45,7 @@ public class ExecVariablePsiElement extends LeafPsiElement {
      *                       PsiReference                    *
      *********************************************************/
     @Override
-    public boolean isReferenceTo(PsiElement element) {
+    public boolean isReferenceTo(@NotNull PsiElement element) {
         return false;
     }
 
@@ -60,7 +59,7 @@ public class ExecVariablePsiElement extends LeafPsiElement {
      *********************************************************/
     @Override
     public String getPresentableText() {
-        return getElementType().getTokenType().getValue();
+        return elementType.tokenType.getValue();
     }
 
     @Override

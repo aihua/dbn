@@ -3,7 +3,7 @@ package com.dci.intellij.dbn.language.common.psi;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.language.common.element.ElementType;
-import com.dci.intellij.dbn.language.common.element.LeafElementType;
+import com.dci.intellij.dbn.language.common.element.impl.LeafElementType;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.dci.intellij.dbn.language.common.psi.lookup.ObjectLookupAdapter;
 import com.dci.intellij.dbn.language.common.psi.lookup.PsiLookupAdapter;
@@ -23,9 +23,9 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Set;
 
-public abstract class LeafPsiElement extends BasePsiElement implements PsiReference {
+public abstract class LeafPsiElement<T extends LeafElementType> extends BasePsiElement<T> implements PsiReference {
 
-    public LeafPsiElement(ASTNode astNode, ElementType elementType) {
+    public LeafPsiElement(ASTNode astNode, T elementType) {
         super(astNode, elementType);
     }
 
@@ -35,23 +35,19 @@ public abstract class LeafPsiElement extends BasePsiElement implements PsiRefere
     }
 
     @Override
-    public LeafElementType getElementType() {
-        return (LeafElementType) super.getElementType();
-    }
-
-    @Override
     public PsiReference getReference() {
         return this;
     }
 
     public CharSequence getChars() {
-        return getNode().getFirstChildNode().getChars();
+        return node.getFirstChildNode().getChars();
     }
 
     /*********************************************************
      *                       PsiReference                    *
      *********************************************************/
 
+    @NotNull
     @Override
     public PsiElement getElement() {
         return this;
@@ -71,7 +67,7 @@ public abstract class LeafPsiElement extends BasePsiElement implements PsiRefere
     }
 
     @Override
-    public PsiElement handleElementRename(String newElementName) throws IncorrectOperationException {
+    public PsiElement handleElementRename(@NotNull String newElementName) throws IncorrectOperationException {
         return null;
     }
 
@@ -81,10 +77,11 @@ public abstract class LeafPsiElement extends BasePsiElement implements PsiRefere
     }
 
     @Override
-    public boolean isReferenceTo(PsiElement element) {
+    public boolean isReferenceTo(@NotNull PsiElement element) {
         return false;
     }
 
+    @NotNull
     @Override
     public TextRange getRangeInElement() {
         return new TextRange(0, getTextLength());
@@ -161,12 +158,12 @@ public abstract class LeafPsiElement extends BasePsiElement implements PsiRefere
 
     @Override
     public BasePsiElement findPsiElementByAttribute(ElementTypeAttribute attribute) {
-        return getElementType().is(attribute) ? this : null;
+        return elementType.is(attribute) ? this : null;
     }
 
     @Override
     public BasePsiElement findFirstPsiElement(ElementTypeAttribute attribute) {
-        if (this.getElementType().is(attribute)) {
+        if (elementType.is(attribute)) {
             return this;
         }
         return null;
@@ -174,7 +171,7 @@ public abstract class LeafPsiElement extends BasePsiElement implements PsiRefere
 
     @Override
     public BasePsiElement findFirstPsiElement(Class<? extends ElementType> clazz) {
-        if (this.getElementType().getClass().isAssignableFrom(clazz)) {
+        if (elementType.getClass().isAssignableFrom(clazz)) {
             return this;
         }
         return null;
@@ -183,16 +180,6 @@ public abstract class LeafPsiElement extends BasePsiElement implements PsiRefere
     @Override
     public BasePsiElement findFirstLeafPsiElement() {
         return this;
-    }
-
-    @Override
-    public boolean isScopeDemarcation() {
-        return false;
-    }
-
-    @Override
-    public boolean isScopeIsolation() {
-        return false;
     }
 
     @Override

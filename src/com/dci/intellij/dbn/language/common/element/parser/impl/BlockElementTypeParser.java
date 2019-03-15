@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.language.common.element.parser.impl;
 
 import com.dci.intellij.dbn.language.common.ParseException;
-import com.dci.intellij.dbn.language.common.element.BlockElementType;
+import com.dci.intellij.dbn.language.common.element.impl.BlockElementType;
 import com.dci.intellij.dbn.language.common.element.parser.ParseResult;
 import com.dci.intellij.dbn.language.common.element.parser.ParseResultType;
 import com.dci.intellij.dbn.language.common.element.parser.ParserBuilder;
@@ -17,16 +17,16 @@ public class BlockElementTypeParser extends SequenceElementTypeParser<BlockEleme
 
     @Override
     public ParseResult parse(@NotNull ParsePathNode parentNode, boolean optional, int depth, ParserContext context) throws ParseException {
-        ParserBuilder builder = context.getBuilder();
+        ParserBuilder builder = context.builder;
         PsiBuilder.Marker marker = builder.mark(null);
         ParseResult result = super.parse(parentNode, optional, depth, context);
-        if (result.getType() == ParseResultType.NO_MATCH) {
+        if (result.type == ParseResultType.NO_MATCH) {
             builder.markerDrop(marker);
         } else {
-            builder.markerDone(marker, getElementType());
+            builder.markerDone(marker, elementType);
         }
-        return result.getType() == ParseResultType.NO_MATCH ?
+        return result.type == ParseResultType.NO_MATCH ?
                 ParseResult.createNoMatchResult() :
-                ParseResult.createFullMatchResult(result.getMatchedTokens());
+                ParseResult.createFullMatchResult(result.matchedTokens);
     }
 }

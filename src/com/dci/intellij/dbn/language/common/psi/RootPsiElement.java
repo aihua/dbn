@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.language.common.psi;
 
 import com.dci.intellij.dbn.common.util.Cloneable;
-import com.dci.intellij.dbn.language.common.element.NamedElementType;
+import com.dci.intellij.dbn.language.common.element.impl.NamedElementType;
 import com.intellij.lang.ASTNode;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
 import com.intellij.psi.PsiElement;
@@ -19,7 +19,7 @@ public class RootPsiElement extends NamedPsiElement implements ExecutableBundleP
 
     @Override
     public List<ExecutablePsiElement> getExecutablePsiElements() {
-        List<ExecutablePsiElement> bucket = new ArrayList<ExecutablePsiElement>();
+        List<ExecutablePsiElement> bucket = new ArrayList<>();
         collectExecutablePsiElements(bucket, this);
         return bucket;
     }
@@ -38,11 +38,6 @@ public class RootPsiElement extends NamedPsiElement implements ExecutableBundleP
     }
 
     @Override
-    public NamedElementType getElementType() {
-        return (NamedElementType) super.getElementType();
-    }
-
-    @Override
     public boolean hasErrors() {
         return false;
     }
@@ -57,7 +52,7 @@ public class RootPsiElement extends NamedPsiElement implements ExecutableBundleP
      *********************************************************/
     @Override
     public String getPresentableText() {
-        return getElementType().getDescription();
+        return elementType.getDescription();
     }
 
     @Override

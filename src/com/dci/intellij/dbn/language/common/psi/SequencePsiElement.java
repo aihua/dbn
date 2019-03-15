@@ -2,12 +2,13 @@ package com.dci.intellij.dbn.language.common.psi;
 
 import com.dci.intellij.dbn.code.common.style.formatting.FormattingAttributes;
 import com.dci.intellij.dbn.common.util.StringUtil;
-import com.dci.intellij.dbn.language.common.element.BlockElementType;
 import com.dci.intellij.dbn.language.common.element.ElementType;
-import com.dci.intellij.dbn.language.common.element.IterationElementType;
-import com.dci.intellij.dbn.language.common.element.NamedElementType;
-import com.dci.intellij.dbn.language.common.element.OneOfElementType;
-import com.dci.intellij.dbn.language.common.element.SequenceElementType;
+import com.dci.intellij.dbn.language.common.element.impl.BlockElementType;
+import com.dci.intellij.dbn.language.common.element.impl.ElementTypeBase;
+import com.dci.intellij.dbn.language.common.element.impl.IterationElementType;
+import com.dci.intellij.dbn.language.common.element.impl.NamedElementType;
+import com.dci.intellij.dbn.language.common.element.impl.OneOfElementType;
+import com.dci.intellij.dbn.language.common.element.impl.SequenceElementType;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.dci.intellij.dbn.language.common.psi.lookup.PsiLookupAdapter;
 import com.dci.intellij.dbn.object.common.DBObjectType;
@@ -19,8 +20,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Set;
 
-public class SequencePsiElement extends BasePsiElement {
-    public SequencePsiElement(ASTNode astNode, ElementType elementType) {
+public class SequencePsiElement<T extends ElementTypeBase> extends BasePsiElement<T> {
+    public SequencePsiElement(ASTNode astNode, T elementType) {
         super(astNode, elementType);
     }
 
@@ -79,7 +80,7 @@ public class SequencePsiElement extends BasePsiElement {
             int scopeCrossCount) {
 
         if (lookupAdapter.matches(this)) {
-            if (bucket == null) bucket = new THashSet<BasePsiElement>();
+            if (bucket == null) bucket = new THashSet<>();
             bucket.add(this);
 
         }
@@ -128,8 +129,8 @@ public class SequencePsiElement extends BasePsiElement {
     @Override
     public void collectVirtualObjectPsiElements(Set<BasePsiElement> bucket, DBObjectType objectType) {
         //if (getElementType().getLookupCache().containsVirtualObject(objectType)) {
-            if (getElementType().isVirtualObject()) {
-                DBObjectType virtualObjectType = getElementType().getVirtualObjectType();
+            if (elementType.isVirtualObject()) {
+                DBObjectType virtualObjectType = elementType.getVirtualObjectType();
                 if (objectType == virtualObjectType) {
                     bucket.add(this);
                 }
@@ -153,7 +154,7 @@ public class SequencePsiElement extends BasePsiElement {
                 SequencePsiElement bundlePsiElement = (SequencePsiElement) child;
                 if (bundlePsiElement instanceof NamedPsiElement) {
                     NamedPsiElement namedPsiElement = (NamedPsiElement) bundlePsiElement;
-                    if (namedPsiElement.getElementType().getId().equals(id)) {
+                    if (namedPsiElement.elementType.getId().equals(id)) {
                         return namedPsiElement;
                     }
                 }
@@ -170,7 +171,7 @@ public class SequencePsiElement extends BasePsiElement {
 
     @Override
     public BasePsiElement findFirstPsiElement(ElementTypeAttribute attribute) {
-        if (this.getElementType().is(attribute)) {
+        if (elementType.is(attribute)) {
             return this;
         }
 
@@ -190,7 +191,7 @@ public class SequencePsiElement extends BasePsiElement {
 
     @Override
     public BasePsiElement findFirstPsiElement(Class<? extends ElementType> clazz) {
-        if (clazz.isAssignableFrom(this.getElementType().getClass())) {
+        if (clazz.isAssignableFrom(elementType.getClass())) {
             return this;
         }
 
@@ -223,7 +224,7 @@ public class SequencePsiElement extends BasePsiElement {
 
     @Override
     public BasePsiElement findPsiElementBySubject(ElementTypeAttribute attribute, CharSequence subjectName, DBObjectType subjectType) {
-        if (getElementType().is(attribute)) {
+        if (elementType.is(attribute)) {
             BasePsiElement subjectPsiElement = findFirstPsiElement(ElementTypeAttribute.SUBJECT);
             if (subjectPsiElement instanceof IdentifierPsiElement) {
                 IdentifierPsiElement identifierPsiElement = (IdentifierPsiElement) subjectPsiElement;
@@ -249,7 +250,7 @@ public class SequencePsiElement extends BasePsiElement {
 
     @Override
     public BasePsiElement findPsiElementByAttribute(ElementTypeAttribute attribute) {
-        if (getElementType().is(attribute)) {
+        if (elementType.is(attribute)) {
             return this;
         }
         PsiElement child = getFirstChild();
@@ -346,23 +347,23 @@ public class SequencePsiElement extends BasePsiElement {
     }
 
     public boolean isSequence(){
-        return getElementType() instanceof SequenceElementType;
+        return elementType instanceof SequenceElementType;
     }
 
     public boolean isBlock(){
-        return getElementType() instanceof BlockElementType;
+        return elementType instanceof BlockElementType;
     }
 
     public boolean isIteration(){
-        return getElementType() instanceof IterationElementType;
+        return elementType instanceof IterationElementType;
     }
 
     public boolean isOneOf() {
-        return getElementType() instanceof OneOfElementType;
+        return elementType instanceof OneOfElementType;
     }
 
     public boolean isNamedSequence() {
-        return getElementType() instanceof NamedElementType;
+        return elementType instanceof NamedElementType;
     }
 
     public boolean isFirstChild(PsiElement psiElement){

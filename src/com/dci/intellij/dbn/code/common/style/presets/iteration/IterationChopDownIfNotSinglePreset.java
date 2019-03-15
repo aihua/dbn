@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.code.common.style.presets.iteration;
 
 import com.dci.intellij.dbn.language.common.element.ElementType;
-import com.dci.intellij.dbn.language.common.element.IterationElementType;
+import com.dci.intellij.dbn.language.common.element.impl.IterationElementType;
 import com.dci.intellij.dbn.language.common.psi.BasePsiElement;
 import com.dci.intellij.dbn.language.common.psi.PsiUtil;
 import com.intellij.formatting.Spacing;
@@ -19,8 +19,8 @@ public class IterationChopDownIfNotSinglePreset extends IterationAbstractPreset 
     public Wrap getWrap(BasePsiElement psiElement, CodeStyleSettings settings) {
         BasePsiElement parentPsiElement = getParentPsiElement(psiElement);
         if (parentPsiElement != null) {
-            IterationElementType iterationElementType = (IterationElementType) parentPsiElement.getElementType();
-            ElementType elementType = psiElement.getElementType();
+            IterationElementType iterationElementType = (IterationElementType) parentPsiElement.elementType;
+            ElementType elementType = psiElement.elementType;
 
             boolean shouldWrap = PsiUtil.getChildCount(parentPsiElement) > 1;
             return getWrap(elementType, iterationElementType, shouldWrap);
@@ -34,8 +34,8 @@ public class IterationChopDownIfNotSinglePreset extends IterationAbstractPreset 
     public Spacing getSpacing(BasePsiElement psiElement, CodeStyleSettings settings) {
         BasePsiElement parentPsiElement = getParentPsiElement(psiElement);
         if (parentPsiElement != null) {
-            IterationElementType iterationElementType = (IterationElementType) parentPsiElement.getElementType();
-            ElementType elementType = psiElement.getElementType();
+            IterationElementType iterationElementType = (IterationElementType) parentPsiElement.elementType;
+            ElementType elementType = psiElement.elementType;
 
             boolean shouldWrap = PsiUtil.getChildCount(parentPsiElement) > 1;
             return getSpacing(iterationElementType, elementType, shouldWrap);

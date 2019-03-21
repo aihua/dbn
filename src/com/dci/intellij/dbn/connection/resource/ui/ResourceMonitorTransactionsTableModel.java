@@ -22,7 +22,7 @@ public class ResourceMonitorTransactionsTableModel extends DisposableBase implem
     }
 
     public ConnectionHandler getConnectionHandler() {
-        return connectionHandlerRef.getnn();
+        return connectionHandlerRef.ensure();
     }
 
     public Project getProject() {
@@ -81,12 +81,9 @@ public class ResourceMonitorTransactionsTableModel extends DisposableBase implem
      *                    Disposable                        *
      ********************************************************/
     @Override
-    public void dispose() {
-        if (!isDisposed()) {
-            super.dispose();
-            connection = null;
-        }
-
+    public void disposeInner() {
+        super.disposeInner();
+        nullify();
     }
 
 }

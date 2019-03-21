@@ -14,7 +14,6 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.tabs.TabInfo;
@@ -62,7 +61,6 @@ public class TabbedBrowserForm extends DatabaseBrowserForm{
 
         Project project = getProject();
         EventUtil.subscribe(project, this, EnvironmentManagerListener.TOPIC, environmentManagerListener);
-        Disposer.register(this, connectionTabs);
     }
 
 
@@ -163,8 +161,9 @@ public class TabbedBrowserForm extends DatabaseBrowserForm{
     }
 
     @Override
-    public void dispose() {
-        super.dispose();
+    public void disposeInner() {
+        DisposerUtil.dispose(connectionTabs);
+        super.disposeInner();
     }
 
 
@@ -177,7 +176,7 @@ public class TabbedBrowserForm extends DatabaseBrowserForm{
             Project project = getProject();
             EnvironmentVisibilitySettings visibilitySettings = getEnvironmentSettings(project).getVisibilitySettings();
             for (TabInfo tabInfo : connectionTabs.getTabs()) {
-                Failsafe.lenient(() -> {
+                Failsafe.guarded(() -> {
                     SimpleBrowserForm browserForm = (SimpleBrowserForm) tabInfo.getObject();
                     ConnectionHandler connectionHandler = browserForm.getConnectionHandler();
                     if (connectionHandler != null) {

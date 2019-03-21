@@ -9,7 +9,9 @@ public abstract class DisposableBase implements Disposable{
     }
 
     public DisposableBase(Disposable parent) {
-        Disposer.register(parent, this);
+        if (parent != null) {
+            Disposer.register(parent, this);
+        }
     }
 
     @Override
@@ -18,7 +20,14 @@ public abstract class DisposableBase implements Disposable{
     }
 
     @Override
-    public void dispose() {
-        disposed = true;
+    public final void dispose() {
+        if (!disposed) {
+            disposed = true;
+            disposeInner();
+        }
+    }
+
+    protected final void nullify() {
+        DisposerUtil.nullify(this);
     }
 }

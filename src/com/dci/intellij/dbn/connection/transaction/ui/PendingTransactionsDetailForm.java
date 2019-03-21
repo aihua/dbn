@@ -70,7 +70,7 @@ public class PendingTransactionsDetailForm extends DBNFormImpl {
     }
 
     public ConnectionHandler getConnectionHandler() {
-        return connectionHandlerRef.getnn();
+        return connectionHandlerRef.ensure();
     }
 
     @NotNull
@@ -82,12 +82,6 @@ public class PendingTransactionsDetailForm extends DBNFormImpl {
     @Override
     public JComponent getComponent() {
         return mainPanel;
-    }
-
-    @Override
-    public void dispose() {
-        super.dispose();
-        transactionListener = null;
     }
 
     /********************************************************

@@ -251,7 +251,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
                 VirtualFile parentDirectory = selectedDirectories[0];
                 Write.run(() -> {
                     try {
-                        DBSchemaObject object = objectRef.getnn();
+                        DBSchemaObject object = objectRef.ensure();
                         VirtualFile virtualFile = parentDirectory.createChildData(this, fileName);
                         attachDDLFile(objectRef, virtualFile);
                         DBEditableObjectVirtualFile editableObjectFile = object.getEditableVirtualFile();
@@ -334,7 +334,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
                     (option) -> conditional(option == 0,
                             () -> createDDLFile(objectRef)));
         } else {
-            DBSchemaObject object = objectRef.getnn();
+            DBSchemaObject object = objectRef.ensure();
             int exitCode = showFileAttachDialog(object, virtualFiles, false);
             if (exitCode != DialogWrapper.CANCEL_EXIT_CODE) {
                 DatabaseFileSystem databaseFileSystem = DatabaseFileSystem.getInstance();
@@ -345,7 +345,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
 
     public void detachDDLFiles(DBObjectRef<DBSchemaObject> objectRef) {
         List<VirtualFile> virtualFiles = getAttachedDDLFiles(objectRef);
-        DBSchemaObject object = objectRef.getnn();
+        DBSchemaObject object = objectRef.ensure();
         int exitCode = showFileDetachDialog(object, virtualFiles);
         if (exitCode != DialogWrapper.CANCEL_EXIT_CODE) {
             DatabaseFileSystem databaseFileSystem = DatabaseFileSystem.getInstance();
@@ -408,11 +408,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
     public String getComponentName() {
         return COMPONENT_NAME;
     }
-    @Override
-    public void dispose() {
-        super.dispose();
-        mappings.clear();
-    }
+
     /************************************************
      *               VirtualFileListener            *
      ************************************************/

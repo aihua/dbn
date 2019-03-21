@@ -31,11 +31,13 @@ public class MapLatent<K, V> extends DisposableBase {
         return value;
     }
 
+    public void reset() {
+        map.clear();
+    }
+
     @Override
-    public void dispose() {
-        if (!isDisposed()) {
-            super.dispose();
-            map.clear();
-        }
+    public void disposeInner() {
+        map.clear();
+        super.disposeInner();
     }
 }

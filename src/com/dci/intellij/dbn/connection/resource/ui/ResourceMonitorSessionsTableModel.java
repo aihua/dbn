@@ -23,7 +23,7 @@ public class ResourceMonitorSessionsTableModel extends DisposableBase implements
     }
 
     public ConnectionHandler getConnectionHandler() {
-        return connectionHandlerRef.getnn();
+        return connectionHandlerRef.ensure();
     }
 
     public Project getProject() {
@@ -87,12 +87,9 @@ public class ResourceMonitorSessionsTableModel extends DisposableBase implements
      *                    Disposable                        *
      ********************************************************/
     @Override
-    public void dispose() {
-        if (!isDisposed()) {
-            super.dispose();
-            sessions = null;
-        }
-
+    public void disposeInner() {
+        super.disposeInner();
+        nullify();
     }
 
 }

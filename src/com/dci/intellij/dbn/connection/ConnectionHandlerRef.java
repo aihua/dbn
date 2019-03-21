@@ -1,11 +1,12 @@
 package com.dci.intellij.dbn.connection;
 
+import com.dci.intellij.dbn.common.Reference;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.language.common.WeakRef;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class ConnectionHandlerRef{
+public class ConnectionHandlerRef implements Reference<ConnectionHandler> {
     private WeakRef<ConnectionHandler> reference;
     private ConnectionId connectionId;
 
@@ -23,7 +24,7 @@ public class ConnectionHandlerRef{
     }
 
     @NotNull
-    public ConnectionHandler getnn() {
+    public ConnectionHandler ensure() {
         ConnectionHandler connectionHandler = get();
         return Failsafe.get(connectionHandler);
     }
@@ -49,8 +50,8 @@ public class ConnectionHandlerRef{
     }
 
     @NotNull
-    public static ConnectionHandler getnn(@NotNull ConnectionHandlerRef connectionHandlerRef) {
-        return Failsafe.get(connectionHandlerRef).getnn();
+    public static ConnectionHandler ensure(@NotNull ConnectionHandlerRef connectionHandlerRef) {
+        return Failsafe.get(connectionHandlerRef).ensure();
     }
 
     public boolean isValid() {

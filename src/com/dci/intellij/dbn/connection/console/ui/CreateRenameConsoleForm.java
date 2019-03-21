@@ -96,7 +96,7 @@ public class CreateRenameConsoleForm extends DBNFormImpl<CreateRenameConsoleDial
     }
 
     public ConnectionHandler getConnectionHandler() {
-        return connectionHandlerRef.getnn();
+        return connectionHandlerRef.ensure();
     }
 
     public DBConsoleVirtualFile getConsole() {
@@ -107,13 +107,6 @@ public class CreateRenameConsoleForm extends DBNFormImpl<CreateRenameConsoleDial
     @Override
     public JComponent getComponent() {
         return mainPanel;
-    }
-
-
-    @Override
-    public void dispose() {
-        super.dispose();
-        console = null;
     }
 
 }

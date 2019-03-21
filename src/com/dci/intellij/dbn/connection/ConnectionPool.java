@@ -171,7 +171,7 @@ public class ConnectionPool extends DisposableBase implements NotificationSuppor
 
     @NotNull
     public ConnectionHandler getConnectionHandler() {
-        return connectionHandlerRef.getnn();
+        return connectionHandlerRef.ensure();
     }
 
     @Override
@@ -325,11 +325,9 @@ public class ConnectionPool extends DisposableBase implements NotificationSuppor
     }
 
     @Override
-    public void dispose() {
-        if (!isDisposed()) {
-            super.dispose();
-            closeConnections();
-        }
+    public void disposeInner() {
+        super.disposeInner();
+        closeConnections();
     }
 
     public boolean isConnected(SessionId sessionId) {

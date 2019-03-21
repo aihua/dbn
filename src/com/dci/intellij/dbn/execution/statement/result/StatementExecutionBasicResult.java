@@ -150,7 +150,7 @@ public class StatementExecutionBasicResult extends DisposableBase implements Sta
     @Override
     @NotNull
     public ConnectionHandler getConnectionHandler() {
-        return connectionHandlerRef.getnn();
+        return connectionHandlerRef.ensure();
     }
 
     @Nullable
@@ -212,9 +212,8 @@ public class StatementExecutionBasicResult extends DisposableBase implements Sta
      *                    Disposable                        *
      ********************************************************/
     @Override
-    public void dispose() {
-        super.dispose();
-        executionProcessor = null;
-        executionMessage = null;
+    public void disposeInner() {
+        super.disposeInner();
+        nullify();
     }
 }

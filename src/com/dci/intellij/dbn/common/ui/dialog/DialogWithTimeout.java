@@ -36,7 +36,7 @@ public abstract class DialogWithTimeout extends DBNDialog<DialogWithTimeoutForm>
     private class TimeoutTask extends TimerTask {
         @Override
         public void run() {
-            Failsafe.lenient(() -> {
+            Failsafe.guarded(() -> {
                 if (secondsLeft > 0) {
                     secondsLeft = secondsLeft -1;
                     getComponent().updateTimeLeft(secondsLeft);
@@ -54,12 +54,10 @@ public abstract class DialogWithTimeout extends DBNDialog<DialogWithTimeoutForm>
     public abstract void doDefaultAction();
 
     @Override
-    public void dispose() {
-        if (!isDisposed()) {
-            super.dispose();
-            timeoutTimer.cancel();
-            timeoutTimer.purge();
-        }
+    public void disposeInner() {
+        timeoutTimer.cancel();
+        timeoutTimer.purge();
+        super.disposeInner();
     }
 
 }

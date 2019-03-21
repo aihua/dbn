@@ -222,7 +222,7 @@ public class DBNConnection extends DBNConnectionBase {
 
     @NotNull
     public Project getProject() {
-        return projectRef.getnn();
+        return projectRef.ensure();
     }
 
     public String getName() {
@@ -270,7 +270,7 @@ public class DBNConnection extends DBNConnectionBase {
     }
 
     private void notifyStatusChange() {
-        Failsafe.lenient(() -> {
+        Failsafe.guarded(() -> {
             EventUtil.notify(getProject(),
                     ConnectionStatusListener.TOPIC,
                     (listener) -> listener.statusChanged(id, sessionId));

@@ -71,13 +71,13 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
     @Override
     @NotNull
     public Project getProject() {
-        return projectRef.getnn();
+        return projectRef.ensure();
     }
 
     @Override
     @NotNull
     public Project ensureProject() {
-        return projectRef.getnn();
+        return projectRef.ensure();
     }
 
 
@@ -190,23 +190,28 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
     }
 
     @Override
-    public void dispose() {
+    public final void dispose() {
         if (!disposed) {
             disposed = true;
-            DatabaseFileViewProvider cachedViewProvider = getCachedViewProvider();
+            disposeInner();
+        }
+    }
+
+    @Override
+    public void disposeInner() {DatabaseFileViewProvider cachedViewProvider = getCachedViewProvider();
             if (cachedViewProvider != null) {
                 cachedViewProvider.markInvalidated();
-                List<PsiFile> cachedPsiFiles = cachedViewProvider.getCachedPsiFiles();
-                for (PsiFile cachedPsiFile: cachedPsiFiles) {
-                    if (cachedPsiFile instanceof DBLanguagePsiFile) {
-                        DisposerUtil.dispose((DBLanguagePsiFile) cachedPsiFile);
-                    }
+            List<PsiFile> cachedPsiFiles = cachedViewProvider.getCachedPsiFiles();
+            for (PsiFile cachedPsiFile: cachedPsiFiles) {
+                if (cachedPsiFile instanceof DBLanguagePsiFile) {
+                    DisposerUtil.dispose((DBLanguagePsiFile) cachedPsiFile);
                 }
-
-                setCachedViewProvider(null);
             }
-            putUserData(FileDocumentManagerImpl.HARD_REF_TO_DOCUMENT_KEY, null);
+
+            setCachedViewProvider(null);
         }
+        putUserData(FileDocumentManagerImpl.HARD_REF_TO_DOCUMENT_KEY, null);
+        DisposerUtil.nullify(this);
     }
 
     @Override

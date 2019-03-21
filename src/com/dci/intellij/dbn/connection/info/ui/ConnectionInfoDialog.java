@@ -38,7 +38,7 @@ public class ConnectionInfoDialog extends DBNDialog<ConnectionInfoForm> {
     @Override
     protected ConnectionInfoForm createComponent() {
         if (connectionHandlerRef != null) {
-            ConnectionHandler connectionHandler = connectionHandlerRef.getnn();
+            ConnectionHandler connectionHandler = connectionHandlerRef.ensure();
             return new ConnectionInfoForm(this, connectionHandler);
         } else {
             return new ConnectionInfoForm(this, connectionInfo, connectionName, environmentType);
@@ -51,11 +51,5 @@ public class ConnectionInfoDialog extends DBNDialog<ConnectionInfoForm> {
         return new Action[]{
             getCancelAction()
         };
-    }
-
-    @Override
-    public void dispose() {
-        super.dispose();
-        connectionInfo = null;
     }
 }

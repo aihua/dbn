@@ -42,22 +42,12 @@ public class CmdLineInterfaceInputDialog extends DBNDialog<CmdLineInterfaceInput
         };
     }
 
-    public void setActionEnabled(boolean enabled) {
+    void setActionEnabled(boolean enabled) {
         getOKAction().setEnabled(enabled);
-    }
-
-    public CmdLineInterface getCmdLineInterface() {
-        return cmdLineInterface;
     }
 
     @Override
     protected void doOKAction() {
         super.doOKAction();
-    }
-
-    @Override
-    public void dispose() {
-        super.dispose();
-        usedNames = null;
     }
 }

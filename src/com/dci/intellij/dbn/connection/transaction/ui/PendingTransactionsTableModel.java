@@ -19,13 +19,13 @@ public class PendingTransactionsTableModel extends DisposableBase implements DBN
     private ConnectionHandlerRef connectionHandlerRef;
     private List<DBNConnection> connections;
 
-    public PendingTransactionsTableModel(ConnectionHandler connectionHandler) {
+    PendingTransactionsTableModel(ConnectionHandler connectionHandler) {
         this.connectionHandlerRef = connectionHandler.getRef();
         connections = connectionHandler.getConnections(ConnectionType.MAIN, ConnectionType.SESSION);
     }
 
     public ConnectionHandler getConnectionHandler() {
-        return connectionHandlerRef.getnn();
+        return connectionHandlerRef.ensure();
     }
 
     public Project getProject() {
@@ -97,13 +97,9 @@ public class PendingTransactionsTableModel extends DisposableBase implements DBN
      *                    Disposable                        *
      ********************************************************/
     @Override
-    public void dispose() {
-        if (!isDisposed()) {
-            super.dispose();
-            connections.clear();
-            connections = null;
-        }
-
+    public void disposeInner() {
+        super.disposeInner();
+        nullify();
     }
 
 }

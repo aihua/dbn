@@ -42,7 +42,7 @@ public class DatabaseConsoleBundle extends DisposableBase {
     }
 
     public ConnectionHandler getConnectionHandler() {
-        return connectionHandlerRef.getnn();
+        return connectionHandlerRef.ensure();
     }
 
     @NotNull
@@ -88,12 +88,10 @@ public class DatabaseConsoleBundle extends DisposableBase {
     }
 
     @Override
-    public void dispose() {
-        if (!isDisposed()) {
-            super.dispose();
-            DisposerUtil.dispose(consoles);
-            CollectionUtil.clear(consoles);
-        }
+    public void disposeInner() {
+        DisposerUtil.dispose(consoles);
+        super.disposeInner();
+        nullify();
     }
 
     public void renameConsole(String oldName, String newName) {

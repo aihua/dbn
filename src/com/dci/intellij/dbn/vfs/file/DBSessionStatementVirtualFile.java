@@ -55,7 +55,7 @@ public class DBSessionStatementVirtualFile extends DBVirtualFileImpl implements 
 
     @NotNull
     public SessionBrowser getSessionBrowser() {
-        return sessionBrowser.getnn();
+        return sessionBrowser.ensure();
     }
 
     @Override
@@ -174,10 +174,5 @@ public class DBSessionStatementVirtualFile extends DBVirtualFileImpl implements 
     @Override
     public String getExtension() {
         return "sql";
-    }
-
-    @Override
-    public void dispose() {
-        super.dispose();
     }
 }

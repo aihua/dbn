@@ -149,7 +149,7 @@ public class ExportDataForm extends DBNFormImpl<ExportDataDialog> {
     }
 
     public ConnectionHandler getConnectionHandler() {
-        return connectionHandlerRef.getnn();
+        return connectionHandlerRef.ensure();
     }
 
     @NotNull
@@ -264,10 +264,5 @@ public class ExportDataForm extends DBNFormImpl<ExportDataDialog> {
             String fileName = fileNameBase + "." + processor.getFileExtension();
             fileNameTextField.setText(fileName);
         }
-    }
-
-    @Override
-    public void dispose() {
-        super.dispose();
     }
 }

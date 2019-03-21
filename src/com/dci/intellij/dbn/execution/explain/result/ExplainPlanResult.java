@@ -95,7 +95,7 @@ public class ExplainPlanResult extends DisposableBase implements ExecutionResult
     @Override
     @NotNull
     public ConnectionHandler getConnectionHandler() {
-        return ConnectionHandlerRef.getnn(connectionHandlerRef);
+        return ConnectionHandlerRef.ensure(connectionHandlerRef);
     }
 
     public SchemaId getCurrentSchema() {
@@ -172,11 +172,9 @@ public class ExplainPlanResult extends DisposableBase implements ExecutionResult
      *                    Disposable                   *
      ********************************************************/
     @Override
-    public void dispose() {
-        if (!isDisposed()) {
-            super.dispose();
-            resultForm = null;
-            DisposerUtil.dispose(root);
-        }
+    public void disposeInner() {
+        DisposerUtil.dispose(root);
+        super.disposeInner();
+        nullify();
     }
 }

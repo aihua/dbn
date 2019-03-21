@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.data.preview;
 
 import com.dci.intellij.dbn.common.Colors;
 import com.dci.intellij.dbn.common.Icons;
+import com.dci.intellij.dbn.common.dispose.DisposerUtil;
 import com.dci.intellij.dbn.common.ui.Borders;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.ui.table.TableUtil;
@@ -240,7 +241,7 @@ public class LargeValuePreviewPopup extends DBNFormImpl {
         popup = popupBuilder.createPopup();
         popup.addListener(new JBPopupAdapter() {
             @Override
-            public void onClosed(LightweightWindowEvent event) {
+            public void onClosed(@NotNull LightweightWindowEvent event) {
                 dispose();
             }
         });
@@ -248,18 +249,14 @@ public class LargeValuePreviewPopup extends DBNFormImpl {
     }
 
     @Override
-    public void dispose() {
-        super.dispose();
+    public void disposeInner() {
         Object userValue = userValueHolder.getUserValue();
         if (userValue instanceof LargeObjectValue) {
             LargeObjectValue largeObjectValue = (LargeObjectValue) userValue;
             largeObjectValue.release();
         }
-
-        popup.dispose();
-        popup = null;
-        table = null;
-        userValueHolder = null;
+        DisposerUtil.dispose(popup);
+        super.disposeInner();
     }
 
 

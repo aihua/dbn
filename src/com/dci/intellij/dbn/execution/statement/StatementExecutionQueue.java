@@ -39,7 +39,7 @@ public final class StatementExecutionQueue extends DisposableBase{
 
     @NotNull
     public Project getProject() {
-        return projectRef.getnn();
+        return projectRef.ensure();
     }
 
 
@@ -59,8 +59,7 @@ public final class StatementExecutionQueue extends DisposableBase{
                                     context.set(EXECUTING, true);
                                     StatementExecutionManager statementExecutionManager = StatementExecutionManager.getInstance(project);
                                     statementExecutionManager.process(processor);
-                                } catch (ProcessCanceledException ignore) {
-                                }
+                                } catch (ProcessCanceledException ignore) {}
 
                                 if (progress.isCanceled()) {
                                     cancelExecution();
@@ -99,10 +98,8 @@ public final class StatementExecutionQueue extends DisposableBase{
     }
 
     @Override
-    public void dispose() {
-        if (!isDisposed()) {
-            super.dispose();
-            processors.clear();
-        }
+    public void disposeInner() {
+        super.disposeInner();
+        nullify();
     }
 }

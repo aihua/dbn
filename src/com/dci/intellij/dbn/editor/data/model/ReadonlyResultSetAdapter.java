@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.editor.data.model;
 
+import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.jdbc.DBNResultSet;
 import com.dci.intellij.dbn.connection.transaction.ConnectionSavepoint;
@@ -7,7 +8,6 @@ import com.dci.intellij.dbn.data.model.ColumnInfo;
 import com.dci.intellij.dbn.data.type.DBDataType;
 import com.dci.intellij.dbn.data.type.DBNativeDataType;
 import com.dci.intellij.dbn.data.value.ValueAdapter;
-import com.intellij.openapi.progress.ProcessCanceledException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -22,7 +22,7 @@ public class ReadonlyResultSetAdapter extends ResultSetAdapter {
     private DBNConnection connection;
     private Row currentRow;
 
-    public ReadonlyResultSetAdapter(DatasetEditorModel model, DBNResultSet resultSet) throws SQLException {
+    ReadonlyResultSetAdapter(DatasetEditorModel model, DBNResultSet resultSet) {
         super(model);
         this.connection = resultSet.getStatement().getConnection();
     }
@@ -162,7 +162,7 @@ public class ReadonlyResultSetAdapter extends ResultSetAdapter {
     private void executeInsert() throws SQLException {
         List<Cell> changedCells = currentRow.getChangedCells();
         if (changedCells.size() == 0) {
-            throw new ProcessCanceledException();
+            throw AlreadyDisposedException.INSTANCE;
         }
 
         StringBuilder buffer = new StringBuilder();
@@ -221,17 +221,11 @@ public class ReadonlyResultSetAdapter extends ResultSetAdapter {
         preparedStatement.executeUpdate();
     }
 
-    @Override
-    public void dispose() {
-        super.dispose();
-        connection = null;
-    }
-
     private class Cell {
         private ColumnInfo columnInfo;
         private Object value;
 
-        public Cell(ColumnInfo columnInfo, Object value) {
+        Cell(ColumnInfo columnInfo, Object value) {
             this.columnInfo = columnInfo;
             this.value = value;
         }
@@ -276,24 +270,24 @@ public class ReadonlyResultSetAdapter extends ResultSetAdapter {
     }
 
     private class Row {
-        private Set<Cell> keyCells = new HashSet<Cell>();
-        private Set<Cell> changedCells = new HashSet<Cell>();
+        private Set<Cell> keyCells = new HashSet<>();
+        private Set<Cell> changedCells = new HashSet<>();
 
-        public List<Cell> getKeyCells() {
-            return new ArrayList<Cell>(keyCells);
+        List<Cell> getKeyCells() {
+            return new ArrayList<>(keyCells);
         }
 
-        public List<Cell> getChangedCells() {
-            return new ArrayList<Cell>(changedCells);
+        List<Cell> getChangedCells() {
+            return new ArrayList<>(changedCells);
         }
 
-        public void addKeyCell(ColumnInfo columnInfo, Object value) {
+        void addKeyCell(ColumnInfo columnInfo, Object value) {
             Cell cell = new Cell(columnInfo, value);
             keyCells.remove(cell);
             keyCells.add(cell);
         }
 
-        public void addChangedCell(ColumnInfo columnInfo, Object value) {
+        void addChangedCell(ColumnInfo columnInfo, Object value) {
             Cell cell = new Cell(columnInfo, value);
             changedCells.remove(cell);
             changedCells.add(cell);

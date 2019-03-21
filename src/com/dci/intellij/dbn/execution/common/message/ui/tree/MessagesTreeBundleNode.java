@@ -1,40 +1,35 @@
 package com.dci.intellij.dbn.execution.common.message.ui.tree;
 
-import com.dci.intellij.dbn.common.dispose.DisposableBase;
 import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.message.MessageType;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
-import com.intellij.openapi.util.Disposer;
 
 import javax.swing.tree.TreeNode;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 
-public abstract class BundleTreeNode extends DisposableBase implements MessagesTreeNode{
-    protected MessagesTreeNode parent;
-    private List<MessagesTreeNode> children = CollectionUtil.createConcurrentList();
+public abstract class MessagesTreeBundleNode<P extends MessagesTreeNode, C extends MessagesTreeNode>
+        extends MessagesTreeNodeBase<P, C> {
 
-    protected BundleTreeNode(MessagesTreeNode parent) {
-        this.parent = parent;
+    private List<C> children = CollectionUtil.createConcurrentList();
+
+    protected MessagesTreeBundleNode(P parent) {
+        super(parent);
     }
 
-    public void addChild(MessagesTreeNode child) {
+    public void addChild(C child) {
         children.add(child);
-        Disposer.register(this, child);
     }
 
-    public void clearChildren() {
+    protected void clearChildren() {
         List<MessagesTreeNode> children = new ArrayList<>(this.children);
         this.children.clear();
         DisposerUtil.dispose(children);
     }
 
     @Override
-    public MessagesTreeModel getTreeModel() {
-        return parent.getTreeModel();
-    }
-
-    public List<MessagesTreeNode> getChildren() {
+    public List<C> getChildren() {
         return children;
     }
 
@@ -49,11 +44,6 @@ public abstract class BundleTreeNode extends DisposableBase implements MessagesT
     @Override
     public int getChildCount() {
         return children.size();
-    }
-
-    @Override
-    public TreeNode getParent() {
-        return parent;
     }
 
     @Override
@@ -76,16 +66,27 @@ public abstract class BundleTreeNode extends DisposableBase implements MessagesT
         return java.util.Collections.enumeration(children);
     }
 
+    @Override
+    public boolean hasMessageChildren(MessageType type) {
+        for (C child : children) {
+            if (child instanceof MessagesTreeLeafNode) {
+                MessagesTreeLeafNode messageTreeNode = (MessagesTreeLeafNode) child;
+                if (messageTreeNode.getMessage().getType() == type) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /*********************************************************
      *                      Disposable                       *
      *********************************************************/
     @Override
-    public void dispose() {
-        if (!isDisposed()) {
-            super.dispose();
-            CollectionUtil.clear(children);
-            parent = null;
-        }
+    public void disposeInner() {
+        DisposerUtil.dispose(children);
+        super.disposeInner();
+        nullify();
     }
 
 

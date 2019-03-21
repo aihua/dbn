@@ -250,7 +250,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
 
     @Override
     public void notifyChangeListeners() {
-        Failsafe.lenient(() -> {
+        Failsafe.guarded(() -> {
             Project project = getProject();
             BrowserTreeNode treeParent = getParent();
             if (isNot(INTERNAL) && isTouched() && Failsafe.check(project) && treeParent.isTreeStructureLoaded()) {
@@ -333,7 +333,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
         if (isLoading() || isDisposed()) {
             return elements;
         } else {
-            return Failsafe.lenient(Collections.emptyList(), () -> {
+            return Failsafe.guarded(Collections.emptyList(), () -> {
                 boolean scroll = !isTouched();
                 if (!isLoaded() || isDirty()) {
                     loadInBackground();
@@ -473,8 +473,8 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
     }
 
     @Override
-    public void dispose() {
-        super.dispose();
+    public void disposeInner() {
         psiDirectory = null;
+        super.disposeInner();
     }
 }

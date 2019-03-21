@@ -276,7 +276,7 @@ public class BasicTable<T extends BasicDataModel> extends DBNTableWithGutter<T> 
             T model = getModel();
             DataModelState modelState = model.getState();
             boolean isReadonly = model.isReadonly() || model.isEnvironmentReadonly() || modelState.isReadonly() ;
-            if (isReadonly && getSelectedColumnCount() == 1 && getSelectedRowCount() == 1) {
+            if (isReadonly && getSelectedColumnCount() == 1 && getSelectedRowCount() == 1 && this.isShowing()) {
                 int rowIndex = getSelectedRow();
                 int columnIndex = getSelectedColumn();
                 if (!canDisplayCompleteValue(rowIndex, columnIndex)) {
@@ -294,7 +294,7 @@ public class BasicTable<T extends BasicDataModel> extends DBNTableWithGutter<T> 
                     valuePopup.addListener(
                         new JBPopupAdapter() {
                             @Override
-                            public void onClosed(LightweightWindowEvent event) {
+                            public void onClosed(@NotNull LightweightWindowEvent event) {
                                 valuePopup.cancel();
                                 valuePopup = null;
                             }
@@ -327,14 +327,6 @@ public class BasicTable<T extends BasicDataModel> extends DBNTableWithGutter<T> 
             }
         }
         return true;
-    }
-
-    @Override
-    public void dispose() {
-        super.dispose();
-        regionalSettings = null;
-        dataGridSettings = null;
-        tableGutter = null;
     }
 
     public Rectangle getCellRect(DataModelCell cell) {

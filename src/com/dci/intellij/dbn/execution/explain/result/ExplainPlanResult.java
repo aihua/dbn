@@ -3,8 +3,9 @@ package com.dci.intellij.dbn.execution.explain.result;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.action.DBNDataKeys;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.DataProviderSupplier;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -34,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Nullifiable
 public class ExplainPlanResult extends DisposableBase implements ExecutionResult, DataProviderSupplier {
     private String planId;
     private Date timestamp;
@@ -70,7 +72,7 @@ public class ExplainPlanResult extends DisposableBase implements ExecutionResult
 
     public ExplainPlanResult(ExecutablePsiElement executablePsiElement, String errorMessage) {
         DBLanguagePsiFile psiFile = executablePsiElement.getFile();
-        ConnectionHandler connectionHandler = Failsafe.get(psiFile.getConnectionHandler());
+        ConnectionHandler connectionHandler = Failsafe.nn(psiFile.getConnectionHandler());
         connectionHandlerRef = connectionHandler.getRef();
         currentSchema = psiFile.getSchemaId();
         virtualFile = psiFile.getVirtualFile();
@@ -170,11 +172,10 @@ public class ExplainPlanResult extends DisposableBase implements ExecutionResult
 
     /********************************************************
      *                    Disposable                   *
-     ********************************************************/
+     *******************************************************  */
     @Override
     public void disposeInner() {
-        DisposerUtil.dispose(root);
+        Disposer.dispose(root);
         super.disposeInner();
-        nullify();
     }
 }

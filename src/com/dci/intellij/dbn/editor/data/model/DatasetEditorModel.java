@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.editor.data.model;
 
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.environment.EnvironmentManager;
 import com.dci.intellij.dbn.common.thread.CancellableDatabaseCall;
@@ -9,7 +9,7 @@ import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ConnectionUtil;
+import com.dci.intellij.dbn.connection.ResourceUtil;
 import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.jdbc.DBNResultSet;
@@ -30,7 +30,6 @@ import com.dci.intellij.dbn.object.DBConstraint;
 import com.dci.intellij.dbn.object.DBDataset;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -106,7 +105,7 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
             @Override
             public void cancel() {
                 DBNStatement statement = statementRef.get();
-                ConnectionUtil.cancel(statement);
+                ResourceUtil.cancel(statement);
                 loaderCall = null;
                 set(DIRTY, true);
             }
@@ -119,17 +118,17 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
         super.setResultSet(resultSet);
 
         // instructions the adapter
-        DisposerUtil.dispose(resultSetAdapter);
+        Disposer.dispose(resultSetAdapter);
         ConnectionHandler connectionHandler = getConnectionHandler();
         resultSetAdapter = DatabaseFeature.UPDATABLE_RESULT_SETS.isSupported(connectionHandler) ?
                     new EditableResultSetAdapter(this, resultSet) :
                     new ReadonlyResultSetAdapter(this, resultSet);
-        Disposer.register(DatasetEditorModel.this, resultSetAdapter);
+        Disposer.register(this, resultSetAdapter);
     }
 
     @NotNull
     ResultSetAdapter getResultSetAdapter() {
-        return Failsafe.get(resultSetAdapter);
+        return Failsafe.nn(resultSetAdapter);
     }
 
     private int computeRowCount() {
@@ -144,7 +143,7 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
     }
 
     public DataEditorSettings getSettings() {
-        return Failsafe.get(settings);
+        return Failsafe.nn(settings);
     }
 
     private DBNResultSet loadResultSet(boolean useCurrentFilter, AtomicReference<DBNStatement> statementRef) throws SQLException {
@@ -269,12 +268,12 @@ public class DatasetEditorModel extends ResultSetDataModel<DatasetEditorModelRow
 
     @NotNull
     public DBDataset getDataset() {
-        return Failsafe.get(DBObjectRef.get(datasetRef));
+        return Failsafe.nn(DBObjectRef.get(datasetRef));
     }
 
     @NotNull
     public DatasetEditor getDatasetEditor() {
-        return Failsafe.get(datasetEditor);
+        return Failsafe.nn(datasetEditor);
     }
 
     @NotNull

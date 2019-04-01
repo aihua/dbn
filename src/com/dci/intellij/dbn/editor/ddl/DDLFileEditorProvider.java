@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.editor.ddl;
 
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.editor.BasicTextEditor;
 import com.dci.intellij.dbn.common.editor.BasicTextEditorProvider;
@@ -10,7 +11,6 @@ import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorPolicy;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
@@ -45,7 +45,7 @@ public abstract class DDLFileEditorProvider extends BasicTextEditorProvider impl
     @NotNull
     public FileEditor createEditor(@NotNull Project project, @NotNull VirtualFile file) {
         DBEditableObjectVirtualFile databaseFile = (DBEditableObjectVirtualFile) file;
-        List<VirtualFile> ddlFiles = Failsafe.get(databaseFile.getAttachedDDLFiles());
+        List<VirtualFile> ddlFiles = Failsafe.nn(databaseFile.getAttachedDDLFiles());
         VirtualFile virtualFile = ddlFiles.get(index);
 
         BasicTextEditor textEditor = new DDLFileEditor(project, virtualFile, getEditorProviderId());

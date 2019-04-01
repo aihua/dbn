@@ -2,7 +2,7 @@ package com.dci.intellij.dbn.execution.method;
 
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.routine.ParametricRunnable;
 import com.dci.intellij.dbn.common.thread.Dispatch;
@@ -183,7 +183,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
             MessageUtil.showErrorDialog(getProject(), "Could not resolve " + methodRef.getQualifiedNameWithType() + "\".");
         } else {
             Project project = method.getProject();
-            ConnectionHandler connectionHandler = Failsafe.get(method.getConnectionHandler());
+            ConnectionHandler connectionHandler = Failsafe.nn(method.getConnectionHandler());
             DatabaseExecutionInterface executionInterface = connectionHandler.getInterfaceProvider().getDatabaseExecutionInterface();
             MethodExecutionProcessor executionProcessor = executionInterface.createExecutionProcessor(method);
 
@@ -263,7 +263,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
                             new ObjectTreeModel(null, settings.getVisibleObjectTypes(), null);
 
                     Dispatch.invoke(() -> {
-                        Failsafe.ensure(project);
+                        Failsafe.nn(project);
                         MethodExecutionBrowserDialog browserDialog = new MethodExecutionBrowserDialog(project, objectTreeModel, true);
                         browserDialog.show();
                         if (browserDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
@@ -302,7 +302,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
 
     @Override
     public void disposeInner() {
-        DisposerUtil.dispose(executionHistory);
+        Disposer.dispose(executionHistory);
         super.disposeInner();
     }
 

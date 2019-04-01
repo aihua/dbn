@@ -4,9 +4,11 @@ import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.ProjectRef;
 import com.dci.intellij.dbn.common.action.DBNDataKeys;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
-import com.dci.intellij.dbn.common.dispose.Disposable;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.DisposableUserDataHolderBase;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
+import com.dci.intellij.dbn.common.dispose.RegisteredDisposable;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
@@ -57,8 +59,6 @@ import com.intellij.openapi.fileEditor.FileEditorState;
 import com.intellij.openapi.fileEditor.FileEditorStateLevel;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
-import com.intellij.openapi.util.UserDataHolderBase;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -73,7 +73,14 @@ import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.*;
 import static com.dci.intellij.dbn.editor.data.model.RecordStatus.INSERTING;
 import static com.dci.intellij.dbn.editor.data.model.RecordStatus.MODIFIED;
 
-public class DatasetEditor extends UserDataHolderBase implements FileEditor, FileConnectionMappingProvider, Disposable, ConnectionProvider, DataProviderSupplier {
+@Nullifiable
+public class DatasetEditor extends DisposableUserDataHolderBase implements
+        FileEditor,
+        FileConnectionMappingProvider,
+        ConnectionProvider,
+        DataProviderSupplier,
+        RegisteredDisposable {
+
     private static final Logger LOGGER = LoggerFactory.createLogger();
 
     private static final DatasetLoadInstructions COL_VISIBILITY_STATUS_CHANGE_LOAD_INSTRUCTIONS = new DatasetLoadInstructions(USE_CURRENT_FILTER, PRESERVE_CHANGES, DELIBERATE_ACTION, REBUILD);
@@ -117,7 +124,7 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
 
     @NotNull
     public DBDataset getDataset() {
-        return Failsafe.get(datasetRef.get(getProject()));
+        return Failsafe.nn(datasetRef.get(getProject()));
     }
 
     public DataEditorSettings getSettings() {
@@ -131,7 +138,7 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
 
     @NotNull
     public DatasetEditorForm getEditorForm() {
-        return Failsafe.get(editorForm);
+        return Failsafe.nn(editorForm);
     }
 
     public void showSearchHeader() {
@@ -639,34 +646,5 @@ public class DatasetEditor extends UserDataHolderBase implements FileEditor, Fil
         DatasetColumnSetup columnSetup = editorState.getColumnSetup();
         columnSetup.init(columnNames, getDataset());
         return columnSetup.getColumnStates();
-    }
-
-    /********************************************************
-     *                    Disposable                        *
-     ********************************************************/
-    private boolean disposed;
-
-    @Override
-    public boolean isDisposed() {
-        return disposed;
-    }
-
-    @Override
-    public void dispose() {
-        if (!disposed) {
-            disposed = true;
-            DisposerUtil.nullify(this);
-/*
-            editorForm = null;
-            databaseFile = null;
-            structureViewModel = null;
-            connectionStatusListener = null;
-            dataGridSettingsChangeListener = null;
-            transactionListener = null;
-            dataProvider = null;
-            settings = null;
-*/
-
-        }
     }
 }

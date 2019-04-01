@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.execution.statement.result.ui;
 
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.thread.Dispatch;
@@ -22,7 +22,6 @@ import com.dci.intellij.dbn.execution.common.result.ui.ExecutionResultForm;
 import com.dci.intellij.dbn.execution.statement.result.StatementExecutionCursorResult;
 import com.intellij.openapi.actionSystem.ActionToolbar;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.IdeBorderFactory;
 import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
@@ -79,20 +78,20 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
     }
 
     @Override
-    public void setExecutionResult(StatementExecutionCursorResult executionResult) {
+    public void setExecutionResult(@NotNull StatementExecutionCursorResult executionResult) {
         if (this.executionResult != executionResult) {
             StatementExecutionCursorResult oldExecutionResult = this.executionResult;
             this.executionResult = executionResult;
             reloadTableModel();
 
-            DisposerUtil.dispose(oldExecutionResult);
+            Disposer.dispose(oldExecutionResult);
         }
     }
 
     @Override
     @NotNull
     public StatementExecutionCursorResult getExecutionResult() {
-        return Failsafe.get(executionResult);
+        return Failsafe.nn(executionResult);
     }
 
     public void reloadTableModel() {
@@ -106,13 +105,13 @@ public class StatementExecutionResultForm extends DBNFormImpl implements Executi
             resultTable.initTableGutter();
             resultTable.setName(StatementExecutionResultForm.this.executionResult.getName());
             horizontalScrollBar.setValue(horizontalScrolling);
-            DisposerUtil.disposeInBackground(oldResultTable);
+            Disposer.disposeInBackground(oldResultTable);
         });
     }
 
     @NotNull
     public ResultSetTable getResultTable() {
-        return Failsafe.get(resultTable);
+        return Failsafe.nn(resultTable);
     }
 
     public void updateVisibleComponents() {

@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.navigation.psi;
 
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -11,7 +11,6 @@ import com.intellij.lang.Language;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.vcs.FileStatus;
@@ -41,13 +40,12 @@ public class DBConnectionPsiDirectory implements PsiDirectory, Disposable {
 
     public DBConnectionPsiDirectory(ConnectionHandler connectionHandler) {
         virtualFile = new DBConnectionVirtualFile(connectionHandler);
-        Disposer.register(this, virtualFile);
     }
 
     @Override
     @NotNull
     public DBConnectionVirtualFile getVirtualFile() {
-        return Failsafe.get(virtualFile);
+        return Failsafe.nn(virtualFile);
     }
 
     @NotNull
@@ -72,7 +70,7 @@ public class DBConnectionPsiDirectory implements PsiDirectory, Disposable {
 
     @Override
     public void dispose() {
-        DisposerUtil.dispose(virtualFile);
+        Disposer.dispose(virtualFile);
         virtualFile = null;
     }
 
@@ -100,7 +98,7 @@ public class DBConnectionPsiDirectory implements PsiDirectory, Disposable {
     @Override
     @NotNull
     public Project getProject() throws PsiInvalidElementAccessException {
-        return Failsafe.get(getVirtualFile().getProject());
+        return Failsafe.nn(getVirtualFile().getProject());
     }
 
     @Override

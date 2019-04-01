@@ -68,7 +68,7 @@ public class SQLConsoleAction extends DumbAwareAction {
                     true,
                     null,
                     actionGroup.getChildrenCount(),
-                    action -> {
+                    preselect -> {
 /*
                         SelectConsoleAction selectConnectionAction = (SelectConsoleAction) action;
                         return latestSelection == selectConnectionAction.connectionHandler;
@@ -153,7 +153,7 @@ public class SQLConsoleAction extends DumbAwareAction {
                 DatabaseConsoleManager databaseConsoleManager = DatabaseConsoleManager.getInstance(connectionHandler.getProject());
                 databaseConsoleManager.showCreateConsoleDialog(connectionHandler, consoleType);
             } else {
-                ConnectionHandler connectionHandler = Failsafe.get(consoleVirtualFile.getConnectionHandler());
+                ConnectionHandler connectionHandler = Failsafe.nn(consoleVirtualFile.getConnectionHandler());
                 FileEditorManager fileEditorManager = FileEditorManager.getInstance(connectionHandler.getProject());
                 fileEditorManager.openFile(consoleVirtualFile, true);
             }

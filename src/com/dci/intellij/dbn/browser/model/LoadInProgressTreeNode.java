@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.browser.model;
 
 import com.dci.intellij.dbn.code.sql.color.SQLTextAttributesKeys;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.load.LoadInProgressIcon;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -18,6 +19,7 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import java.util.ArrayList;
 
+@Nullifiable
 public class LoadInProgressTreeNode extends BrowserTreeNodeBase implements BrowserTreeNode {
     private BrowserTreeNode parent;
 
@@ -51,7 +53,7 @@ public class LoadInProgressTreeNode extends BrowserTreeNodeBase implements Brows
     @Override
     @NotNull
     public BrowserTreeNode getParent() {
-        return Failsafe.get(parent);
+        return Failsafe.nn(parent);
     }
 
     @Override
@@ -108,7 +110,7 @@ public class LoadInProgressTreeNode extends BrowserTreeNodeBase implements Brows
     @Override
     @NotNull
     public ConnectionHandler getConnectionHandler() {
-        return Failsafe.get(getParent().getConnectionHandler());
+        return Failsafe.nn(getParent().getConnectionHandler());
     }
 
     @Override
@@ -176,13 +178,6 @@ public class LoadInProgressTreeNode extends BrowserTreeNodeBase implements Brows
     @Override
     public String getToolTip() {
         return null;
-    }
-
-
-    @Override
-    public void disposeInner() {
-        super.disposeInner();
-        nullify();
     }
 
     public class List extends ArrayList<BrowserTreeNode> implements Disposable {

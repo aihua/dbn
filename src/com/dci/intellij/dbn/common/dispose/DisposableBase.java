@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.common.dispose;
 
-import com.intellij.openapi.util.Disposer;
+import org.jetbrains.annotations.Nullable;
 
 public abstract class DisposableBase implements Disposable{
     private boolean disposed;
@@ -8,8 +8,8 @@ public abstract class DisposableBase implements Disposable{
     public DisposableBase() {
     }
 
-    public DisposableBase(Disposable parent) {
-        if (parent != null) {
+    public DisposableBase(@Nullable RegisteredDisposable parent) {
+        if (Failsafe.check(parent)) {
             Disposer.register(parent, this);
         }
     }
@@ -20,14 +20,17 @@ public abstract class DisposableBase implements Disposable{
     }
 
     @Override
-    public final void dispose() {
-        if (!disposed) {
-            disposed = true;
-            disposeInner();
-        }
+    public void markDisposed() {
+        disposed = true;
     }
 
-    protected final void nullify() {
-        DisposerUtil.nullify(this);
+    @Override
+    public final void dispose() {
+        Disposable.super.dispose();
+    }
+
+    @Override
+    public void disposeInner() {
+        Disposable.super.disposeInner();
     }
 }

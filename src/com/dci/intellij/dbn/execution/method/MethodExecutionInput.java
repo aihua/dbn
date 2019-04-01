@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.execution.method;
 
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.util.Cloneable;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -30,6 +31,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+@Nullifiable
 public class MethodExecutionInput extends LocalExecutionInput implements Comparable<MethodExecutionInput>, Cloneable<MethodExecutionInput> {
     private DBObjectRef<DBMethod> methodRef;
     private Set<MethodExecutionArgumentValue> argumentValues = new THashSet<>();
@@ -52,7 +54,7 @@ public class MethodExecutionInput extends LocalExecutionInput implements Compara
         this.targetSchemaId = method.getSchemaIdentifier();
 
         if (DatabaseFeature.DATABASE_LOGGING.isSupported(method)) {
-            ConnectionHandler connectionHandler = Failsafe.get(method.getConnectionHandler());
+            ConnectionHandler connectionHandler = Failsafe.nn(method.getConnectionHandler());
             getOptions().set(ExecutionOption.ENABLE_LOGGING, connectionHandler.isLoggingEnabled());
         }
     }
@@ -295,11 +297,4 @@ public class MethodExecutionInput extends LocalExecutionInput implements Compara
         }
         return clone;
     }
-
-    @Override
-    public void disposeInner() {
-        super.disposeInner();
-        nullify();
-    }
-
 }

@@ -13,8 +13,9 @@ import com.dci.intellij.dbn.code.sql.color.SQLTextAttributesKeys;
 import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.thread.Background;
@@ -26,8 +27,8 @@ import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ConnectionId;
-import com.dci.intellij.dbn.connection.ConnectionUtil;
 import com.dci.intellij.dbn.connection.GenericDatabaseElement;
+import com.dci.intellij.dbn.connection.ResourceUtil;
 import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.connection.jdbc.DBNCallableStatement;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
@@ -69,6 +70,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+@Nullifiable
 public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObject, ToolTipProvider {
     private static final List<DBObject> EMPTY_OBJECT_LIST = java.util.Collections.unmodifiableList(new ArrayList<>(0));
     public static final List<BrowserTreeNode> EMPTY_TREE_NODE_LIST = java.util.Collections.unmodifiableList(new ArrayList<BrowserTreeNode>(0));
@@ -509,21 +511,21 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
     @Override
     @NotNull
     public LookupItemBuilder getLookupItemBuilder(DBLanguage language) {
-        DBObjectBundle objectBundle = Failsafe.get(getObjectBundle());
+        DBObjectBundle objectBundle = Failsafe.nn(getObjectBundle());
         return objectBundle.getLookupItemBuilder(objectRef, language);
     }
 
     @Override
     @NotNull
     public DBObjectPsiFacade getPsiFacade() {
-        DBObjectBundle objectBundle = Failsafe.get(getObjectBundle());
+        DBObjectBundle objectBundle = Failsafe.nn(getObjectBundle());
         return objectBundle.getObjectPsiFacade(getRef());
     }
 
     @Override
     @NotNull
     public DBObjectVirtualFile getVirtualFile() {
-        DBObjectBundle objectBundle = Failsafe.get(getObjectBundle());
+        DBObjectBundle objectBundle = Failsafe.nn(getObjectBundle());
         return objectBundle.getObjectVirtualFile(getRef());
     }
 
@@ -533,7 +535,7 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
         DBNCallableStatement statement = null;
         DBNConnection connection = null;
 
-        ConnectionHandler connectionHandler = Failsafe.get(getConnectionHandler());
+        ConnectionHandler connectionHandler = Failsafe.nn(getConnectionHandler());
         try {
             connection = connectionHandler.getPoolConnection(true);
             statement = connection.prepareCall("{? = call DBMS_METADATA.GET_DDL(?, ?, ?)}");
@@ -546,7 +548,7 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
             ddl = statement.getString(1);
             ddl = ddl == null ? null : ddl.trim();
         } finally{
-            ConnectionUtil.close(statement);
+            ResourceUtil.close(statement);
             connectionHandler.freePoolConnection(connection);
         }
         return ddl;
@@ -669,14 +671,14 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
                 DBObjectListContainer childObjects = object.getChildObjects();
                 if (childObjects != null) {
                     DBObjectList parentObjectList = childObjects.getObjectList(objectType);
-                    return Failsafe.get(parentObjectList);
+                    return Failsafe.nn(parentObjectList);
                 }
             }
         } else {
             DBObjectBundle objectBundle = getObjectBundle();
             DBObjectListContainer objectListContainer = objectBundle.getObjectListContainer();
             DBObjectList parentObjectList = objectListContainer.getObjectList(objectType);
-            return Failsafe.get(parentObjectList);
+            return Failsafe.nn(parentObjectList);
         }
         throw AlreadyDisposedException.INSTANCE;
     }
@@ -741,7 +743,7 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
         set(DBObjectProperty.TREE_LOADED, true);
 
 
-        Project project = Failsafe.get(getProject());
+        Project project = Failsafe.nn(getProject());
         EventUtil.notify(project,
                 BrowserTreeEventListener.TOPIC,
                 (listener) -> listener.nodeChanged(this, TreeEventType.STRUCTURE_CHANGED));
@@ -819,7 +821,7 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
     @Override
     @NotNull
     public Project getProject() throws PsiInvalidElementAccessException {
-        ConnectionHandler connectionHandler = Failsafe.get(getConnectionHandler());
+        ConnectionHandler connectionHandler = Failsafe.nn(getConnectionHandler());
         return connectionHandler.getProject();
     }
 
@@ -857,15 +859,6 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
     /*********************************************************
     *               DynamicContentElement                    *
     *********************************************************/
-    @Override
-    public void disposeInner() {
-        DisposerUtil.dispose(childObjects);
-        DisposerUtil.dispose(childObjectRelations);
-        CollectionUtil.clear(visibleTreeChildren);
-        CollectionUtil.clear(allPossibleTreeChildren);
-        super.disposeInner();
-        nullify();
-    }
 
     @Override
     public String getDescription() {
@@ -898,5 +891,13 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
     @Override
     public boolean canNavigateToSource() {
         return false;
+    }
+
+    @Override
+    public void disposeInner() {
+        Disposer.dispose(childObjects);
+        Disposer.dispose(childObjectRelations);
+        super.disposeInner();
+
     }
 }

@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.editor.session;
 
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.option.InteractiveOptionBroker;
@@ -13,7 +14,7 @@ import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ConnectionUtil;
+import com.dci.intellij.dbn.connection.ResourceUtil;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.jdbc.DBNResultSet;
 import com.dci.intellij.dbn.database.DatabaseFeature;
@@ -97,7 +98,7 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
             return model;
 
         } finally {
-            ConnectionUtil.close(resultSet);
+            ResourceUtil.close(resultSet);
             connectionHandler.freePoolConnection(connection);
         }
     }
@@ -121,14 +122,14 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
         } catch (SQLException e) {
             sendWarningNotification("Session Browser", "Could not load current session SQL. Cause: {0}", e.getMessage());
         } finally {
-            ConnectionUtil.close(resultSet);
+            ResourceUtil.close(resultSet);
             connectionHandler.freePoolConnection(connection);
         }
         return "";
     }
 
     public void interruptSessions(@NotNull SessionBrowser sessionBrowser, Map<Object, Object> sessionIds, SessionInterruptionType type) {
-        ConnectionHandler connectionHandler = Failsafe.get(sessionBrowser.getConnectionHandler());
+        ConnectionHandler connectionHandler = Failsafe.nn(sessionBrowser.getConnectionHandler());
         if (DatabaseFeature.SESSION_INTERRUPTION_TIMING.isSupported(connectionHandler)) {
 
             SessionBrowserSettings sessionBrowserSettings = getSessionBrowserSettings();
@@ -159,7 +160,7 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
         Project project = getProject();
         Progress.prompt(project, taskAction, true,
                 (progress) -> {
-                    ConnectionHandler connectionHandler = Failsafe.get(sessionBrowser.getConnectionHandler());
+                    ConnectionHandler connectionHandler = Failsafe.nn(sessionBrowser.getConnectionHandler());
                     DBNConnection connection = null;
                     try {
                         connection = connectionHandler.getPoolConnection(true);
@@ -290,8 +291,7 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
                 openFiles.remove(sessionBrowserFile);
 
                 if (openFiles.size() == 0 && timestampUpdater != null) {
-                    timestampUpdater.cancel();
-                    timestampUpdater.purge();
+                    Disposer.dispose(timestampUpdater);
                 }
             }
         }
@@ -299,10 +299,8 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
 
     @Override
     public void disposeInner() {
-        if (timestampUpdater != null) {
-            timestampUpdater.cancel();
-            timestampUpdater.purge();
-        }
+        Disposer.dispose(timestampUpdater);
+        super.disposeInner();
     }
 
 

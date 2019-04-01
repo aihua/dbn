@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.execution.statement.processor;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.editor.BasicTextEditor;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
@@ -15,7 +16,7 @@ import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
-import com.dci.intellij.dbn.connection.ConnectionUtil;
+import com.dci.intellij.dbn.connection.ResourceUtil;
 import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
@@ -78,6 +79,7 @@ import java.util.concurrent.TimeUnit;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.*;
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.COMPILABLE;
 
+@Nullifiable
 public class StatementExecutionBasicProcessor extends DisposableBase implements StatementExecutionProcessor {
     private PsiFileRef<DBLanguagePsiFile> psiFileRef;
     private PsiElementRef<ExecutablePsiElement> cachedExecutableRef;
@@ -166,7 +168,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     @Override
     @NotNull
     public DBLanguagePsiFile getPsiFile() {
-        return Failsafe.get(psiFileRef.get());
+        return Failsafe.nn(psiFileRef.get());
     }
 
     @Override
@@ -297,7 +299,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
                         notifyDataManipulationChanges(context);
                     }
                 } catch (SQLException e) {
-                    ConnectionUtil.cancel(context.getStatement());
+                    ResourceUtil.cancel(context.getStatement());
                     if (context.isNot(CANCELLED)) {
                         executionException = e;
                         executionResult = createErrorExecutionResult(e.getMessage());
@@ -339,8 +341,8 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
 
             DBNConnection connection = context.getConnection();
             if (connection != null && connection.isPoolConnection()) {
-                ConnectionUtil.cancel(context.getStatement());
-                ConnectionHandler connectionHandler = Failsafe.get(getConnectionHandler());
+                ResourceUtil.cancel(context.getStatement());
+                ConnectionHandler connectionHandler = Failsafe.nn(getConnectionHandler());
                 connectionHandler.freePoolConnection(connection);
             }
             context.reset();
@@ -421,7 +423,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
             public void cancel(){
                 try {
                     context.set(CANCELLED, true);
-                    ConnectionUtil.cancel(statement);
+                    ResourceUtil.cancel(statement);
                 } finally {
                     databaseCall = null;
                 }
@@ -547,7 +549,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     @NotNull
     protected StatementExecutionResult createExecutionResult(DBNStatement statement, final StatementExecutionInput executionInput) throws SQLException {
         StatementExecutionBasicResult executionResult = new StatementExecutionBasicResult(this, getResultName(), statement.getUpdateCount());
-        ConnectionUtil.close(statement);
+        ResourceUtil.close(statement);
         attachDdlExecutionInfo(executionInput, executionResult);
         return executionResult;
     }
@@ -639,7 +641,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     @Override
     @NotNull
     public ConnectionHandler getTargetConnection() {
-        return Failsafe.get(getConnectionHandler());
+        return Failsafe.nn(getConnectionHandler());
     }
 
     @Override
@@ -800,14 +802,5 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
         }
 
         return 0;
-    }
-
-    /********************************************************
-     *                    Disposable                        *
-     ********************************************************/
-    @Override
-    public void disposeInner() {
-        super.disposeInner();
-        nullify();
     }
 }

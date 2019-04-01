@@ -1,7 +1,8 @@
 package com.dci.intellij.dbn.connection.console;
 
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.thread.Synchronized;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -15,6 +16,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+@Nullifiable
 public class DatabaseConsoleBundle extends DisposableBase {
     private ConnectionHandlerRef connectionHandlerRef;
 
@@ -84,14 +86,13 @@ public class DatabaseConsoleBundle extends DisposableBase {
     public void removeConsole(String name) {
         DBConsoleVirtualFile console = getConsole(name);
         consoles.remove(console);
-        DisposerUtil.dispose(console);
+        Disposer.dispose(console);
     }
 
     @Override
     public void disposeInner() {
-        DisposerUtil.dispose(consoles);
+        Disposer.dispose(consoles);
         super.disposeInner();
-        nullify();
     }
 
     public void renameConsole(String oldName, String newName) {

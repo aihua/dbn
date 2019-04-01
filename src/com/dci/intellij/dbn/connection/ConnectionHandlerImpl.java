@@ -8,6 +8,7 @@ import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.database.DatabaseInfo;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.latent.Latent;
@@ -50,6 +51,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+@Nullifiable
 public class ConnectionHandlerImpl extends DisposableBase implements ConnectionHandler {
     private static final Logger LOGGER = LoggerFactory.createLogger();
 
@@ -180,7 +182,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     @Override
     @NotNull
     public ConnectionBundle getConnectionBundle() {
-        return Failsafe.get(connectionBundle);
+        return Failsafe.nn(connectionBundle);
     }
 
     @Override
@@ -485,7 +487,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     @Override
     @NotNull
     public ConnectionPool getConnectionPool() {
-        return Failsafe.get(connectionPool);
+        return Failsafe.nn(connectionPool);
     }
 
     @Override
@@ -590,14 +592,5 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
             }
         }
         return false;
-    }
-
-    /*********************************************************
-    *                      Disposable                       *
-    *********************************************************/
-    @Override
-    public void disposeInner() {
-        super.disposeInner();
-        nullify();
     }
 }

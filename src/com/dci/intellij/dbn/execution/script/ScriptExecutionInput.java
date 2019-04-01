@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.execution.script;
 
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.execution.ExecutionContext;
@@ -10,6 +11,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+@Nullifiable
 public class ScriptExecutionInput extends RemoteExecutionInput {
     private CmdLineInterface cmdLineInterface;
     private VirtualFile sourceFile;
@@ -81,11 +83,5 @@ public class ScriptExecutionInput extends RemoteExecutionInput {
 
     public void setClearOutput(boolean clearOutput) {
         this.clearOutput = clearOutput;
-    }
-
-    @Override
-    public void disposeInner() {
-        super.disposeInner();
-        nullify();
     }
 }

@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.editor.session.ui;
 
 import com.dci.intellij.dbn.common.Colors;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.thread.Dispatch;
@@ -18,7 +19,6 @@ import com.dci.intellij.dbn.editor.session.SessionBrowser;
 import com.dci.intellij.dbn.editor.session.model.SessionBrowserModel;
 import com.dci.intellij.dbn.editor.session.ui.table.SessionBrowserTable;
 import com.intellij.openapi.actionSystem.ActionToolbar;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.GuiUtils;
 import com.intellij.ui.JBSplitter;
 import com.intellij.util.text.DateFormatUtil;
@@ -121,6 +121,7 @@ public class SessionBrowserForm extends DBNFormImpl implements SearchableDataCom
     }
 
     public void refreshLoadTimestamp() {
+        Failsafe.nd(this);
         boolean visible = !loadingLabel.isVisible();
         if (visible) {
             SessionBrowserModel model = getEditorTable().getModel();
@@ -139,12 +140,12 @@ public class SessionBrowserForm extends DBNFormImpl implements SearchableDataCom
 
     @NotNull
     public SessionBrowserTable getEditorTable() {
-        return Failsafe.get(editorTable);
+        return Failsafe.nn(editorTable);
     }
 
     @NotNull
     public SessionBrowser getSessionBrowser() {
-        return Failsafe.get(sessionBrowser);
+        return Failsafe.nn(sessionBrowser);
     }
 
     @NotNull

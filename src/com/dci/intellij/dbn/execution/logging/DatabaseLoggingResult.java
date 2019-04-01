@@ -3,7 +3,9 @@ package com.dci.intellij.dbn.execution.logging;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.action.DBNDataKeys;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -15,7 +17,6 @@ import com.intellij.execution.impl.ConsoleViewImpl;
 import com.intellij.execution.ui.ConsoleView;
 import com.intellij.openapi.actionSystem.DataProvider;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NonNls;
@@ -24,6 +25,7 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 
+@Nullifiable
 public class DatabaseLoggingResult extends DisposableBase implements ExecutionResult {
     private LogOutputContext context;
     private DatabaseLoggingResultForm logOutputForm;
@@ -42,7 +44,7 @@ public class DatabaseLoggingResult extends DisposableBase implements ExecutionRe
 
     @NotNull
     public LogOutputContext getContext() {
-        return Failsafe.get(context);
+        return Failsafe.nn(context);
     }
 
     @Override
@@ -131,14 +133,5 @@ public class DatabaseLoggingResult extends DisposableBase implements ExecutionRe
     @Nullable
     public DataProvider getDataProvider() {
         return dataProvider;
-    }
-
-    /********************************************************
-     *                    Disposable                        *
-     ********************************************************/
-    @Override
-    public void disposeInner() {
-        super.disposeInner();
-        nullify();
     }
 }

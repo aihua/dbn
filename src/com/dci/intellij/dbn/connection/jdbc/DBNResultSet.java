@@ -24,7 +24,7 @@ import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.Map;
 
-public class DBNResultSet extends DBNResource<ResultSet> implements ResultSet, Closeable {
+public class DBNResultSet extends DBNResource<ResultSet> implements ResultSet, CloseableResource {
     private WeakRef<DBNStatement> statement;
     private WeakRef<DBNConnection> connection;
 
@@ -41,11 +41,11 @@ public class DBNResultSet extends DBNResource<ResultSet> implements ResultSet, C
 
     @Override
     public DBNStatement getStatement() {
-        return Failsafe.get(statement.get());
+        return Failsafe.nn(statement.get());
     }
 
     public DBNConnection getConnection() {
-        return Failsafe.get(connection == null ? getStatement().getConnection() : connection.get());
+        return Failsafe.nn(connection == null ? getStatement().getConnection() : connection.get());
     }
 
     @Override

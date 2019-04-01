@@ -1,8 +1,9 @@
 package com.dci.intellij.dbn.data.model.basic;
 
 import com.dci.intellij.dbn.common.ProjectRef;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.list.FiltrableList;
@@ -22,7 +23,6 @@ import com.dci.intellij.dbn.data.model.DataModelRow;
 import com.dci.intellij.dbn.data.model.DataModelState;
 import com.dci.intellij.dbn.editor.data.model.RecordStatus;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+@Nullifiable
 public class BasicDataModel<T extends DataModelRow> extends DisposablePropertyHolder<RecordStatus> implements DataModel<T> {
     private DataModelHeader<? extends ColumnInfo> header;
     private DataModelState state;
@@ -58,7 +59,7 @@ public class BasicDataModel<T extends DataModelRow> extends DisposablePropertyHo
     };
 
     private Latent<BasicDataGutterModel> listModel = Latent.disposable(this, () -> new BasicDataGutterModel(BasicDataModel.this));
-    private Latent<DataSearchResult> searchResult = Latent.disposable(this, DataSearchResult::new);
+    private Latent<DataSearchResult> searchResult = Latent.disposable(this, () -> new DataSearchResult());
 
     public BasicDataModel(Project project) {
         this.projectRef = ProjectRef.from(project);
@@ -104,13 +105,13 @@ public class BasicDataModel<T extends DataModelRow> extends DisposablePropertyHo
         DataModelHeader oldHeader = this.header;
         this.header = header;
         Disposer.register(this, header);
-        DisposerUtil.dispose(oldHeader);
+        Disposer.dispose(oldHeader);
     }
 
     @Override
     @NotNull
     public DataModelHeader<? extends ColumnInfo> getHeader() {
-        return Failsafe.get(header);
+        return Failsafe.nn(header);
     }
 
     @Override
@@ -162,8 +163,8 @@ public class BasicDataModel<T extends DataModelRow> extends DisposablePropertyHo
     @NotNull
     @Override
     public List<T> getRows() {
-        Failsafe.ensure(this);
-        return Failsafe.get(rows);
+        Failsafe.nd(this);
+        return Failsafe.nn(rows);
     }
 
     public void setRows(List<T> rows) {
@@ -358,11 +359,10 @@ public class BasicDataModel<T extends DataModelRow> extends DisposablePropertyHo
 
     /********************************************************
      *                    Disposable                        *
-     ********************************************************/
+     *******************************************************  */
     @Override
     public void disposeInner() {
-        DisposerUtil.dispose(rows);
+        Disposer.dispose(rows);
         super.disposeInner();
-        nullify();
     }
 }

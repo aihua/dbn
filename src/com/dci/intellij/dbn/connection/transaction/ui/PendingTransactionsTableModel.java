@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.connection.transaction.ui;
 
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.ui.table.DBNTableModel;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
@@ -15,6 +16,7 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.event.TableModelListener;
 import java.util.List;
 
+@Nullifiable
 public class PendingTransactionsTableModel extends DisposableBase implements DBNTableModel {
     private ConnectionHandlerRef connectionHandlerRef;
     private List<DBNConnection> connections;
@@ -34,7 +36,7 @@ public class PendingTransactionsTableModel extends DisposableBase implements DBN
 
     @NotNull
     public List<DBNConnection> getConnections() {
-        return Failsafe.get(connections);
+        return Failsafe.nn(connections);
     }
 
     @Override
@@ -88,18 +90,11 @@ public class PendingTransactionsTableModel extends DisposableBase implements DBN
 
     @Override
     public void setValueAt(Object aValue, int rowIndex, int columnIndex) {}
+
     @Override
     public void addTableModelListener(TableModelListener l) {}
+
     @Override
     public void removeTableModelListener(TableModelListener l) {}
-
-    /********************************************************
-     *                    Disposable                        *
-     ********************************************************/
-    @Override
-    public void disposeInner() {
-        super.disposeInner();
-        nullify();
-    }
 
 }

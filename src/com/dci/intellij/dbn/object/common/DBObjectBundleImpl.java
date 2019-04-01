@@ -13,7 +13,9 @@ import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.content.DynamicContentElement;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentResultSetLoader;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.latent.MapLatent;
@@ -96,6 +98,7 @@ import java.util.Set;
 import static com.dci.intellij.dbn.object.common.DBObjectRelationType.*;
 import static com.dci.intellij.dbn.object.common.DBObjectType.*;
 
+@Nullifiable
 public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectBundle, NotificationSupport {
     private ConnectionHandlerRef connectionHandlerRef;
     private BrowserTreeNode treeParent;
@@ -171,11 +174,6 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
         objectLists.compact();
         objectRelationLists.compact();
-
-        DisposerUtil.register(this, sqlLookupItemBuilders);
-        DisposerUtil.register(this, psqlLookupItemBuilders);
-        DisposerUtil.register(this, objectPsiFacades);
-        DisposerUtil.register(this, virtualFiles);
 
         Project project = connectionHandler.getProject();
         EventUtil.subscribe(project, this, DataDefinitionChangeListener.TOPIC, dataDefinitionChangeListener);
@@ -265,7 +263,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
     @Override
     public List<DBSchema> getSchemas() {
-        return schemas.getAllElements();
+        return Failsafe.nn(schemas).getAllElements();
     }
 
     @Override
@@ -331,7 +329,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     @Override
     @Nullable
     public DBSchema getSchema(String name) {
-        return schemas.getObject(name);
+        return Failsafe.nn(schemas).getObject(name);
     }
 
     @Override
@@ -723,7 +721,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
     @Override
     public DBObjectListContainer getObjectListContainer() {
-        return objectLists;
+        return Failsafe.nn(objectLists);
     }
 
     @Override
@@ -771,10 +769,14 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
     @Override
     public void disposeInner() {
-        DisposerUtil.disposeInBackground(objectLists);
-        DisposerUtil.disposeInBackground(objectRelationLists);
+        Disposer.disposeInBackground(
+                objectLists,
+                objectRelationLists,
+                sqlLookupItemBuilders,
+                psqlLookupItemBuilders,
+                objectPsiFacades,
+                virtualFiles);
         super.disposeInner();
-        nullify();
     }
 
     /*********************************************************

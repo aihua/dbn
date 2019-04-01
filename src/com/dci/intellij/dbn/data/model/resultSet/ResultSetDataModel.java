@@ -1,15 +1,15 @@
 package com.dci.intellij.dbn.data.model.resultSet;
 
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ConnectionUtil;
+import com.dci.intellij.dbn.connection.ResourceUtil;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.jdbc.DBNResultSet;
 import com.dci.intellij.dbn.connection.jdbc.ResourceStatus;
 import com.dci.intellij.dbn.data.model.sortable.SortableDataModel;
 import com.dci.intellij.dbn.data.model.sortable.SortableDataModelState;
-import com.intellij.openapi.util.Disposer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -43,7 +43,7 @@ public class ResultSetDataModel<T extends ResultSetDataModelRow> extends Sortabl
 
     @NotNull
     protected DBNResultSet getResultSet() {
-        return Failsafe.get(resultSet);
+        return Failsafe.nn(resultSet);
     }
 
     @NotNull
@@ -79,7 +79,7 @@ public class ResultSetDataModel<T extends ResultSetDataModelRow> extends Sortabl
         final List<T> oldRows = getRows();
         List<T> newRows = reset ? new ArrayList<>(oldRows.size()) : new ArrayList<>(oldRows);
 
-        if (resultSet == null || ConnectionUtil.isClosed(resultSet)) {
+        if (resultSet == null || ResourceUtil.isClosed(resultSet)) {
             resultSetExhausted = true;
         } else {
             DBNConnection connection = resultSet.getConnection();
@@ -145,12 +145,12 @@ public class ResultSetDataModel<T extends ResultSetDataModelRow> extends Sortabl
     }
 
     public void closeResultSet() {
-        ConnectionUtil.close(resultSet);
+        ResourceUtil.close(resultSet);
     }
 
     @NotNull
     public ConnectionHandler getConnectionHandler() {
-        return Failsafe.get(connectionHandler);
+        return Failsafe.nn(connectionHandler);
     }
 
     @Override

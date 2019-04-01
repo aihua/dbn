@@ -9,7 +9,7 @@ import com.dci.intellij.dbn.common.content.dependency.MultipleContentDependencyA
 import com.dci.intellij.dbn.common.content.dependency.SubcontentDependencyAdapterImpl;
 import com.dci.intellij.dbn.common.dispose.Disposable;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
@@ -66,8 +66,8 @@ public class DBObjectListContainer extends DisposableBase implements Disposable,
     }
 
     private void checkDisposed(DBObjectListVisitor visitor) {
-        Failsafe.ensure(this);
-        Failsafe.ensure(visitor);
+        Failsafe.nd(this);
+        Failsafe.nd(visitor);
     }
 
     @NotNull
@@ -338,7 +338,7 @@ public class DBObjectListContainer extends DisposableBase implements Disposable,
 
     @Override
     public void disposeInner() {
+        Disposer.dispose(objectLists);
         super.disposeInner();
-        DisposerUtil.dispose(objectLists);
     }
 }

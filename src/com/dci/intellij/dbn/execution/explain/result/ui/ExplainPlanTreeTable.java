@@ -1,7 +1,9 @@
 package com.dci.intellij.dbn.execution.explain.result.ui;
 
-import com.dci.intellij.dbn.common.dispose.Disposable;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
+import com.dci.intellij.dbn.common.dispose.RegisteredDisposable;
 import com.dci.intellij.dbn.common.ui.tree.TreeUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.data.editor.ui.UserValueHolder;
@@ -18,7 +20,6 @@ import com.intellij.openapi.editor.markup.TextAttributes;
 import com.intellij.openapi.ui.popup.JBPopup;
 import com.intellij.openapi.ui.popup.JBPopupAdapter;
 import com.intellij.openapi.ui.popup.LightweightWindowEvent;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.ColoredTableCellRenderer;
 import com.intellij.ui.ColoredTreeCellRenderer;
 import com.intellij.ui.SimpleTextAttributes;
@@ -42,7 +43,8 @@ import java.awt.font.FontRenderContext;
 import java.awt.font.LineMetrics;
 import java.math.BigDecimal;
 
-public class ExplainPlanTreeTable extends TreeTable implements Disposable{
+@Nullifiable
+public class ExplainPlanTreeTable extends TreeTable implements RegisteredDisposable {
     private static final int MAX_TREE_COLUMN_WIDTH = 900;
     private static final int MAX_COLUMN_WIDTH = 250;
     private static final int MIN_COLUMN_WIDTH = 10;
@@ -51,7 +53,7 @@ public class ExplainPlanTreeTable extends TreeTable implements Disposable{
     private SimpleTextAttributes operationAttributes;
     private JBPopup largeValuePopup;
 
-    public ExplainPlanTreeTable(ExplainPlanTreeTableModel treeTableModel) {
+    ExplainPlanTreeTable(ExplainPlanTreeTableModel treeTableModel) {
         super(treeTableModel);
         EditorColorsScheme scheme = EditorColorsManager.getInstance().getGlobalScheme();
         TextAttributes attributes = scheme.getAttributes(TemplateColors.TEMPLATE_VARIABLE_ATTRIBUTES);
@@ -259,6 +261,9 @@ public class ExplainPlanTreeTable extends TreeTable implements Disposable{
 
     }
 
+    /********************************************************
+     *                    Disposable                        *
+     ********************************************************/
     private boolean disposed;
 
     @Override
@@ -267,7 +272,13 @@ public class ExplainPlanTreeTable extends TreeTable implements Disposable{
     }
 
     @Override
-    public void dispose() {
+    public void markDisposed() {
         disposed = true;
+    }
+
+    @Override
+    public void disposeInner() {
+        Disposer.dispose(largeValuePopup);
+        RegisteredDisposable.super.disposeInner();
     }
 }

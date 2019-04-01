@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.execution.common.ui;
 
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.DisposableProjectComponent;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.ui.AutoCommitLabel;
 import com.dci.intellij.dbn.common.ui.DBNComboBox;
@@ -21,7 +22,6 @@ import com.dci.intellij.dbn.debugger.DBDebuggerType;
 import com.dci.intellij.dbn.execution.ExecutionOption;
 import com.dci.intellij.dbn.execution.ExecutionOptions;
 import com.dci.intellij.dbn.execution.LocalExecutionInput;
-import com.intellij.openapi.util.Disposer;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
@@ -55,7 +55,7 @@ public class ExecutionOptionsForm extends DBNFormImpl<DisposableProjectComponent
         this.executionInput = executionInput;
         this.debuggerType = debuggerType;
 
-        ConnectionHandler connectionHandler = Failsafe.get(executionInput.getConnectionHandler());
+        ConnectionHandler connectionHandler = Failsafe.nn(executionInput.getConnectionHandler());
 
         if (isSchemaSelectionAllowed()) {
             //ActionToolbar actionToolbar = ActionUtil.createActionToolbar("", true, new SetExecutionSchemaComboBoxAction(executionInput));
@@ -176,12 +176,12 @@ public class ExecutionOptionsForm extends DBNFormImpl<DisposableProjectComponent
     }
 
     public LocalExecutionInput getExecutionInput() {
-        return Failsafe.get(executionInput);
+        return Failsafe.nn(executionInput);
     }
 
     public ConnectionHandler getConnectionHandler() {
         ConnectionHandler connectionHandler = getExecutionInput().getConnectionHandler();
-        return Failsafe.get(connectionHandler);
+        return Failsafe.nn(connectionHandler);
     }
 
     private ActionListener actionListener = e -> {

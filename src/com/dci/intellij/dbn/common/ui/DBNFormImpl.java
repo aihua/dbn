@@ -3,7 +3,9 @@ package com.dci.intellij.dbn.common.ui;
 import com.dci.intellij.dbn.common.ProjectRef;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
 import com.dci.intellij.dbn.common.dispose.DisposableProjectComponent;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.environment.options.EnvironmentSettings;
 import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.language.common.WeakRef;
@@ -17,6 +19,7 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 
+@Nullifiable
 public abstract class DBNFormImpl<P extends DisposableProjectComponent> extends DisposableBase implements DBNForm, NotificationSupport {
     private ProjectRef projectRef;
     private WeakRef<P> parentComponent;
@@ -44,7 +47,7 @@ public abstract class DBNFormImpl<P extends DisposableProjectComponent> extends 
 
     @NotNull
     public P ensureParentComponent() {
-        return Failsafe.get(getParentComponent());
+        return Failsafe.nn(getParentComponent());
     }
 
     @Override
@@ -60,7 +63,7 @@ public abstract class DBNFormImpl<P extends DisposableProjectComponent> extends 
 
         DataContext dataContext = DataManager.getInstance().getDataContext(getComponent());
         Project project = PlatformDataKeys.PROJECT.getData(dataContext);
-        return Failsafe.get(project);
+        return Failsafe.nn(project);
     }
 
     @Override
@@ -71,8 +74,7 @@ public abstract class DBNFormImpl<P extends DisposableProjectComponent> extends 
 
     @Override
     public void disposeInner() {
+        Disposer.dispose(getComponent());
         super.disposeInner();
-        GUIUtil.dispose(getComponent());
-        nullify();
     }
 }

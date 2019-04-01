@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.data.grid.ui.table.resultSet.record;
 
 import com.dci.intellij.dbn.common.Icons;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.ui.DBNHeaderForm;
@@ -308,12 +308,12 @@ public class ResultSetRecordViewerForm extends DBNFormImpl<ResultSetRecordViewer
 
     @NotNull
     public ResultSetDataModelRow getRow() {
-        return Failsafe.get(row);
+        return Failsafe.nn(row);
     }
 
     @Override
     public void disposeInner() {
-        DisposerUtil.dispose(columnForms);
+        Disposer.dispose(columnForms);
         super.disposeInner();
     }
 }

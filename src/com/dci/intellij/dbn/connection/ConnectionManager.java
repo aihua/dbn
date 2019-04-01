@@ -6,7 +6,7 @@ import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.database.DatabaseInfo;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.message.MessageCallback;
@@ -43,7 +43,6 @@ import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.apache.commons.lang.StringUtils;
 import org.jdom.Element;
@@ -102,12 +101,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
 
     @Override
     public void disposeInner() {
-        if (idleConnectionCleaner != null) {
-            idleConnectionCleaner.cancel();
-            idleConnectionCleaner.purge();
-        }
-        ConnectionBundle connectionBundle = getConnectionBundle();
-        Disposer.dispose(connectionBundle);
+        Disposer.dispose(idleConnectionCleaner);
         super.disposeInner();
     }
 
@@ -228,8 +222,8 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
         Progress.modal(project, "Connecting to " + connectionName, false,
                 (progress) -> {
                     try {
-                        DBNConnection connection = ConnectionUtil.connect(connectionSettings, null, authentication, SessionId.TEST, false, null);
-                        ConnectionUtil.close(connection);
+                        DBNConnection connection = ResourceUtil.connect(connectionSettings, null, authentication, SessionId.TEST, false, null);
+                        ResourceUtil.close(connection);
                         databaseSettings.setConnectivityStatus(ConnectivityStatus.VALID);
                         if (showMessageDialog) {
                             showSuccessfulConnectionMessage(project, connectionName);
@@ -253,10 +247,10 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
             ensureAuthenticationProvided(databaseSettings, (authenticationInfo) ->
                     Progress.modal(project, "Connecting to " + connectionName, false, (progress) -> {
                         try {
-                            DBNConnection connection = ConnectionUtil.connect(connectionSettings, null, authenticationInfo, SessionId.TEST, false, null);
+                            DBNConnection connection = ResourceUtil.connect(connectionSettings, null, authenticationInfo, SessionId.TEST, false, null);
                             if (connection != null) {
                                 ConnectionInfo connectionInfo = new ConnectionInfo(connection.getMetaData());
-                                ConnectionUtil.close(connection);
+                                ResourceUtil.close(connection);
                                 showConnectionInfoDialog(connectionInfo, connectionName, environmentType);
                             } // TODO else??
                         } catch (Exception e) {
@@ -471,7 +465,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
             Failsafe.guarded(() -> {
                 List<TransactionAction> actions = actions(TransactionAction.DISCONNECT_IDLE);
 
-                Failsafe.ensure(connectionHandler);
+                Failsafe.nd(connectionHandler);
                 DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(getProject());
                 List<DBNConnection> activeConnections = connectionHandler.getConnections(ConnectionType.MAIN, ConnectionType.SESSION);
 
@@ -515,7 +509,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
                 Background.run(() -> {
                     connectionHandlers.forEach(connectionHandler -> {
                         connectionHandler.getConnectionPool().closeConnections();
-                        DisposerUtil.dispose(connectionHandler);
+                        Disposer.dispose(connectionHandler);
                     });
                 });
             });

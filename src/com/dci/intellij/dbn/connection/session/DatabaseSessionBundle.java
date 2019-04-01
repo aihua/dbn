@@ -1,8 +1,9 @@
 package com.dci.intellij.dbn.connection.session;
 
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
@@ -18,6 +19,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+@Nullifiable
 public class DatabaseSessionBundle extends DisposableBase implements Disposable{
     private ConnectionHandlerRef connectionHandlerRef;
     private DatabaseSession mainSession;
@@ -79,7 +81,7 @@ public class DatabaseSessionBundle extends DisposableBase implements Disposable{
 
     @NotNull
     public DatabaseSession getMainSession() {
-        return Failsafe.get(mainSession);
+        return Failsafe.nn(mainSession);
     }
 
     public DatabaseSession getPoolSession() {
@@ -122,14 +124,7 @@ public class DatabaseSessionBundle extends DisposableBase implements Disposable{
     void deleteSession(SessionId id) {
         DatabaseSession session = getSession(id);
         sessions.remove(session);
-        DisposerUtil.dispose(session);
-    }
-
-    @Override
-    public void disposeInner() {
-        DisposerUtil.dispose(sessions);
-        super.disposeInner();
-        nullify();
+        Disposer.dispose(session);
     }
 
     void renameSession(String oldName, String newName) {
@@ -137,5 +132,11 @@ public class DatabaseSessionBundle extends DisposableBase implements Disposable{
         if (session != null) {
             session.setName(newName);
         }
+    }
+
+    @Override
+    public void disposeInner() {
+        Disposer.dispose(sessions);
+        super.disposeInner();
     }
 }

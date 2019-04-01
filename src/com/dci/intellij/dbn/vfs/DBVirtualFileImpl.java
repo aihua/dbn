@@ -1,7 +1,8 @@
 package com.dci.intellij.dbn.vfs;
 
 import com.dci.intellij.dbn.common.ProjectRef;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.ui.Presentable;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -20,6 +21,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@Nullifiable
 public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtualFile, Presentable, VirtualFilePathWrapper {
     private static AtomicInteger ID_STORE = new AtomicInteger(0);
     private int documentHashCode;
@@ -179,39 +181,7 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
 
     @Override
     public boolean isValid() {
-        return !isDisposed() && getProject() != null;
-    }
-
-    private boolean disposed;
-
-    @Override
-    public final boolean isDisposed() {
-        return disposed;
-    }
-
-    @Override
-    public final void dispose() {
-        if (!disposed) {
-            disposed = true;
-            disposeInner();
-        }
-    }
-
-    @Override
-    public void disposeInner() {DatabaseFileViewProvider cachedViewProvider = getCachedViewProvider();
-            if (cachedViewProvider != null) {
-                cachedViewProvider.markInvalidated();
-            List<PsiFile> cachedPsiFiles = cachedViewProvider.getCachedPsiFiles();
-            for (PsiFile cachedPsiFile: cachedPsiFiles) {
-                if (cachedPsiFile instanceof DBLanguagePsiFile) {
-                    DisposerUtil.dispose((DBLanguagePsiFile) cachedPsiFile);
-                }
-            }
-
-            setCachedViewProvider(null);
-        }
-        putUserData(FileDocumentManagerImpl.HARD_REF_TO_DOCUMENT_KEY, null);
-        DisposerUtil.nullify(this);
+        return !isDisposed();
     }
 
     @Override
@@ -224,4 +194,35 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
     public DatabaseFileViewProvider getCachedViewProvider() {
         return getUserData(DatabaseFileViewProvider.CACHED_VIEW_PROVIDER);
     }
+
+
+    private boolean disposed;
+
+    @Override
+    public final boolean isDisposed() {
+        return disposed;
+    }
+
+    @Override
+    public final void markDisposed() {
+        disposed = true;
+    }
+
+    @Override
+    public void disposeInner() {DatabaseFileViewProvider cachedViewProvider = getCachedViewProvider();
+            if (cachedViewProvider != null) {
+                cachedViewProvider.markInvalidated();
+            List<PsiFile> cachedPsiFiles = cachedViewProvider.getCachedPsiFiles();
+            for (PsiFile cachedPsiFile: cachedPsiFiles) {
+                if (cachedPsiFile instanceof DBLanguagePsiFile) {
+                    Disposer.dispose((DBLanguagePsiFile) cachedPsiFile);
+                }
+            }
+
+            setCachedViewProvider(null);
+        }
+        putUserData(FileDocumentManagerImpl.HARD_REF_TO_DOCUMENT_KEY, null);
+        DBVirtualFile.super.disposeInner();
+    }
+
 }

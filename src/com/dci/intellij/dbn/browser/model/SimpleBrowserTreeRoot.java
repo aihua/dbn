@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.code.sql.color.SQLTextAttributesKeys;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.ProjectRef;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.connection.ConnectionBundle;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -20,6 +21,7 @@ import javax.swing.*;
 import java.util.ArrayList;
 import java.util.List;
 
+@Nullifiable
 public class SimpleBrowserTreeRoot extends BrowserTreeNodeBase implements BrowserTreeNode {
     private List<ConnectionBundle> rootChildren = new ArrayList<>();
     private ProjectRef projectRef;
@@ -72,7 +74,7 @@ public class SimpleBrowserTreeRoot extends BrowserTreeNodeBase implements Browse
 
     @Override
     public List<ConnectionBundle> getChildren() {
-        return Failsafe.get(rootChildren);
+        return Failsafe.nn(rootChildren);
     }
 
     @Override
@@ -206,12 +208,4 @@ public class SimpleBrowserTreeRoot extends BrowserTreeNodeBase implements Browse
         return SQLTextAttributesKeys.IDENTIFIER;
     }
 
-    /*********************************************************
-     *                       Disposable                      *
-     *********************************************************/
-    @Override
-    public void disposeInner() {
-        super.disposeInner();
-        nullify();
-    }
 }

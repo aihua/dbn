@@ -1,13 +1,12 @@
 package com.dci.intellij.dbn.common.ui.table;
 
 import com.dci.intellij.dbn.common.ProjectRef;
-import com.dci.intellij.dbn.common.dispose.Disposable;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
+import com.dci.intellij.dbn.common.dispose.RegisteredDisposable;
 import com.dci.intellij.dbn.common.thread.Dispatch;
-import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.UIUtil;
@@ -32,7 +31,8 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class DBNTable<T extends DBNTableModel> extends JTable implements Disposable{
+@Nullifiable
+public class DBNTable<T extends DBNTableModel> extends JTable implements RegisteredDisposable {
     private static final int MAX_COLUMN_WIDTH = 300;
     private static final int MIN_COLUMN_WIDTH = 10;
     private static final Color GRID_COLOR = new JBColor(new Color(0xE6E6E6), Color.DARK_GRAY);
@@ -84,8 +84,7 @@ public class DBNTable<T extends DBNTableModel> extends JTable implements Disposa
                 @Override
                 public void mouseReleased(MouseEvent e) {
                     if (scrollTimer != null) {
-                        scrollTimer.cancel();
-                        scrollTimer.purge();
+                        Disposer.dispose(scrollTimer);
                         scrollTimer = null;
                     }
                 }
@@ -109,7 +108,7 @@ public class DBNTable<T extends DBNTableModel> extends JTable implements Disposa
     @Override
     @NotNull
     public T getModel() {
-        return Failsafe.get((T) super.getModel());
+        return Failsafe.nn((T) super.getModel());
     }
 
     private void calculateScrollDistance() {
@@ -357,20 +356,16 @@ public class DBNTable<T extends DBNTableModel> extends JTable implements Disposa
     }
 
     @Override
-    public final void dispose() {
-        if (!disposed) {
-            disposed = true;
-            disposeInner();
-        }
+    public void markDisposed() {
+        disposed = true;
     }
 
     public void disposeInner(){
-        DisposerUtil.dispose(getModel());
-        GUIUtil.dispose(this);
-        GUIUtil.removeListeners(this);
-        DisposerUtil.nullify(this);
+        Disposer.dispose(getModel());
         listenerList = new EventListenerList();
         columnModel = new DefaultTableColumnModel();
         selectionModel = new DefaultListSelectionModel();
-    };
+        RegisteredDisposable.super.disposeInner();
+
+    }
 }

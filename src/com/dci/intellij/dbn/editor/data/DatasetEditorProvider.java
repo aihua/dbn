@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.editor.data;
 
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.editor.EditorProviderId;
@@ -44,7 +44,7 @@ public class DatasetEditorProvider implements FileEditorProvider, ApplicationCom
     public FileEditor createEditor(@NotNull Project project, @NotNull VirtualFile file) {
         DBEditableObjectVirtualFile databaseFile = (DBEditableObjectVirtualFile) file;
         DBDatasetVirtualFile datasetFile = (DBDatasetVirtualFile) databaseFile.getContentFile(DBContentType.DATA);
-        datasetFile = Failsafe.get(datasetFile);
+        datasetFile = Failsafe.nn(datasetFile);
         DBDataset dataset = datasetFile.getObject();
         return new DatasetEditor(databaseFile, dataset);
     }
@@ -52,7 +52,7 @@ public class DatasetEditorProvider implements FileEditorProvider, ApplicationCom
     @Override
     public void disposeEditor(@NotNull final FileEditor editor) {
         // expensive task. start in background
-        DisposerUtil.disposeInBackground(editor);
+        Disposer.disposeInBackground(editor);
     }
 
     @Override

@@ -97,7 +97,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     public StatementExecutionQueue getExecutionQueue(ConnectionId connectionId, SessionId sessionId) {
         ConnectionManager connectionManager = ConnectionManager.getInstance(getProject());
         ConnectionHandler connectionHandler = connectionManager.getConnectionHandler(connectionId);
-        connectionHandler = Failsafe.get(connectionHandler);
+        connectionHandler = Failsafe.nn(connectionHandler);
         return connectionHandler.getExecutionQueue(sessionId);
     }
 
@@ -274,7 +274,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
             try {
                 StatementExecutionInput executionInput = executionProcessor.getExecutionInput();
                 SchemaId schema = executionInput.getTargetSchemaId();
-                ConnectionHandler connectionHandler = Failsafe.get(executionProcessor.getConnectionHandler());
+                ConnectionHandler connectionHandler = Failsafe.nn(executionProcessor.getConnectionHandler());
                 connection = connectionHandler.getConnection(executionInput.getTargetSessionId(), schema);
             } catch (SQLException e) {
                 sendErrorNotification("Error executing " + executionProcessor.getStatementName() + ". Failed to ensure connectivity.", e.getMessage());

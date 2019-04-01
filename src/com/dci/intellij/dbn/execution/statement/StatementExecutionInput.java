@@ -1,7 +1,8 @@
 package com.dci.intellij.dbn.execution.statement;
 
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.thread.Read;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -29,6 +30,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
+@Nullifiable
 public class StatementExecutionInput extends LocalExecutionInput {
     private StatementExecutionProcessor executionProcessor;
     private StatementExecutionVariablesBundle executionVariables;
@@ -52,7 +54,7 @@ public class StatementExecutionInput extends LocalExecutionInput {
         this.executableStatementText = executableStatementText;
 
         if (DatabaseFeature.DATABASE_LOGGING.isSupported(connectionHandler)) {
-            connectionHandler = Failsafe.get(connectionHandler);
+            connectionHandler = Failsafe.nn(connectionHandler);
             getOptions().set(ExecutionOption.ENABLE_LOGGING, connectionHandler.isLoggingEnabled());
         }
     }
@@ -137,7 +139,7 @@ public class StatementExecutionInput extends LocalExecutionInput {
 
     public void setExecutionVariables(StatementExecutionVariablesBundle executionVariables) {
         if (this.executionVariables != null) {
-            DisposerUtil.dispose(this.executionVariables);
+            Disposer.dispose(this.executionVariables);
         }
         this.executionVariables = executionVariables;
     }
@@ -200,12 +202,6 @@ public class StatementExecutionInput extends LocalExecutionInput {
 
     public void setBulkExecution(boolean isBulkExecution) {
         this.bulkExecution = isBulkExecution;
-    }
-
-    @Override
-    public void disposeInner() {
-        super.disposeInner();
-        nullify();
     }
 
     public String getStatementDescription() {

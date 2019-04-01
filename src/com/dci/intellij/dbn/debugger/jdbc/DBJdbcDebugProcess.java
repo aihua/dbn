@@ -11,7 +11,7 @@ import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
-import com.dci.intellij.dbn.connection.ConnectionUtil;
+import com.dci.intellij.dbn.connection.ResourceUtil;
 import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseDebuggerInterface;
@@ -336,12 +336,12 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
     }
 
     private void releaseDebugConnection() {
-        ConnectionUtil.close(debugConnection);
+        ResourceUtil.close(debugConnection);
         debugConnection = null;
     }
 
     protected void releaseTargetConnection() {
-        ConnectionUtil.close(targetConnection);
+        ResourceUtil.close(targetConnection);
         targetConnection = null;
     }
 
@@ -489,7 +489,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
         if (StringUtil.isNotEmpty(ownerName) && StringUtil.isNotEmpty(programName)) {
             ConnectionHandler connectionHandler = getConnectionHandler();
             DBObjectBundle objectBundle = connectionHandler.getObjectBundle();
-            DBSchema schema = Failsafe.get(objectBundle.getSchema(ownerName));
+            DBSchema schema = Failsafe.nn(objectBundle.getSchema(ownerName));
             DBSchemaObject schemaObject = schema.getProgram(programName);
             if (schemaObject == null) schemaObject = schema.getMethod(programName, 0); // overload 0 is assuming debug is only supported in oracle (no schema method overloading)
             return schemaObject;

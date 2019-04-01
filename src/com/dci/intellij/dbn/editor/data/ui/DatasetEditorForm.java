@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.editor.data.ui;
 
 import com.dci.intellij.dbn.common.Icons;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.thread.Dispatch;
@@ -27,7 +27,6 @@ import com.dci.intellij.dbn.object.DBDataset;
 import com.intellij.openapi.actionSystem.ActionToolbar;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.util.ui.AsyncProcessIcon;
 import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
@@ -138,7 +137,7 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
                 datasetEditorTable.initTableGutter();
                 datasetEditorTable.updateBackground(false);
 
-                DisposerUtil.disposeInBackground(oldEditorTable);
+                Disposer.disposeInBackground(oldEditorTable);
             });
         }
     }
@@ -156,20 +155,20 @@ public class DatasetEditorForm extends DBNFormImpl implements SearchableDataComp
 
     @NotNull
     public DatasetEditor getDatasetEditor() {
-        return Failsafe.get(datasetEditor);
+        return Failsafe.nn(datasetEditor);
     }
 
     public void showLoadingHint() {
-        Dispatch.invokeNonModal(() -> loadingDataPanel.setVisible(true));
+        Dispatch.invokeNonModal(() -> Failsafe.nn(loadingDataPanel).setVisible(true));
     }
 
     public void hideLoadingHint() {
-        Dispatch.invokeNonModal(() -> loadingDataPanel.setVisible(false));
+        Dispatch.invokeNonModal(() -> Failsafe.nn(loadingDataPanel).setVisible(false));
     }
 
     @NotNull
     public DatasetEditorTable getEditorTable() {
-        return Failsafe.get(datasetEditorTable);
+        return Failsafe.nn(datasetEditorTable);
     }
 
     private ConnectionHandler getConnectionHandler() {

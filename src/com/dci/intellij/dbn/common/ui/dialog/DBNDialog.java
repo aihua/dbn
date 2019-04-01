@@ -3,8 +3,9 @@ package com.dci.intellij.dbn.common.ui.dialog;
 import com.dci.intellij.dbn.common.Constants;
 import com.dci.intellij.dbn.common.ProjectRef;
 import com.dci.intellij.dbn.common.dispose.DisposableProjectComponent;
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.ui.DBNForm;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
@@ -12,6 +13,7 @@ import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 
+@Nullifiable
 public abstract class DBNDialog<C extends DBNForm> extends DialogWrapper implements DisposableProjectComponent{
     private C component;
     private ProjectRef projectRef;
@@ -30,7 +32,7 @@ public abstract class DBNDialog<C extends DBNForm> extends DialogWrapper impleme
         if (component == null && !isDisposed()) {
             component = createComponent();
         }
-        return Failsafe.get(component);
+        return Failsafe.nn(component);
     }
 
     @Override
@@ -80,21 +82,23 @@ public abstract class DBNDialog<C extends DBNForm> extends DialogWrapper impleme
     }
 
     @Override
-    public final void dispose() {
-        if (!disposed) {
-            disposed = true;
-            disposeInner();
-            super.dispose();
-        }
+    public void dispose() {
+        DisposableProjectComponent.super.dispose();
     }
 
     public void disposeInner(){
-        DisposerUtil.dispose(component);
-        DisposerUtil.nullify(this);
+        super.dispose();
+        Disposer.dispose(component);
+        DisposableProjectComponent.super.disposeInner();
     };
 
     @Override
     public boolean isDisposed() {
         return disposed;
+    }
+
+    @Override
+    public void markDisposed() {
+        disposed = true;
     }
 }

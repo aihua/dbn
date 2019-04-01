@@ -1,18 +1,18 @@
 package com.dci.intellij.dbn.common.ui.tab;
 
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposable;
+import com.dci.intellij.dbn.common.dispose.Disposer;
+import com.dci.intellij.dbn.common.dispose.RegisteredDisposable;
 import com.dci.intellij.dbn.common.thread.Dispatch;
-import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.util.ActionCallback;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.tabs.TabInfo;
 import com.intellij.ui.tabs.impl.JBEditorTabs;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 
-public class TabbedPane extends JBEditorTabs implements com.dci.intellij.dbn.common.dispose.Disposable{
+public class TabbedPane extends JBEditorTabs implements RegisteredDisposable {
     public TabbedPane(@NotNull Disposable disposable) {
         super(null, ActionManager.getInstance(), null, disposable);
     }
@@ -61,17 +61,19 @@ public class TabbedPane extends JBEditorTabs implements com.dci.intellij.dbn.com
         Object object = tabInfo.getObject();
         ActionCallback actionCallback = super.removeTab(tabInfo);
         if (object instanceof Disposable) {
-            final Disposable disposable = (Disposable) object;
-            DisposerUtil.disposeInBackground(disposable);
+            Disposable disposable = (Disposable) object;
+            Disposer.dispose(disposable);
             tabInfo.setObject(null);
         }
         return actionCallback;
     }
 
-
+    @Override
+    public void markDisposed() {}
 
     @Override
     public void dispose() {
         Dispatch.invoke(() -> TabbedPane.super.dispose());
+        RegisteredDisposable.super.disposeInner();
     }
 }

@@ -2,7 +2,9 @@ package com.dci.intellij.dbn.execution.statement.result;
 
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.message.MessageType;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
@@ -17,13 +19,13 @@ import com.dci.intellij.dbn.execution.statement.StatementExecutionMessage;
 import com.dci.intellij.dbn.execution.statement.processor.StatementExecutionProcessor;
 import com.intellij.openapi.actionSystem.DataProvider;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 
+@Nullifiable
 public class StatementExecutionBasicResult extends DisposableBase implements StatementExecutionResult{
     private String resultName;
     private StatementExecutionMessage executionMessage;
@@ -45,7 +47,7 @@ public class StatementExecutionBasicResult extends DisposableBase implements Sta
         this.resultName = resultName;
         this.executionProcessor = executionProcessor;
         this.updateCount = updateCount;
-        this.connectionHandlerRef = Failsafe.get(executionProcessor.getConnectionHandler()).getRef();
+        this.connectionHandlerRef = Failsafe.nn(executionProcessor.getConnectionHandler()).getRef();
         this.databaseSchema = executionProcessor.getTargetSchema();
     }
 
@@ -68,7 +70,7 @@ public class StatementExecutionBasicResult extends DisposableBase implements Sta
     @Override
     @NotNull
     public StatementExecutionProcessor getExecutionProcessor() {
-        return Failsafe.get(executionProcessor);
+        return Failsafe.nn(executionProcessor);
     }
 
     @Override
@@ -208,12 +210,4 @@ public class StatementExecutionBasicResult extends DisposableBase implements Sta
         return null;
     }
 
-    /********************************************************
-     *                    Disposable                        *
-     ********************************************************/
-    @Override
-    public void disposeInner() {
-        super.disposeInner();
-        nullify();
-    }
 }

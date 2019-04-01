@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.common.options;
 
-import com.dci.intellij.dbn.common.dispose.DisposerUtil;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.options.setting.SettingsSupport;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
@@ -64,7 +64,7 @@ public abstract class BasicConfiguration<P extends Configuration, E extends Conf
 
     @NotNull
     public final E ensureSettingsEditor() {
-        return Failsafe.get(configurationEditorForm);
+        return Failsafe.nn(configurationEditorForm);
     }
 
 
@@ -129,7 +129,7 @@ public abstract class BasicConfiguration<P extends Configuration, E extends Conf
 
     @Override
     public void disposeUIResources() {
-        DisposerUtil.dispose(configurationEditorForm);
+        Disposer.dispose(configurationEditorForm);
         configurationEditorForm = null;
     }
 

@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.common.ui.table;
 import com.dci.intellij.dbn.common.dispose.Disposable;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
@@ -11,6 +12,7 @@ import javax.swing.event.ListDataListener;
 import java.util.HashSet;
 import java.util.Set;
 
+@Nullifiable
 public class DBNTableGutterModel<T extends DBNTableWithGutterModel> extends DisposableBase implements ListModel, Disposable{
     private T tableModel;
     private Set<ListDataListener> listeners = new HashSet<ListDataListener>();
@@ -21,7 +23,7 @@ public class DBNTableGutterModel<T extends DBNTableWithGutterModel> extends Disp
 
     @NotNull
     public T getTableModel() {
-        return Failsafe.get(tableModel);
+        return Failsafe.nn(tableModel);
     }
 
     @Override
@@ -48,14 +50,5 @@ public class DBNTableGutterModel<T extends DBNTableWithGutterModel> extends Disp
         for (ListDataListener listDataListener : listeners) {
             listDataListener.contentsChanged(listDataEvent);
         }
-    }
-
-    /********************************************************
-     *                    Disposable                        *
-     ********************************************************/
-    @Override
-    public void disposeInner() {
-        super.disposeInner();
-        nullify();
     }
 }

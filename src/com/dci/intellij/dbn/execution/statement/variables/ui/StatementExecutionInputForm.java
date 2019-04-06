@@ -43,13 +43,16 @@ import java.util.List;
 public class StatementExecutionInputForm extends DBNFormImpl<StatementExecutionInputsDialog> {
     private JPanel mainPanel;
     private JPanel variablesPanel;
-    private JPanel previewPanel;
-    private JPanel headerSeparatorPanel;
     private JPanel executionOptionsPanel;
     private JPanel headerPanel;
     private JPanel debuggerVersionPanel;
     private JLabel debuggerVersionLabel;
     private JLabel debuggerTypeLabel;
+    private JPanel splitPreviewPanel;
+    private JPanel previewPanel;
+    private JPanel splitPanel;
+    private JSplitPane splitPane;
+    private JScrollPane variablesScrollPane;
 
     private StatementExecutionProcessor executionProcessor;
     private List<StatementExecutionVariableValueForm> variableValueForms = new ArrayList<>();
@@ -67,8 +70,6 @@ public class StatementExecutionInputForm extends DBNFormImpl<StatementExecutionI
         this.statementText = executionProcessor.getExecutionInput().getExecutableStatementText();
 
         variablesPanel.setLayout(new BoxLayout(variablesPanel, BoxLayout.Y_AXIS));
-        headerSeparatorPanel.setBorder(Borders.BOTTOM_LINE_BORDER);
-        headerSeparatorPanel.setVisible(false);
 
         ConnectionHandler connectionHandler = executionProcessor.getConnectionHandler();
         if (debuggerType.isDebug()) {
@@ -91,6 +92,8 @@ public class StatementExecutionInputForm extends DBNFormImpl<StatementExecutionI
 
         StatementExecutionVariablesBundle executionVariables = executionProcessor.getExecutionVariables();
         if (executionVariables != null) {
+            mainPanel.remove(previewPanel);
+
             List<StatementExecutionVariable> variables = new ArrayList<>(executionVariables.getVariables());
             variables.sort(StatementExecutionVariablesBundle.NAME_COMPARATOR);
 
@@ -106,6 +109,10 @@ public class StatementExecutionInputForm extends DBNFormImpl<StatementExecutionI
                     }
                 });
             }
+            splitPane.setDividerLocation((int)variablesPanel.getPreferredSize().getHeight());
+            Dimension preferredSize = variablesScrollPane.getPreferredSize();
+            preferredSize.setSize(preferredSize.getWidth() + 20, preferredSize.getHeight());
+            variablesScrollPane.setPreferredSize(preferredSize);
 
             int[] metrics = new int[]{0, 0};
             for (StatementExecutionVariableValueForm variableValueForm : variableValueForms) {
@@ -116,14 +123,14 @@ public class StatementExecutionInputForm extends DBNFormImpl<StatementExecutionI
                 variableValueForm.adjustMetrics(metrics);
             }
         } else {
-            headerSeparatorPanel.setVisible(false);
+            mainPanel.remove(splitPanel);
         }
 
         executionOptionsForm = new ExecutionOptionsForm(this, executionProcessor.getExecutionInput(), debuggerType);
-        this.executionOptionsPanel.add(executionOptionsForm.getComponent());
+        executionOptionsPanel.add(executionOptionsForm.getComponent());
 
-        updatePreview();
         GuiUtils.replaceJSplitPaneWithIDEASplitter(mainPanel);
+        updatePreview();
 
         JCheckBox reuseVariablesCheckBox = executionOptionsForm.getReuseVariablesCheckBox();
         if (isBulkExecution && executionVariables != null) {
@@ -217,7 +224,10 @@ public class StatementExecutionInputForm extends DBNFormImpl<StatementExecutionI
             settings.setDndEnabled(false);
             settings.setAdditionalLinesCount(2);
             settings.setRightMarginShown(false);
-            previewPanel.add(viewer.getComponent(), BorderLayout.CENTER);
+            JComponent viewerComponent = viewer.getComponent();
+            if (executionVariables == null)
+                previewPanel.add(viewerComponent, BorderLayout.CENTER); else
+                splitPreviewPanel.add(viewerComponent, BorderLayout.CENTER);
 
         } else {
             DocumentUtil.setText(previewDocument, previewText);

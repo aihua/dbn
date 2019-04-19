@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.execution.statement.processor;
 
+import com.dci.intellij.dbn.common.ProjectRef;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
@@ -28,7 +29,6 @@ import com.dci.intellij.dbn.execution.ExecutionContext;
 import com.dci.intellij.dbn.execution.ExecutionManager;
 import com.dci.intellij.dbn.execution.ExecutionOption;
 import com.dci.intellij.dbn.execution.NavigationInstruction;
-import com.dci.intellij.dbn.execution.common.options.ExecutionEngineSettings;
 import com.dci.intellij.dbn.execution.compiler.CompileManagerListener;
 import com.dci.intellij.dbn.execution.compiler.CompileType;
 import com.dci.intellij.dbn.execution.compiler.CompilerAction;
@@ -40,7 +40,6 @@ import com.dci.intellij.dbn.execution.statement.DataDefinitionChangeListener;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionInput;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionManager;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionQueue;
-import com.dci.intellij.dbn.execution.statement.options.StatementExecutionSettings;
 import com.dci.intellij.dbn.execution.statement.result.StatementExecutionBasicResult;
 import com.dci.intellij.dbn.execution.statement.result.StatementExecutionResult;
 import com.dci.intellij.dbn.execution.statement.result.StatementExecutionStatus;
@@ -63,6 +62,7 @@ import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.fileEditor.FileEditor;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
@@ -74,11 +74,14 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static com.dci.intellij.dbn.execution.ExecutionStatus.*;
+import static com.dci.intellij.dbn.execution.ExecutionStatus.CANCELLED;
+import static com.dci.intellij.dbn.execution.ExecutionStatus.EXECUTING;
+import static com.dci.intellij.dbn.execution.ExecutionStatus.PROMPTED;
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.COMPILABLE;
 
 @Nullifiable
 public class StatementExecutionBasicProcessor extends DisposableBase implements StatementExecutionProcessor {
+    private ProjectRef projectRef;
     private PsiFileRef<DBLanguagePsiFile> psiFileRef;
     private PsiElementRef<ExecutablePsiElement> cachedExecutableRef;
     private WeakRef<FileEditor> fileEditorRef;
@@ -103,7 +106,8 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
 
 
 
-    public StatementExecutionBasicProcessor(@NotNull FileEditor fileEditor, @NotNull ExecutablePsiElement psiElement, int index) {
+    public StatementExecutionBasicProcessor(@NotNull Project project, @NotNull FileEditor fileEditor, @NotNull ExecutablePsiElement psiElement, int index) {
+        this.projectRef = ProjectRef.from(project);
         this.fileEditorRef = WeakRef.from(fileEditor);
         this.psiFileRef = PsiFileRef.from(psiElement.getFile());
 
@@ -113,7 +117,8 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
         initEditorProviderId(fileEditor);
     }
 
-    StatementExecutionBasicProcessor(@NotNull FileEditor fileEditor, @NotNull DBLanguagePsiFile psiFile, String sqlStatement, int index) {
+    StatementExecutionBasicProcessor(@NotNull Project project, @NotNull FileEditor fileEditor, @NotNull DBLanguagePsiFile psiFile, String sqlStatement, int index) {
+        this.projectRef = ProjectRef.from(project);
         this.fileEditorRef = WeakRef.from(fileEditor);
         this.psiFileRef = PsiFileRef.from(psiFile);
         this.index = index;
@@ -132,8 +137,9 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
 
     @Override
     public boolean isDirty(){
-        if (getConnectionHandler() != executionInput.getConnectionHandler() || // connection changed since execution
-            getTargetSchema() != executionInput.getTargetSchemaId()) { // current schema changed since execution)
+        if (psiFileRef.get() == null ||
+                getConnectionHandler() != executionInput.getConnectionHandler() || // connection changed since execution
+                getTargetSchema() != executionInput.getTargetSchemaId()) { // current schema changed since execution)
             return true;
 
         } else {
@@ -313,6 +319,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
                 throw executionException;
             }
 
+        } catch (ProcessCanceledException ignore){
         } finally {
             postExecute();
         }
@@ -619,14 +626,11 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
         return executionResult;
     }
 
-    public StatementExecutionSettings getStatementExecutionSettings() {
-        return ExecutionEngineSettings.getInstance(getProject()).getStatementExecutionSettings();
-    }
-
     @Override
     @Nullable
     public ConnectionHandler getConnectionHandler() {
-        return getPsiFile().getConnectionHandler();
+        DBLanguagePsiFile psiFile = psiFileRef.get();
+        return psiFile == null ? null : psiFile.getConnectionHandler();
     }
 
     @Override
@@ -638,7 +642,8 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     @Override
     @Nullable
     public SchemaId getTargetSchema() {
-        return getPsiFile().getSchemaId();
+        DBLanguagePsiFile psiFile = psiFileRef.get();
+        return psiFile == null ? null : psiFile.getSchemaId();
     }
 
     @Override
@@ -650,7 +655,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     @Override
     @NotNull
     public Project getProject() {
-        return getPsiFile().getProject();
+        return projectRef.ensure();
     }
 
     @Override

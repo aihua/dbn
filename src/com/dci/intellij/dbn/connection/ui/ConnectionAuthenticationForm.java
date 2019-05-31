@@ -8,7 +8,6 @@ import com.dci.intellij.dbn.common.ui.DBNHintForm;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.AuthenticationType;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.intellij.openapi.ui.ComboBox;
 import com.intellij.ui.DocumentAdapter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -26,7 +25,7 @@ public class ConnectionAuthenticationForm extends DBNFormImpl<ConnectionAuthenti
     private JPasswordField passwordField;
     private JTextField userTextField;
     private JPanel hintPanel;
-    private ComboBox<AuthenticationType> authTypeComboBox;
+    private JComboBox<AuthenticationType> authTypeComboBox;
     private JLabel userLabel;
     private JLabel passwordLabel;
 

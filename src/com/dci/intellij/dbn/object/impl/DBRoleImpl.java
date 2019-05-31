@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.object.impl;
 import com.dci.intellij.dbn.browser.DatabaseBrowserUtils;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.database.common.metadata.def.DBRoleMetadata;
 import com.dci.intellij.dbn.object.DBGrantedPrivilege;
 import com.dci.intellij.dbn.object.DBGrantedRole;
 import com.dci.intellij.dbn.object.DBPrivilege;
@@ -10,33 +11,32 @@ import com.dci.intellij.dbn.object.DBRole;
 import com.dci.intellij.dbn.object.DBUser;
 import com.dci.intellij.dbn.object.common.DBObjectBundle;
 import com.dci.intellij.dbn.object.common.DBObjectImpl;
-import com.dci.intellij.dbn.object.common.DBObjectRelationType;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationList;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationListImpl;
 import com.dci.intellij.dbn.object.common.list.loader.DBObjectListFromRelationListLoader;
+import com.dci.intellij.dbn.object.type.DBObjectRelationType;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import org.jetbrains.annotations.NotNull;
 
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.dci.intellij.dbn.object.common.DBObjectType.*;
+import static com.dci.intellij.dbn.object.type.DBObjectType.*;
 
-public class DBRoleImpl extends DBObjectImpl implements DBRole {
-    DBObjectList<DBGrantedPrivilege> privileges;
-    DBObjectList<DBGrantedRole> grantedRoles;
+public class DBRoleImpl extends DBObjectImpl<DBRoleMetadata> implements DBRole {
+    private DBObjectList<DBGrantedPrivilege> privileges;
+    private DBObjectList<DBGrantedRole> grantedRoles;
 
-    public DBRoleImpl(ConnectionHandler connectionHandler, ResultSet resultSet) throws SQLException {
-        super(connectionHandler, resultSet);
+    public DBRoleImpl(ConnectionHandler connectionHandler, DBRoleMetadata metadata) throws SQLException {
+        super(connectionHandler, metadata);
     }
 
     @Override
-    protected String initObject(ResultSet resultSet) throws SQLException {
-        return resultSet.getString("ROLE_NAME");
+    protected String initObject(DBRoleMetadata metadata) throws SQLException {
+        return metadata.getRoleName();
     }
 
     @Override
@@ -65,7 +65,7 @@ public class DBRoleImpl extends DBObjectImpl implements DBRole {
 
     @Override
     public List<DBUser> getUserGrantees() {
-        List<DBUser> grantees = new ArrayList<DBUser>();
+        List<DBUser> grantees = new ArrayList<>();
         List<DBUser> users = getConnectionHandler().getObjectBundle().getUsers();
         if (users != null) {
             for (DBUser user : users) {
@@ -79,7 +79,7 @@ public class DBRoleImpl extends DBObjectImpl implements DBRole {
 
     @Override
     public List<DBRole> getRoleGrantees() {
-        List<DBRole> grantees = new ArrayList<DBRole>();
+        List<DBRole> grantees = new ArrayList<>();
         List<DBRole> roles = getConnectionHandler().getObjectBundle().getRoles();
         if (roles != null) {
             for (DBRole role : roles) {
@@ -118,10 +118,10 @@ public class DBRoleImpl extends DBObjectImpl implements DBRole {
 
     @Override
     protected List<DBObjectNavigationList> createNavigationLists() {
-        List<DBObjectNavigationList> navigationLists = new ArrayList<DBObjectNavigationList>();
-        navigationLists.add(new DBObjectNavigationListImpl<DBUser>("User grantees", getUserGrantees()));
+        List<DBObjectNavigationList> navigationLists = new ArrayList<>();
+        navigationLists.add(new DBObjectNavigationListImpl<>("User grantees", getUserGrantees()));
         if (getConnectionHandler().getInterfaceProvider().getCompatibilityInterface().supportsObjectType(ROLE.getTypeId())) {
-            navigationLists.add(new DBObjectNavigationListImpl<DBRole>("Role grantees", getRoleGrantees()));
+            navigationLists.add(new DBObjectNavigationListImpl<>("Role grantees", getRoleGrantees()));
         }
         return navigationLists;
     }

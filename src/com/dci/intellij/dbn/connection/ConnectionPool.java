@@ -1,8 +1,8 @@
 package com.dci.intellij.dbn.connection;
 
-import com.dci.intellij.dbn.common.Constants;
 import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
+import com.dci.intellij.dbn.common.notification.NotificationGroup;
 import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.common.util.CommonUtil;
@@ -16,6 +16,7 @@ import com.dci.intellij.dbn.language.common.WeakRef;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
@@ -61,7 +62,7 @@ public class ConnectionPool extends DisposableBase implements NotificationSuppor
     ConnectionPool(@NotNull ConnectionHandler connectionHandler) {
         super(connectionHandler);
         this.connectionHandlerRef = connectionHandler.getRef();
-        POOL_CLEANER_TASK.registerConnectionPool(this);
+        POOL_CLEANER_TASK.register(this);
     }
 
     DBNConnection ensureTestConnection() throws SQLException {
@@ -142,7 +143,7 @@ public class ConnectionPool extends DisposableBase implements NotificationSuppor
                         connection = ResourceUtil.connect(connectionHandler, sessionId);
                         dedicatedConnections.put(sessionId, connection);
                         sendInfoNotification(
-                                Constants.DBN_TITLE_PREFIX + "Session",
+                                NotificationGroup.SESSION,
                                 "Connected to database \"{0}\"",
                                 connectionHandler.getConnectionName(connection));
                     } finally {
@@ -192,8 +193,10 @@ public class ConnectionPool extends DisposableBase implements NotificationSuppor
                 try {
                     Thread.sleep(TimeUtil.ONE_SECOND);
                     return allocateConnection(readonly);
-                } catch (InterruptedException e) {
-                    throw new SQLException("Could not allocate connection for '" + connectionHandler.getName() + "'. ");
+                } catch (SQLException e) {
+                    throw e;
+                } catch (Throwable e) {
+                    throw new SQLException("Could not allocate connection for '" + connectionHandler.getName() + "'. ", e);
                 }
             }
             connection = createPoolConnection();
@@ -253,7 +256,7 @@ public class ConnectionPool extends DisposableBase implements NotificationSuppor
         if (poolConnections.size() == 0) {
             // Notify first pool connection
             sendInfoNotification(
-                    Constants.DBN_TITLE_PREFIX + "Session",
+                    NotificationGroup.SESSION,
                     "Connected to database \"{0}\"",
                     connectionHandler.getConnectionName(connection));
         }
@@ -265,7 +268,7 @@ public class ConnectionPool extends DisposableBase implements NotificationSuppor
         return connection;
     }
 
-    void releaseConnection(DBNConnection connection) {
+    void releaseConnection(@Nullable DBNConnection connection) {
         if (connection != null) {
             if (connection.isPoolConnection()) {
                 try {
@@ -343,6 +346,42 @@ public class ConnectionPool extends DisposableBase implements NotificationSuppor
         return false;
     }
 
+    private void clean() {
+        if (!poolConnections.isEmpty()) {
+            try {
+                ConnectionHandler connectionHandler = getConnectionHandler();
+                ConnectionHandlerStatusHolder status = connectionHandler.getConnectionStatus();
+                if (!status.is(ConnectionHandlerStatus.CLEANING)) {
+                    try {
+                        status.set(ConnectionHandlerStatus.CLEANING, true);
+
+                        ConnectionDetailSettings detailSettings = connectionHandler.getSettings().getDetailSettings();
+                        long lastAccessTimestamp = getLastAccessTimestamp();
+                        if (lastAccessTimestamp > 0 && TimeUtil.isOlderThan(lastAccessTimestamp, detailSettings.getIdleTimeToDisconnectPool(), TimeUnit.MINUTES)) {
+                            // close connections only if pool is passive
+                            for (DBNConnection connection : poolConnections) {
+                                if (!connection.isIdle()) return;
+                            }
+
+                            List<DBNConnection> poolConnections = new ArrayList<>(this.poolConnections);
+                            this.poolConnections.clear();
+
+                            for (DBNConnection connection : poolConnections) {
+                                ResourceUtil.close(connection);
+                            }
+                        }
+
+                    } finally {
+                        status.set(ConnectionHandlerStatus.CLEANING, false);
+                    }
+                }
+            } catch (ProcessCanceledException ignore) {
+            } catch (Exception e) {
+                LOGGER.error("Failed to clean connection pool", e);
+            }
+        }
+    }
+
     private static class ConnectionPoolCleanTask extends TimerTask {
         List<WeakRef<ConnectionPool>> connectionPools = CollectionUtil.createConcurrentList();
 
@@ -350,40 +389,17 @@ public class ConnectionPool extends DisposableBase implements NotificationSuppor
         public void run() {
             for (WeakRef<ConnectionPool> connectionPoolRef : connectionPools) {
                 ConnectionPool connectionPool = connectionPoolRef.get();
-                if (connectionPool != null && !connectionPool.poolConnections.isEmpty()) {
-                    try {
-                        ConnectionHandler connectionHandler = connectionPool.getConnectionHandler();
-                        ConnectionHandlerStatusHolder status = connectionHandler.getConnectionStatus();
-                        if (!status.is(ConnectionHandlerStatus.CLEANING)) {
-                            try {
-                                status.set(ConnectionHandlerStatus.CLEANING, true);
+                if (connectionPool == null) {
+                    // not referenced any more, removed from
+                    connectionPools.remove(connectionPoolRef);
 
-                                ConnectionDetailSettings detailSettings = connectionHandler.getSettings().getDetailSettings();
-                                long lastAccessTimestamp = connectionPool.getLastAccessTimestamp();
-                                if (lastAccessTimestamp > 0 && TimeUtil.isOlderThan(lastAccessTimestamp, detailSettings.getIdleTimeToDisconnectPool(), TimeUnit.MINUTES)) {
-                                    // close connections only if pool is passive
-                                    for (DBNConnection connection : connectionPool.poolConnections) {
-                                        if (!connection.isIdle()) return;
-                                    }
-
-                                    List<DBNConnection> poolConnections = new ArrayList<>(connectionPool.poolConnections);
-                                    connectionPool.poolConnections.clear();
-
-                                    for (DBNConnection connection : poolConnections) {
-                                        ResourceUtil.close(connection);
-                                    }
-                                }
-
-                            } finally {
-                                status.set(ConnectionHandlerStatus.CLEANING, false);
-                            }
-                        }
-                    } catch (Exception ignore) {}
+                } else {
+                    connectionPool.clean();
                 }
             }
         }
 
-        void registerConnectionPool(ConnectionPool connectionPool) {
+        void register(ConnectionPool connectionPool) {
             connectionPools.add(WeakRef.from(connectionPool));
         }
     }

@@ -1,10 +1,8 @@
 package com.dci.intellij.dbn.common.dispose;
 
-import com.dci.intellij.dbn.common.routine.ThrowableCallable;
-import com.dci.intellij.dbn.common.routine.ThrowableRunnable;
+import com.dci.intellij.dbn.common.routine.ParametricRunnable;
 import com.intellij.mock.MockProject;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.testFramework.LightVirtualFile;
@@ -26,12 +24,6 @@ public class Failsafe {
         project = nd(project);
         T component = project.getComponent(interfaceClass);
         return nn(component);
-    }
-
-
-
-    public static @NotNull VirtualFile nvl(@Nullable VirtualFile virtualFile) {
-        return virtualFile == null ? DUMMY_VIRTUAL_FILE : virtualFile;
     }
 
     @NotNull
@@ -68,25 +60,9 @@ public class Failsafe {
         return true;
     }
 
-    public static <T, E extends Throwable> T guarded(T defaultValue, ThrowableCallable<T, E> callable) throws E{
-        try {
-            return callable.call();
-        } catch (ProcessCanceledException e) {
-            return defaultValue;
-        }
-    }
-
-    public static <E extends Throwable> void guarded(ThrowableRunnable<E> runnable) throws E {
-        try {
-            runnable.run();
-        } catch (ProcessCanceledException ignore) {}
-    }
-
-    public static void guarded(Runnable runnable, Runnable cancel){
-        try {
-            runnable.run();
-        } catch (ProcessCanceledException ignore) {
-            cancel.run();
+    public static <T, E extends Throwable> void invoke(@Nullable T target, ParametricRunnable<T, E> invoker) throws E {
+        if (check(target)) {
+            invoker.run(target);
         }
     }
 }

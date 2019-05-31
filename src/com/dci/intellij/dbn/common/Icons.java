@@ -18,6 +18,7 @@ public class Icons {
     public static final Icon COMMON_INFO_DISABLED = load("/img/common/InfoDisabled.png");
     public static final Icon COMMON_WARNING = load("/img/common/Warning.png");
     public static final Icon COMMON_ERROR = load("/img/common/Error.png");
+    public static final Icon COMMON_CHECK = load("/img/common/Check.png");
     public static final Icon COMMON_RIGHT = load("/img/common/SplitRight.png");
     public static final Icon COMMON_LEFT = load("/img/common/SplitLeft.png");
     public static final Icon COMMON_UP = load("/img/common/SplitUp.png");
@@ -306,7 +307,8 @@ public class Icons {
     public static final Icon DB_MYSQL_LARGE       = load("/img/database/MySQL_large.png");
     public static final Icon DB_SQLITE            = load("/img/database/SQLite.png");
     public static final Icon DB_SQLITE_LARGE      = load("/img/database/SQLite_large.png");
-
+    public static final Icon DB_GENERIC           = load("/img/database/Generic.png");
+    public static final Icon DB_GENERIC_LARGE     = load("/img/database/Generic_large.png");
 
 //    public static final Icon DBO_ARGUMENT_IN         = createRowIcon(DBO_ARGUMENT, COMMON_DIRECTION_IN);
 //    public static final Icon DBO_ARGUMENT_OUT        = createRowIcon(DBO_ARGUMENT, COMMON_DIRECTION_OUT);

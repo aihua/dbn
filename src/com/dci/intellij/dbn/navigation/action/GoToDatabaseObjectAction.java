@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.navigation.action;
 
 import com.dci.intellij.dbn.common.dispose.Disposer;
-import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.util.ClipboardUtil;
 import com.dci.intellij.dbn.common.util.EditorUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
@@ -92,7 +91,8 @@ public class GoToDatabaseObjectAction extends GotoActionBase implements DumbAwar
                                     return latestConnectionId == selectConnectionAction.getConnectionHandler().getConnectionId();
                                 } else if (preselect instanceof SelectSchemaAction) {
                                     SelectSchemaAction selectSchemaAction = (SelectSchemaAction) preselect;
-                                    return latestSchemaName.equals(selectSchemaAction.getSchema().getName());
+                                    DBSchema object = selectSchemaAction.getTarget();
+                                    return object != null && latestSchemaName.equals(object.getName());
                                 }
                                 return false;
                             });
@@ -148,12 +148,12 @@ public class GoToDatabaseObjectAction extends GotoActionBase implements DumbAwar
         }
 
         @Override
-        public boolean canBePerformed(DataContext context) {
+        public boolean canBePerformed(@NotNull DataContext context) {
             return true;
         }
 
         @Override
-        public void actionPerformed(AnActionEvent e) {
+        public void actionPerformed(@NotNull AnActionEvent e) {
             ConnectionHandler connectionHandler = getConnectionHandler();
             Project project = connectionHandler.getProject();
             showLookupPopup(e, project, connectionHandler, null);
@@ -163,7 +163,7 @@ public class GoToDatabaseObjectAction extends GotoActionBase implements DumbAwar
         @NotNull
         @Override
         public AnAction[] getChildren(AnActionEvent e) {
-            List<SelectSchemaAction> schemaActions = new ArrayList<SelectSchemaAction>();
+            List<SelectSchemaAction> schemaActions = new ArrayList<>();
             ConnectionHandler connectionHandler = getConnectionHandler();
             for (DBSchema schema : connectionHandler.getObjectBundle().getSchemas()) {
                 schemaActions.add(new SelectSchemaAction(schema));
@@ -177,18 +177,14 @@ public class GoToDatabaseObjectAction extends GotoActionBase implements DumbAwar
             super(schema);
         }
 
-        @NotNull
-        public DBSchema getSchema() {
-            return Failsafe.nn(getObject());
-        }
-
-
         @Override
-        public void actionPerformed(@NotNull AnActionEvent e) {
-            DBSchema schema = getSchema();
-            Project project = schema.getProject();
-            showLookupPopup(e, project, schema.getConnectionHandler(), schema);
-            latestSchemaName = schema.getName();
+        protected void actionPerformed(
+                @NotNull AnActionEvent e,
+                @NotNull Project project,
+                @NotNull DBSchema object) {
+
+            showLookupPopup(e, project, object.getConnectionHandler(), object);
+            latestSchemaName = object.getName();
         }
     }
 
@@ -283,8 +279,8 @@ public class GoToDatabaseObjectAction extends GotoActionBase implements DumbAwar
     }
 
     @Override
-    public void update(AnActionEvent event) {
-        super.update(event);
-        event.getPresentation().setText("Database Object...");
+    public void update(@NotNull AnActionEvent e) {
+        super.update(e);
+        e.getPresentation().setText("Database Object...");
     }
 }

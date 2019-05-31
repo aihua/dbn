@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.debugger.jdbc.config.ui;
 
 import com.dci.intellij.dbn.common.Icons;
+import com.dci.intellij.dbn.common.action.DumbAwareProjectAction;
 import com.dci.intellij.dbn.common.action.GroupPopupAction;
 import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.thread.Dispatch;
@@ -71,33 +72,31 @@ public class DBMethodJdbcRunConfigEditorForm extends DBProgramRunConfigurationEd
         @Override
         protected AnAction[] getActions(AnActionEvent e) {
             return new AnAction[]{
-                    new OpenMethodHistoryAction(),
-                    new OpenMethodBrowserAction()
+                    new MethodHistoryOpenAction(),
+                    new MethodBrowserOpenAction()
             };
         }
     }
 
-    public class OpenMethodBrowserAction extends AnAction {
-        OpenMethodBrowserAction() {
+    public class MethodBrowserOpenAction extends DumbAwareProjectAction {
+        MethodBrowserOpenAction() {
             super("Method Browser");
         }
 
         @Override
-        public void actionPerformed(@NotNull AnActionEvent e) {
-            Project project = ActionUtil.ensureProject(e);
+        protected void actionPerformed(@NotNull AnActionEvent e, @NotNull Project project) {
             MethodExecutionManager executionManager = MethodExecutionManager.getInstance(project);
             executionManager.promptMethodBrowserDialog(getExecutionInput(), true,
                     (executionInput) -> setExecutionInput(executionInput, true));
         }
     }
-    public class OpenMethodHistoryAction extends AnAction {
-        OpenMethodHistoryAction() {
+    public class MethodHistoryOpenAction extends DumbAwareProjectAction {
+        MethodHistoryOpenAction() {
             super("Execution History", null, Icons.METHOD_EXECUTION_HISTORY);
         }
 
         @Override
-        public void actionPerformed(@NotNull AnActionEvent e) {
-            Project project = ActionUtil.ensureProject(e);
+        protected void actionPerformed(@NotNull AnActionEvent e, @NotNull Project project) {
             MethodExecutionManager methodExecutionManager = MethodExecutionManager.getInstance(project);
             methodExecutionManager.showExecutionHistoryDialog(getExecutionInput(), false, true,
                     (executionInput) -> setExecutionInput(executionInput, true));
@@ -135,7 +134,7 @@ public class DBMethodJdbcRunConfigEditorForm extends DBProgramRunConfigurationEd
                         }
                     }
 
-                    Dispatch.invoke(() -> {
+                    Dispatch.run(() -> {
                         methodArgumentsPanel.removeAll();
                         Disposer.dispose(methodExecutionInputForm);
                         methodExecutionInputForm = null;

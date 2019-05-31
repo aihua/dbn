@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.execution.explain.result.ui;
 
 import com.dci.intellij.dbn.common.dispose.Disposer;
-import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.dispose.RegisteredDisposable;
 import com.dci.intellij.dbn.common.ui.tree.TreeUtil;
@@ -11,12 +10,13 @@ import com.dci.intellij.dbn.data.editor.ui.UserValueHolderImpl;
 import com.dci.intellij.dbn.data.grid.color.BasicTableTextAttributes;
 import com.dci.intellij.dbn.data.preview.LargeValuePreviewPopup;
 import com.dci.intellij.dbn.execution.explain.result.ExplainPlanEntry;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.codeInsight.template.impl.TemplateColors;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.editor.colors.EditorColorsScheme;
 import com.intellij.openapi.editor.markup.TextAttributes;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.ui.popup.JBPopup;
 import com.intellij.openapi.ui.popup.JBPopupAdapter;
 import com.intellij.openapi.ui.popup.LightweightWindowEvent;
@@ -114,7 +114,7 @@ public class ExplainPlanTreeTable extends TreeTable implements RegisteredDisposa
 
         @Override
         public void customizeCellRenderer(JTree tree, Object value, boolean selected, boolean expanded, boolean leaf, int row, boolean hasFocus) {
-            Failsafe.guarded(() -> {
+            try {
                 ExplainPlanEntry entry = (ExplainPlanEntry) value;
 
                 DBObjectRef objectRef = entry.getObjectRef();
@@ -134,7 +134,7 @@ public class ExplainPlanTreeTable extends TreeTable implements RegisteredDisposa
                     append(" (" + options.toLowerCase() + ")", selected ? selectedCellAttributes : regularAttributes);
                 }
                 setBorder(null);
-            });
+            } catch (ProcessCanceledException ignore) {}
         }
     };
 

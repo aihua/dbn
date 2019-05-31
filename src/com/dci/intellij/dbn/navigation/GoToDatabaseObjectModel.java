@@ -12,13 +12,14 @@ import com.dci.intellij.dbn.connection.VirtualConnectionHandler;
 import com.dci.intellij.dbn.navigation.options.ObjectsLookupSettings;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObject;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.dci.intellij.dbn.object.common.list.DBObjectListVisitor;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.options.ProjectSettingsManager;
 import com.intellij.ide.util.gotoByName.ChooseByNameModel;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.ColoredListCellRenderer;
 import com.intellij.ui.SimpleTextAttributes;
@@ -60,11 +61,13 @@ public class GoToDatabaseObjectModel extends DisposableBase implements ChooseByN
         return selectedConnectionRef.get();
     }
 
+    @NotNull
     @Override
     public String getNotInMessage() {
-        return null;
+        return "No database object matching criteria";
     }
 
+    @NotNull
     @Override
     public String getNotFoundMessage() {
         return "Database object not found";
@@ -107,7 +110,7 @@ public class GoToDatabaseObjectModel extends DisposableBase implements ChooseByN
     @Override
     @NotNull
     public String[] getNames(boolean checkBoxState) {
-        return Failsafe.guarded(EMPTY_STRING_ARRAY, () -> {
+        try {
             boolean databaseLoadActive = objectsLookupSettings.getForceDatabaseLoad().value();
             boolean forceLoad = checkBoxState && databaseLoadActive;
 
@@ -122,10 +125,12 @@ public class GoToDatabaseObjectModel extends DisposableBase implements ChooseByN
             scanObjectLists(collector);
 
             Set<String> bucket = collector.getBucket();
-            return bucket == null ?
-                    EMPTY_STRING_ARRAY :
-                    bucket.toArray(new String[0]);
-        });
+            if (bucket != null) {
+                return bucket.toArray(new String[0]);
+            }
+        } catch (ProcessCanceledException ignore) {}
+
+        return EMPTY_STRING_ARRAY;
     }
 
     @NotNull
@@ -136,15 +141,20 @@ public class GoToDatabaseObjectModel extends DisposableBase implements ChooseByN
     @Override
     @NotNull
     public Object[] getElementsByName(String name, boolean checkBoxState, String pattern) {
-        return Failsafe.guarded(new Object[0], () -> {
+        try {
             boolean forceLoad = checkBoxState && objectsLookupSettings.getForceDatabaseLoad().value();
             checkDisposed();
             ProgressMonitor.checkCancelled();
 
             ObjectCollector collector = new ObjectCollector(name, forceLoad);
             scanObjectLists(collector);
-            return collector.getBucket() == null ? EMPTY_ARRAY : collector.getBucket().toArray();
-        });
+            List<DBObject> bucket = collector.getBucket();
+            if (bucket != null) {
+                return bucket.toArray();
+            }
+        } catch (ProcessCanceledException ignore) {}
+
+        return EMPTY_ARRAY;
     }
 
     private void scanObjectLists(DBObjectListVisitor visitor) {
@@ -236,7 +246,6 @@ public class GoToDatabaseObjectModel extends DisposableBase implements ChooseByN
                     return true;
                 }
             }
-            return false;
         }
         return enabled;
     }

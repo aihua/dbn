@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.action.UserDataKeys;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.notification.NotificationGroup;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
@@ -48,6 +49,7 @@ import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -63,6 +65,7 @@ import org.jetbrains.annotations.Nullable;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -115,7 +118,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
 
         @Override
         public void transactionCompleted(@NotNull Document document, @NotNull PsiFile file) {
-            Failsafe.guarded(() -> {
+            try {
                 Project project = file.getProject();
                 VirtualFile virtualFile = file.getVirtualFile();
                 if (virtualFile.isInLocalFileSystem()) {
@@ -132,7 +135,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
                         }
                     }
                 }
-            });
+            } catch (ProcessCanceledException ignore) {}
         }
     };
 
@@ -223,43 +226,48 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     }
 
     public void executeStatement(@NotNull StatementExecutionProcessor executionProcessor) {
-        executeStatements(executionProcessor.asList(), executionProcessor.getVirtualFile());
+        executeStatements(
+                executionProcessor.getVirtualFile(),
+                Collections.singletonList(executionProcessor));
     }
 
-    private void executeStatements(List<StatementExecutionProcessor> executionProcessors, VirtualFile virtualFile) {
-        if (executionProcessors.size() > 0) {
-            Project project = getProject();
-            FileConnectionMappingManager connectionMappingManager = FileConnectionMappingManager.getInstance(project);
+    private void executeStatements(@Nullable VirtualFile virtualFile, List<StatementExecutionProcessor> executionProcessors) {
+        if (virtualFile != null && executionProcessors.size() > 0) {
+            try {
+                Project project = getProject();
+                FileConnectionMappingManager connectionMappingManager = FileConnectionMappingManager.getInstance(project);
 
-            DBLanguagePsiFile file =  executionProcessors.get(0).getPsiFile();
-            connectionMappingManager.selectConnectionAndSchema(file,
-                    () -> ConnectionAction.invoke(
-                            "the statement execution", false,
-                            () -> connectionMappingManager.getConnectionHandler(virtualFile),
-                            (action) -> promptExecutionDialogs(executionProcessors, DBDebuggerType.NONE,
-                                    () -> {
-                                        for (StatementExecutionProcessor executionProcessor : executionProcessors) {
-                                            ExecutionContext context = executionProcessor.getExecutionContext();
-                                            StatementExecutionInput executionInput = executionProcessor.getExecutionInput();
-                                            SessionId sessionId = executionInput.getTargetSessionId();
-                                            ConnectionId connectionId = executionInput.getConnectionHandlerId();
-                                            if (context.isNot(EXECUTING) && context.isNot(QUEUED)) {
-                                                if (sessionId == SessionId.POOL) {
-                                                    Progress.background(project, "Executing statement", true,
-                                                            (progress) -> process(executionProcessor));
-                                                } else {
-                                                    StatementExecutionQueue executionQueue = getExecutionQueue(connectionId, sessionId);
-                                                    if (!executionQueue.contains(executionProcessor)) {
-                                                        executionQueue.queue(executionProcessor);
+                DBLanguagePsiFile file = Failsafe.nn(executionProcessors.get(0).getPsiFile());
+                connectionMappingManager.selectConnectionAndSchema(file,
+                        () -> ConnectionAction.invoke(
+                                "the statement execution", false,
+                                () -> connectionMappingManager.getConnectionHandler(virtualFile),
+                                (action) -> promptExecutionDialogs(executionProcessors, DBDebuggerType.NONE,
+                                        () -> {
+                                            for (StatementExecutionProcessor executionProcessor : executionProcessors) {
+                                                ExecutionContext context = executionProcessor.getExecutionContext();
+                                                StatementExecutionInput executionInput = executionProcessor.getExecutionInput();
+                                                SessionId sessionId = executionInput.getTargetSessionId();
+                                                ConnectionId connectionId = executionInput.getConnectionHandlerId();
+                                                if (context.isNot(EXECUTING) && context.isNot(QUEUED)) {
+                                                    if (sessionId == SessionId.POOL) {
+                                                        Progress.background(project, "Executing statement", true,
+                                                                (progress) -> process(executionProcessor));
+                                                    } else {
+                                                        StatementExecutionQueue executionQueue = getExecutionQueue(connectionId, sessionId);
+                                                        if (!executionQueue.contains(executionProcessor)) {
+                                                            executionQueue.queue(executionProcessor);
+                                                        }
                                                     }
                                                 }
                                             }
-                                        }
-                                    })));
+                                        })));
+            } catch (ProcessCanceledException ignore) {}
         }
     }
 
     public void process(StatementExecutionProcessor executionProcessor) {
+        String statementName = executionProcessor.getStatementName();
         try {
             DBNConnection connection = null;
             try {
@@ -268,7 +276,10 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
                 ConnectionHandler connectionHandler = Failsafe.nn(executionProcessor.getConnectionHandler());
                 connection = connectionHandler.getConnection(executionInput.getTargetSessionId(), schema);
             } catch (SQLException e) {
-                sendErrorNotification("Error executing " + executionProcessor.getStatementName() + ". Failed to ensure connectivity.", e.getMessage());
+                sendErrorNotification(
+                        NotificationGroup.EXECUTION,
+                        "Error executing {0}. Failed to ensure connectivity: {1}", statementName, e);
+
                 ExecutionContext context = executionProcessor.getExecutionContext();
                 context.reset();
             }
@@ -276,8 +287,11 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
             if (connection != null) {
                 executionProcessor.execute(connection, false);
             }
+        } catch (ProcessCanceledException ignore) {
         } catch (SQLException e) {
-            sendErrorNotification("Error executing " + executionProcessor.getStatementName(), e.getMessage());
+            sendErrorNotification(
+                    NotificationGroup.EXECUTION,
+                    "Error executing {0}: {1}", statementName, e);
         } finally {
             DocumentUtil.refreshEditorAnnotations(executionProcessor.getPsiFile());
         }
@@ -300,7 +314,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
                                 int offset = option == 0 ? 0 : editor.getCaretModel().getOffset();
                                 List<StatementExecutionProcessor> executionProcessors = getExecutionProcessorsFromOffset(fileEditor, offset);
                                 VirtualFile virtualFile = DocumentUtil.getVirtualFile(editor);
-                                executeStatements(executionProcessors, virtualFile);
+                                executeStatements(virtualFile, executionProcessors);
                             }
                         });
             }
@@ -308,13 +322,23 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
 
     }
 
-    public void promptExecutionDialog(@NotNull StatementExecutionProcessor executionProcessor, DBDebuggerType debuggerType, @NotNull Runnable callback) {
-        promptExecutionDialogs(executionProcessor.asList(), debuggerType, callback);
+    public void promptExecutionDialog(
+            @NotNull StatementExecutionProcessor executionProcessor,
+            @NotNull DBDebuggerType debuggerType,
+            @NotNull Runnable callback) {
+        promptExecutionDialogs(
+                Collections.singletonList(executionProcessor),
+                debuggerType,
+                callback);
 
     }
 
-    private void promptExecutionDialogs(@NotNull List<StatementExecutionProcessor> processors, DBDebuggerType debuggerType, @NotNull Runnable callback) {
-        Dispatch.invokeNonModal(() -> {
+    private void promptExecutionDialogs(
+            @NotNull List<StatementExecutionProcessor> processors,
+            @NotNull DBDebuggerType debuggerType,
+            @NotNull Runnable callback) {
+
+        Dispatch.run(() -> {
             if (promptExecutionDialogs(processors, debuggerType)) {
                 callback.run();
             }
@@ -386,7 +410,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     public void promptPendingTransactionDialog(StatementExecutionProcessor executionProcessor) {
         ExecutionContext context = executionProcessor.getExecutionContext();
         context.set(PROMPTED, true);
-        Dispatch.invokeNonModal(() -> {
+        Dispatch.run(() -> {
             try {
                 PendingTransactionDialog dialog = new PendingTransactionDialog(executionProcessor);
                 dialog.show();

@@ -7,6 +7,7 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ResourceUtil;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.jdbc.DBNResultSet;
+import com.dci.intellij.dbn.connection.jdbc.DBNStatement;
 import com.dci.intellij.dbn.connection.jdbc.ResourceStatus;
 import com.dci.intellij.dbn.data.model.sortable.SortableDataModel;
 import com.dci.intellij.dbn.data.model.sortable.SortableDataModelState;
@@ -27,6 +28,11 @@ public class ResultSetDataModel<
     private ConnectionHandler connectionHandler;
     private boolean resultSetExhausted = false;
 
+    /** execute duration, -1 unknown */
+    private long executeDuration = -1;
+    /** fetch duration, -1 unknown */
+    private long fetchDuration = -1;
+
     public ResultSetDataModel(ConnectionHandler connectionHandler) {
         super(connectionHandler.getProject());
         this.connectionHandler = connectionHandler;
@@ -36,6 +42,8 @@ public class ResultSetDataModel<
         super(connectionHandler.getProject());
         this.connectionHandler = connectionHandler;
         this.resultSet = resultSet;
+        DBNStatement statement = resultSet.getStatement();
+        this.executeDuration = statement == null ? 0 : statement.getExecuteDuration();
         setHeader(new ResultSetDataModelHeader(connectionHandler, resultSet));
         fetchNextRecords(maxRecords, false);
         Disposer.register(connectionHandler, this);
@@ -74,6 +82,8 @@ public class ResultSetDataModel<
 
     public int fetchNextRecords(int records, boolean reset) throws SQLException {
         checkDisposed();
+        // reset fetch duration
+        fetchDuration = -1;
         int originalRowCount = getRowCount();
         if (resultSetExhausted) return originalRowCount;
 
@@ -87,6 +97,7 @@ public class ResultSetDataModel<
             resultSetExhausted = true;
         } else {
             DBNConnection connection = resultSet.getConnection();
+            long init = System.currentTimeMillis();
             try {
                 connection.set(ResourceStatus.ACTIVE, true);
                 connection.updateLastAccess();
@@ -102,6 +113,7 @@ public class ResultSetDataModel<
                     }
                 }
             } finally {
+                fetchDuration = System.currentTimeMillis() - init;
                 connection.set(ResourceStatus.ACTIVE, false);
                 connection.updateLastAccess();
             }
@@ -125,6 +137,14 @@ public class ResultSetDataModel<
 
 
         return newRowCount;
+    }
+
+    public long getFetchDuration() {
+        return fetchDuration;
+    }
+
+    public long getExecuteDuration(){
+        return executeDuration;
     }
 
     private void disposeRows(final List<R> oldRows) {

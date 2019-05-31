@@ -4,6 +4,9 @@ import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.editor.data.DatasetEditor;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.Presentation;
+import com.intellij.openapi.project.Project;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class DataFindAction extends AbstractDataEditorAction {
     public DataFindAction() {
@@ -11,10 +14,8 @@ public class DataFindAction extends AbstractDataEditorAction {
     }
 
     @Override
-    public void actionPerformed(AnActionEvent e) {
-        DatasetEditor datasetEditor = getDatasetEditor(e);
-        if (datasetEditor != null) {
-            datasetEditor.showSearchHeader();
+    protected void actionPerformed(@NotNull AnActionEvent e, @NotNull Project project, @NotNull DatasetEditor datasetEditor) {
+        datasetEditor.showSearchHeader();
 /*
             FindModel findModel = findManager.getFindInFileModel();
 
@@ -26,14 +27,10 @@ public class DataFindAction extends AbstractDataEditorAction {
             });
 */
 
-        }
     }
 
     @Override
-    public void update(AnActionEvent e) {
-        DatasetEditor datasetEditor = getDatasetEditor(e);
-
-        Presentation presentation = e.getPresentation();
+    protected void update(@NotNull AnActionEvent e, @NotNull Presentation presentation, @NotNull Project project, @Nullable DatasetEditor datasetEditor) {
         presentation.setText("Find Data...");
 
         if (datasetEditor == null) {

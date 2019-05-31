@@ -3,11 +3,11 @@ package com.dci.intellij.dbn.connection.mapping;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.Icons;
+import com.dci.intellij.dbn.common.action.ProjectAction;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.list.FiltrableList;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
-import com.dci.intellij.dbn.common.util.ActionUtil;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.VirtualFileUtil;
@@ -47,6 +47,7 @@ import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.DumbAwareAction;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
@@ -199,7 +200,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
     @Nullable
     public ConnectionHandler getConnectionHandler(@NotNull VirtualFile virtualFile) {
-        return Failsafe.guarded(null, () -> {
+        try {
             Project project = getProject();
             if (virtualFile instanceof LightVirtualFile) {
                 ConnectionHandlerRef connectionHandlerRef = virtualFile.getUserData(CONNECTION_HANDLER);
@@ -251,8 +252,9 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                 }
                 return ConnectionHandlerRef.get(connectionHandlerRef);
             }
-            return null;
-        });
+        } catch (ProcessCanceledException ignore) {}
+
+        return null;
     }
 
     @Nullable
@@ -467,7 +469,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
 
     public void selectConnectionAndSchema(@NotNull DBLanguagePsiFile file, @NotNull Runnable callback) {
-        Dispatch.invoke(() -> {
+        Dispatch.run(() -> {
             Project project = getProject();
             ConnectionHandler activeConnection = file.getConnectionHandler();
             if (activeConnection == null || activeConnection.isVirtual()) {
@@ -568,10 +570,8 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
         }
 
         @Override
-        public void actionPerformed(@NotNull AnActionEvent e) {
-            ConnectionHandler connectionHandler = getConnectionHandler();
+        protected void actionPerformed(@NotNull AnActionEvent e, @NotNull Project project, @NotNull ConnectionHandler connectionHandler) {
             DBLanguagePsiFile file = fileRef.get();
-
             if (file != null) {
                 file.setConnectionHandler(connectionHandler);
                 if (promptSchemaSelection) {
@@ -593,21 +593,20 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
             DBLanguagePsiFile file = fileRef.get();
             if (file != null) {
                 ConnectionHandler connectionHandler = file.getConnectionHandler();
-                return connectionHandler != null && connectionHandler.getConnectionId().equals(getConnectionHandler().getConnectionId());
+                return connectionHandler != null && connectionHandler.getConnectionId().equals(getConnectionId());
             }
             return false;
 
         }
     }
 
-    private static class ConnectionSetupAction extends AnAction {
+    private static class ConnectionSetupAction extends ProjectAction {
         private ConnectionSetupAction() {
             super("Setup New Connection", null, Icons.CONNECTION_NEW);
         }
 
         @Override
-        public void actionPerformed(@NotNull AnActionEvent e) {
-            Project project = ActionUtil.ensureProject(e);
+        protected void actionPerformed(@NotNull AnActionEvent e, @NotNull Project project) {
             ProjectSettingsManager settingsManager = ProjectSettingsManager.getInstance(project);
             settingsManager.openProjectSettings(ConfigId.CONNECTIONS);
         }
@@ -631,7 +630,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                                 }
                             }
 
-                            Dispatch.invoke(() -> {
+                            Dispatch.run(() -> {
                                 ListPopup popupBuilder = JBPopupFactory.getInstance().createActionGroupPopup(
                                         "Select Schema",
                                         actionGroup,
@@ -666,10 +665,14 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
         }
 
         @Override
-        public void actionPerformed(@NotNull AnActionEvent e) {
+        protected void actionPerformed(
+                @NotNull AnActionEvent e,
+                @NotNull Project project,
+                @NotNull DBSchema object) {
+
             DBLanguagePsiFile file = fileRef.get();
             if (file != null) {
-                file.setDatabaseSchema(getSchema());
+                file.setDatabaseSchema(getSchemaId());
                 if (callback != null) {
                     callback.run();
                 }
@@ -677,15 +680,15 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
         }
 
         @Nullable
-        public SchemaId getSchema() {
-            return SchemaId.from(getObject());
+        public SchemaId getSchemaId() {
+            return SchemaId.from(getTarget());
         }
 
         public boolean isSelected() {
             DBLanguagePsiFile file = fileRef.get();
             if (file != null) {
                 SchemaId fileSchema = file.getSchemaId();
-                return fileSchema != null && fileSchema.equals(getSchema());
+                return fileSchema != null && fileSchema.equals(getSchemaId());
             }
             return false;
         }

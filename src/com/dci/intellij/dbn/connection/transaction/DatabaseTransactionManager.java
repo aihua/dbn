@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.connection.transaction;
 
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
-import com.dci.intellij.dbn.common.Constants;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.routine.ProgressRunnable;
@@ -19,6 +18,7 @@ import com.dci.intellij.dbn.connection.transaction.ui.PendingTransactionsDetailD
 import com.dci.intellij.dbn.connection.transaction.ui.PendingTransactionsDialog;
 import com.dci.intellij.dbn.options.ProjectSettingsManager;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManagerListener;
 import com.intellij.openapi.ui.DialogWrapper;
@@ -84,12 +84,15 @@ public class DatabaseTransactionManager extends AbstractProjectComponent impleme
             @NotNull DBNConnection connection,
             @NotNull List<TransactionAction> actions,
             @Nullable Runnable callback) {
-
-        Project project = getProject();
-        for (TransactionAction action : actions) {
-            executeAction(connectionHandler, connection, project, action);
-        }
-        Failsafe.guarded(() -> { if (callback != null) callback.run();});
+        try {
+            Project project = getProject();
+            for (TransactionAction action : actions) {
+                executeAction(connectionHandler, connection, project, action);
+            }
+            if (callback != null) {
+                callback.run();
+            }
+        } catch (ProcessCanceledException ignore) {}
     }
 
     private void executeAction(
@@ -113,20 +116,20 @@ public class DatabaseTransactionManager extends AbstractProjectComponent impleme
             if (action.getNotificationType() != null) {
                 sendNotification(
                         action.getNotificationType(),
-                        Constants.DBN_TITLE_PREFIX + action.getGroup(),
+                        action.getGroup(),
                         action.getSuccessNotificationMessage(),
                         connectionName);
             }
         } catch (SQLException ex) {
             sendNotification(
                     action.getFailureNotificationType(),
-                    Constants.DBN_TITLE_PREFIX + action.getGroup(),
+                    action.getGroup(),
                     action.getFailureNotificationMessage(),
                     connectionName,
-                    ex.getMessage());
+                    ex);
             success.set(false);
         } finally {
-            if (!project.isDisposed()) {
+            if (Failsafe.check(project)) {
                 // notify post-action
                 EventUtil.notify(project,
                         TransactionListener.TOPIC,

@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.connection;
 
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.common.Referenceable;
+import com.dci.intellij.dbn.common.cache.Cache;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.database.DatabaseInfo;
 import com.dci.intellij.dbn.common.dispose.Nullifiable;
@@ -15,6 +16,7 @@ import com.dci.intellij.dbn.connection.console.DatabaseConsoleBundle;
 import com.dci.intellij.dbn.connection.info.ConnectionInfo;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.session.DatabaseSessionBundle;
+import com.dci.intellij.dbn.database.DatabaseCompatibility;
 import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionQueue;
 import com.dci.intellij.dbn.language.common.DBLanguage;
@@ -58,10 +60,13 @@ public interface ConnectionHandler extends RegisteredDisposable, EnvironmentType
     @NotNull
     DBNConnection getPoolConnection(@Nullable SchemaId schemaId, boolean readonly) throws SQLException;
 
+    void setCurrentSchema(DBNConnection connection, @Nullable SchemaId schema) throws SQLException;
+
     void closeConnection(DBNConnection connection);
 
     void freePoolConnection(DBNConnection connection);
 
+    @NotNull
     ConnectionSettings getSettings();
 
     void setSettings(ConnectionSettings connectionSettings);
@@ -87,6 +92,8 @@ public interface ConnectionHandler extends RegisteredDisposable, EnvironmentType
 
     @Nullable
     ConnectionInfo getConnectionInfo();
+
+    default Cache getMetaDataCache(){ return null;}
 
     @NotNull
     String getConnectionName(@Nullable DBNConnection connection);
@@ -146,6 +153,7 @@ public interface ConnectionHandler extends RegisteredDisposable, EnvironmentType
     ConnectionHandlerRef getRef();
 
     DatabaseInfo getDatabaseInfo();
+
     AuthenticationInfo getAuthenticationInfo();
 
     @Deprecated
@@ -160,4 +168,8 @@ public interface ConnectionHandler extends RegisteredDisposable, EnvironmentType
     static List<ConnectionId> ids(List<ConnectionHandler> connectionHandlers) {
         return CollectionUtil.map(connectionHandlers, (connectionHandler) -> connectionHandler.getConnectionId()) ;
     }
+
+    DatabaseCompatibility getCompatibility();
+
+    default void resetCompatibilityMonitor(){};
 }

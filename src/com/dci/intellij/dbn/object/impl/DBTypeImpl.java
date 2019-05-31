@@ -13,6 +13,11 @@ import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.data.type.DBDataType;
 import com.dci.intellij.dbn.data.type.DBNativeDataType;
 import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
+import com.dci.intellij.dbn.database.common.metadata.def.DBDataTypeMetadata;
+import com.dci.intellij.dbn.database.common.metadata.def.DBFunctionMetadata;
+import com.dci.intellij.dbn.database.common.metadata.def.DBProcedureMetadata;
+import com.dci.intellij.dbn.database.common.metadata.def.DBTypeAttributeMetadata;
+import com.dci.intellij.dbn.database.common.metadata.def.DBTypeMetadata;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.DBType;
@@ -20,19 +25,17 @@ import com.dci.intellij.dbn.object.DBTypeAttribute;
 import com.dci.intellij.dbn.object.DBTypeFunction;
 import com.dci.intellij.dbn.object.DBTypeProcedure;
 import com.dci.intellij.dbn.object.common.DBObject;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationList;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationListImpl;
-import com.dci.intellij.dbn.object.common.loader.DBObjectTimestampLoader;
-import com.dci.intellij.dbn.object.common.loader.DBSourceCodeLoader;
 import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatus;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.object.properties.DBDataTypePresentableProperty;
 import com.dci.intellij.dbn.object.properties.PresentableProperty;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -43,9 +46,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static com.dci.intellij.dbn.object.common.DBObjectType.*;
+import static com.dci.intellij.dbn.object.type.DBObjectType.*;
 
-public class DBTypeImpl extends DBProgramImpl implements DBType {
+public class DBTypeImpl
+        extends DBProgramImpl<DBTypeMetadata, DBTypeProcedure, DBTypeFunction>
+        implements DBType<DBTypeProcedure, DBTypeFunction> {
+
     private static final List<DBTypeAttribute> EMPTY_ATTRIBUTE_LIST = Collections.unmodifiableList(new ArrayList<>(0));
 
     protected DBObjectList<DBTypeAttribute> attributes;
@@ -60,31 +66,35 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
 
     private DBNativeDataType nativeDataType;
 
-    DBTypeImpl(DBSchemaObject parent, ResultSet resultSet) throws SQLException {
+    DBTypeImpl(DBSchemaObject parent, DBTypeMetadata metadata) throws SQLException {
         // type functions are not editable independently
-        super(parent, resultSet);
+        super(parent, metadata);
         assert this.getClass() != DBTypeImpl.class;
     }
 
-    DBTypeImpl(DBSchema schema, ResultSet resultSet) throws SQLException {
-        super(schema, resultSet);
+    DBTypeImpl(DBSchema schema, DBTypeMetadata metadata) throws SQLException {
+        super(schema, metadata);
     }
 
     @Override
-    protected String initObject(ResultSet resultSet) throws SQLException {
-        String name = resultSet.getString("TYPE_NAME");
-        superTypeOwner = resultSet.getString("SUPERTYPE_OWNER");
-        superTypeName = resultSet.getString("SUPERTYPE_NAME");
+    protected String initObject(DBTypeMetadata metadata) throws SQLException {
+        String name = metadata.getTypeName();
+        superTypeOwner = metadata.getSupertypeOwner();
+        superTypeName = metadata.getSupertypeName();
 
-        String typecode = resultSet.getString("TYPECODE");
-        set(DBObjectProperty.COLLECTION, "COLLECTION".equals(typecode));
+        String typeCode = metadata.getTypeCode();
+        boolean collection = metadata.isCollection();
+        set(DBObjectProperty.COLLECTION, collection);
+
         ConnectionHandler connectionHandler = getConnectionHandler();
-        nativeDataType = connectionHandler.getObjectBundle().getNativeDataType(typecode);
-        if (isCollection()) {
-            collectionElementTypeRef = new DBDataType.Ref(resultSet,  "COLLECTION_");
+        nativeDataType = connectionHandler.getObjectBundle().getNativeDataType(typeCode);
+        if (collection) {
+            DBDataTypeMetadata collectionMetadata = metadata.getDataType().collection();
+            collectionElementTypeRef = new DBDataType.Ref(collectionMetadata);
         }
         return name;
     }
+
 
     @Override
     protected void initLists() {
@@ -212,7 +222,7 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
      *                         Loaders                       *
      *********************************************************/
     static {
-        new DynamicSubcontentLoader<DBTypeAttribute>(TYPE, TYPE_ATTRIBUTE, true) {
+        new DynamicSubcontentLoader<DBTypeAttribute, DBTypeAttributeMetadata>(TYPE, TYPE_ATTRIBUTE, true) {
 
             @Override
             public boolean match(DBTypeAttribute typeAttribute, DynamicContent dynamicContent) {
@@ -221,8 +231,8 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
             }
 
             @Override
-            public DynamicContentLoader<DBTypeAttribute> createAlternativeLoader() {
-                return new DynamicContentResultSetLoader<DBTypeAttribute>(TYPE, TYPE_ATTRIBUTE, false, true) {
+            public DynamicContentLoader<DBTypeAttribute, DBTypeAttributeMetadata> createAlternativeLoader() {
+                return new DynamicContentResultSetLoader<DBTypeAttribute, DBTypeAttributeMetadata>(TYPE, TYPE_ATTRIBUTE, false, true) {
 
                     @Override
                     public ResultSet createResultSet(DynamicContent<DBTypeAttribute> dynamicContent, DBNConnection connection) throws SQLException {
@@ -232,16 +242,16 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
                     }
 
                     @Override
-                    public DBTypeAttribute createElement(DynamicContent<DBTypeAttribute> dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
-                        DBTypeImpl type = (DBTypeImpl) dynamicContent.getParentElement();
-                        return new DBTypeAttributeImpl(type, resultSet);
+                    public DBTypeAttribute createElement(DynamicContent<DBTypeAttribute> content, DBTypeAttributeMetadata metadata, LoaderCache cache) throws SQLException {
+                        DBTypeImpl type = (DBTypeImpl) content.getParentElement();
+                        return new DBTypeAttributeImpl(type, metadata);
                     }
                 };
 
             }
         };
 
-        new DynamicSubcontentLoader<DBTypeFunction>(TYPE, TYPE_FUNCTION, true) {
+        new DynamicSubcontentLoader<DBTypeFunction, DBFunctionMetadata>(TYPE, TYPE_FUNCTION, true) {
 
             @Override
             public boolean match(DBTypeFunction function, DynamicContent dynamicContent) {
@@ -250,8 +260,8 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
             }
 
             @Override
-            public DynamicContentLoader<DBTypeFunction> createAlternativeLoader() {
-                return new DynamicContentResultSetLoader<DBTypeFunction>(TYPE, TYPE_FUNCTION, false, true) {
+            public DynamicContentLoader<DBTypeFunction, DBFunctionMetadata> createAlternativeLoader() {
+                return new DynamicContentResultSetLoader<DBTypeFunction, DBFunctionMetadata>(TYPE, TYPE_FUNCTION, false, true) {
 
                     @Override
                     public ResultSet createResultSet(DynamicContent<DBTypeFunction> dynamicContent, DBNConnection connection) throws SQLException {
@@ -261,15 +271,15 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
                     }
 
                     @Override
-                    public DBTypeFunction createElement(DynamicContent<DBTypeFunction> dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
-                        DBType type = (DBType) dynamicContent.getParentElement();
-                        return new DBTypeFunctionImpl(type, resultSet);
+                    public DBTypeFunction createElement(DynamicContent<DBTypeFunction> content, DBFunctionMetadata metadata, LoaderCache cache) throws SQLException {
+                        DBType type = (DBType) content.getParentElement();
+                        return new DBTypeFunctionImpl(type, metadata);
                     }
                 };
             }
         };
 
-        new DynamicSubcontentLoader<DBTypeProcedure>(TYPE, TYPE_PROCEDURE, true) {
+        new DynamicSubcontentLoader<DBTypeProcedure, DBProcedureMetadata>(TYPE, TYPE_PROCEDURE, true) {
 
             @Override
             public boolean match(DBTypeProcedure procedure, DynamicContent dynamicContent) {
@@ -278,8 +288,8 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
             }
 
             @Override
-            public DynamicContentLoader<DBTypeProcedure> createAlternativeLoader() {
-                return new DynamicContentResultSetLoader<DBTypeProcedure>(TYPE, TYPE_PROCEDURE, false, true) {
+            public DynamicContentLoader<DBTypeProcedure, DBProcedureMetadata> createAlternativeLoader() {
+                return new DynamicContentResultSetLoader<DBTypeProcedure, DBProcedureMetadata>(TYPE, TYPE_PROCEDURE, false, true) {
 
                     @Override
                     public ResultSet createResultSet(DynamicContent<DBTypeProcedure> dynamicContent, DBNConnection connection) throws SQLException {
@@ -289,15 +299,15 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
                     }
 
                     @Override
-                    public DBTypeProcedure createElement(DynamicContent<DBTypeProcedure> dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
-                        DBType type = (DBType) dynamicContent.getParentElement();
-                        return new DBTypeProcedureImpl(type, resultSet);
+                    public DBTypeProcedure createElement(DynamicContent<DBTypeProcedure> content, DBProcedureMetadata metadata, LoaderCache cache) throws SQLException {
+                        DBType type = (DBType) content.getParentElement();
+                        return new DBTypeProcedureImpl(type, metadata);
                     }
                 };
             }
         };
 
-        new DynamicSubcontentLoader<DBType>(TYPE, TYPE, false) {
+        new DynamicSubcontentLoader<DBType, DBTypeMetadata>(TYPE, TYPE, false) {
 
             @Override
             public boolean match(DBType type, DynamicContent dynamicContent) {
@@ -307,52 +317,10 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
             }
 
             @Override
-            public DynamicContentLoader<DBType> createAlternativeLoader() {
+            public DynamicContentLoader<DBType, DBTypeMetadata> createAlternativeLoader() {
                 return null;
             }
         };
-    }
-
-
-
-    private class SpecSourceCodeLoader extends DBSourceCodeLoader {
-        SpecSourceCodeLoader(DBObject object) {
-            super(object, false);
-        }
-
-        @Override
-        public ResultSet loadSourceCode(DBNConnection connection) throws SQLException {
-            DatabaseMetadataInterface metadataInterface = getConnectionHandler().getInterfaceProvider().getMetadataInterface();
-            return metadataInterface.loadObjectSourceCode(getSchema().getName(), getName(), "TYPE", connection);
-        }
-    }
-
-    private class BodySourceCodeLoader extends DBSourceCodeLoader {
-        BodySourceCodeLoader(DBObject object) {
-            super(object, true);
-        }
-
-        @Override
-        public ResultSet loadSourceCode(DBNConnection connection) throws SQLException {
-            ConnectionHandler connectionHandler = getConnectionHandler();
-            DatabaseMetadataInterface metadataInterface = connectionHandler.getInterfaceProvider().getMetadataInterface();
-            return metadataInterface.loadObjectSourceCode(getSchema().getName(), getName(), "TYPE BODY", connection);
-        }
-    }
-
-    private static DBObjectTimestampLoader SPEC_TIMESTAMP_LOADER = new DBObjectTimestampLoader("TYPE") {};
-    private static DBObjectTimestampLoader BODY_TIMESTAMP_LOADER = new DBObjectTimestampLoader("TYPE BODY") {};
-
-   /*********************************************************
-    *                   DBEditableObject                    *
-    *********************************************************/
-    @Override
-    public String loadCodeFromDatabase(DBContentType contentType) throws SQLException {
-       DBSourceCodeLoader loader =
-               contentType == DBContentType.CODE_SPEC ? new SpecSourceCodeLoader(this) :
-               contentType == DBContentType.CODE_BODY ? new BodySourceCodeLoader(this) : null;
-
-       return loader == null ? null : loader.load();
     }
 
     @Override
@@ -398,15 +366,6 @@ public class DBTypeImpl extends DBProgramImpl implements DBType {
             }
         }
 
-
-
         return objectNavigationLists;
     }
-
-    @Override
-    public DBObjectTimestampLoader getTimestampLoader(DBContentType contentType) {
-        return contentType == DBContentType.CODE_SPEC ? SPEC_TIMESTAMP_LOADER :
-               contentType == DBContentType.CODE_BODY ? BODY_TIMESTAMP_LOADER : null;
-    }
-
 }

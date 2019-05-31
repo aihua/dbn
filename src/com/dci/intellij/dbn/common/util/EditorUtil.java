@@ -164,16 +164,14 @@ public class EditorUtil {
     public static BasicTextEditor getTextEditor(DBSourceCodeVirtualFile sourceCodeVirtualFile) {
         DBEditableObjectVirtualFile databaseFile = sourceCodeVirtualFile.getMainDatabaseFile();
         Project project = databaseFile.getProject();
-        if (project != null) {
-            FileEditorManager editorManager = FileEditorManager.getInstance(project);
-            FileEditor[] fileEditors = editorManager.getEditors(databaseFile);
-            for (FileEditor fileEditor : fileEditors) {
-                if (fileEditor instanceof BasicTextEditor) {
-                    BasicTextEditor basicTextEditor = (BasicTextEditor) fileEditor;
-                    VirtualFile file = FileDocumentManager.getInstance().getFile(basicTextEditor.getEditor().getDocument());
-                    if (file!= null && file.equals(sourceCodeVirtualFile)) {
-                        return basicTextEditor;
-                    }
+        FileEditorManager editorManager = FileEditorManager.getInstance(project);
+        FileEditor[] fileEditors = editorManager.getEditors(databaseFile);
+        for (FileEditor fileEditor : fileEditors) {
+            if (fileEditor instanceof BasicTextEditor) {
+                BasicTextEditor basicTextEditor = (BasicTextEditor) fileEditor;
+                VirtualFile file = FileDocumentManager.getInstance().getFile(basicTextEditor.getEditor().getDocument());
+                if (file!= null && file.equals(sourceCodeVirtualFile)) {
+                    return basicTextEditor;
                 }
             }
         }
@@ -215,7 +213,7 @@ public class EditorUtil {
         editor.setViewer(readonly);
         EditorColorsScheme scheme = editor.getColorsScheme();
         Color defaultBackground = scheme.getDefaultBackground();
-        Dispatch.invoke(() -> {
+        Dispatch.run(() -> {
             editor.setBackgroundColor(readonly ? GUIUtil.adjustColor(defaultBackground, -0.03) : defaultBackground);
             scheme.setColor(EditorColors.CARET_ROW_COLOR, readonly ?
                     GUIUtil.adjustColor(defaultBackground, -0.03) :
@@ -231,7 +229,7 @@ public class EditorUtil {
             Read.run(() -> {
                 FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
                 FileEditor[] allEditors = fileEditorManager.getAllEditors();
-                Dispatch.invoke(() -> {
+                Dispatch.run(() -> {
                     for (FileEditor fileEditor : allEditors) {
                         if (fileEditor instanceof SourceCodeEditor) {
                             SourceCodeEditor sourceCodeEditor = (SourceCodeEditor) fileEditor;
@@ -262,16 +260,14 @@ public class EditorUtil {
     @Nullable
     public static BasicTextEditor getTextEditor(DBConsoleVirtualFile consoleVirtualFile) {
         Project project = consoleVirtualFile.getProject();
-        if (project != null) {
-            FileEditorManager editorManager = FileEditorManager.getInstance(project);
-            FileEditor[] fileEditors = editorManager.getEditors(consoleVirtualFile);
-            for (FileEditor fileEditor : fileEditors) {
-                if (fileEditor instanceof BasicTextEditor) {
-                    BasicTextEditor basicTextEditor = (BasicTextEditor) fileEditor;
-                    VirtualFile file = FileDocumentManager.getInstance().getFile(basicTextEditor.getEditor().getDocument());
-                    if (file!= null && file.equals(consoleVirtualFile)) {
-                        return basicTextEditor;
-                    }
+        FileEditorManager editorManager = FileEditorManager.getInstance(project);
+        FileEditor[] fileEditors = editorManager.getEditors(consoleVirtualFile);
+        for (FileEditor fileEditor : fileEditors) {
+            if (fileEditor instanceof BasicTextEditor) {
+                BasicTextEditor basicTextEditor = (BasicTextEditor) fileEditor;
+                VirtualFile file = FileDocumentManager.getInstance().getFile(basicTextEditor.getEditor().getDocument());
+                if (file!= null && file.equals(consoleVirtualFile)) {
+                    return basicTextEditor;
                 }
             }
         }
@@ -347,7 +343,7 @@ public class EditorUtil {
     }
     public static void focusEditor(@Nullable Editor editor) {
         if (editor != null) {
-            Dispatch.invoke(() -> {
+            Dispatch.run(() -> {
                 Project project = editor.getProject();
                 IdeFocusManager ideFocusManager = IdeFocusManager.getInstance(project);
                 ideFocusManager.requestFocus(editor.getContentComponent(), true);
@@ -404,7 +400,7 @@ public class EditorUtil {
 
     public static void releaseEditor(@Nullable Editor editor) {
         if (editor != null) {
-            Dispatch.conditional(() -> {
+            Dispatch.runConditional(() -> {
                 EditorFactory editorFactory = EditorFactory.getInstance();
                 editorFactory.releaseEditor(editor);
             });

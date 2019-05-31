@@ -12,8 +12,8 @@ import com.dci.intellij.dbn.ddl.options.DDLFileExtensionSettings;
 import com.dci.intellij.dbn.ddl.options.DDLFileSettings;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.language.common.DBLanguageFileType;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.vfs.file.DBSourceCodeVirtualFile;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
@@ -82,12 +82,10 @@ public class DDLFileManager extends AbstractProjectComponent implements Persiste
         DBSchemaObject object = sourceCodeFile.getObject();
         String content = sourceCodeFile.getOriginalContent().toString().trim();
         if (content.length() > 0) {
-            Project project = getProject();
-
             ConnectionHandler connectionHandler = object.getConnectionHandler();
             String alternativeStatementDelimiter = connectionHandler.getSettings().getDetailSettings().getAlternativeStatementDelimiter();
             DatabaseDDLInterface ddlInterface = connectionHandler.getInterfaceProvider().getDDLInterface();
-            return ddlInterface.createDDLStatement(project,
+            return ddlInterface.createDDLStatement(getProject(),
                     object.getObjectType().getTypeId(),
                     connectionHandler.getUserName(),
                     object.getSchema().getName(),
@@ -179,7 +177,7 @@ public class DDLFileManager extends AbstractProjectComponent implements Persiste
 
     @Override
     public void projectOpened() {
-        Dispatch.invokeNonModal(() -> registerExtensions(getExtensionSettings()));
+        Dispatch.run(() -> registerExtensions(getExtensionSettings()));
     }
 
     @Override

@@ -5,6 +5,7 @@ import com.dci.intellij.dbn.browser.ui.HtmlToolTipBuilder;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.data.type.DBDataType;
+import com.dci.intellij.dbn.database.common.metadata.def.DBColumnMetadata;
 import com.dci.intellij.dbn.object.DBColumn;
 import com.dci.intellij.dbn.object.DBConstraint;
 import com.dci.intellij.dbn.object.DBDataset;
@@ -14,8 +15,6 @@ import com.dci.intellij.dbn.object.DBTable;
 import com.dci.intellij.dbn.object.DBType;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBObjectImpl;
-import com.dci.intellij.dbn.object.common.DBObjectRelationType;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationList;
@@ -28,41 +27,42 @@ import com.dci.intellij.dbn.object.properties.DBDataTypePresentableProperty;
 import com.dci.intellij.dbn.object.properties.DBObjectPresentableProperty;
 import com.dci.intellij.dbn.object.properties.PresentableProperty;
 import com.dci.intellij.dbn.object.properties.SimplePresentableProperty;
+import com.dci.intellij.dbn.object.type.DBObjectRelationType;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static com.dci.intellij.dbn.object.common.DBObjectType.*;
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.*;
+import static com.dci.intellij.dbn.object.type.DBObjectType.*;
 
-public class DBColumnImpl extends DBObjectImpl implements DBColumn {
+public class DBColumnImpl extends DBObjectImpl<DBColumnMetadata> implements DBColumn {
     private DBDataType dataType;
     private int position;
 
     private DBObjectList<DBConstraint> constraints;
     private DBObjectList<DBIndex> indexes;
 
-    DBColumnImpl(@NotNull DBDataset dataset, ResultSet resultSet) throws SQLException {
-        super(dataset, resultSet);
+    DBColumnImpl(@NotNull DBDataset dataset, DBColumnMetadata metadata) throws SQLException {
+        super(dataset, metadata);
     }
 
     @Override
-    protected String initObject(ResultSet resultSet) throws SQLException {
-        String name = resultSet.getString("COLUMN_NAME");
-        set(PRIMARY_KEY, "Y".equals(resultSet.getString("IS_PRIMARY_KEY")));
-        set(FOREIGN_KEY, "Y".equals(resultSet.getString("IS_FOREIGN_KEY")));
-        set(UNIQUE_KEY, "Y".equals(resultSet.getString("IS_UNIQUE_KEY")));
-        set(NULLABLE, "Y".equals(resultSet.getString("IS_NULLABLE")));
-        set(HIDDEN, "Y".equals(resultSet.getString("IS_HIDDEN")));
-        position = resultSet.getInt("POSITION");
+    protected String initObject(DBColumnMetadata metadata) throws SQLException {
+        String name = metadata.getColumnName();
+        set(PRIMARY_KEY, metadata.isPrimaryKey());
+        set(FOREIGN_KEY, metadata.isForeignKey());
+        set(UNIQUE_KEY, metadata.isUniqueKey());
+        set(NULLABLE, metadata.isNullable());
+        set(HIDDEN, metadata.isHidden());
+        position = metadata.getPosition();
 
-        dataType = DBDataType.get(this.getConnectionHandler(), resultSet);
+        dataType = DBDataType.get(this.getConnectionHandler(), metadata.getDataType());
         return name;
     }
 
@@ -198,7 +198,9 @@ public class DBColumnImpl extends DBObjectImpl implements DBColumn {
                     childObjectRelations.getObjectRelationList(DBObjectRelationType.CONSTRAINT_COLUMN);
             if (constraintColumnRelations != null) {
                 for (DBConstraintColumnRelation relation : constraintColumnRelations.getObjectRelations()) {
-                    if (relation.getColumn().equals(this) && relation.getConstraint().equals(constraint))
+                    DBColumn relationColumn = relation.getColumn();
+                    DBConstraint relationConstraint = relation.getConstraint();
+                    if (relationColumn != null && relationConstraint != null && relationColumn.equals(this) && relationConstraint.equals(constraint))
                         return relation.getPosition();
                 }
             }
@@ -214,7 +216,8 @@ public class DBColumnImpl extends DBObjectImpl implements DBColumn {
                     childObjectRelations.getObjectRelationList(DBObjectRelationType.CONSTRAINT_COLUMN);
             if (constraintColumnRelations != null) {
                 for (DBConstraintColumnRelation relation : constraintColumnRelations.getObjectRelations()) {
-                    if (relation.getColumn().equals(this) && relation.getPosition() == position) {
+                    DBColumn relationColumn = relation.getColumn();
+                    if (relationColumn != null && relationColumn.equals(this) && relation.getPosition() == position) {
                         return relation.getConstraint();
                     }
                 }

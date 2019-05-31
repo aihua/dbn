@@ -10,7 +10,6 @@ import com.dci.intellij.dbn.browser.ui.HtmlToolTipBuilder;
 import com.dci.intellij.dbn.code.common.lookup.LookupItemBuilder;
 import com.dci.intellij.dbn.code.common.lookup.ObjectLookupItemBuilder;
 import com.dci.intellij.dbn.common.content.DynamicContent;
-import com.dci.intellij.dbn.common.content.DynamicContentElement;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentResultSetLoader;
 import com.dci.intellij.dbn.common.dispose.Disposer;
@@ -22,6 +21,7 @@ import com.dci.intellij.dbn.common.latent.MapLatent;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.lookup.ConsumerStoppedException;
 import com.dci.intellij.dbn.common.lookup.LookupConsumer;
+import com.dci.intellij.dbn.common.notification.NotificationGroup;
 import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.Progress;
@@ -43,6 +43,13 @@ import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
 import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
 import com.dci.intellij.dbn.database.DatabaseObjectIdentifier;
+import com.dci.intellij.dbn.database.common.metadata.def.DBCharsetMetadata;
+import com.dci.intellij.dbn.database.common.metadata.def.DBGrantedPrivilegeMetadata;
+import com.dci.intellij.dbn.database.common.metadata.def.DBGrantedRoleMetadata;
+import com.dci.intellij.dbn.database.common.metadata.def.DBPrivilegeMetadata;
+import com.dci.intellij.dbn.database.common.metadata.def.DBRoleMetadata;
+import com.dci.intellij.dbn.database.common.metadata.def.DBSchemaMetadata;
+import com.dci.intellij.dbn.database.common.metadata.def.DBUserMetadata;
 import com.dci.intellij.dbn.editor.code.SourceCodeEditor;
 import com.dci.intellij.dbn.editor.code.SourceCodeManagerAdapter;
 import com.dci.intellij.dbn.editor.code.SourceCodeManagerListener;
@@ -78,6 +85,8 @@ import com.dci.intellij.dbn.object.impl.DBUserImpl;
 import com.dci.intellij.dbn.object.impl.DBUserPrivilegeRelation;
 import com.dci.intellij.dbn.object.impl.DBUserRoleRelation;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
+import com.dci.intellij.dbn.object.type.DBObjectRelationType;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.vfs.file.DBObjectVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBSourceCodeVirtualFile;
 import com.intellij.navigation.ItemPresentation;
@@ -95,8 +104,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import static com.dci.intellij.dbn.object.common.DBObjectRelationType.*;
-import static com.dci.intellij.dbn.object.common.DBObjectType.*;
+import static com.dci.intellij.dbn.object.type.DBObjectRelationType.*;
+import static com.dci.intellij.dbn.object.type.DBObjectType.*;
 
 @Nullifiable
 public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectBundle, NotificationSupport {
@@ -499,7 +508,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
     @Override
     public String getPresentableTextDetails() {
-        //return getConnectionHandler().isAutoCommit() ? "[Auto Commit]" : null;
+        //return getCache().isAutoCommit() ? "[Auto Commit]" : null;
         return null;
     }
 
@@ -558,7 +567,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     @NotNull
     @Override
     public String getName() {
-        return getPresentableText();
+        return CommonUtil.nvl(getPresentableText(), "Object Bundle");
     }
 
     @Override
@@ -713,7 +722,9 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
                                 schema.refreshObjectsStatus();
                             }
                         } catch (SQLException e) {
-                            sendErrorNotification("Object Status Refresh", "Could not refresh object status. Cause: " + e.getMessage());
+                            sendErrorNotification(
+                                    NotificationGroup.BROWSER,
+                                    "Error refreshing object status: {0}", e);
                         }
                     });
         }
@@ -783,7 +794,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
      *                         Loaders                       *
      *********************************************************/
     static {
-        new DynamicContentResultSetLoader<DBSchema>(null, SCHEMA, true, true) {
+        new DynamicContentResultSetLoader<DBSchema, DBSchemaMetadata>(null, SCHEMA, true, true) {
             @Override
             public ResultSet createResultSet(DynamicContent<DBSchema> dynamicContent, DBNConnection connection) throws SQLException {
                 DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
@@ -791,12 +802,12 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             }
 
             @Override
-            public DBSchema createElement(DynamicContent<DBSchema> dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
-                return new DBSchemaImpl(dynamicContent.getConnectionHandler(), resultSet);
+            public DBSchema createElement(DynamicContent<DBSchema> content, DBSchemaMetadata metadata, LoaderCache cache) throws SQLException {
+                return new DBSchemaImpl(content.getConnectionHandler(), metadata);
             }
         };
 
-        new DynamicContentResultSetLoader<DBUser>(null, USER, true, true) {
+        new DynamicContentResultSetLoader<DBUser, DBUserMetadata>(null, USER, true, true) {
             @Override
             public ResultSet createResultSet(DynamicContent<DBUser> dynamicContent, DBNConnection connection) throws SQLException {
                 DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
@@ -804,12 +815,12 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             }
 
             @Override
-            public DBUser createElement(DynamicContent<DBUser> dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
-                return new DBUserImpl(dynamicContent.getConnectionHandler(), resultSet);
+            public DBUser createElement(DynamicContent<DBUser> content, DBUserMetadata metadata, LoaderCache cache) throws SQLException {
+                return new DBUserImpl(content.getConnectionHandler(), metadata);
             }
         };
 
-        new DynamicContentResultSetLoader<DBRole>(null, ROLE, true, true) {
+        new DynamicContentResultSetLoader<DBRole, DBRoleMetadata>(null, ROLE, true, true) {
             @Override
             public ResultSet createResultSet(DynamicContent<DBRole> dynamicContent, DBNConnection connection) throws SQLException {
                 DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
@@ -817,12 +828,12 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             }
 
             @Override
-            public DBRole createElement(DynamicContent<DBRole> dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
-                return new DBRoleImpl(dynamicContent.getConnectionHandler(), resultSet);
+            public DBRole createElement(DynamicContent<DBRole> content, DBRoleMetadata metadata, LoaderCache cache) throws SQLException {
+                return new DBRoleImpl(content.getConnectionHandler(), metadata);
             }
         };
 
-        new DynamicContentResultSetLoader<DBSystemPrivilege>(null, SYSTEM_PRIVILEGE, true, true) {
+        new DynamicContentResultSetLoader<DBSystemPrivilege, DBPrivilegeMetadata>(null, SYSTEM_PRIVILEGE, true, true) {
             @Override
             public ResultSet createResultSet(DynamicContent<DBSystemPrivilege> dynamicContent, DBNConnection connection) throws SQLException {
                 DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
@@ -830,12 +841,12 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             }
 
             @Override
-            public DBSystemPrivilege createElement(DynamicContent<DBSystemPrivilege> dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
-                return new DBSystemPrivilegeImpl(dynamicContent.getConnectionHandler(), resultSet);
+            public DBSystemPrivilege createElement(DynamicContent<DBSystemPrivilege> content, DBPrivilegeMetadata metadata, LoaderCache cache) throws SQLException {
+                return new DBSystemPrivilegeImpl(content.getConnectionHandler(), metadata);
             }
         };
 
-        new DynamicContentResultSetLoader<DBObjectPrivilege>(null, OBJECT_PRIVILEGE, true, true) {
+        new DynamicContentResultSetLoader<DBObjectPrivilege, DBPrivilegeMetadata>(null, OBJECT_PRIVILEGE, true, true) {
             @Override
             public ResultSet createResultSet(DynamicContent<DBObjectPrivilege> dynamicContent, DBNConnection connection) throws SQLException {
                 DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
@@ -843,12 +854,12 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             }
 
             @Override
-            public DBObjectPrivilege createElement(DynamicContent<DBObjectPrivilege> dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
-                return new DBObjectPrivilegeImpl(dynamicContent.getConnectionHandler(), resultSet);
+            public DBObjectPrivilege createElement(DynamicContent<DBObjectPrivilege> content, DBPrivilegeMetadata metadata, LoaderCache cache) throws SQLException {
+                return new DBObjectPrivilegeImpl(content.getConnectionHandler(), metadata);
             }
         };
 
-        new DynamicContentResultSetLoader<DBCharset>(null, CHARSET, true, true) {
+        new DynamicContentResultSetLoader<DBCharset, DBCharsetMetadata>(null, CHARSET, true, true) {
             @Override
             public ResultSet createResultSet(DynamicContent<DBCharset> dynamicContent, DBNConnection connection) throws SQLException {
                 DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
@@ -856,12 +867,12 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             }
 
             @Override
-            public DBCharset createElement(DynamicContent<DBCharset> dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
-                return new DBCharsetImpl(dynamicContent.getConnectionHandler(), resultSet);
+            public DBCharset createElement(DynamicContent<DBCharset> content, DBCharsetMetadata metadata, LoaderCache cache) throws SQLException {
+                return new DBCharsetImpl(content.getConnectionHandler(), metadata);
             }
         };
 
-        new DynamicContentResultSetLoader(null, USER_ROLE, true, true) {
+        new DynamicContentResultSetLoader<DBUserRoleRelation, DBGrantedRoleMetadata>(null, USER_ROLE, true, true) {
             @Override
             public ResultSet createResultSet(DynamicContent dynamicContent, DBNConnection connection) throws SQLException {
                 DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
@@ -869,20 +880,20 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             }
 
             @Override
-            public DynamicContentElement createElement(DynamicContent dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
-                String userName = resultSet.getString("USER_NAME");
+            public DBUserRoleRelation createElement(DynamicContent<DBUserRoleRelation> content, DBGrantedRoleMetadata metadata, LoaderCache cache) throws SQLException {
+                String userName = metadata.getUserName();
 
-                DBObjectBundle objectBundle = (DBObjectBundle) dynamicContent.getParentElement();
+                DBObjectBundle objectBundle = (DBObjectBundle) content.getParentElement();
                 DBUser user = objectBundle.getUser(userName);
                 if (user != null) {
-                    DBGrantedRole role = new DBGrantedRoleImpl(user, resultSet);
+                    DBGrantedRole role = new DBGrantedRoleImpl(user, metadata);
                     return new DBUserRoleRelation(user, role);
                 }
                 return null;
             }
         };
 
-        new DynamicContentResultSetLoader(null, USER_PRIVILEGE, true, true) {
+        new DynamicContentResultSetLoader<DBUserPrivilegeRelation, DBGrantedPrivilegeMetadata>(null, USER_PRIVILEGE, true, true) {
             @Override
             public ResultSet createResultSet(DynamicContent dynamicContent, DBNConnection connection) throws SQLException {
                 DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
@@ -890,20 +901,20 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             }
 
             @Override
-            public DynamicContentElement createElement(DynamicContent dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
-                String userName = resultSet.getString("USER_NAME");
+            public DBUserPrivilegeRelation createElement(DynamicContent<DBUserPrivilegeRelation> content, DBGrantedPrivilegeMetadata metadata, LoaderCache cache) throws SQLException {
+                String userName = metadata.getUserName();
 
-                DBObjectBundle objectBundle = (DBObjectBundle) dynamicContent.getParentElement();
+                DBObjectBundle objectBundle = (DBObjectBundle) content.getParentElement();
                 DBUser user = objectBundle.getUser(userName);
                 if (user != null) {
-                    DBGrantedPrivilege privilege = new DBGrantedPrivilegeImpl(user, resultSet);
+                    DBGrantedPrivilege privilege = new DBGrantedPrivilegeImpl(user, metadata);
                     return new DBUserPrivilegeRelation(user, privilege);
                 }
                 return null;
             }
         };
 
-        new DynamicContentResultSetLoader(null, ROLE_ROLE, true, true) {
+        new DynamicContentResultSetLoader<DBRoleRoleRelation, DBGrantedRoleMetadata>(null, ROLE_ROLE, true, true) {
             @Override
             public ResultSet createResultSet(DynamicContent dynamicContent, DBNConnection connection) throws SQLException {
                 DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
@@ -911,20 +922,20 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             }
 
             @Override
-            public DynamicContentElement createElement(DynamicContent dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
-                String roleName = resultSet.getString("ROLE_NAME");
+            public DBRoleRoleRelation createElement(DynamicContent<DBRoleRoleRelation> content, DBGrantedRoleMetadata metadata, LoaderCache cache) throws SQLException {
+                String roleName = metadata.getRoleName();
 
-                DBObjectBundle objectBundle = (DBObjectBundle) dynamicContent.getParentElement();
+                DBObjectBundle objectBundle = (DBObjectBundle) content.getParentElement();
                 DBRole role = objectBundle.getRole(roleName);
                 if (role != null) {
-                    DBGrantedRole grantedRole = new DBGrantedRoleImpl(role, resultSet);
+                    DBGrantedRole grantedRole = new DBGrantedRoleImpl(role, metadata);
                     return new DBRoleRoleRelation(role, grantedRole);
                 }
                 return null;
             }
         };
 
-        new DynamicContentResultSetLoader(null, ROLE_PRIVILEGE, true, true) {
+        new DynamicContentResultSetLoader<DBRolePrivilegeRelation, DBGrantedPrivilegeMetadata>(null, ROLE_PRIVILEGE, true, true) {
             @Override
             public ResultSet createResultSet(DynamicContent dynamicContent, DBNConnection connection) throws SQLException {
                 DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
@@ -932,13 +943,13 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             }
 
             @Override
-            public DynamicContentElement createElement(DynamicContent dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
-                String userName = resultSet.getString("ROLE_NAME");
+            public DBRolePrivilegeRelation createElement(DynamicContent<DBRolePrivilegeRelation> content, DBGrantedPrivilegeMetadata metadata, LoaderCache cache) throws SQLException {
+                String userName = metadata.getRoleName();
 
-                DBObjectBundle objectBundle = (DBObjectBundle) dynamicContent.getParentElement();
+                DBObjectBundle objectBundle = (DBObjectBundle) content.getParentElement();
                 DBRole role = objectBundle.getRole(userName);
                 if (role != null) {
-                    DBGrantedPrivilege privilege = new DBGrantedPrivilegeImpl(role, resultSet);
+                    DBGrantedPrivilege privilege = new DBGrantedPrivilegeImpl(role, metadata);
                     return new DBRolePrivilegeRelation(role, privilege);
                 }
                 return null;

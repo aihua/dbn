@@ -10,16 +10,16 @@ import com.dci.intellij.dbn.common.util.ActionUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.execution.method.MethodExecutionManager;
 import com.dci.intellij.dbn.execution.method.browser.MethodBrowserSettings;
-import com.dci.intellij.dbn.execution.method.browser.action.SelectConnectionComboBoxAction;
-import com.dci.intellij.dbn.execution.method.browser.action.SelectSchemaComboBoxAction;
-import com.dci.intellij.dbn.execution.method.browser.action.ShowObjectTypeToggleAction;
+import com.dci.intellij.dbn.execution.method.browser.action.ConnectionSelectDropdownAction;
+import com.dci.intellij.dbn.execution.method.browser.action.ObjectTypeToggleAction;
+import com.dci.intellij.dbn.execution.method.browser.action.SchemaSelectDropdownAction;
 import com.dci.intellij.dbn.object.DBMethod;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObject;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.ui.ObjectTree;
 import com.dci.intellij.dbn.object.common.ui.ObjectTreeModel;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.openapi.actionSystem.ActionToolbar;
 import org.jetbrains.annotations.NotNull;
 
@@ -38,11 +38,11 @@ public class MethodExecutionBrowserForm extends DBNFormImpl<MethodExecutionBrows
     MethodExecutionBrowserForm(MethodExecutionBrowserDialog parentComponent, ObjectTreeModel model, boolean debug) {
         super(parentComponent);
         ActionToolbar actionToolbar = ActionUtil.createActionToolbar("", true,
-                new SelectConnectionComboBoxAction(this, debug),
-                new SelectSchemaComboBoxAction(this),
+                new ConnectionSelectDropdownAction(this, debug),
+                new SchemaSelectDropdownAction(this),
                 ActionUtil.SEPARATOR,
-                new ShowObjectTypeToggleAction(this, DBObjectType.PROCEDURE),
-                new ShowObjectTypeToggleAction(this, DBObjectType.FUNCTION));
+                new ObjectTypeToggleAction(this, DBObjectType.PROCEDURE),
+                new ObjectTypeToggleAction(this, DBObjectType.FUNCTION));
         actionsPanel.add(actionToolbar.getComponent(), BorderLayout.CENTER);
         methodsTree.setModel(model);
         TreePath selectionPath = model.getInitialSelection();
@@ -109,7 +109,7 @@ public class MethodExecutionBrowserForm extends DBNFormImpl<MethodExecutionBrows
                 (progress) -> {
                     MethodBrowserSettings settings = getSettings();
                     ObjectTreeModel model = new ObjectTreeModel(settings.getSchema(), settings.getVisibleObjectTypes(), null);
-                    Dispatch.invoke(() -> {
+                    Dispatch.run(() -> {
                         methodsTree.setModel(model);
                         GUIUtil.repaint(methodsTree);
                     });

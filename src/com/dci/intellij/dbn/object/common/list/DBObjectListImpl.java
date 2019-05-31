@@ -19,16 +19,18 @@ import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.GenericDatabaseElement;
 import com.dci.intellij.dbn.connection.config.ConnectionFilterSettings;
+import com.dci.intellij.dbn.database.common.metadata.DBObjectMetadata;
 import com.dci.intellij.dbn.navigation.psi.DBObjectListPsiDirectory;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObject;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.DBVirtualObject;
 import com.dci.intellij.dbn.object.common.sorting.DBObjectComparator;
 import com.dci.intellij.dbn.object.filter.quick.ObjectQuickFilter;
 import com.dci.intellij.dbn.object.filter.quick.ObjectQuickFilterManager;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiDirectory;
 import org.jetbrains.annotations.NotNull;
@@ -65,7 +67,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
     }
 
     @Override
-    public DynamicContentLoader<T> getLoader() {
+    public DynamicContentLoader<T, DBObjectMetadata> getLoader() {
         BrowserTreeNode parent = getParent();
         if (parent instanceof DBVirtualObject) {
             return DynamicContentLoader.VOID_CONTENT_LOADER;
@@ -250,7 +252,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
 
     @Override
     public void notifyChangeListeners() {
-        Failsafe.guarded(() -> {
+        try {
             Project project = getProject();
             BrowserTreeNode treeParent = getParent();
             if (isNot(INTERNAL) && isTouched() && Failsafe.check(project) && treeParent.isTreeStructureLoaded()) {
@@ -258,7 +260,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
                         BrowserTreeEventListener.TOPIC,
                         (listener) -> listener.nodeChanged(this, TreeEventType.STRUCTURE_CHANGED));
             }
-        });
+        } catch (ProcessCanceledException ignore) {}
     }
 
     /*********************************************************
@@ -330,10 +332,8 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
 
     @Override
     public List<? extends BrowserTreeNode> getChildren() {
-        if (isLoading() || isDisposed()) {
-            return elements;
-        } else {
-            return Failsafe.guarded(Collections.emptyList(), () -> {
+        try {
+            if (!isLoading() && !isDisposed()) {
                 boolean scroll = !isTouched();
                 if (!isLoaded() || isDirty()) {
                     loadInBackground();
@@ -344,9 +344,10 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
                     ConnectionHandler connectionHandler = getConnectionHandler();
                     DatabaseBrowserManager.scrollToSelectedElement(connectionHandler);
                 }
-                return elements;
-            });
-        }
+            }
+        } catch (ProcessCanceledException ignore) {}
+
+        return elements;
     }
 
     @Override
@@ -389,6 +390,11 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
 
     @Override
     public DBObjectType getObjectType() {
+        return objectType;
+    }
+
+    @Override
+    public DynamicContentType getContentType() {
         return objectType;
     }
 

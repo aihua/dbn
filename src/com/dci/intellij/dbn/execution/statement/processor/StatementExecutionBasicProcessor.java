@@ -56,10 +56,10 @@ import com.dci.intellij.dbn.language.common.psi.IdentifierPsiElement;
 import com.dci.intellij.dbn.language.common.psi.QualifiedIdentifierPsiElement;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObject;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.progress.ProcessCanceledException;
@@ -69,14 +69,11 @@ import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import javax.swing.*;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static com.dci.intellij.dbn.execution.ExecutionStatus.CANCELLED;
-import static com.dci.intellij.dbn.execution.ExecutionStatus.EXECUTING;
-import static com.dci.intellij.dbn.execution.ExecutionStatus.PROMPTED;
+import static com.dci.intellij.dbn.execution.ExecutionStatus.*;
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.COMPILABLE;
 
 @Nullifiable
@@ -92,6 +89,9 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     private StatementExecutionResult executionResult;
     protected int index;
 
+    private String name;
+    private Icon icon;
+
     private Latent<String> resultName = Latent.basic(() -> {
         String resultName = null;
         ExecutablePsiElement executablePsiElement = executionInput.getExecutablePsiElement();
@@ -104,14 +104,16 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
         return resultName;
     });
 
-
-
     public StatementExecutionBasicProcessor(@NotNull Project project, @NotNull FileEditor fileEditor, @NotNull ExecutablePsiElement psiElement, int index) {
+        DBLanguagePsiFile psiFile = psiElement.getFile();
+
         this.projectRef = ProjectRef.from(project);
         this.fileEditorRef = WeakRef.from(fileEditor);
-        this.psiFileRef = PsiFileRef.from(psiElement.getFile());
+        this.psiFileRef = PsiFileRef.from(psiFile);
 
         this.cachedExecutableRef = PsiElementRef.from(psiElement);
+        this.name = psiFile.getName();
+        this.icon = psiFile.getIcon();
         this.index = index;
         executionInput = new StatementExecutionInput(psiElement.getText(), psiElement.prepareStatementText(), this);
         initEditorProviderId(fileEditor);
@@ -121,11 +123,25 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
         this.projectRef = ProjectRef.from(project);
         this.fileEditorRef = WeakRef.from(fileEditor);
         this.psiFileRef = PsiFileRef.from(psiFile);
+        this.name = psiFile.getName();
+        this.icon = psiFile.getIcon();
         this.index = index;
         sqlStatement = sqlStatement.trim();
         executionInput = new StatementExecutionInput(sqlStatement, sqlStatement, this);
 
         initEditorProviderId(fileEditor);
+    }
+
+    @NotNull
+    @Override
+    public String getName() {
+        return name;
+    }
+
+    @Nullable
+    @Override
+    public Icon getIcon() {
+        return icon;
     }
 
     private void initEditorProviderId(FileEditor fileEditor) {
@@ -137,7 +153,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
 
     @Override
     public boolean isDirty(){
-        if (psiFileRef.get() == null ||
+        if (getPsiFile() == null ||
                 getConnectionHandler() != executionInput.getConnectionHandler() || // connection changed since execution
                 getTargetSchema() != executionInput.getTargetSchemaId()) { // current schema changed since execution)
             return true;
@@ -169,17 +185,28 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
         return getCachedExecutable() != null;
     }
 
+    @Nullable
     @Override
-    @NotNull
     public DBLanguagePsiFile getPsiFile() {
-        return psiFileRef.ensure();
+        DBLanguagePsiFile psiFile = psiFileRef.get();
+        if (psiFile == null) {
+            ExecutablePsiElement executablePsiElement = cachedExecutableRef.get();
+            if (executablePsiElement != null && executablePsiElement.isValid()) {
+                psiFile = executablePsiElement.getFile();
+                psiFileRef = PsiFileRef.from(psiFile);
+            }
+        }
+        return psiFile;
     }
 
+    @Nullable
     @Override
     public VirtualFile getVirtualFile() {
-        return getPsiFile().getVirtualFile();
+        DBLanguagePsiFile psiFile = getPsiFile();
+        return psiFile == null ? null : psiFile.getVirtualFile();
     }
 
+    @Nullable
     @Override
     public FileEditor getFileEditor() {
         return fileEditorRef.get();
@@ -492,7 +519,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
                 StatementExecutionManager executionManager = getExecutionManager();
                 executionManager.promptPendingTransactionDialog(this);
             } else {
-                VirtualFile virtualFile = getPsiFile().getVirtualFile();
+                VirtualFile virtualFile = getVirtualFile();
                 connection.notifyDataChanges(virtualFile);
             }
         } else if (resetChanges) {
@@ -555,9 +582,9 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     private void attachDdlExecutionInfo(StatementExecutionInput executionInput, final StatementExecutionBasicResult executionResult) {
         boolean isDdlStatement = isDataDefinitionStatement();
         boolean hasCompilerErrors = false;
-        final ConnectionHandler connectionHandler = executionInput.getConnectionHandler();
-        if (isDdlStatement && DatabaseFeature.OBJECT_INVALIDATION.isSupported(connectionHandler)) {
-            final BasePsiElement compilablePsiElement = getCompilableBlockPsiElement();
+        ConnectionHandler connectionHandler = executionInput.getConnectionHandler();
+        if (isDdlStatement && connectionHandler != null && DatabaseFeature.OBJECT_INVALIDATION.isSupported(connectionHandler)) {
+            BasePsiElement compilablePsiElement = getCompilableBlockPsiElement();
             if (compilablePsiElement != null) {
                 hasCompilerErrors = Read.call(() -> {
                     DBContentType contentType = getCompilableContentType();
@@ -598,7 +625,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
                         return compilerResult.hasErrors();
                     }
                     return false;
-                });
+                }, false);
             }
         }
 
@@ -629,7 +656,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     @Override
     @Nullable
     public ConnectionHandler getConnectionHandler() {
-        DBLanguagePsiFile psiFile = psiFileRef.get();
+        DBLanguagePsiFile psiFile = getPsiFile();
         return psiFile == null ? null : psiFile.getConnectionHandler();
     }
 
@@ -642,14 +669,15 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     @Override
     @Nullable
     public SchemaId getTargetSchema() {
-        DBLanguagePsiFile psiFile = psiFileRef.get();
+        DBLanguagePsiFile psiFile = getPsiFile();
         return psiFile == null ? null : psiFile.getSchemaId();
     }
 
     @Override
     @Nullable
     public DatabaseSession getTargetSession() {
-        return getPsiFile().getDatabaseSession();
+        DBLanguagePsiFile psiFile = getPsiFile();
+        return psiFile == null ? null : psiFile.getDatabaseSession();
     }
 
     @Override
@@ -777,13 +805,6 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     @Override
     public boolean isQuery() {
         return false;
-    }
-
-    @Override
-    public List<StatementExecutionProcessor> asList() {
-        List<StatementExecutionProcessor> list = new ArrayList<>();
-        list.add(this);
-        return list;
     }
 
     @Override

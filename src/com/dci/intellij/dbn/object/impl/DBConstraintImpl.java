@@ -4,14 +4,11 @@ import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.browser.ui.HtmlToolTipBuilder;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
-import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
+import com.dci.intellij.dbn.database.common.metadata.def.DBConstraintMetadata;
 import com.dci.intellij.dbn.object.DBColumn;
 import com.dci.intellij.dbn.object.DBConstraint;
 import com.dci.intellij.dbn.object.DBDataset;
 import com.dci.intellij.dbn.object.DBSchema;
-import com.dci.intellij.dbn.object.common.DBObjectRelationType;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.DBSchemaObjectImpl;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
@@ -21,59 +18,60 @@ import com.dci.intellij.dbn.object.common.list.DBObjectRelationList;
 import com.dci.intellij.dbn.object.common.list.DBObjectRelationListContainer;
 import com.dci.intellij.dbn.object.common.list.loader.DBObjectListFromRelationListLoader;
 import com.dci.intellij.dbn.object.common.operation.DBOperationExecutor;
-import com.dci.intellij.dbn.object.common.operation.DBOperationNotSupportedException;
-import com.dci.intellij.dbn.object.common.operation.DBOperationType;
+import com.dci.intellij.dbn.object.common.operation.DatabaseOperationManager;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatus;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.object.properties.DBObjectPresentableProperty;
 import com.dci.intellij.dbn.object.properties.PresentableProperty;
 import com.dci.intellij.dbn.object.properties.SimplePresentableProperty;
+import com.dci.intellij.dbn.object.type.DBConstraintType;
+import com.dci.intellij.dbn.object.type.DBObjectRelationType;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static com.dci.intellij.dbn.object.common.DBObjectType.COLUMN;
-import static com.dci.intellij.dbn.object.common.DBObjectType.CONSTRAINT;
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.DISABLEABLE;
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.SCHEMA_OBJECT;
+import static com.dci.intellij.dbn.object.type.DBObjectType.COLUMN;
+import static com.dci.intellij.dbn.object.type.DBObjectType.CONSTRAINT;
 
-public class DBConstraintImpl extends DBSchemaObjectImpl implements DBConstraint {
-    private int constraintType;
+public class DBConstraintImpl extends DBSchemaObjectImpl<DBConstraintMetadata> implements DBConstraint {
+    private DBConstraintType constraintType;
     private DBObjectRef<DBConstraint> foreignKeyConstraint;
 
     private String checkCondition;
     private DBObjectList<DBColumn> columns;
 
-    DBConstraintImpl(DBDataset dataset, ResultSet resultSet) throws SQLException {
-        super(dataset, resultSet);
+    DBConstraintImpl(DBDataset dataset, DBConstraintMetadata metadata) throws SQLException {
+        super(dataset, metadata);
     }
 
     @Override
-    protected String initObject(ResultSet resultSet) throws SQLException {
-        String name = resultSet.getString("CONSTRAINT_NAME");
-        checkCondition = resultSet.getString("CHECK_CONDITION");
+    protected String initObject(DBConstraintMetadata metadata) throws SQLException {
+        String name = metadata.getConstraintName();
+        checkCondition = metadata.getCheckCondition();
 
-        String typeString = resultSet.getString("CONSTRAINT_TYPE");
-        constraintType =
-            typeString == null ? -1 :
-            typeString.equals("CHECK")? DBConstraint.CHECK :
-            typeString.equals("UNIQUE") ? DBConstraint.UNIQUE_KEY :
-            typeString.equals("PRIMARY KEY") ? DBConstraint.PRIMARY_KEY :
-            typeString.equals("FOREIGN KEY") ? DBConstraint.FOREIGN_KEY :
-            typeString.equals("VIEW CHECK") ? DBConstraint.VIEW_CHECK :
-            typeString.equals("VIEW READONLY") ? DBConstraint.VIEW_READONLY : -1;
+        String typeString = metadata.getConstraintType();
+        constraintType = // TODO move to metadata interface
+            typeString == null ? DBConstraintType.UNKNOWN :
+            typeString.equals("CHECK")? DBConstraintType.CHECK :
+            typeString.equals("UNIQUE") ? DBConstraintType.UNIQUE_KEY :
+            typeString.equals("PRIMARY KEY") ? DBConstraintType.PRIMARY_KEY :
+            typeString.equals("FOREIGN KEY") ? DBConstraintType.FOREIGN_KEY :
+            typeString.equals("VIEW CHECK") ? DBConstraintType.VIEW_CHECK :
+            typeString.equals("VIEW READONLY") ? DBConstraintType.VIEW_READONLY : DBConstraintType.UNKNOWN;
 
-        if (checkCondition == null && constraintType == CHECK) checkCondition = "";
+        if (checkCondition == null && constraintType == DBConstraintType.CHECK) checkCondition = "";
 
         if (isForeignKey()) {
-            String fkOwner = resultSet.getString("FK_CONSTRAINT_OWNER");
-            String fkName = resultSet.getString("FK_CONSTRAINT_NAME");
+            String fkOwner = metadata.getFkConstraintOwner();
+            String fkName = metadata.getFkConstraintName();
 
             ConnectionHandler connectionHandler = getConnectionHandler();
             DBSchema schema = connectionHandler.getObjectBundle().getSchema(fkOwner);
@@ -96,8 +94,8 @@ public class DBConstraintImpl extends DBSchemaObjectImpl implements DBConstraint
     }
 
     @Override
-    public void initStatus(ResultSet resultSet) throws SQLException {
-        boolean enabled = resultSet.getString("IS_ENABLED").equals("Y");
+    public void initStatus(DBConstraintMetadata metadata) throws SQLException {
+        boolean enabled = metadata.isEnabled();
         getStatus().set(DBObjectStatus.ENABLED, enabled);
     }
 
@@ -121,23 +119,23 @@ public class DBConstraintImpl extends DBSchemaObjectImpl implements DBConstraint
     }
 
     @Override
-    public int getConstraintType() {
+    public DBConstraintType getConstraintType() {
         return constraintType;
     }
 
     @Override
     public boolean isPrimaryKey() {
-        return constraintType == PRIMARY_KEY;
+        return constraintType == DBConstraintType.PRIMARY_KEY;
     }
 
     @Override
     public boolean isForeignKey() {
-        return constraintType == FOREIGN_KEY;
+        return constraintType == DBConstraintType.FOREIGN_KEY;
     }
     
     @Override
     public boolean isUniqueKey() {
-        return constraintType == UNIQUE_KEY;
+        return constraintType == DBConstraintType.UNIQUE_KEY;
     }
 
     public String getCheckCondition() {
@@ -283,29 +281,10 @@ public class DBConstraintImpl extends DBSchemaObjectImpl implements DBConstraint
     @Override
     public DBOperationExecutor getOperationExecutor() {
         return operationType -> {
-            ConnectionHandler connectionHandler = getConnectionHandler();
-            DBNConnection connection = connectionHandler.getPoolConnection(getSchemaIdentifier(), false);
-            try {
-                DatabaseMetadataInterface metadataInterface = connectionHandler.getInterfaceProvider().getMetadataInterface();
-                if (operationType == DBOperationType.ENABLE) {
-                    metadataInterface.enableConstraint(
-                            getSchema().getName(),
-                            getDataset().getName(),
-                            getName(),
-                            connection);
-                    getStatus().set(DBObjectStatus.ENABLED, true);
-                } else if (operationType == DBOperationType.DISABLE) {
-                    metadataInterface.disableConstraint(
-                            getSchema().getName(),
-                            getDataset().getName(),
-                            getName(),
-                            connection);
-                    getStatus().set(DBObjectStatus.ENABLED, false);
-                } else {
-                    throw new DBOperationNotSupportedException(operationType, getObjectType());
-                }
-            } finally {
-                connectionHandler.freePoolConnection(connection);
+            DatabaseOperationManager operationManager = DatabaseOperationManager.getInstance(getProject());
+            switch (operationType) {
+                case ENABLE:  operationManager.enableConstraint(this); break;
+                case DISABLE: operationManager.disableConstraint(this); break;
             }
         };
     }

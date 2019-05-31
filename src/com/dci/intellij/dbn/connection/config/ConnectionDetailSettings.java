@@ -13,7 +13,12 @@ import org.jetbrains.annotations.NotNull;
 
 import java.nio.charset.Charset;
 
-import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.*;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.getBoolean;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.getInteger;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.getString;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.setBoolean;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.setInteger;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.setString;
 
 public class ConnectionDetailSettings extends BasicProjectConfiguration<ConnectionSettings, ConnectionDetailSettingsForm> {
     private Charset charset = Charset.forName("UTF-8");
@@ -28,6 +33,8 @@ public class ConnectionDetailSettings extends BasicProjectConfiguration<Connecti
     private int idleTimeToDisconnectPool = 5;
     private int credentialExpiryTime = 10;
     private int maxConnectionPoolSize = 7;
+
+
     private String alternativeStatementDelimiter;
 
     public ConnectionDetailSettings(ConnectionSettings parent) {
@@ -157,6 +164,7 @@ public class ConnectionDetailSettings extends BasicProjectConfiguration<Connecti
     public void setAlternativeStatementDelimiter(String alternativeStatementDelimiter) {
         this.alternativeStatementDelimiter = alternativeStatementDelimiter;
     }
+
 
     /*********************************************************
      *                     Configuration                     *

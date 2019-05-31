@@ -11,6 +11,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLWarning;
 import java.sql.Statement;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static com.dci.intellij.dbn.connection.jdbc.ResourceStatus.ACTIVE;
 
@@ -22,6 +23,8 @@ public class DBNStatement<T extends Statement> extends DBNResource<T> implements
     private WeakRef<DBNConnection> connection;
     private WeakRef<DBNResultSet> resultSet;
 
+    /** last execution time. -1 unknown */
+    private final AtomicLong executeDuration = new AtomicLong(-1);
 
     DBNStatement(T inner, DBNConnection connection) {
         super(inner, ResourceType.STATEMENT);
@@ -83,6 +86,10 @@ public class DBNStatement<T extends Statement> extends DBNResource<T> implements
         return WeakRef.get(resultSet);
     }
 
+    public long getExecuteDuration() {
+        return executeDuration.get();
+    }
+
     protected Object wrap(Object object) {
         if (object instanceof ResultSet) {
             ResultSet resultSet = (ResultSet) object;
@@ -114,7 +121,13 @@ public class DBNStatement<T extends Statement> extends DBNResource<T> implements
         return new ManagedExecutor<R>() {
             @Override
             protected R execute() throws SQLException {
-                return callable.call();
+                executeDuration.set(-1);
+                long init = System.currentTimeMillis();
+                try {
+                    return callable.call();
+                } finally {
+                    executeDuration.set(System.currentTimeMillis() - init);
+                }
             }
         }.run();
     }
@@ -208,7 +221,12 @@ public class DBNStatement<T extends Statement> extends DBNResource<T> implements
 
     @Override
     public void setQueryTimeout(int seconds) throws SQLException {
-        inner.setQueryTimeout(seconds);
+        try {
+            inner.setQueryTimeout(seconds);
+        } catch (Throwable ignore) {
+            // catch throwable (capture e.g. java.lang.AbstractMethodError)
+            // not all databases support it, as this is used on DBN start connection, we must control exception
+        }
     }
 
     @Override

@@ -107,7 +107,7 @@ public class NamedPsiElement extends SequencePsiElement<NamedElementType> {
     @Nullable
     @Override
     public BasePsiElement findPsiElement(PsiLookupAdapter lookupAdapter, int scopeCrossCount) {
-        ProgressIndicatorProvider.checkCanceled();
+        ProgressIndicatorProvider.checkCanceled(); // TODO small performance impact (removing this freezes the UI though)
         return super.findPsiElement(lookupAdapter, scopeCrossCount);
     }
 

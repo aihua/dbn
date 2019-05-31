@@ -25,8 +25,8 @@ import com.dci.intellij.dbn.language.common.psi.ExecutablePsiElement;
 import com.dci.intellij.dbn.language.common.psi.IdentifierPsiElement;
 import com.dci.intellij.dbn.language.common.psi.NamedPsiElement;
 import com.dci.intellij.dbn.language.common.psi.TokenPsiElement;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.options.ProjectSettings;
 import com.dci.intellij.dbn.options.ProjectSettingsManager;
 import com.intellij.lang.annotation.Annotation;
@@ -140,7 +140,7 @@ public class PSQLLanguageAnnotator implements Annotator {
 
     private static void annotateObject(@NotNull IdentifierPsiElement objectReference, AnnotationHolder holder) {
         PsiElement reference = objectReference.resolve();
-        /*ConnectionHandler connectionHandler = objectReference.getConnectionHandler();
+        /*ConnectionHandler connectionHandler = objectReference.getCache();
         if (reference == null && connectionHandler != null && connectionHandler.getConnectionStatus().isValid()) {
             Annotation annotation = holder.createErrorAnnotation(objectReference.getAstNode(),
                     "Unknown " + objectReference.getObjectTypeName());

@@ -5,6 +5,8 @@ import com.dci.intellij.dbn.database.DatabaseObjectIdentifier;
 import org.jetbrains.annotations.Nullable;
 
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
+import java.sql.SQLSyntaxErrorException;
 import java.sql.SQLTimeoutException;
 
 public class GenericMessageParserInterface implements DatabaseMessageParserInterface {
@@ -26,6 +28,6 @@ public class GenericMessageParserInterface implements DatabaseMessageParserInter
 
     @Override
     public boolean isModelException(SQLException e) {
-        return false;
+        return e instanceof SQLFeatureNotSupportedException || e instanceof SQLSyntaxErrorException;
     }
 }

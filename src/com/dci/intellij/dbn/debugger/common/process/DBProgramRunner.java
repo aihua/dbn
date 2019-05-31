@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.debugger.common.process;
 
-import com.dci.intellij.dbn.common.notification.NotificationUtil;
+import com.dci.intellij.dbn.common.notification.NotificationGroup;
+import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.util.EventUtil;
@@ -87,9 +88,7 @@ public abstract class DBProgramRunner<T extends ExecutionInput> extends GenericP
             Callback callback) {
         DBRunConfig runProfile = (DBRunConfig) environment.getRunProfile();
         ConnectionHandler connectionHandler = runProfile.getConnectionHandler();
-        if (connectionHandler == null) {
-
-        } else {
+        if (connectionHandler != null) {
             DatabaseDebuggerManager debuggerManager = DatabaseDebuggerManager.getInstance(project);
             List<String> missingPrivileges = debuggerManager.getMissingDebugPrivileges(connectionHandler);
             if (missingPrivileges.size() > 0) {
@@ -165,7 +164,7 @@ public abstract class DBProgramRunner<T extends ExecutionInput> extends GenericP
             @Nullable Callback callback,
             List<DBSchemaObject> dependencies) {
 
-        Dispatch.invokeNonModal(() -> {
+        Dispatch.run(() -> {
             Project project = connectionHandler.getProject();
             DBRunConfig runConfiguration = (DBRunConfig) environment.getRunProfile();
             CompileDebugDependenciesDialog dependenciesDialog = new CompileDebugDependenciesDialog(runConfiguration, dependencies);
@@ -211,7 +210,7 @@ public abstract class DBProgramRunner<T extends ExecutionInput> extends GenericP
             T executionInput,
             ExecutionEnvironment environment,
             Callback callback) {
-        Dispatch.invokeNonModal(() -> {
+        Dispatch.run(() -> {
             ConnectionHandler connectionHandler = executionInput.getConnectionHandler();
             Project project = environment.getProject();
 
@@ -245,7 +244,10 @@ public abstract class DBProgramRunner<T extends ExecutionInput> extends GenericP
                             }
 
                         } catch (ExecutionException e) {
-                            NotificationUtil.sendErrorNotification(project, "Debugger", "Error initializing debug environment: " + e.getMessage());
+                            NotificationSupport.sendErrorNotification(
+                                    project,
+                                    NotificationGroup.DEBUGGER,
+                                    "Error initializing environment: {0}", e);
                         }
                     });
         });

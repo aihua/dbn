@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.debugger.jdbc;
 
 import com.dci.intellij.dbn.common.Icons;
+import com.dci.intellij.dbn.common.notification.NotificationGroup;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
@@ -39,7 +40,7 @@ import static com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointUtil.*
 public class DBJdbcBreakpointHandler extends DBBreakpointHandler<DBJdbcDebugProcess> {
     protected BreakpointInfo defaultBreakpointInfo;
 
-    public DBJdbcBreakpointHandler(XDebugSession session, DBJdbcDebugProcess debugProcess) {
+    DBJdbcBreakpointHandler(XDebugSession session, DBJdbcDebugProcess debugProcess) {
         super(session, debugProcess);
         //resetBreakpoints();
     }
@@ -109,7 +110,9 @@ public class DBJdbcBreakpointHandler extends DBBreakpointHandler<DBJdbcDebugProc
                     console.system("Breakpoint removed: " + breakpointDesc);
                 } catch (SQLException e) {
                     console.error("Error removing breakpoint: " + breakpointDesc + ". " + e.getMessage());
-                    sendErrorNotification("Error.", e.getMessage());
+                    sendErrorNotification(
+                            NotificationGroup.DEBUGGER,
+                            "Error unregistering breakpoints: {0}", e);
                 } finally {
                     setBreakpointId(breakpoint, null);
                 }

@@ -37,7 +37,7 @@ import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
-public class ConnectionSettingsForm extends CompositeConfigurationEditorForm<ConnectionSettings>{
+public class ConnectionSettingsForm extends CompositeConfigurationEditorForm<ConnectionSettings> {
     private JPanel mainPanel;
     private JPanel contentPanel;
     private JPanel headerPanel;
@@ -212,9 +212,9 @@ public class ConnectionSettingsForm extends CompositeConfigurationEditorForm<Con
     }
 
     public void selectTab(String tabName) {
-        TabbedPaneUtil.selectTab(configTabbedPane, tabName);        
+        TabbedPaneUtil.selectTab(configTabbedPane, tabName);
     }
-    
+
     public String getSelectedTabName() {
         return TabbedPaneUtil.getSelectedTabName(configTabbedPane);
     }
@@ -228,7 +228,7 @@ public class ConnectionSettingsForm extends CompositeConfigurationEditorForm<Con
     private ConnectionPresentationChangeListener connectionPresentationChangeListener = new ConnectionPresentationChangeListener() {
         @Override
         public void presentationChanged(String name, Icon icon, Color color, ConnectionId connectionId, DatabaseType databaseType) {
-            Dispatch.invoke(() -> {
+            Dispatch.run(() -> {
                 ConnectionSettings configuration = getConfiguration();
                 if (configuration.getConnectionId().equals(connectionId)) {
                     if (name != null) headerForm.setTitle(name);

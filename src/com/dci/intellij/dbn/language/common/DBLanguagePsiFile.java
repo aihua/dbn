@@ -27,9 +27,9 @@ import com.dci.intellij.dbn.language.sql.SQLLanguage;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBObjectPsiFacade;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.vfs.DBParseableVirtualFile;
 import com.dci.intellij.dbn.vfs.DBVirtualFile;
 import com.dci.intellij.dbn.vfs.DatabaseFileSystem;
@@ -299,13 +299,15 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
         Editor selectedEditor = EditorUtil.getSelectedEditor(getProject());
         if (selectedEditor != null) {
             Document document = DocumentUtil.getDocument(getContainingFile());
-            Editor[] editors = EditorFactory.getInstance().getEditors(document);
-            for (Editor editor : editors) {
-                if (editor == selectedEditor) {
-                    OpenFileDescriptor descriptor = (OpenFileDescriptor) EditSourceUtil.getDescriptor(this);
-                    if (descriptor != null) {
-                        descriptor.navigateIn(selectedEditor);
-                        return;
+            if (document != null) {
+                Editor[] editors = EditorFactory.getInstance().getEditors(document);
+                for (Editor editor : editors) {
+                    if (editor == selectedEditor) {
+                        OpenFileDescriptor descriptor = (OpenFileDescriptor) EditSourceUtil.getDescriptor(this);
+                        if (descriptor != null) {
+                            descriptor.navigateIn(selectedEditor);
+                            return;
+                        }
                     }
                 }
             }

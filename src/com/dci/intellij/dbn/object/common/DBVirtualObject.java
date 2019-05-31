@@ -12,6 +12,7 @@ import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionManager;
+import com.dci.intellij.dbn.database.common.metadata.DBObjectMetadata;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.PsiElementRef;
@@ -32,6 +33,7 @@ import com.dci.intellij.dbn.language.common.psi.lookup.VirtualObjectLookupAdapte
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.vfs.file.DBContentVirtualFile;
 import com.intellij.ide.util.EditSourceUtil;
 import com.intellij.openapi.editor.Document;
@@ -49,7 +51,6 @@ import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -156,7 +157,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
     }
 
     @Override
-    protected String initObject(ResultSet resultSet) throws SQLException {
+    protected String initObject(DBObjectMetadata metadata) throws SQLException {
         throw new UnsupportedOperationException();
     }
 
@@ -345,9 +346,13 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
             BasePsiElement relevantPsiElement = getRelevantPsiElement();
             if(virtualFile instanceof DBContentVirtualFile) {
                 Document document = DocumentUtil.getDocument(containingFile);
-                Editor[] editors =  EditorFactory.getInstance().getEditors(document);
-                OpenFileDescriptor descriptor = (OpenFileDescriptor) EditSourceUtil.getDescriptor(relevantPsiElement);
-                if (descriptor != null) descriptor.navigateIn(editors[0]);
+                if (document != null) {
+                    Editor[] editors =  EditorFactory.getInstance().getEditors(document);
+                    OpenFileDescriptor descriptor = (OpenFileDescriptor) EditSourceUtil.getDescriptor(relevantPsiElement);
+                    if (descriptor != null) {
+                        descriptor.navigateIn(editors[0]);
+                    }
+                }
 
             } else{
                 relevantPsiElement.navigate(requestFocus);

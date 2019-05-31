@@ -15,6 +15,7 @@ import com.dci.intellij.dbn.connection.console.DatabaseConsoleBundle;
 import com.dci.intellij.dbn.connection.info.ConnectionInfo;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.session.DatabaseSessionBundle;
+import com.dci.intellij.dbn.database.DatabaseCompatibility;
 import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionQueue;
 import com.dci.intellij.dbn.language.common.DBLanguage;
@@ -44,10 +45,12 @@ public class VirtualConnectionHandler extends DisposableBase implements Connecti
     private ProjectRef projectRef;
     private ConnectionHandlerStatusHolder connectionStatus;
     private DatabaseInterfaceProvider interfaceProvider;
-    private Map<String, String> properties = new HashMap<String, String>();
+    private Map<String, String> properties = new HashMap<>();
     private ConnectionHandlerRef ref;
     private DBObjectBundle objectBundle;
     private ConnectionInstructions instructions = new ConnectionInstructions();
+    private DatabaseCompatibility compatibility = DatabaseCompatibility.noFeatures();
+
     private Latent<ConnectionSettings> connectionSettings = Latent.basic(() -> {
         ConnectionBundleSettings connectionBundleSettings = ConnectionBundleSettings.getInstance(getProject());
         return new ConnectionSettings(connectionBundleSettings);
@@ -164,39 +167,43 @@ public class VirtualConnectionHandler extends DisposableBase implements Connecti
 
     @Override public String getUserName() {return "root";}
 
-    @Override public DBNConnection getTestConnection() throws SQLException {return null;}
+    @Override public DBNConnection getTestConnection() {return null;}
 
     @NotNull
-    @Override public DBNConnection getPoolConnection(boolean readonly) throws SQLException {throw new UnsupportedOperationException();}
+    @Override public DBNConnection getPoolConnection(boolean readonly) {throw new UnsupportedOperationException();}
 
     @NotNull
-    @Override public DBNConnection getPoolConnection(@Nullable SchemaId schemaId, boolean readonly) throws SQLException {throw new UnsupportedOperationException();}
+    @Override public DBNConnection getPoolConnection(@Nullable SchemaId schemaId, boolean readonly) {throw new UnsupportedOperationException();}
+
+    @Override
+    public void setCurrentSchema(DBNConnection connection, @Nullable SchemaId schema) {}
 
     @NotNull
-    @Override public DBNConnection getMainConnection() throws SQLException {throw new UnsupportedOperationException();}
+    @Override public DBNConnection getMainConnection() {throw new UnsupportedOperationException();}
 
     @NotNull
     @Override
-    public DBNConnection getDebugConnection(SchemaId schemaId) throws SQLException {
+    public DBNConnection getDebugConnection(SchemaId schemaId) {
         throw new UnsupportedOperationException();
     }
 
     @NotNull
     @Override
-    public DBNConnection getDebuggerConnection() throws SQLException {
+    public DBNConnection getDebuggerConnection() {
         throw new UnsupportedOperationException();
     }
 
     @NotNull
     @Override
-    public DBNConnection getConnection(SessionId sessionId, @Nullable SchemaId schemaId) throws SQLException {throw new UnsupportedOperationException();}
+    public DBNConnection getConnection(SessionId sessionId, @Nullable SchemaId schemaId) {throw new UnsupportedOperationException();}
 
     @NotNull
-    @Override public DBNConnection getMainConnection(@Nullable SchemaId schemaId) throws SQLException {throw new UnsupportedOperationException();}
+    @Override public DBNConnection getMainConnection(@Nullable SchemaId schemaId) {throw new UnsupportedOperationException();}
 
     @Override public void closeConnection(DBNConnection connection) {}
     @Override public void freePoolConnection(DBNConnection connection) {}
 
+    @NotNull
     @Override public ConnectionSettings getSettings() {return connectionSettings.get();}
 
     @Override public void setSettings(ConnectionSettings connectionSettings) {}
@@ -328,5 +335,10 @@ public class VirtualConnectionHandler extends DisposableBase implements Connecti
     @Override
     public StatementExecutionQueue getExecutionQueue(SessionId sessionId) {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public DatabaseCompatibility getCompatibility() {
+        return compatibility;
     }
 }

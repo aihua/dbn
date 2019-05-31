@@ -1,8 +1,8 @@
 package com.dci.intellij.dbn.database.sqlite.adapter.rs;
 
-import com.dci.intellij.dbn.database.sqlite.adapter.ResultSetElement;
+import com.dci.intellij.dbn.database.sqlite.adapter.SqliteMetadataResultSet;
+import com.dci.intellij.dbn.database.sqlite.adapter.SqliteMetadataResultSetRow;
 import com.dci.intellij.dbn.database.sqlite.adapter.SqliteRawMetaData.TableNames;
-import com.dci.intellij.dbn.database.sqlite.adapter.SqliteResultSetAdapter;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -11,21 +11,21 @@ import java.sql.SQLException;
  * DATASET_NAME
  */
 
-public abstract class SqliteDatasetNamesResultSet extends SqliteResultSetAdapter<SqliteDatasetNamesResultSet.Dataset> {
+public abstract class SqliteDatasetNamesResultSet extends SqliteMetadataResultSet<SqliteDatasetNamesResultSet.Dataset> {
     protected String ownerName;
-    public SqliteDatasetNamesResultSet(String ownerName) throws SQLException {
+    protected SqliteDatasetNamesResultSet(String ownerName) throws SQLException {
         this.ownerName = ownerName;
         TableNames tableNames = getTableNames();
 
         for (TableNames.Row row : tableNames.getRows()) {
             Dataset element = new Dataset();
-            element.setDatasetName(row.getName());
-            addElement(element);
+            element.datasetName = row.getName();
+            add(element);
         }
     }
 
     private TableNames getTableNames() throws SQLException {
-        return getCache().get(
+        return cache().get(
                 ownerName + "." + "DATASET_NAMES",
                 () -> new TableNames(loadTableNames()));
     }
@@ -34,32 +34,19 @@ public abstract class SqliteDatasetNamesResultSet extends SqliteResultSetAdapter
 
     @Override
     public String getString(String columnLabel) throws SQLException {
-        Dataset element = getCurrentElement();
+        Dataset element = current();
         if (columnLabel.equals("DATASET_NAME")) {
-            return element.getDatasetName();
+            return element.datasetName;
         }
         return null;
     }
 
-    public static class Dataset implements ResultSetElement<Dataset> {
-        String datasetName;
+    static class Dataset implements SqliteMetadataResultSetRow<Dataset> {
+        private String datasetName;
 
-        public String getDatasetName() {
+        @Override
+        public String identifier() {
             return datasetName;
-        }
-
-        public void setDatasetName(String datasetName) {
-            this.datasetName = datasetName;
-        }
-
-        @Override
-        public String getName() {
-            return getDatasetName();
-        }
-
-        @Override
-        public int compareTo(Dataset dataset) {
-            return datasetName.compareTo(dataset.datasetName);
         }
     }
 }

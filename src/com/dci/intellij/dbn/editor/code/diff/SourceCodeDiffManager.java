@@ -48,58 +48,56 @@ public class SourceCodeDiffManager extends AbstractProjectComponent implements P
 
     @Deprecated
     public void openCodeMergeDialogOld(String databaseContent, DBSourceCodeVirtualFile sourceCodeFile, SourceCodeEditor fileEditor, MergeAction action) {
-        Dispatch.invokeNonModal(() -> {
+        Dispatch.run(() -> {
             com.intellij.openapi.diff.DiffRequestFactory diffRequestFactory = new com.intellij.openapi.diff.impl.mergeTool.DiffRequestFactoryImpl();
             Project project = sourceCodeFile.getProject();
-            if (project != null) {
-                com.intellij.openapi.diff.MergeRequest mergeRequest = diffRequestFactory.createMergeRequest(
-                        databaseContent,
-                        sourceCodeFile.getContent().toString(),
-                        sourceCodeFile.getOriginalContent().toString(),
-                        sourceCodeFile,
-                        project,
-                        ActionButtonPresentation.APPLY,
-                        ActionButtonPresentation.CANCEL_WITH_PROMPT);
-                mergeRequest.setVersionTitles(new String[]{"Database version", "Merge result", "Your version"});
-                DBSchemaObject object = sourceCodeFile.getObject();
-                mergeRequest.setWindowTitle("Version conflict resolution for " + object.getQualifiedNameWithType());
+            com.intellij.openapi.diff.MergeRequest mergeRequest = diffRequestFactory.createMergeRequest(
+                    databaseContent,
+                    sourceCodeFile.getContent().toString(),
+                    sourceCodeFile.getOriginalContent().toString(),
+                    sourceCodeFile,
+                    project,
+                    ActionButtonPresentation.APPLY,
+                    ActionButtonPresentation.CANCEL_WITH_PROMPT);
+            mergeRequest.setVersionTitles(new String[]{"Database version", "Merge result", "Your version"});
+            DBSchemaObject object = sourceCodeFile.getObject();
+            mergeRequest.setWindowTitle("Version conflict resolution for " + object.getQualifiedNameWithType());
 
-                com.intellij.openapi.diff.DiffManager.getInstance().getDiffTool().show(mergeRequest);
+            com.intellij.openapi.diff.DiffManager.getInstance().getDiffTool().show(mergeRequest);
 
-                int result = mergeRequest.getResult();
-                if (action == MergeAction.SAVE) {
-                    switch (result) {
-                        case 0:
-                            SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
-                            sourceCodeManager.storeSourceToDatabase(sourceCodeFile, fileEditor, null);
-                            EventUtil.notify(project,
-                                    SourceCodeDifManagerListener.TOPIC,
-                                    (listener) -> listener.contentMerged(sourceCodeFile, action));
-                            break;
-                        case 1:
-                            sourceCodeFile.set(SAVING, false);
-                            break;
+            int result = mergeRequest.getResult();
+            if (action == MergeAction.SAVE) {
+                switch (result) {
+                    case 0:
+                        SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
+                        sourceCodeManager.storeSourceToDatabase(sourceCodeFile, fileEditor, null);
+                        EventUtil.notify(project,
+                                SourceCodeDifManagerListener.TOPIC,
+                                (listener) -> listener.contentMerged(sourceCodeFile, action));
+                        break;
+                    case 1:
+                        sourceCodeFile.set(SAVING, false);
+                        break;
 
-                    }
-                } else if (action == MergeAction.MERGE) {
-                    switch (result) {
-                        case 0:
-                            sourceCodeFile.markAsMerged();
-                            EventUtil.notify(project,
-                                    SourceCodeDifManagerListener.TOPIC,
-                                    (listener) -> listener.contentMerged(sourceCodeFile, action));
-                            break;
-                        case 1:
-                            break;
+                }
+            } else if (action == MergeAction.MERGE) {
+                switch (result) {
+                    case 0:
+                        sourceCodeFile.markAsMerged();
+                        EventUtil.notify(project,
+                                SourceCodeDifManagerListener.TOPIC,
+                                (listener) -> listener.contentMerged(sourceCodeFile, action));
+                        break;
+                    case 1:
+                        break;
 
-                    }
                 }
             }
         });
     }
 
     public void openCodeMergeDialog(String databaseContent, DBSourceCodeVirtualFile sourceCodeFile, SourceCodeEditor fileEditor, MergeAction action) {
-        Dispatch.invoke(() -> {
+        Dispatch.run(() -> {
             Project project = getProject();
             SourceCodeDiffContent leftContent = new SourceCodeDiffContent("Database version", databaseContent);
             SourceCodeDiffContent targetContent = new SourceCodeDiffContent("Merge result", sourceCodeFile.getOriginalContent());
@@ -155,7 +153,7 @@ public class SourceCodeDiffManager extends AbstractProjectComponent implements P
 
 
     public void openDiffWindow(@NotNull DBSourceCodeVirtualFile sourceCodeFile,  String referenceText, String referenceTitle, String windowTitle) {
-        Dispatch.invokeNonModal(() -> {
+        Dispatch.run(() -> {
             Project project = sourceCodeFile.getProject();
             SimpleContent originalContent = new SimpleContent(referenceText, sourceCodeFile.getFileType());
             SourceCodeFileContent changedContent = new SourceCodeFileContent(project, sourceCodeFile);

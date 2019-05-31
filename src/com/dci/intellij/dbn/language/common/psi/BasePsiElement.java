@@ -32,8 +32,8 @@ import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBObjectBundle;
 import com.dci.intellij.dbn.object.common.DBObjectPsiElement;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.DBVirtualObject;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.vfs.file.DBConsoleVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBSessionStatementVirtualFile;
@@ -369,13 +369,11 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
                     if (virtualFile instanceof DBSessionStatementVirtualFile) {
                         DBSessionStatementVirtualFile sessionBrowserStatementFile = (DBSessionStatementVirtualFile) virtualFile;
                         SessionBrowser sessionBrowser = sessionBrowserStatementFile.getSessionBrowser();
-                        if (sessionBrowser != null) {
-                            SessionBrowserForm editorForm = sessionBrowser.getEditorForm();
-                            EditorEx viewer = editorForm.getDetailsForm().getCurrentSqlPanel().getViewer();
-                            if (viewer != null) {
-                                descriptor.navigateIn(viewer);
-                                if (requestFocus) EditorUtil.focusEditor(viewer);
-                            }
+                        SessionBrowserForm editorForm = sessionBrowser.getEditorForm();
+                        EditorEx viewer = editorForm.getDetailsForm().getCurrentSqlPanel().getViewer();
+                        if (viewer != null) {
+                            descriptor.navigateIn(viewer);
+                            if (requestFocus) EditorUtil.focusEditor(viewer);
                         }
                         return;
                     }
@@ -436,7 +434,7 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
                     if (reference instanceof DBObjectPsiElement) {
                         DBObjectPsiElement objectPsiElement = (DBObjectPsiElement) reference;
                         if (objects == null) {
-                            objects = new HashSet<DBObject>();
+                            objects = new HashSet<>();
                         }
                         objects.add(objectPsiElement.ensureObject());
                     }

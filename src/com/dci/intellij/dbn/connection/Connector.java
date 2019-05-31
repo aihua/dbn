@@ -1,7 +1,9 @@
 package com.dci.intellij.dbn.connection;
 
+import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
-import com.dci.intellij.dbn.common.notification.NotificationUtil;
+import com.dci.intellij.dbn.common.notification.NotificationGroup;
+import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSettings;
@@ -12,10 +14,12 @@ import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.ssh.SshTunnelConnector;
 import com.dci.intellij.dbn.connection.ssh.SshTunnelManager;
 import com.dci.intellij.dbn.connection.ssl.SslConnectionManager;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.Nullable;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.Driver;
 import java.sql.SQLException;
 import java.util.List;
@@ -23,6 +27,8 @@ import java.util.Map;
 import java.util.Properties;
 
 class Connector {
+    private static final Logger LOGGER = LoggerFactory.createLogger();
+
     private SessionId sessionId;
     private AuthenticationInfo authenticationInfo;
     private ConnectionSettings connectionSettings;
@@ -63,12 +69,19 @@ class Connector {
             if (!authenticationInfo.isProvided() && this.authenticationInfo != null) {
                 authenticationInfo = this.authenticationInfo;
             }
-            if (authenticationInfo.isSupported() && !authenticationInfo.isOsAuthentication()) {
+
+            AuthenticationType authenticationType = authenticationInfo.getType();
+            if (authenticationType.isOneOf(AuthenticationType.USER, AuthenticationType.USER_PASSWORD)) {
                 String user = authenticationInfo.getUser();
-                String password = authenticationInfo.getPassword();
-                properties.put("user", user);
-                if (StringUtil.isNotEmpty(password)) {
-                    properties.put("password", password);
+                if (StringUtil.isNotEmpty(user)) {
+                    properties.put("user", user);
+                }
+
+                if (authenticationType == AuthenticationType.USER_PASSWORD) {
+                    String password = authenticationInfo.getPassword();
+                    if (StringUtil.isNotEmpty(password)) {
+                        properties.put("password", password);
+                    }
                 }
             }
 
@@ -115,6 +128,10 @@ class Connector {
                     connectionUrl = databaseSettings.getConnectionUrl(localHost, localPort);
                 }
             }
+            /** THIS IS IMPORTANT. As we have created an isolated classloader for external driver config,
+             * we must set context loader used by driver to ensure all required classes are available to connect */
+            // TODO review / cleanup? not needed if URL class loaders are constructed properly with parent class loader (see com.dci.intellij.dbn.driver.DatabaseDriverManager recent changes)
+            //Thread.currentThread().setContextClassLoader(driver.getClass().getClassLoader());
 
             Connection connection = driver.connect(connectionUrl, properties);
             if (connection == null) {
@@ -131,28 +148,36 @@ class Connector {
             if (databaseAttachmentHandler != null) {
                 List<DatabaseFile> attachedDatabaseFiles = databaseSettings.getDatabaseInfo().getFiles().getSecondaryFiles();
                 for (DatabaseFile databaseFile : attachedDatabaseFiles) {
-                    String path = databaseFile.getPath();
+                    String filePath = databaseFile.getPath();
                     try {
-                        databaseAttachmentHandler.attachDatabase(connection, path, databaseFile.getSchema());
+                        databaseAttachmentHandler.attachDatabase(connection, filePath, databaseFile.getSchema());
                     } catch (Exception e) {
-                        NotificationUtil.sendErrorNotification(
+                        NotificationSupport.sendErrorNotification(
                                 project,
-                                "Database Attachment Failure",
-                                "Unable to attach database file " + path + ". Cause: " + e.getMessage());
+                                NotificationGroup.CONNECTION,
+                                "Unable to attach database file {0}: {1}", filePath, e);
                     }
                 }
             }
 
             try {
-                connection.setAutoCommit(autoCommit);
-            } catch (SQLException e) {
-                // need to try twice (don't remember why)
-                connection.setAutoCommit(autoCommit);
+
+                // TODO move this to ConnectionUtils
+                try {
+                    connection.setAutoCommit(autoCommit);
+                } catch (SQLException e) {
+                    // need to try twice (don't remember why)
+                    connection.setAutoCommit(autoCommit);
+                }
+            }catch (Exception e){
+                // ignored - some databases not support to change auto-commit
+                LOGGER.warn("Unable to set auto-commit to " + autoCommit+". Maybe your database does not support transactions...", e);
             }
 
-            DatabaseType databaseType = ResourceUtil.getDatabaseType(connection);
-            databaseSettings.setDatabaseType(databaseType);
-            databaseSettings.setDatabaseVersion(ResourceUtil.getDatabaseVersion(connection));
+            DatabaseMetaData metaData = connection.getMetaData();
+            DatabaseType databaseType = ResourceUtil.getDatabaseType(metaData);
+            databaseSettings.setResolvedDatabaseType(databaseType);
+            databaseSettings.setDatabaseVersion(ResourceUtil.getDatabaseVersion(metaData));
             databaseSettings.setConnectivityStatus(ConnectivityStatus.VALID);
             return new DBNConnection(
                     project,
@@ -164,7 +189,7 @@ class Connector {
 
         } catch (Throwable e) {
             DatabaseType databaseType = ResourceUtil.getDatabaseType(databaseSettings.getDriver());
-            databaseSettings.setDatabaseType(databaseType);
+            databaseSettings.setResolvedDatabaseType(databaseType);
             databaseSettings.setConnectivityStatus(ConnectivityStatus.INVALID);
             if (connectionStatus != null) {
                 connectionStatus.setConnectionException(e);

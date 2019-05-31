@@ -1,9 +1,9 @@
 package com.dci.intellij.dbn.connection;
 
-import com.dci.intellij.dbn.common.Constants;
 import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
-import com.dci.intellij.dbn.common.notification.NotificationUtil;
+import com.dci.intellij.dbn.common.notification.NotificationGroup;
+import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.common.thread.Timeout;
 import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionPropertiesSettings;
@@ -12,7 +12,7 @@ import com.dci.intellij.dbn.connection.info.ConnectionInfo;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.jdbc.DBNStatement;
 import com.dci.intellij.dbn.database.DatabaseFeature;
-import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
+import com.dci.intellij.dbn.database.DatabaseInterface;
 import com.dci.intellij.dbn.database.DatabaseMessageParserInterface;
 import com.dci.intellij.dbn.driver.DatabaseDriverManager;
 import com.dci.intellij.dbn.driver.DriverSource;
@@ -20,7 +20,6 @@ import com.intellij.openapi.diagnostic.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.Driver;
 import java.sql.ResultSet;
@@ -79,43 +78,49 @@ public class ResourceUtil {
         // do not retry connection on authentication error unless
         // credentials changed (account can be locked on several invalid trials)
         AuthenticationError authenticationError = connectionStatus.getAuthenticationError();
-        ConnectionDatabaseSettings databaseSettings = connectionSettings.getDatabaseSettings();
-        AuthenticationInfo authenticationInfo = databaseSettings.getAuthenticationInfo();
-        if (!authenticationInfo.isProvided()) {
-            authenticationInfo = connectionHandler.getTemporaryAuthenticationInfo();
-        }
+        AuthenticationInfo authenticationInfo = ensureAuthenticationInfo(connectionHandler);
 
         if (authenticationError != null && authenticationError.getAuthenticationInfo().isSame(authenticationInfo) && !authenticationError.isExpired()) {
             throw authenticationError.getException();
         }
 
-        DatabaseType databaseType = connectionHandler.getDatabaseType();
+        return DatabaseInterface.call(
+                connectionHandler,
+                (interfaceProvider) -> {
+                    try {
+                        DatabaseAttachmentHandler attachmentHandler = interfaceProvider.getCompatibilityInterface().getDatabaseAttachmentHandler();
+                        DBNConnection connection = connect(
+                                connectionSettings,
+                                connectionStatus,
+                                connectionHandler.getTemporaryAuthenticationInfo(),
+                                sessionId,
+                                propertiesSettings.isEnableAutoCommit(),
+                                attachmentHandler);
+                        ConnectionInfo connectionInfo = new ConnectionInfo(connection.getMetaData());
+                        connectionHandler.setConnectionInfo(connectionInfo);
+                        connectionStatus.setAuthenticationError(null);
+                        connectionHandler.getCompatibility().read(connection.getMetaData());
+                        return connection;
+                    } catch (SQLException e) {
+                        DatabaseMessageParserInterface messageParserInterface = interfaceProvider.getMessageParserInterface();
+                        if (messageParserInterface.isAuthenticationException(e)){
+                            authenticationInfo.setPassword(null);
+                            connectionStatus.setAuthenticationError(new AuthenticationError(authenticationInfo, e));
+                        }
+                        throw e;
+                    }
+                });
+    }
 
-        DatabaseInterfaceProvider interfaceProvider = databaseType == DatabaseType.UNKNOWN ? null : connectionHandler.getInterfaceProvider();
-        try {
-            DatabaseAttachmentHandler attachmentHandler = interfaceProvider == null ? null : interfaceProvider.getCompatibilityInterface().getDatabaseAttachmentHandler();
-            DBNConnection connection = connect(
-                    connectionSettings,
-                    connectionStatus,
-                    connectionHandler.getTemporaryAuthenticationInfo(),
-                    sessionId,
-                    propertiesSettings.isEnableAutoCommit(),
-                    attachmentHandler);
-            ConnectionInfo connectionInfo = new ConnectionInfo(connection.getMetaData());
-            connectionHandler.setConnectionInfo(connectionInfo);
-            connectionStatus.setAuthenticationError(null);
-            return connection;
-        } catch (SQLException e) {
-            if (interfaceProvider != null) {
-                DatabaseMessageParserInterface messageParserInterface = interfaceProvider.getMessageParserInterface();
-                if (messageParserInterface.isAuthenticationException(e)){
-                    authenticationInfo.setPassword(null);
-                    authenticationError = new AuthenticationError(authenticationInfo, e);
-                    connectionStatus.setAuthenticationError(authenticationError);
-                }
-            }
-            throw e;
+    @NotNull
+    private static AuthenticationInfo ensureAuthenticationInfo(ConnectionHandler connectionHandler) {
+        ConnectionSettings connectionSettings = connectionHandler.getSettings();
+        ConnectionDatabaseSettings databaseSettings = connectionSettings.getDatabaseSettings();
+        AuthenticationInfo authenticationInfo = databaseSettings.getAuthenticationInfo();
+        if (!authenticationInfo.isProvided()) {
+            authenticationInfo = connectionHandler.getTemporaryAuthenticationInfo();
         }
+        return authenticationInfo;
     }
 
     @NotNull
@@ -175,15 +180,13 @@ public class ResourceUtil {
 
     }
 
-    public static double getDatabaseVersion(Connection connection) throws SQLException {
-        DatabaseMetaData databaseMetaData = connection.getMetaData();
+    public static double getDatabaseVersion(DatabaseMetaData databaseMetaData) throws SQLException {
         int majorVersion = databaseMetaData.getDatabaseMajorVersion();
         int minorVersion = databaseMetaData.getDatabaseMinorVersion();
         return new Double(majorVersion + "." + minorVersion);
     }
 
-    public static DatabaseType getDatabaseType(Connection connection) throws SQLException {
-        DatabaseMetaData databaseMetaData = connection.getMetaData();
+    public static DatabaseType getDatabaseType(DatabaseMetaData databaseMetaData) throws SQLException {
         String productName = databaseMetaData.getDatabaseProductName();
         return DatabaseType.resolve(productName);
     }
@@ -203,7 +206,7 @@ public class ResourceUtil {
         } catch (SQLRecoverableException ignore) {
         } catch (SQLException e) {
             sentWarningNotification(
-                    "Commit",
+                    NotificationGroup.TRANSACTION,
                     "Failed to commit",
                     connection,
                     e);
@@ -226,7 +229,7 @@ public class ResourceUtil {
         } catch (SQLRecoverableException ignore) {
         } catch (SQLException e) {
             sentWarningNotification(
-                    "Rollback",
+                    NotificationGroup.TRANSACTION,
                     "Failed to rollback",
                     connection,
                     e);
@@ -249,7 +252,7 @@ public class ResourceUtil {
         } catch (SQLRecoverableException ignore) {
         } catch (SQLException e) {
             sentWarningNotification(
-                    "Savepoint",
+                    NotificationGroup.TRANSACTION,
                     "Failed to rollback savepoint for",
                     connection,
                     e);
@@ -265,7 +268,7 @@ public class ResourceUtil {
         } catch (SQLRecoverableException ignore) {
         } catch (SQLException e) {
             sentWarningNotification(
-                    "Savepoint",
+                    NotificationGroup.TRANSACTION,
                     "Failed to create savepoint for",
                     connection,
                     e);
@@ -281,7 +284,7 @@ public class ResourceUtil {
         } catch (SQLRecoverableException ignore) {
         } catch (SQLException e) {
             sentWarningNotification(
-                    "Savepoint",
+                    NotificationGroup.TRANSACTION,
                     "Failed to release savepoint for",
                     connection,
                     e);
@@ -295,7 +298,7 @@ public class ResourceUtil {
                 connection.setReadOnly(readonly);
             } catch (SQLException e) {
             sentWarningNotification(
-                    "Readonly",
+                    NotificationGroup.CONNECTION,
                     "Failed to initialize readonly status for",
                     connection,
                     e);
@@ -311,22 +314,22 @@ public class ResourceUtil {
         } catch (SQLRecoverableException ignore) {
         } catch (Exception e) {
             sentWarningNotification(
-                    "Auto-Commit",
+                    NotificationGroup.CONNECTION,
                     "Failed to change auto-commit status for",
                     connection,
                     e);
         }
     }
 
-    private static void sentWarningNotification(String title, String message, DBNConnection connection, Exception e) {
+    private static void sentWarningNotification(NotificationGroup title, String message, DBNConnection connection, Exception e) {
         String name = connection.getName();
         SessionId sessionId = connection.getSessionId();
         String errorMessage = e.getMessage();
         String notificationMessage = message + " connection \"" + name + " (" + sessionId + ")\": " + errorMessage;
 
-        NotificationUtil.sendWarningNotification(
+        NotificationSupport.sendWarningNotification(
                 connection.getProject(),
-                Constants.DBN_TITLE_PREFIX + title,
+                title,
                 notificationMessage);
 
     }

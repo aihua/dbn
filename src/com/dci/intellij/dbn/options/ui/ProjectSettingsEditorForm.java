@@ -5,6 +5,7 @@ import com.dci.intellij.dbn.browser.options.DatabaseBrowserSettings;
 import com.dci.intellij.dbn.code.common.completion.options.CodeCompletionSettings;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.Disposer;
+import com.dci.intellij.dbn.common.notification.NotificationGroup;
 import com.dci.intellij.dbn.common.options.Configuration;
 import com.dci.intellij.dbn.common.options.ui.CompositeConfigurationEditorForm;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
@@ -21,6 +22,7 @@ import com.dci.intellij.dbn.ddl.options.DDLFileSettings;
 import com.dci.intellij.dbn.editor.code.options.CodeEditorSettings;
 import com.dci.intellij.dbn.editor.data.options.DataEditorSettings;
 import com.dci.intellij.dbn.execution.common.options.ExecutionEngineSettings;
+import com.dci.intellij.dbn.language.common.WeakRef;
 import com.dci.intellij.dbn.navigation.options.NavigationSettings;
 import com.dci.intellij.dbn.options.ConfigId;
 import com.dci.intellij.dbn.options.ProjectSettings;
@@ -58,7 +60,7 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
     private JPanel pluginUpdateLinkPanel;
     private TabbedPane configurationTabs;
 
-    private ProjectSettingsDialog dialog;
+    private WeakRef<ProjectSettingsDialog> dialogRef;
 
     public ProjectSettingsEditorForm(ProjectSettings globalSettings) {
         super(globalSettings);
@@ -108,7 +110,7 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
             label.addHyperlinkListener(new HyperlinkAdapter() {
                 @Override
                 protected void hyperlinkActivated(HyperlinkEvent e) {
-
+                    ProjectSettingsDialog dialog = dialogRef.get();
                     if (dialog != null) dialog.doCancelAction();
 
                     Project project = generalSettings.getProject();
@@ -130,16 +132,20 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
                                             }
                                         }
                                     }
-
-                                    Dispatch.invokeNonModal(() -> {
+                                    Dispatch.run(() -> {
                                         try {
                                             PluginManagerMain.downloadPlugins(updateDescriptors, pluginIds, () -> PluginManagerMain.notifyPluginsUpdated(project), null);
                                         } catch (IOException e1) {
-                                            sendErrorNotification("Update Error", "Error updating DBN plugin: " + e1.getMessage());
+                                            sendErrorNotification(
+                                                    NotificationGroup.SOFTWARE,
+                                                    "Error updating plugin: {0}", e1);
                                         }
                                     });
+
                                 } catch (Exception ex) {
-                                    sendErrorNotification("Update Error", "Error updating DBN plugin: " + ex.getMessage());
+                                    sendErrorNotification(
+                                            NotificationGroup.SOFTWARE,
+                                            "Error updating plugin: {0}", ex);
                                 }
 
                             });
@@ -151,12 +157,10 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
         } else {
             pluginUpdatePanel.setVisible(false);
         }
-
-        Disposer.register(this, configurationTabs);
     }
 
     public void setDialog(ProjectSettingsDialog dialog) {
-        this.dialog = dialog;
+        this.dialogRef = WeakRef.from(dialog);
     }
 
     private void addSettingsPanel(Configuration configuration) {
@@ -215,5 +219,11 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
             return (Configuration) tabInfo.getObject();
         }
         return getConfiguration();
+    }
+
+    @Override
+    public void disposeInner() {
+        Disposer.dispose(configurationTabs);
+        super.disposeInner();
     }
 }

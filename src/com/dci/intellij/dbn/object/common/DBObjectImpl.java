@@ -27,12 +27,15 @@ import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ConnectionId;
+import com.dci.intellij.dbn.connection.DatabaseType;
 import com.dci.intellij.dbn.connection.GenericDatabaseElement;
+import com.dci.intellij.dbn.connection.PooledConnection;
 import com.dci.intellij.dbn.connection.ResourceUtil;
 import com.dci.intellij.dbn.connection.SchemaId;
+import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
 import com.dci.intellij.dbn.connection.jdbc.DBNCallableStatement;
-import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
+import com.dci.intellij.dbn.database.common.metadata.DBObjectMetadata;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
@@ -52,6 +55,8 @@ import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.object.properties.ConnectionPresentableProperty;
 import com.dci.intellij.dbn.object.properties.DBObjectPresentableProperty;
 import com.dci.intellij.dbn.object.properties.PresentableProperty;
+import com.dci.intellij.dbn.object.type.DBObjectRelationType;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.vfs.file.DBObjectVirtualFile;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
@@ -63,7 +68,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.util.ArrayList;
@@ -71,7 +75,8 @@ import java.util.Collections;
 import java.util.List;
 
 @Nullifiable
-public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObject, ToolTipProvider {
+public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTreeNodeBase implements DBObject, ToolTipProvider {
+
     private static final List<DBObject> EMPTY_OBJECT_LIST = java.util.Collections.unmodifiableList(new ArrayList<>(0));
     public static final List<BrowserTreeNode> EMPTY_TREE_NODE_LIST = java.util.Collections.unmodifiableList(new ArrayList<BrowserTreeNode>(0));
 
@@ -91,15 +96,15 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
         throw new DBOperationNotSupportedException(operationType);
     };
 
-    protected DBObjectImpl(@NotNull DBObject parentObject, ResultSet resultSet) throws SQLException {
+    protected DBObjectImpl(@NotNull DBObject parentObject, M metadata) throws SQLException {
         this.connectionHandlerRef = ConnectionHandlerRef.from(parentObject.getConnectionHandler());
         this.parentObjectRef = DBObjectRef.from(parentObject);
-        init(resultSet);
+        init(metadata);
     }
 
-    protected DBObjectImpl(@NotNull ConnectionHandler connectionHandler, ResultSet resultSet) throws SQLException {
+    protected DBObjectImpl(@NotNull ConnectionHandler connectionHandler, M metadata) throws SQLException {
         this.connectionHandlerRef = ConnectionHandlerRef.from(connectionHandler);
-        init(resultSet);
+        init(metadata);
     }
 
     protected DBObjectImpl(@Nullable ConnectionHandler connectionHandler, DBObjectType objectType, String name) {
@@ -107,11 +112,11 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
         objectRef = new DBObjectRef(this, objectType, name);
     }
 
-    private void init(ResultSet resultSet) throws SQLException {
-        String name = initObject(resultSet);
+    private void init(M metadata) throws SQLException {
+        String name = initObject(metadata);
         objectRef = new DBObjectRef(this, name);
 
-        initStatus(resultSet);
+        initStatus(metadata);
         initProperties();
         initLists();
 
@@ -119,9 +124,9 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
         CollectionUtil.compact(childObjectRelations);
     }
 
-    protected abstract String initObject(ResultSet resultSet) throws SQLException;
+    protected abstract String initObject(M metadata) throws SQLException;
 
-    public void initStatus(ResultSet resultSet) throws SQLException {}
+    public void initStatus(M metadata) throws SQLException {}
 
     protected void initProperties() {}
 
@@ -224,9 +229,16 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
     public String getQuotedName(boolean quoteAlways) {
         String name = getName();
         if (quoteAlways || needsNameQuoting()) {
-            DatabaseCompatibilityInterface compatibilityInterface = DatabaseCompatibilityInterface.getInstance(this);
-            QuotePair quotes = compatibilityInterface.getDefaultIdentifierQuotes();
-            return quotes.beginChar() + name + quotes.endChar();
+            ConnectionHandler connectionHandler = getConnectionHandler();
+            ConnectionDatabaseSettings databaseSettings = connectionHandler.getSettings().getDatabaseSettings();
+            if (databaseSettings.getDatabaseType() == DatabaseType.GENERIC) {
+                String identifierQuotes = connectionHandler.getCompatibility().getIdentifierQuote();
+                return identifierQuotes + name + identifierQuotes;
+            } else {
+                DatabaseCompatibilityInterface compatibilityInterface = DatabaseCompatibilityInterface.getInstance(this);
+                QuotePair quotes = compatibilityInterface.getDefaultIdentifierQuotes();
+                return quotes.beginChar() + name + quotes.endChar();
+            }
         } else {
             return name;
         }
@@ -531,27 +543,26 @@ public abstract class DBObjectImpl extends BrowserTreeNodeBase implements DBObje
 
     @Override
     public String extractDDL() throws SQLException {
-        String ddl;
-        DBNCallableStatement statement = null;
-        DBNConnection connection = null;
-
         ConnectionHandler connectionHandler = Failsafe.nn(getConnectionHandler());
-        try {
-            connection = connectionHandler.getPoolConnection(true);
-            statement = connection.prepareCall("{? = call DBMS_METADATA.GET_DDL(?, ?, ?)}");
-            statement.registerOutParameter(1, Types.CLOB);
-            statement.setString(2, getTypeName().toUpperCase());
-            statement.setString(3, getName());
-            statement.setString(4, getSchema().getName());
+        // TODO move to database interface (ORACLE)
+        return PooledConnection.call(true,
+                connectionHandler,
+                connection -> {
+                    DBNCallableStatement statement = null;
+                    try {
+                        statement = connection.prepareCall("{? = call DBMS_METADATA.GET_DDL(?, ?, ?)}");
+                        statement.registerOutParameter(1, Types.CLOB);
+                        statement.setString(2, getTypeName().toUpperCase());
+                        statement.setString(3, getName());
+                        statement.setString(4, getSchema().getName());
 
-            statement.execute();
-            ddl = statement.getString(1);
-            ddl = ddl == null ? null : ddl.trim();
-        } finally{
-            ResourceUtil.close(statement);
-            connectionHandler.freePoolConnection(connection);
-        }
-        return ddl;
+                        statement.execute();
+                        String ddl = statement.getString(1);
+                        return ddl == null ? null : ddl.trim();
+                    } finally{
+                        ResourceUtil.close(statement);
+                    }
+                });
     }
 
     @Override

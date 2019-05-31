@@ -28,9 +28,9 @@ import com.dci.intellij.dbn.connection.config.ConnectionDetailSettings;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBObjectBundle;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.vfs.DBVirtualFileImpl;
 import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
 import com.intellij.openapi.components.PersistentStateComponent;
@@ -105,7 +105,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
 
     @NotNull
     public BrowserToolWindowForm getToolWindowForm() {
-        return toolWindowForm.get();
+        return Failsafe.nn(toolWindowForm.get());
     }
 
     public BooleanSetting getAutoscrollFromEditor() {
@@ -125,7 +125,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
     }
 
     public void navigateToElement(@Nullable BrowserTreeNode treeNode, boolean focus, boolean scroll) {
-        Dispatch.invoke(() -> {
+        Dispatch.run(() -> {
             ToolWindow toolWindow = getBrowserToolWindow();
 
             toolWindow.show(null);
@@ -142,7 +142,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
 
     private void navigateToElement(@Nullable BrowserTreeNode treeNode, boolean scroll) {
         if (treeNode != null) {
-            Dispatch.invoke(() -> {
+            Dispatch.run(() -> {
                 DatabaseBrowserForm browserForm = getBrowserForm();
                 browserForm.selectElement(treeNode, false, scroll);
             });
@@ -183,7 +183,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
     }
 
     public static void scrollToSelectedElement(ConnectionHandler connectionHandler) {
-        Dispatch.invoke(() -> {
+        Dispatch.run(() -> {
             Project project = connectionHandler.getProject();
             DatabaseBrowserManager browserManager = DatabaseBrowserManager.getInstance(project);
             BrowserToolWindowForm toolWindowForm = browserManager.getToolWindowForm();

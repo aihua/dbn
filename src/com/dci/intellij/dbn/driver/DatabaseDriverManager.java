@@ -1,22 +1,19 @@
 package com.dci.intellij.dbn.driver;
 
-import com.dci.intellij.dbn.common.Constants;
 import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.thread.Synchronized;
-import com.dci.intellij.dbn.common.util.ActionUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.DatabaseType;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.ApplicationComponent;
 import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.progress.ProgressManager;
-import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.sql.Driver;
@@ -29,6 +26,18 @@ import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
+/**
+ * JDBC Driver loader.
+ *
+ * Features:
+ *
+ * <ol>
+ * <li>Supports single JDBC driver library</li>
+ * <li>Supports directory scanning for JDBC drivers</li>
+ * <li>Isolated classloader</li>
+ * <li>Reload JDBC driver libraries</li>
+ * </ol>
+ */
 public class DatabaseDriverManager implements ApplicationComponent {
     private static final Logger LOGGER = LoggerFactory.createLogger();
 
@@ -63,65 +72,106 @@ public class DatabaseDriverManager implements ApplicationComponent {
     @Override
     public void disposeComponent() {}
 
-    public List<Driver> loadDriverClassesWithProgressBar(String libraryName) {
-        LoaderThread loader = new LoaderThread(libraryName);
-        Project project = ActionUtil.getProject();
-        ProgressManager.getInstance().runProcessWithProgressSynchronously(loader, Constants.DBN_TITLE_PREFIX + "Loading database drivers" , false, project);
-        return loader.getDrivers();
+    /**
+     *
+     * @param libraryName jar library path or directory containing driver/s and all required dependencies
+     * @param force reload isolated classloader with (updated) drivers without restart IDE
+     *                                   and no need to create a new connection definition
+     */
+    public List<Driver> loadDrivers(String libraryName, boolean force) {
+
+        File libraryFile = new File(libraryName);
+        List<Driver> drivers = new ArrayList<>();
+        try {
+            ClassLoader parentClassLoader = getClass().getClassLoader();
+            if (libraryFile.isFile()) {
+                URL[] urls = new URL[]{libraryFile.toURI().toURL()};
+                // creates an isolated classloader, parent = null
+                URLClassLoader classLoader = URLClassLoader.newInstance(urls, parentClassLoader);
+                return loadDriversJar(libraryName, classLoader, force);
+            } else {
+                File[] directoryListing = libraryFile.listFiles();
+                List<URL> urls = new ArrayList<>();
+                if (directoryListing != null) {
+                    // build classpath with all found jars
+                    for (File child : directoryListing) {
+                        if (child.getName().endsWith(".jar")) {
+                            urls.add(child.toURI().toURL());
+                        }
+                    }
+                    // creates an isolated classloader, parent = null
+                    URLClassLoader classLoader = URLClassLoader.newInstance(urls.toArray(new URL[0]), parentClassLoader);
+                    // find and load drivers
+                    for (File child : directoryListing) {
+                        if (child.getName().endsWith(".jar")) {
+                            List<Driver> drvs = loadDriversJar(child.getAbsolutePath(), classLoader, force);
+                            if (drvs != null) {
+                                drivers.addAll(drvs);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Error loading drivers from library " + libraryName, e);
+        }
+        return drivers;
     }
 
-    class LoaderThread implements Runnable{
-        public LoaderThread(String libraryName) {
-            this.libraryName = libraryName;
-        }
-
-        List<Driver> drivers;
-        String libraryName;
-        @Override
-        public void run() {
-            drivers = loadDrivers(libraryName);
-        }
-        public List<Driver> getDrivers() {
-                return drivers;
-        }
-    }
-
-
-    public List<Driver> loadDrivers(String libraryName) {
+    private List<Driver> loadDriversJar(String libraryName, final URLClassLoader classLoader, boolean force) {
         File libraryFile = new File(libraryName);
 
         if (libraryFile.isFile()) {
             Synchronized.run(this,
-                    () -> !driversCache.containsKey(libraryName),
+                    () -> !driversCache.containsKey(libraryName) || force,
                     () -> {
+                        if (driversCache.containsKey(libraryName) && force){
+                            try{
+                                // clean up old classloader opened resources
+                                List<Driver> drivers = driversCache.get(libraryName);
+                                if (!drivers.isEmpty()) {
+                                    ClassLoader cl = drivers.get(0).getClass().getClassLoader();
+                                    if (cl instanceof URLClassLoader) {
+                                        try {
+                                            ((URLClassLoader)cl).close();
+                                        } catch (IOException e) {
+                                            //ignored
+                                        }
+                                    }
+                                }
+                            } catch (Exception e) {
+                                //ignored
+                            }
+                        }
+
                         String taskDescription = ProgressMonitor.getTaskDescription();
                         ProgressMonitor.setTaskDescription("Loading jdbc drivers from " + libraryName);
                         try {
-                            List<Driver> drivers = new ArrayList<Driver>();
-                            URL[] urls = new URL[]{libraryFile.toURI().toURL()};
-                            URLClassLoader classLoader = URLClassLoader.newInstance(urls, getClass().getClassLoader());
-
+                            List<Driver> drivers = new ArrayList<>();
                             JarFile jarFile = new JarFile(libraryName);
                             Enumeration<JarEntry> entries = jarFile.entries();
                             while (entries.hasMoreElements()) {
                                 JarEntry entry = entries.nextElement();
+
+                                //if (entry.isDirectory()) continue;
+
                                 String name = entry.getName();
                                 if (name.endsWith(".class")) {
-
-                                    int index = name.lastIndexOf('.');
-                                    String className = name.substring(0, index);
-                                    className = className.replace('/', '.').replace('\\', '.');
-
+                                    String className = name.replaceAll("/", "\\.");
+                                    className = className.substring(0, className.length() - 6);
                                     try {
-                                        if (className.contains("Driver") || className.contains("JDBC")) {
+                                        // unsafe but fast driver loading, class name must contain "Driver"
+                                        // TODO really "unsafe" assuming all drivers contain the word "Driver" in the class name
+                                        //String[] clsTokens = className.split("\\.");
+                                        //if (clsTokens[clsTokens.length-1].toLowerCase().contains("driver")) {
                                             Class<?> clazz = classLoader.loadClass(className);
                                             if (Driver.class.isAssignableFrom(clazz)) {
-                                                Driver driver = (Driver) clazz.newInstance();
+                                                Driver driver = (Driver)clazz.newInstance();
                                                 drivers.add(driver);
                                             }
-                                        }
+                                        //}
                                     } catch (Throwable throwable) {
-                                        // ignore
+                                        LOGGER.debug("Error loading driver "+className+" from library " + libraryName, throwable);
                                     }
                                 }
                             }
@@ -164,7 +214,7 @@ public class DatabaseDriverManager implements ApplicationComponent {
             throw new Exception("No driver class specified.");
         }
         if (new File(libraryName).exists()) {
-            List<Driver> drivers = loadDrivers(libraryName);
+            List<Driver> drivers = loadDrivers(libraryName, false);
             for (Driver driver : drivers) {
                 if (driver.getClass().getName().equals(className)) {
                     return driver;
@@ -188,6 +238,6 @@ public class DatabaseDriverManager implements ApplicationComponent {
     public static void main(String[] args) {
         DatabaseDriverManager m = new DatabaseDriverManager();
         File file = new File("D:\\Projects\\DBNavigator\\lib\\classes12.jar");
-        List<Driver> drivers = m.loadDrivers(file.getPath());
+        List<Driver> drivers = m.loadDrivers(file.getPath(), false);
     }
 }

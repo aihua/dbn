@@ -3,13 +3,14 @@ package com.dci.intellij.dbn.connection.action;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.thread.Progress;
-import com.dci.intellij.dbn.common.util.ActionUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.object.common.DBObjectRecursiveLoaderVisitor;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.Presentation;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 public class LoadAllObjectsAction extends AbstractConnectionAction {
     LoadAllObjectsAction(ConnectionHandler connectionHandler) {
@@ -17,9 +18,7 @@ public class LoadAllObjectsAction extends AbstractConnectionAction {
     }
 
     @Override
-    public void actionPerformed(@NotNull AnActionEvent e) {
-        Project project = ActionUtil.ensureProject(e);
-        ConnectionHandler connectionHandler = getConnectionHandler();
+    protected void actionPerformed(@NotNull AnActionEvent e, @NotNull Project project, @NotNull ConnectionHandler connectionHandler) {
         String connectionName = connectionHandler.getName();
         Progress.prompt(
                 project,
@@ -31,7 +30,7 @@ public class LoadAllObjectsAction extends AbstractConnectionAction {
     }
 
     @Override
-    public void update(@NotNull AnActionEvent e) {
-        e.getPresentation().setVisible(DatabaseNavigator.DEVELOPER);
+    protected void update(@NotNull AnActionEvent e, @NotNull Presentation presentation, @NotNull Project project, @Nullable ConnectionHandler connectionHandler) {
+        presentation.setVisible(DatabaseNavigator.DEVELOPER);
     }
 }

@@ -5,11 +5,12 @@ import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.ProjectRef;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.Nullifiable;
+import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.connection.ConnectionBundle;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.GenericDatabaseElement;
-import com.dci.intellij.dbn.object.common.DBObjectType;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
 import com.intellij.openapi.project.Project;
@@ -166,7 +167,7 @@ public class SimpleBrowserTreeRoot extends BrowserTreeNodeBase implements Browse
     @NotNull
     @Override
     public String getName() {
-        return getPresentableText();
+        return CommonUtil.nvl(getPresentableText(), "Database Objects");
     }
     
     @Override

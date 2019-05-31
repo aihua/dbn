@@ -9,6 +9,7 @@ import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.DataProvider;
 import com.intellij.openapi.actionSystem.Presentation;
+import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -16,11 +17,11 @@ import javax.swing.*;
 
 public class CreateConnectionDropdownAction extends GroupPopupAction {
     private AnAction[] actions = new AnAction[] {
-            new CreateConnectionAction(DatabaseType.ORACLE),
-            new CreateConnectionAction(DatabaseType.MYSQL),
-            new CreateConnectionAction(DatabaseType.POSTGRES),
-            new CreateConnectionAction(DatabaseType.SQLITE),
-            new CreateConnectionAction(null),
+            new ConnectionCreateAction(DatabaseType.ORACLE),
+            new ConnectionCreateAction(DatabaseType.MYSQL),
+            new ConnectionCreateAction(DatabaseType.POSTGRES),
+            new ConnectionCreateAction(DatabaseType.SQLITE),
+            new ConnectionCreateAction(null),
             ActionUtil.SEPARATOR,
             new TnsNamesImportAction()
     };
@@ -44,7 +45,7 @@ public class CreateConnectionDropdownAction extends GroupPopupAction {
     }
 
     @Override
-    public void update(@NotNull AnActionEvent e) {
+    protected void update(@NotNull AnActionEvent e, @NotNull Project project) {
         DataProvider dataProvider = getDataProvider(e);
         Presentation presentation = e.getPresentation();
         presentation.setEnabled(dataProvider != null);

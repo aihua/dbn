@@ -76,7 +76,7 @@ public class StatementExecutionResultForm extends ExecutionResultFormBase<Statem
     }
 
     public void rebuildForm() {
-        Dispatch.invoke(() -> {
+        Dispatch.run(() -> {
             StatementExecutionCursorResult executionResult = getExecutionResult();
             JScrollBar horizontalScrollBar = resultScrollPane.getHorizontalScrollBar();
             int horizontalScrolling = horizontalScrollBar.getValue();
@@ -94,7 +94,7 @@ public class StatementExecutionResultForm extends ExecutionResultFormBase<Statem
     }
 
     public void updateVisibleComponents() {
-        Dispatch.invoke(() -> {
+        Dispatch.run(() -> {
             StatementExecutionCursorResult executionResult = getExecutionResult();
             ResultSetDataModel dataModel = executionResult.getTableModel();
             ConnectionHandler connectionHandler = executionResult.getConnectionHandler();
@@ -105,7 +105,13 @@ public class StatementExecutionResultForm extends ExecutionResultFormBase<Statem
                     sessionId == SessionId.POOL ? " (pool)" : " (session)";
             int rowCount = dataModel.getRowCount();
             String partialResultInfo = dataModel.isResultSetExhausted() ? "" : " (partial)";
-            statusLabel.setText(connectionName + connectionType + ": " + rowCount + " records" + partialResultInfo);
+            long executeDuration = dataModel.getExecuteDuration();
+            long fetchDuration = dataModel.getFetchDuration();
+
+            String executionDurationInfo = executeDuration == -1 ? "" : " - executed in " + executeDuration + " ms.";
+            String fetchDurationInfo = fetchDuration == -1 ? "" : " / fetched in " + fetchDuration + " ms.";
+
+            statusLabel.setText(connectionName + connectionType + ": " + rowCount + " records " + partialResultInfo + executionDurationInfo + fetchDurationInfo );
             statusLabel.setIcon(connectionHandler.getIcon());
         });
     }

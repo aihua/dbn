@@ -1,9 +1,8 @@
 package com.dci.intellij.dbn.database.sqlite.adapter.rs;
 
-import com.dci.intellij.dbn.common.cache.Cache;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
-import com.dci.intellij.dbn.database.sqlite.adapter.ResultSetElement;
+import com.dci.intellij.dbn.database.sqlite.adapter.SqliteMetadataResultSetRow;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.ResultSet;
@@ -16,13 +15,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.dci.intellij.dbn.database.sqlite.adapter.SqliteRawMetaData.*;
 
-public abstract class SqliteConstraintInfoResultSetStub<T extends ResultSetElement<T>> extends SqliteDatasetInfoResultSetStub<T> {
+public abstract class SqliteConstraintInfoResultSetStub<T extends SqliteMetadataResultSetRow<T>> extends SqliteDatasetInfoResultSetStub<T> {
 
-    public SqliteConstraintInfoResultSetStub(String ownerName, SqliteDatasetNamesResultSet datasetNames, DBNConnection connection) throws SQLException {
+    SqliteConstraintInfoResultSetStub(String ownerName, SqliteDatasetNamesResultSet datasetNames, DBNConnection connection) throws SQLException {
         super(ownerName, datasetNames, connection);
     }
 
-    public SqliteConstraintInfoResultSetStub(String ownerName, String datasetName, DBNConnection connection) throws SQLException {
+    SqliteConstraintInfoResultSetStub(String ownerName, String datasetName, DBNConnection connection) throws SQLException {
         super(ownerName, datasetName, connection);
     }
 
@@ -34,8 +33,8 @@ public abstract class SqliteConstraintInfoResultSetStub<T extends ResultSetEleme
     protected abstract ResultSet loadIndexInfo(String ownerName, String tableName) throws SQLException;
     protected abstract ResultSet loadIndexDetailInfo(String ownerName, String indexName) throws SQLException;
 
-    protected Map<String, List<SqliteConstraintsLoader.ConstraintColumnInfo>> loadConstraintInfo(final String ownerName, String datasetName) throws SQLException {
-        SqliteConstraintsLoader loader = new SqliteConstraintsLoader(ownerName, getCache()) {
+    Map<String, List<SqliteConstraintsLoader.ConstraintColumnInfo>> loadConstraintInfo(final String ownerName, String datasetName) throws SQLException {
+        SqliteConstraintsLoader loader = new SqliteConstraintsLoader(ownerName) {
             @Override
             public ResultSet loadTableInfo(String datasetName) throws SQLException {
                 return SqliteConstraintInfoResultSetStub.this.loadTableInfo(ownerName, datasetName);
@@ -62,7 +61,6 @@ public abstract class SqliteConstraintInfoResultSetStub<T extends ResultSetEleme
 
 
     public abstract static class SqliteConstraintsLoader {
-        private Cache cache;
         private String ownerName;
 
         public enum ConstraintType {
@@ -71,18 +69,17 @@ public abstract class SqliteConstraintInfoResultSetStub<T extends ResultSetEleme
             UQ
         }
 
-        public SqliteConstraintsLoader(String ownerName, Cache cache) {
+        SqliteConstraintsLoader(String ownerName) {
             this.ownerName = ownerName;
-            this.cache = cache;
         }
 
         @NotNull
-        public Map<String, List<ConstraintColumnInfo>> loadConstraints(final String dataset) throws SQLException {
+        Map<String, List<ConstraintColumnInfo>> loadConstraints(final String dataset) throws SQLException {
             RawTableInfo tableInfo = getTableInfo(dataset);
             RawForeignKeyInfo foreignKeyInfo = getForeignKeyInfo(dataset);
             RawIndexInfo indexInfo = getIndexInfo(dataset);
 
-            Map<String, List<ConstraintColumnInfo>> constraints = new HashMap<String, List<ConstraintColumnInfo>>();
+            Map<String, List<ConstraintColumnInfo>> constraints = new HashMap<>();
             AtomicInteger pkPosition = new AtomicInteger();
 
             for (RawTableInfo.Row row : tableInfo.getRows()) {
@@ -125,25 +122,25 @@ public abstract class SqliteConstraintInfoResultSetStub<T extends ResultSetEleme
         }
 
         private RawForeignKeyInfo getForeignKeyInfo(final String datasetName) throws SQLException {
-            return cache.get(
+            return cache().get(
                     ownerName + "." + datasetName + ".FOREIGN_KEY_INFO",
                     () -> new RawForeignKeyInfo(loadForeignKeyInfo(datasetName)));
         }
 
         private RawTableInfo getTableInfo(final String datasetName) throws SQLException {
-            return cache.get(
+            return cache().get(
                     ownerName + "." + datasetName + ".TABLE_INFO",
                     () -> new RawTableInfo(loadTableInfo(datasetName)));
         }
 
         private RawIndexInfo getIndexInfo(final String tableName) throws SQLException {
-            return cache.get(
+            return cache().get(
                     ownerName + "." + tableName + ".INDEX_INFO",
                     () -> new RawIndexInfo(loadIndexInfo(tableName)));
         }
 
         private RawIndexDetailInfo getIndexDetailInfo(final String indexName) throws SQLException {
-            return cache.get(
+            return cache().get(
                     ownerName + "." + indexName + ".INDEX_DETAIL_INFO",
                     () -> new RawIndexDetailInfo(loadIndexDetailInfo(indexName)));
         }
@@ -183,7 +180,7 @@ public abstract class SqliteConstraintInfoResultSetStub<T extends ResultSetEleme
             String fkColumn;
             int position;
 
-            public ConstraintColumnInfo(String dataset, String column, String fkDataset, String fkColumn, int position) {
+            ConstraintColumnInfo(String dataset, String column, String fkDataset, String fkColumn, int position) {
                 this.dataset = dataset;
                 this.column = column;
                 this.fkDataset = fkDataset;

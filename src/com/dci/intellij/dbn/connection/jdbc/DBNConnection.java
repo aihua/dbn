@@ -15,6 +15,7 @@ import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.transaction.PendingTransactionBundle;
 import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NotNull;
@@ -61,7 +62,7 @@ public class DBNConnection extends DBNConnectionBase {
                     ResourceStatus.VALID,
                     ResourceStatus.VALID_SETTING,
                     ResourceStatus.VALID_CHECKING,
-                    TimeUtil.FIVE_SECONDS,
+                    TimeUtil.TEN_SECONDS,
                     Boolean.TRUE,
                     Boolean.FALSE) { // false is terminal status
                 @Override
@@ -79,15 +80,19 @@ public class DBNConnection extends DBNConnectionBase {
                     ResourceStatus.AUTO_COMMIT,
                     ResourceStatus.AUTO_COMMIT_SETTING,
                     ResourceStatus.AUTO_COMMIT_CHECKING,
-                    TimeUtil.FIVE_SECONDS,
+                    TimeUtil.TEN_SECONDS,
                     Boolean.FALSE,
                     null) { // no terminal status
                 @Override
                 protected void changeInner(boolean value) throws SQLException {
                     try {
-                        inner.setAutoCommit(value);
-                    } catch (SQLException e) {
-                        inner.setAutoCommit(value);
+                        try {
+                            inner.setAutoCommit(value);
+                        } catch (SQLException e) {
+                            inner.setAutoCommit(value);
+                        }
+                    } catch (Throwable e){
+                        LOGGER.warn("Unable to set auto-commit to " + value+". Maybe your database does not support transactions...", e);
                     }
                 }
 
@@ -270,11 +275,11 @@ public class DBNConnection extends DBNConnectionBase {
     }
 
     private void notifyStatusChange() {
-        Failsafe.guarded(() -> {
+        try {
             EventUtil.notify(getProject(),
                     ConnectionStatusListener.TOPIC,
                     (listener) -> listener.statusChanged(id, sessionId));
-        });
+        } catch (ProcessCanceledException ignore) {}
     }
 
     public SchemaId getCurrentSchema() {

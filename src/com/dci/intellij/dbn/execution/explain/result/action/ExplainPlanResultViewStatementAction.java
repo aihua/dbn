@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.execution.common.ui.StatementViewerPopup;
 import com.dci.intellij.dbn.execution.explain.result.ExplainPlanResult;
 import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 
 import java.awt.*;
@@ -14,17 +15,8 @@ public class ExplainPlanResultViewStatementAction extends AbstractExplainPlanRes
     }
 
     @Override
-    public void actionPerformed(@NotNull AnActionEvent e) {
-        ExplainPlanResult explainPlanResult = getExplainPlanResult(e);
-        if (explainPlanResult != null) {
-            StatementViewerPopup statementViewer = new StatementViewerPopup(explainPlanResult);
-            statementViewer.show((Component) e.getInputEvent().getSource());
-        }
-    }
-
-    @Override
-    public void update(@NotNull AnActionEvent e) {
-        super.update(e);
-        e.getPresentation().setText("View SQL Statement");
+    protected void actionPerformed(@NotNull AnActionEvent e, @NotNull Project project, @NotNull ExplainPlanResult explainPlanResult) {
+        StatementViewerPopup statementViewer = new StatementViewerPopup(explainPlanResult);
+        statementViewer.show((Component) e.getInputEvent().getSource());
     }
 }

@@ -3,15 +3,16 @@ package com.dci.intellij.dbn.debugger;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.notification.NotificationGroup;
 import com.dci.intellij.dbn.common.routine.ParametricRunnable;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.common.util.NamingUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionProvider;
-import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.operation.options.OperationSettings;
 import com.dci.intellij.dbn.database.DatabaseDebuggerInterface;
 import com.dci.intellij.dbn.database.DatabaseFeature;
+import com.dci.intellij.dbn.database.DatabaseInterface;
 import com.dci.intellij.dbn.database.common.debug.DebuggerVersionInfo;
 import com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointUpdaterFileEditorListener;
 import com.dci.intellij.dbn.debugger.common.config.DBMethodRunConfig;
@@ -39,6 +40,7 @@ import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.DBSystemPrivilege;
 import com.dci.intellij.dbn.object.DBUser;
 import com.dci.intellij.dbn.object.common.DBObject;
+import com.dci.intellij.dbn.object.common.DBObjectBundle;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatus;
@@ -72,6 +74,7 @@ import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -334,7 +337,8 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
     }
 
 
-    private void startDebugger(ParametricRunnable<DBDebuggerType> debuggerStarter) {
+    private void startDebugger(@NotNull ParametricRunnable.Basic<DBDebuggerType> debuggerStarter) {
+
         getDebuggerSettings().getDebuggerType().resolve(list(),
                 debuggerTypeOption -> {
                     DBDebuggerType debuggerType = debuggerTypeOption.getDebuggerType();
@@ -408,19 +412,21 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
     public List<String> getMissingDebugPrivileges(@NotNull ConnectionHandler connectionHandler) {
         List<String> missingPrivileges = new ArrayList<>();
         String userName = connectionHandler.getUserName();
-        DBUser user = connectionHandler.getObjectBundle().getUser(userName);
+        DBObjectBundle objectBundle = connectionHandler.getObjectBundle();
+        DBUser user = objectBundle.getUser(userName);
 
         if (user != null) {
             String[] privilegeNames = connectionHandler.getInterfaceProvider().getDebuggerInterface().getRequiredPrivilegeNames();
 
             for (String privilegeName : privilegeNames) {
-                DBSystemPrivilege systemPrivilege = connectionHandler.getObjectBundle().getSystemPrivilege(privilegeName);
+                DBSystemPrivilege systemPrivilege = objectBundle.getSystemPrivilege(privilegeName);
                 if (systemPrivilege == null || !user.hasSystemPrivilege(systemPrivilege))  {
                     missingPrivileges.add(privilegeName);
                 }
             }
         }
         return missingPrivileges;
+
     }
 
     private static final Comparator<DBSchemaObject> DEPENDENCY_COMPARATOR = (schemaObject1, schemaObject2) -> {
@@ -429,19 +435,20 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
         return 0;
     };
 
-    public String getDebuggerVersion(ConnectionHandler connectionHandler) {
-
+    public String getDebuggerVersion(@NotNull ConnectionHandler connectionHandler) {
         if (DatabaseFeature.DEBUGGING.isSupported(connectionHandler)) {
-            DatabaseDebuggerInterface debuggerInterface = connectionHandler.getInterfaceProvider().getDebuggerInterface();
-            DBNConnection connection = null;
             try {
-                connection = connectionHandler.getPoolConnection(true);
-                DebuggerVersionInfo debuggerVersion = debuggerInterface.getDebuggerVersion(connection);
-                return debuggerVersion.getVersion();
-            } catch (Exception ignore) {
-
-            } finally {
-                connectionHandler.freePoolConnection(connection);
+                return DatabaseInterface.call(true,
+                        connectionHandler,
+                        (interfaceProvider, connection) -> {
+                            DatabaseDebuggerInterface debuggerInterface = interfaceProvider.getDebuggerInterface();
+                            DebuggerVersionInfo debuggerVersion = debuggerInterface.getDebuggerVersion(connection);
+                            return debuggerVersion.getVersion();
+                        });
+            } catch (SQLException e) {
+                sendErrorNotification(
+                        NotificationGroup.DEBUGGER,
+                        "Failed to load debugger version: {0}", e);
             }
         }
         return "Unknown";

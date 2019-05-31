@@ -13,6 +13,8 @@ import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.latent.MapLatent;
+import com.dci.intellij.dbn.common.notification.NotificationGroup;
+import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.common.thread.Synchronized;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
@@ -25,6 +27,7 @@ import com.dci.intellij.dbn.connection.info.ConnectionInfo;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.connection.session.DatabaseSessionBundle;
+import com.dci.intellij.dbn.database.DatabaseCompatibility;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.database.DatabaseInterface;
 import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
@@ -33,6 +36,7 @@ import com.dci.intellij.dbn.execution.statement.StatementExecutionQueue;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
 import com.dci.intellij.dbn.language.common.QuotePair;
+import com.dci.intellij.dbn.language.common.WeakRef;
 import com.dci.intellij.dbn.navigation.psi.DBConnectionPsiDirectory;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObjectBundle;
@@ -52,11 +56,11 @@ import java.util.Comparator;
 import java.util.List;
 
 @Nullifiable
-public class ConnectionHandlerImpl extends DisposableBase implements ConnectionHandler {
+public class ConnectionHandlerImpl extends DisposableBase implements ConnectionHandler, NotificationSupport {
     private static final Logger LOGGER = LoggerFactory.createLogger();
 
     private ConnectionSettings connectionSettings;
-    private ConnectionBundle connectionBundle;
+    private WeakRef<ConnectionBundle> connectionBundleRef;
     private ConnectionHandlerStatusHolder connectionStatus;
     private ConnectionPool connectionPool;
     private DatabaseInterfaceProvider interfaceProvider;
@@ -70,7 +74,8 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     private boolean enabled;
     private ConnectionHandlerRef ref;
     private ConnectionInfo connectionInfo;
-    private Cache metaDataCache = new Cache(TimeUtil.ONE_MINUTE);
+    private Latent<Cache> metaDataCache = Latent.basic(() -> new Cache(getConnectionId().id(), TimeUtil.ONE_MINUTE));
+    private DatabaseCompatibility compatibility = DatabaseCompatibility.allFeatures();
 
     private Latent<AuthenticationInfo> temporaryAuthenticationInfo = Latent.basic(() -> {
         ConnectionDatabaseSettings databaseSettings = getSettings().getDatabaseSettings();
@@ -83,11 +88,11 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     private Latent<DBConnectionPsiDirectory> psiDirectory = Latent.basic(() -> new DBConnectionPsiDirectory(this));
 
     private Latent<DBObjectBundle> objectBundle =
-            Latent.disposable(this, () -> new DBObjectBundleImpl(this, connectionBundle));
+            Latent.disposable(this, () -> new DBObjectBundleImpl(this, getConnectionBundle()));
 
 
     ConnectionHandlerImpl(ConnectionBundle connectionBundle, ConnectionSettings connectionSettings) {
-        this.connectionBundle = connectionBundle;
+        this.connectionBundleRef = WeakRef.from(connectionBundle);
         this.connectionSettings = connectionSettings;
         this.enabled = connectionSettings.isActive();
         ref = new ConnectionHandlerRef(this);
@@ -122,6 +127,11 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     }
 
     @Override
+    public Cache getMetaDataCache() {
+        return metaDataCache.get();
+    }
+
+    @Override
     @NotNull
     public String getConnectionName(@Nullable DBNConnection connection) {
         if (connection == null || sessionBundle == null) {
@@ -153,6 +163,7 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
 
     @Override
     public boolean canConnect() {
+        ConnectionSettings connectionSettings = getSettings();
         if (isDisposed() || !connectionSettings.isActive()) {
             return false;
         }
@@ -182,12 +193,13 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     @Override
     @NotNull
     public ConnectionBundle getConnectionBundle() {
-        return Failsafe.nn(connectionBundle);
+        return connectionBundleRef.ensure();
     }
 
+    @NotNull
     @Override
     public ConnectionSettings getSettings() {
-        return connectionSettings;
+        return Failsafe.nn(connectionSettings);
     }
 
     @Override
@@ -239,23 +251,23 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
 
     @Override
     public DatabaseType getDatabaseType() {
-        return connectionSettings.getDatabaseSettings().getDatabaseType();
+        return getSettings().getDatabaseSettings().getDatabaseType();
     }
 
     @Override
     public double getDatabaseVersion() {
-        return connectionSettings.getDatabaseSettings().getDatabaseVersion();
+        return getSettings().getDatabaseSettings().getDatabaseVersion();
     }
 
     @Override
     public Filter<BrowserTreeNode> getObjectTypeFilter() {
-        return connectionSettings.getFilterSettings().getObjectTypeFilterSettings().getElementFilter();
+        return getSettings().getFilterSettings().getObjectTypeFilterSettings().getElementFilter();
     }
 
     @NotNull
     @Override
     public EnvironmentType getEnvironmentType() {
-        return connectionSettings.getDetailSettings().getEnvironmentType();
+        return getSettings().getDetailSettings().getEnvironmentType();
     }
 
     @Override
@@ -305,27 +317,40 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
 
     @Override
     public boolean isAutoCommit() {
-        return connectionSettings.getPropertiesSettings().isEnableAutoCommit();
+        return getSettings().getPropertiesSettings().isEnableAutoCommit();
     }
 
     @Override
     public boolean isLoggingEnabled() {
-        return connectionSettings.getDetailSettings().isEnableDatabaseLogging();
+        return getSettings().getDetailSettings().isEnableDatabaseLogging();
     }
 
     @Override
     public boolean hasPendingTransactions(@NotNull DBNConnection connection) {
-        return getInterfaceProvider().getMetadataInterface().hasPendingTransactions(connection);
+        try {
+            return DatabaseInterface.call(
+                    this, interfaceProvider -> {
+                        DatabaseMetadataInterface metadataInterface = interfaceProvider.getMetadataInterface();
+                        return metadataInterface.hasPendingTransactions(connection);
+                    });
+        } catch (SQLException e) {
+            sendErrorNotification(
+                    NotificationGroup.TRANSACTION,
+                    "Failed to check connection transactional status: {0}", e);
+            return false;
+
+        }
+
     }
 
     @Override
     public void setLoggingEnabled(boolean loggingEnabled) {
-        connectionSettings.getDetailSettings().setEnableDatabaseLogging(loggingEnabled);
+        getSettings().getDetailSettings().setEnableDatabaseLogging(loggingEnabled);
     }
 
     @Override
     public void setAutoCommit(boolean autoCommit) {
-        connectionSettings.getPropertiesSettings().setEnableAutoCommit(autoCommit);
+        getSettings().getPropertiesSettings().setEnableAutoCommit(autoCommit);
     }
 
     @Override
@@ -339,12 +364,12 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
 
     @Override
     public ConnectionId getConnectionId() {
-        return connectionSettings.getConnectionId();
+        return getSettings().getConnectionId();
     }
 
     @Override
     public String getUserName() {
-        return CommonUtil.nvl(connectionSettings.getDatabaseSettings().getAuthenticationInfo().getUser(), "");
+        return CommonUtil.nvl(getSettings().getDatabaseSettings().getAuthenticationInfo().getUser(), "");
     }
 
     @Override
@@ -413,7 +438,8 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     public DBNConnection getDebugConnection(@Nullable SchemaId schemaId) throws SQLException {
         assertCanConnect();
         DBNConnection connection = getConnectionPool().ensureDebugConnection();
-        return setCurrentSchema(connection, schemaId);
+        setCurrentSchema(connection, schemaId);
+        return connection;
     }
 
     @Override
@@ -434,14 +460,16 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     @NotNull
     public DBNConnection getMainConnection(@Nullable SchemaId schemaId) throws SQLException {
         DBNConnection connection = getMainConnection();
-        return setCurrentSchema(connection, schemaId);
+        setCurrentSchema(connection, schemaId);
+        return connection;
     }
 
     @Override
     @NotNull
     public DBNConnection getPoolConnection(@Nullable SchemaId schemaId, boolean readonly) throws SQLException {
         DBNConnection connection = getPoolConnection(readonly);
-        return setCurrentSchema(connection, schemaId);
+        setCurrentSchema(connection, schemaId);
+        return connection;
     }
 
     @Override
@@ -451,18 +479,22 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
                 sessionId == SessionId.MAIN ? getMainConnection() :
                 sessionId == SessionId.POOL ? getPoolConnection(false) :
                 getConnectionPool().ensureSessionConnection(sessionId);
-        return setCurrentSchema(connection, schemaId);
+        setCurrentSchema(connection, schemaId);
+        return connection;
     }
 
-    private DBNConnection setCurrentSchema(DBNConnection connection, @Nullable SchemaId schema) throws SQLException {
+    @Override
+    public void setCurrentSchema(DBNConnection connection, @Nullable SchemaId schema) throws SQLException {
         if (schema != null && /*!schema.isPublicSchema() && */DatabaseFeature.CURRENT_SCHEMA.isSupported(this) && !schema.equals(connection.getCurrentSchema())) {
-            String schemaName = schema.getName();
-            DatabaseMetadataInterface metadataInterface = getInterfaceProvider().getMetadataInterface();
-            QuotePair quotePair = getInterfaceProvider().getCompatibilityInterface().getDefaultIdentifierQuotes();
-            metadataInterface.setCurrentSchema(quotePair.quote(schemaName), connection);
-            connection.setCurrentSchema(schema);
+            DatabaseInterface.run(this,
+                    (interfaceProvider) -> {
+                        String schemaName = schema.getName();
+                        DatabaseMetadataInterface metadataInterface = interfaceProvider.getMetadataInterface();
+                        QuotePair quotePair = interfaceProvider.getCompatibilityInterface().getDefaultIdentifierQuotes();
+                        metadataInterface.setCurrentSchema(quotePair.quote(schemaName), connection);
+                        connection.setCurrentSchema(schema);
+                    });
         }
-        return connection;
     }
 
 
@@ -498,14 +530,9 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
                     try {
                         interfaceProvider = DatabaseInterfaceProviderFactory.getInterfaceProvider(this);
                     } catch (SQLException e) {
-                        System.out.println();
+                        LOGGER.warn("Failed to resolve database interface provider", e);
                     }
                 });
-
-        if (interfaceProvider != null) {
-            interfaceProvider.setProject(getProject());
-            interfaceProvider.setMetaDataCache(metaDataCache);
-        }
 
         // do not initialize
         return interfaceProvider == null ? DatabaseInterfaceProviderFactory.GENERIC_INTERFACE_PROVIDER : interfaceProvider;
@@ -523,6 +550,16 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
             return getLanguageDialect((DBLanguage) language);
         }
         return null;
+    }
+
+    @Override
+    public DatabaseCompatibility getCompatibility() {
+        return compatibility;
+    }
+
+    @Override
+    public void resetCompatibilityMonitor() {
+        compatibility = DatabaseCompatibility.allFeatures();
     }
 
     @Override
@@ -549,17 +586,17 @@ public class ConnectionHandlerImpl extends DisposableBase implements ConnectionH
     @Override
     @NotNull
     public String getName() {
-        return connectionSettings.getDatabaseSettings().getName();
+        return getSettings().getDatabaseSettings().getName();
     }
 
     @Override
     public String getDescription() {
-        return connectionSettings.getDatabaseSettings().getDescription();
+        return getSettings().getDatabaseSettings().getDescription();
     }
 
     @Override
     public String getPresentableText(){
-        return connectionSettings.getDatabaseSettings().getName();
+        return getSettings().getDatabaseSettings().getName();
     }
 
     @Override

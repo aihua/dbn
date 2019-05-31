@@ -7,11 +7,12 @@ import com.dci.intellij.dbn.common.options.Configuration;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionIdProvider;
 import com.dci.intellij.dbn.connection.config.ui.ConnectionFilterSettingsForm;
+import com.dci.intellij.dbn.object.DBColumn;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObject;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.filter.name.ObjectNameFilterSettings;
 import com.dci.intellij.dbn.object.filter.type.ObjectTypeFilterSettings;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -23,30 +24,45 @@ public class ConnectionFilterSettings extends CompositeProjectConfiguration<Conn
     private ObjectTypeFilterSettings objectTypeFilterSettings;
     private ObjectNameFilterSettings objectNameFilterSettings;
     private boolean hideEmptySchemas = false;
+    private boolean hidePseudoColumns = false;
     private ConnectionSettings connectionSettings;
 
     private static final Filter<DBSchema> EMPTY_SCHEMAS_FILTER = schema -> !schema.isEmptySchema();
+    private static final Filter<DBColumn> PSEUDO_COLUMNS_FILTER = column -> !column.isHidden();
 
     private Latent<Filter<DBSchema>> schemaFilter = Latent.mutable(
             () -> hideEmptySchemas,
             () -> {
                 Filter<DBObject> filter = objectNameFilterSettings.getFilter(DBObjectType.SCHEMA);
                 if (filter == null) {
-                    return EMPTY_SCHEMAS_FILTER;
+                    return hideEmptySchemas ? EMPTY_SCHEMAS_FILTER : null; // return null filter for optimization
                 } else {
-                    return new Filter<DBSchema>() {
-                        @Override
-                        public int hashCode() {
-                            return filter.hashCode() + EMPTY_SCHEMAS_FILTER.hashCode();
-                        }
-
-                        @Override
-                        public boolean accepts(DBSchema schema) {
+                    return schema -> {
+                        if (hideEmptySchemas) {
                             return EMPTY_SCHEMAS_FILTER.accepts(schema) && filter.accepts(schema);
+                        } else {
+                            return filter.accepts(schema);
                         }
                     };
                 }
             });
+
+    private Latent<Filter<DBColumn>> columnFilter = Latent.mutable(
+        () -> hidePseudoColumns,
+        () -> {
+            Filter<DBObject> filter = objectNameFilterSettings.getFilter(DBObjectType.COLUMN);
+            if (filter == null) {
+                return PSEUDO_COLUMNS_FILTER;
+            } else {
+                return column -> {
+                    if (hidePseudoColumns) {
+                        return PSEUDO_COLUMNS_FILTER.accepts(column) && filter.accepts(column);
+                    } else {
+                        return filter.accepts(column);
+                    }
+                };
+            }
+        });
 
     ConnectionFilterSettings(ConnectionSettings connectionSettings) {
         super(connectionSettings.getProject());
@@ -61,6 +77,14 @@ public class ConnectionFilterSettings extends CompositeProjectConfiguration<Conn
 
     public void setHideEmptySchemas(boolean hideEmptySchemas) {
         this.hideEmptySchemas = hideEmptySchemas;
+    }
+
+    public boolean isHidePseudoColumns() {
+        return hidePseudoColumns;
+    }
+
+    public void setHidePseudoColumns(boolean hidePseudoColumns) {
+        this.hidePseudoColumns = hidePseudoColumns;
     }
 
     public ConnectionId getConnectionId() {
@@ -111,19 +135,22 @@ public class ConnectionFilterSettings extends CompositeProjectConfiguration<Conn
     @Override
     public void readConfiguration(Element element) {
         hideEmptySchemas = getBooleanAttribute(element, "hide-empty-schemas", hideEmptySchemas);
+        hidePseudoColumns = getBooleanAttribute(element, "hide-pseudo-columns", hidePseudoColumns);
         super.readConfiguration(element);
     }
 
     @Override
     public void writeConfiguration(Element element) {
         setBooleanAttribute(element, "hide-empty-schemas", hideEmptySchemas);
+        setBooleanAttribute(element, "hide-pseudo-columns", hidePseudoColumns);
         super.writeConfiguration(element);
     }
 
     @Nullable
     public Filter<? extends DBObject> getNameFilter(DBObjectType objectType) {
-        return objectType == DBObjectType.SCHEMA ?
-                schemaFilter.get() :
+        return
+            objectType == DBObjectType.SCHEMA ? schemaFilter.get() :
+            objectType == DBObjectType.COLUMN ? columnFilter.get() :
                 objectNameFilterSettings.getFilter(objectType);
     }
 }

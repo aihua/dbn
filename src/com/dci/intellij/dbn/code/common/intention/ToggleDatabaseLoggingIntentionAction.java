@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.debugger.DatabaseDebuggerManager;
 import com.dci.intellij.dbn.language.common.PsiFileRef;
@@ -19,16 +20,19 @@ import javax.swing.*;
 
 public class ToggleDatabaseLoggingIntentionAction extends GenericIntentionAction implements LowPriorityAction {
     private PsiFileRef lastChecked;
+
     @Override
     @NotNull
     public String getText() {
         ConnectionHandler connectionHandler = getLastCheckedConnection();
-        if (connectionHandler != null) {
-            String databaseLogName = connectionHandler.getInterfaceProvider().getCompatibilityInterface().getDatabaseLogName();
+        if (Failsafe.check(connectionHandler)) {
+            DatabaseCompatibilityInterface compatibilityInterface = connectionHandler.getInterfaceProvider().getCompatibilityInterface();
+            String databaseLogName = compatibilityInterface.getDatabaseLogName();
+            boolean loggingEnabled = connectionHandler.isLoggingEnabled();
             if (StringUtil.isEmpty(databaseLogName)) {
-                return connectionHandler.isLoggingEnabled() ? "Disable database logging" : "Enable database logging";
+                return loggingEnabled ? "Disable database logging" : "Enable database logging";
             } else {
-                return (connectionHandler.isLoggingEnabled() ? "Disable logging (" : "Enable logging (") + databaseLogName + ')';
+                return (loggingEnabled ? "Disable logging (" : "Enable logging (") + databaseLogName + ')';
             }
         }
 
@@ -81,7 +85,7 @@ public class ToggleDatabaseLoggingIntentionAction extends GenericIntentionAction
     @Override
     public void invoke(@NotNull final Project project, Editor editor, PsiFile psiFile) throws IncorrectOperationException {
         ConnectionHandler connectionHandler = getConnectionHandler(psiFile);
-        if (DatabaseFeature.DATABASE_LOGGING.isSupported(connectionHandler)) {
+        if (connectionHandler != null && DatabaseFeature.DATABASE_LOGGING.isSupported(connectionHandler)) {
             connectionHandler.setLoggingEnabled(!connectionHandler.isLoggingEnabled());
         }
     }

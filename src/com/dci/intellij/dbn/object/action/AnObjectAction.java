@@ -1,15 +1,17 @@
 package com.dci.intellij.dbn.object.action;
 
+import com.dci.intellij.dbn.common.action.DumbAwareContextAction;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.project.DumbAwareAction;
+import com.intellij.openapi.actionSystem.Presentation;
+import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 
-public abstract class AnObjectAction<T extends DBObject> extends DumbAwareAction {
+public abstract class AnObjectAction<T extends DBObject> extends DumbAwareContextAction<T> {
     private DBObjectRef<T> objectRef;
     private boolean custom;
 
@@ -24,17 +26,20 @@ public abstract class AnObjectAction<T extends DBObject> extends DumbAwareAction
     }
 
     @Override
-    public void update(@NotNull AnActionEvent e) {
-        if (!custom) {
-            T object = getObject();
-            if (object != null) {
-                e.getPresentation().setText(object.getName(), false);
-            }
-        }
+    protected T getTarget(@NotNull AnActionEvent e) {
+        return getTarget();
     }
 
-    @Nullable
-    public T getObject() {
+    public T getTarget() {
         return DBObjectRef.get(objectRef);
+    }
+
+    @Override
+    protected void update(@NotNull AnActionEvent e, @NotNull Presentation presentation, @NotNull Project project, @Nullable T target) {
+        if (!custom) {
+            if (target != null) {
+                presentation.setText(target.getName(), false);
+            }
+        }
     }
 }

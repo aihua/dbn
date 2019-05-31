@@ -2,16 +2,17 @@ package com.dci.intellij.dbn.database.sqlite.adapter.rs;
 
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.common.util.ResultSetReader;
-import com.dci.intellij.dbn.database.sqlite.adapter.ResultSetElement;
-import com.dci.intellij.dbn.database.sqlite.adapter.SqliteResultSetAdapter;
+import com.dci.intellij.dbn.database.sqlite.adapter.SqliteMetadataResultSet;
+import com.dci.intellij.dbn.database.sqlite.adapter.SqliteMetadataResultSetRow;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-public abstract class SqliteDatasetInfoResultSetStub<T extends ResultSetElement> extends SqliteResultSetAdapter<T> {
+public abstract class SqliteDatasetInfoResultSetStub<T extends SqliteMetadataResultSetRow> extends SqliteMetadataResultSet<T> {
     private DBNConnection connection;
     protected String ownerName;
-    public SqliteDatasetInfoResultSetStub(final String ownerName, SqliteDatasetNamesResultSet datasetNames, DBNConnection connection) throws SQLException {
+
+    SqliteDatasetInfoResultSetStub(final String ownerName, SqliteDatasetNamesResultSet datasetNames, DBNConnection connection) throws SQLException {
         this.connection = connection;
         this.ownerName = ownerName;
         new ResultSetReader(datasetNames) {
@@ -23,7 +24,7 @@ public abstract class SqliteDatasetInfoResultSetStub<T extends ResultSetElement>
         };
     }
 
-    public SqliteDatasetInfoResultSetStub(String ownerName, String datasetName, DBNConnection connection) throws SQLException {
+    SqliteDatasetInfoResultSetStub(String ownerName, String datasetName, DBNConnection connection) throws SQLException {
         this.connection = connection;
         this.ownerName = ownerName;
         init(ownerName, datasetName);

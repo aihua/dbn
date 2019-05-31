@@ -6,26 +6,25 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseDDLInterface;
-import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
+import com.dci.intellij.dbn.database.common.metadata.def.DBTriggerMetadata;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.object.DBDataset;
 import com.dci.intellij.dbn.object.DBDatasetTrigger;
 import com.dci.intellij.dbn.object.DBSchema;
-import com.dci.intellij.dbn.object.common.DBObject;
-import com.dci.intellij.dbn.object.common.DBObjectType;
-import com.dci.intellij.dbn.object.common.loader.DBSourceCodeLoader;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatus;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatusHolder;
+import com.dci.intellij.dbn.object.type.DBObjectType;
+import com.dci.intellij.dbn.object.type.DBTriggerEvent;
+import com.dci.intellij.dbn.object.type.DBTriggerType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class DBDatasetTriggerImpl extends DBTriggerImpl implements DBDatasetTrigger {
-    DBDatasetTriggerImpl(DBDataset dataset, ResultSet resultSet) throws SQLException {
-        super(dataset, resultSet);
+    DBDatasetTriggerImpl(DBDataset dataset, DBTriggerMetadata metadata) throws SQLException {
+        super(dataset, metadata);
     }
 
     @Override
@@ -69,15 +68,15 @@ public class DBDatasetTriggerImpl extends DBTriggerImpl implements DBDatasetTrig
 
     @Override
     public void buildToolTip(HtmlToolTipBuilder ttb) {
-        TriggerType triggerType = getTriggerType();
-        TriggeringEvent[] triggeringEvents = getTriggeringEvents();
+        DBTriggerType triggerType = getTriggerType();
+        DBTriggerEvent[] triggeringEvents = getTriggerEvents();
         ttb.append(true, getObjectType().getName(), true);
         StringBuilder triggerDesc = new StringBuilder();
         triggerDesc.append(" - ");
         triggerDesc.append(triggerType.getName().toLowerCase());
         triggerDesc.append(" ") ;
 
-        for (TriggeringEvent triggeringEvent : triggeringEvents) {
+        for (DBTriggerEvent triggeringEvent : triggeringEvents) {
             if (triggeringEvent != triggeringEvents[0]) triggerDesc.append(" or ");
             triggerDesc.append(triggeringEvent.getName());
         }
@@ -93,18 +92,6 @@ public class DBDatasetTriggerImpl extends DBTriggerImpl implements DBDatasetTrig
     /*********************************************************
      *                         Loaders                       *
      *********************************************************/
-    private class SourceCodeLoader extends DBSourceCodeLoader {
-        protected SourceCodeLoader(DBObject object) {
-            super(object, false);
-        }
-
-        @Override
-        public ResultSet loadSourceCode(DBNConnection connection) throws SQLException {
-            ConnectionHandler connectionHandler = getConnectionHandler();
-            DatabaseMetadataInterface metadataInterface = connectionHandler.getInterfaceProvider().getMetadataInterface();
-            return metadataInterface.loadDatasetTriggerSourceCode(getDataset().getSchema().getName(), getDataset().getName(), getSchema().getName(), getName(), connection);
-        }
-    }
 
     @Override
     public void executeUpdateDDL(DBContentType contentType, String oldCode, String newCode) throws SQLException {
@@ -118,11 +105,5 @@ public class DBDatasetTriggerImpl extends DBTriggerImpl implements DBDatasetTrig
         } finally {
             connectionHandler.freePoolConnection(connection);
         }
-    }
-
-    @Override
-    public String loadCodeFromDatabase(DBContentType contentType) throws SQLException {
-        SourceCodeLoader sourceCodeLoader = new SourceCodeLoader(this);
-        return sourceCodeLoader.load();
     }
 }

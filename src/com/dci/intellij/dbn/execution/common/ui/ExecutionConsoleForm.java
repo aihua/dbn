@@ -38,6 +38,7 @@ import com.dci.intellij.dbn.execution.statement.result.StatementExecutionCursorR
 import com.dci.intellij.dbn.execution.statement.result.StatementExecutionResult;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.intellij.openapi.editor.Document;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
@@ -124,14 +125,14 @@ public class ExecutionConsoleForm extends DBNFormImpl{
 
         @Override
         public void transactionCompleted(@NotNull Document document, @NotNull PsiFile file) {
-            Failsafe.guarded(() -> {
+            try {
                 TabbedPane resultTabs = getResultTabs();
                 for (TabInfo tabInfo : resultTabs.getTabs()) {
                     ExecutionResult executionResult = getExecutionResult(tabInfo);
                     if (executionResult instanceof StatementExecutionResult) {
                         StatementExecutionResult statementExecutionResult = (StatementExecutionResult) executionResult;
                         StatementExecutionProcessor executionProcessor = statementExecutionResult.getExecutionProcessor();
-                        if (Failsafe.check(executionProcessor) && executionProcessor.getPsiFile().equals(file)) {
+                        if (Failsafe.check(executionProcessor) && file.equals(executionProcessor.getPsiFile())) {
                             Icon icon = executionProcessor.isDirty() ? Icons.STMT_EXEC_RESULTSET_ORPHAN : Icons.STMT_EXEC_RESULTSET;
                             tabInfo.setIcon(icon);
                         }
@@ -142,7 +143,7 @@ public class ExecutionConsoleForm extends DBNFormImpl{
                         GUIUtil.repaint(messagePanelComponent);
                     }
                 }
-            });
+            } catch (ProcessCanceledException ignore) {}
         }
     };
 

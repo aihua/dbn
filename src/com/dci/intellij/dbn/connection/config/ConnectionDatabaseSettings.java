@@ -4,9 +4,9 @@ import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.database.DatabaseInfo;
 import com.dci.intellij.dbn.common.options.BasicConfiguration;
-import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.FileUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.connection.AuthenticationType;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectivityStatus;
 import com.dci.intellij.dbn.connection.DatabaseType;
@@ -27,7 +27,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.*;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.getDouble;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.getEnum;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.getString;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.setDouble;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.setEnum;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.setString;
 
 public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSettings, ConnectionDatabaseSettingsForm> {
     public static final Logger LOGGER = LoggerFactory.createLogger();
@@ -35,29 +40,40 @@ public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSet
     private transient ConnectivityStatus connectivityStatus = ConnectivityStatus.UNKNOWN;
     private String name;
     private String description;
-    private DatabaseType databaseType = DatabaseType.UNKNOWN;
-    private DatabaseUrlPattern urlPattern = DatabaseUrlPattern.UNKNOWN;
+    private DatabaseType databaseType;
+    private DatabaseType resolvedDatabaseType = DatabaseType.GENERIC;
+    private DatabaseUrlPattern urlPattern;
     private double databaseVersion = 9999;
     private int hashCode;
 
-    private DatabaseInfo databaseInfo = new DatabaseInfo();
-    private DriverSource driverSource = DriverSource.EXTERNAL;
+    private DatabaseInfo databaseInfo;
+    private DriverSource driverSource;
     private String driverLibrary;
     private String driver;
 
-    private ConnectionConfigType configType = ConnectionConfigType.BASIC;
+    private ConnectionConfigType configType;
     private AuthenticationInfo authenticationInfo = new AuthenticationInfo(this, false);
 
-    public ConnectionDatabaseSettings(ConnectionSettings parent, DatabaseType databaseType, ConnectionConfigType configType) {
+    public ConnectionDatabaseSettings(ConnectionSettings parent, @NotNull DatabaseType databaseType, ConnectionConfigType configType) {
         super(parent);
         this.databaseType = databaseType;
         this.configType = configType;
-        if (databaseType != DatabaseType.UNKNOWN) {
-            urlPattern = databaseType.getDefaultUrlPattern();
-            databaseInfo = urlPattern.getDefaultInfo();
-            driverSource = DriverSource.BUILTIN;
-            authenticationInfo.setSupported(databaseType.isAuthenticationSupported());
+        this.urlPattern = databaseType.getDefaultUrlPattern();
+        this.databaseInfo = urlPattern.getDefaultInfo();
+        this.driverSource = databaseType == DatabaseType.GENERIC ?
+                DriverSource.EXTERNAL :
+                DriverSource.BUILTIN;
+
+        initAuthType(databaseType);
+    }
+
+    private void initAuthType(DatabaseType databaseType) {
+        AuthenticationType authenticationType = AuthenticationType.USER_PASSWORD;
+        AuthenticationType[] authTypes = databaseType.getAuthTypes();
+        if (!authenticationType.isOneOf(authTypes)) {
+            authenticationType = authTypes[0];
         }
+        authenticationInfo.setType(authenticationType);
     }
 
     @Override
@@ -121,7 +137,15 @@ public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSet
 
     @NotNull
     public DatabaseType getDatabaseType() {
-        return CommonUtil.nvl(databaseType, DatabaseType.UNKNOWN);
+        return databaseType;
+    }
+
+    public DatabaseType getResolvedDatabaseType() {
+        return resolvedDatabaseType;
+    }
+
+    public void setResolvedDatabaseType(DatabaseType resolvedDatabaseType) {
+        this.resolvedDatabaseType = resolvedDatabaseType;
     }
 
     public ConnectionConfigType getConfigType() {
@@ -129,12 +153,12 @@ public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSet
     }
 
     public void setDatabaseType(DatabaseType databaseType) {
-        if (this.databaseType == DatabaseType.UNKNOWN && databaseType != DatabaseType.UNKNOWN) {
+        if (this.databaseType != databaseType) {
             this.databaseType = databaseType;
             urlPattern = databaseType.getDefaultUrlPattern();
             databaseInfo.setUrlType(urlPattern.getUrlType());
-            authenticationInfo.setSupported(databaseType.isAuthenticationSupported());
         }
+        initAuthType(databaseType);
     }
 
     public DatabaseUrlPattern getUrlPattern() {
@@ -187,6 +211,7 @@ public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSet
     public String getConnectionUrl(String host, String port) {
         if (configType == ConnectionConfigType.BASIC) {
             return urlPattern.getUrl(
+                    databaseInfo.getVendor(),
                     host,
                     port,
                     databaseInfo.getDatabase(),
@@ -207,7 +232,7 @@ public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSet
                 databaseInfo.getUrl() +
                 authenticationInfo.getUser() +
                 authenticationInfo.getPassword() +
-                authenticationInfo.isOsAuthentication()).hashCode();
+                authenticationInfo.getType()).hashCode();
     }
 
     @Override
@@ -228,9 +253,10 @@ public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSet
     public void checkConfiguration() throws ConfigurationException{
         List<String> errors = new ArrayList<String>();
         DatabaseType databaseType = getDatabaseType();
-        if (databaseType == DatabaseType.UNKNOWN) {
-            errors.add("Database type not provided");
-        }
+// TODO: clean up. Now it is allowed generic JDBC database configuration
+//        if (databaseType == DatabaseType.UNKNOWN) {
+//            errors.add("Database type not provided");
+//        }
 
         String connectionUrl = getConnectionUrl();
         if (StringUtil.isEmpty(connectionUrl)) {
@@ -252,7 +278,7 @@ public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSet
                     errors.add("JDBC driver not provided");
                 } else {
                     DatabaseType driverDatabaseType = DatabaseType.resolve(driver);
-                    if (databaseType != DatabaseType.UNKNOWN && driverDatabaseType != databaseType) {
+                    if (databaseType != DatabaseType.GENERIC && driverDatabaseType != databaseType) {
                         errors.add("JDBC driver does not match the selected database type");
                     }
                 }
@@ -287,6 +313,11 @@ public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSet
         description      = getString(element, "description", description);
 
         databaseType     = getEnum(element, "database-type", databaseType);
+
+        // TODO temporary backward compatibility
+        if (databaseType == DatabaseType.UNKNOWN) databaseType = DatabaseType.GENERIC;
+
+
         configType       = getEnum(element, "config-type", configType);
         databaseVersion  = getDouble(element, "database-version", databaseVersion);
 
@@ -315,7 +346,7 @@ public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSet
         } else if (configType == ConnectionConfigType.CUSTOM){
             String url = getString(element, "url", databaseInfo.getUrl());
             databaseInfo.setUrl(url);
-            if (databaseType != DatabaseType.UNKNOWN) {
+            if (databaseType != DatabaseType.GENERIC) {
                 urlPattern = databaseType.resolveUrlPattern(url);
                 databaseInfo.setUrlType(urlPattern.getUrlType());
                 databaseInfo.setHost(urlPattern.resolveHost(url));
@@ -359,7 +390,7 @@ public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSet
         setString(element, "name", nvl(name));
         setString(element, "description", nvl(description));
 
-        setEnum(element, "database-type", databaseType == null ? DatabaseType.UNKNOWN : databaseType);
+        setEnum(element, "database-type", databaseType);
         setEnum(element, "config-type", configType);
         setDouble(element, "database-version", databaseVersion);
 

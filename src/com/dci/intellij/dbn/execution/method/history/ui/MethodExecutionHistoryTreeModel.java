@@ -7,8 +7,8 @@ import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.execution.method.MethodExecutionInput;
 import com.dci.intellij.dbn.object.DBMethod;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 
 import javax.swing.*;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -42,7 +42,7 @@ public abstract class MethodExecutionHistoryTreeModel extends DefaultTreeModel i
     /**********************************************************
      *                        TreeNodes                       *
      **********************************************************/
-    protected class RootTreeNode extends MethodExecutionHistoryTreeNode {
+    class RootTreeNode extends MethodExecutionHistoryTreeNode {
         RootTreeNode() {
             super(null, MethodExecutionHistoryTreeNode.Type.ROOT, "ROOT");
         }
@@ -100,7 +100,7 @@ public abstract class MethodExecutionHistoryTreeModel extends DefaultTreeModel i
         }
     }
 
-    protected class SchemaTreeNode extends MethodExecutionHistoryTreeNode {
+    class SchemaTreeNode extends MethodExecutionHistoryTreeNode {
         SchemaTreeNode(MethodExecutionHistoryTreeNode parent, MethodExecutionInput executionInput) {
             super(parent, MethodExecutionHistoryTreeNode.Type.SCHEMA, executionInput.getMethodRef().getSchemaName());
         }

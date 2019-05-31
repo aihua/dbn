@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.connection.config.ui;
 
 import com.dci.intellij.dbn.common.Icons;
+import com.dci.intellij.dbn.common.ui.ComboBoxUtil;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.DatabaseType;
@@ -8,6 +9,7 @@ import com.dci.intellij.dbn.driver.DatabaseDriverManager;
 import com.dci.intellij.dbn.driver.DriverSource;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
+import com.intellij.ui.HyperlinkLabel;
 import com.intellij.ui.JBColor;
 import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
@@ -30,10 +32,14 @@ public class ConnectionDriverSettingsForm extends DBNFormImpl<ConnectionDatabase
     private JLabel driverErrorLabel;
     private JLabel driverLabel;
     private JLabel driverLibraryLabel;
+    private JLabel driverSourceLabel;
+    private HyperlinkLabel reloadDriversLink;
+    private JLabel reloadDriversCheckLabel;
 
-    private static final FileChooserDescriptor LIBRARY_FILE_DESCRIPTOR = new FileChooserDescriptor(false, false, true, true, false, false);
+    /** allow select a single jar file or a directory */
+    private static final FileChooserDescriptor LIBRARY_FILE_DESCRIPTOR = new FileChooserDescriptor(false, true, true, true, false, false);
 
-    public ConnectionDriverSettingsForm(@NotNull final ConnectionDatabaseSettingsForm parentComponent) {
+    ConnectionDriverSettingsForm(@NotNull final ConnectionDatabaseSettingsForm parentComponent) {
         super(parentComponent);
 
         initComboBox(driverSourceComboBox, DriverSource.BUILTIN, DriverSource.EXTERNAL);
@@ -48,39 +54,76 @@ public class ConnectionDriverSettingsForm extends DBNFormImpl<ConnectionDatabase
         });
 
         driverLibraryTextField.addBrowseFolderListener(
-                "Select Driver Library",
+                "Select Driver Library or Directory",
                 "Library must contain classes implementing the 'java.sql.Driver' class.",
                 null, LIBRARY_FILE_DESCRIPTOR);
+
+        reloadDriversCheckLabel.setText("");
+        reloadDriversCheckLabel.setIcon(Icons.COMMON_CHECK);
+        reloadDriversCheckLabel.setVisible(false);
+        reloadDriversLink.setHyperlinkText("Reload Drivers");
+        reloadDriversLink.addHyperlinkListener(e -> {
+            reloadDriversLink.setVisible(false);
+            DatabaseDriverManager driverManager = DatabaseDriverManager.getInstance();
+            String driverLibrary = driverLibraryTextField.getText();
+            List<Driver> drivers = driverManager.loadDrivers(driverLibrary, true);
+            if (drivers == null || drivers.isEmpty()) {
+                reloadDriversCheckLabel.setIcon(Icons.COMMON_WARNING);
+                reloadDriversCheckLabel.setText("No drivers found");
+            } else {
+                reloadDriversCheckLabel.setIcon(Icons.COMMON_CHECK);
+                reloadDriversCheckLabel.setText("Drivers reloaded");
+            }
+            reloadDriversCheckLabel.setVisible(true);
+            Timer timer = UIUtil.createNamedTimer(
+                    "TemporaryLabelTimeout",
+                    3000,
+                    listener -> {
+                        updateDriverReloadLink();
+                        reloadDriversCheckLabel.setVisible(false);
+                    });
+            timer.setRepeats(false);
+            timer.start();
+        });
     }
 
     void updateDriverFields() {
-        DriverSource driverSource = driverSourceComboBox == null ? DriverSource.EXTERNAL : getSelection(driverSourceComboBox);
+        DatabaseType databaseType = getDatabaseType();
+        boolean allowBuiltInLibrary = isBuiltInLibrarySupported(databaseType);
+
+        driverSourceComboBox.setEnabled(allowBuiltInLibrary);
+        if (!allowBuiltInLibrary) {
+            ComboBoxUtil.setSelection(driverSourceComboBox, DriverSource.EXTERNAL);
+        }
+        //driverSourceLabel.setVisible(allowBuiltInLibrary);
 
         String error = null;
-        boolean externalDriver = driverSource == DriverSource.EXTERNAL;
+        boolean externalDriver = getDriverSource() == DriverSource.EXTERNAL;
         driverLibraryLabel.setVisible(externalDriver);
         driverLibraryTextField.setVisible(externalDriver);
         driverLabel.setVisible(externalDriver);
         driverComboBox.setVisible(externalDriver);
+        updateDriverReloadLink();
 
         if (externalDriver) {
-            JTextField textField = driverLibraryTextField.getTextField();
-            String driverLibrary = textField.getText();
+            String driverLibrary = getDriverLibrary();
 
             boolean fileExists = StringUtil.isNotEmpty(driverLibrary) && fileExists(driverLibrary);
+            JTextField libraryTextField = driverLibraryTextField.getTextField();
             if (fileExists) {
-                textField.setForeground(UIUtil.getTextFieldForeground());
+                libraryTextField.setForeground(UIUtil.getTextFieldForeground());
                 DatabaseType libraryDatabaseType = DatabaseType.resolve(driverLibrary);
-                if (libraryDatabaseType != DatabaseType.UNKNOWN && libraryDatabaseType != ensureParentComponent().getSelectedDatabaseType()) {
+                if (isBuiltInLibrarySupported(databaseType) && libraryDatabaseType != getDatabaseType()) {
                     error = "The driver library does not match the selected database type";
                     initComboBox(driverComboBox);
                     setSelection(driverComboBox, null);
                 } else {
-                    List<Driver> drivers = DatabaseDriverManager.getInstance().loadDrivers(driverLibrary);
+                    DatabaseDriverManager driverManager = DatabaseDriverManager.getInstance();
+                    List<Driver> drivers = driverManager.loadDrivers(driverLibrary, false);
                     DriverOption selectedOption = getSelection(driverComboBox);
                     initComboBox(driverComboBox);
                     //driverComboBox.addItem("");
-                    if (drivers != null && drivers.size() > 0) {
+                    if (drivers != null && !drivers.isEmpty()) {
                         List<DriverOption> driverOptions = new ArrayList<DriverOption>();
                         for (Driver driver : drivers) {
                             DriverOption driverOption = new DriverOption(driver);
@@ -92,7 +135,7 @@ public class ConnectionDriverSettingsForm extends DBNFormImpl<ConnectionDatabase
 
                         initComboBox(driverComboBox, driverOptions);
 
-                        if (selectedOption == null && driverOptions.size() > 0) {
+                        if (selectedOption == null && !driverOptions.isEmpty()) {
                             selectedOption = driverOptions.get(0);
                         }
                     } else {
@@ -101,7 +144,7 @@ public class ConnectionDriverSettingsForm extends DBNFormImpl<ConnectionDatabase
                     setSelection(driverComboBox, selectedOption);
                 }
             } else {
-                textField.setForeground(JBColor.RED);
+                libraryTextField.setForeground(JBColor.RED);
                 if (StringUtil.isEmpty(driverLibrary)) {
                     error = "Driver library is not specified";
                 } else {
@@ -122,15 +165,44 @@ public class ConnectionDriverSettingsForm extends DBNFormImpl<ConnectionDatabase
         }
     }
 
+    private void updateDriverReloadLink() {
+        reloadDriversLink.setVisible(
+                getDriverSource() == DriverSource.EXTERNAL &&
+                        isDriverLibraryAccessible());
+    }
+
+    private DriverSource getDriverSource() {
+        DatabaseType databaseType = getDatabaseType();
+        boolean allowBuiltInLibrary = isBuiltInLibrarySupported(databaseType);
+        return allowBuiltInLibrary ? getSelection(driverSourceComboBox) : DriverSource.EXTERNAL;
+    }
+
+    private boolean isBuiltInLibrarySupported(DatabaseType databaseType) {
+        return databaseType != DatabaseType.GENERIC;
+    }
+
+    private boolean isDriverLibraryAccessible() {
+        String driverLibrary = getDriverLibrary();
+        return StringUtil.isNotEmpty(driverLibrary) && new File(driverLibrary).exists();
+    }
+
+    private String getDriverLibrary() {
+        return driverLibraryTextField.getTextField().getText();
+    }
+
+    private DatabaseType getDatabaseType() {
+        return ensureParentComponent().getSelectedDatabaseType();
+    }
+
     private static boolean fileExists(String driverLibrary) {
         return driverLibrary != null && new File(driverLibrary).exists();
     }
 
-    public TextFieldWithBrowseButton getDriverLibraryTextField() {
+    TextFieldWithBrowseButton getDriverLibraryTextField() {
         return driverLibraryTextField;
     }
 
-    public JComboBox<DriverOption> getDriverComboBox() {
+    JComboBox<DriverOption> getDriverComboBox() {
         return driverComboBox;
     }
 
@@ -144,7 +216,7 @@ public class ConnectionDriverSettingsForm extends DBNFormImpl<ConnectionDatabase
         return mainPanel;
     }
 
-    public JComboBox<DriverSource> getDriverSourceComboBox() {
+    JComboBox<DriverSource> getDriverSourceComboBox() {
         return driverSourceComboBox;
     }
 }

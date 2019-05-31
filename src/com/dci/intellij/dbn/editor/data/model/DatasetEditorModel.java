@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.editor.data.model;
 
+import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
@@ -29,6 +30,7 @@ import com.dci.intellij.dbn.object.DBColumn;
 import com.dci.intellij.dbn.object.DBConstraint;
 import com.dci.intellij.dbn.object.DBDataset;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -36,6 +38,7 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
+import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -48,6 +51,8 @@ import static com.dci.intellij.dbn.editor.data.model.RecordStatus.*;
 public class DatasetEditorModel
         extends ResultSetDataModel<DatasetEditorModelRow, DatasetEditorModelCell>
         implements ListSelectionListener {
+
+    private static final Logger LOGGER = LoggerFactory.createLogger();
 
     private boolean isResultSetUpdatable;
     private DatasetEditor datasetEditor;
@@ -163,14 +168,36 @@ public class DatasetEditorModel
         }
 
         String selectStatement = filter.createSelectStatement(dataset, getState().getSortingState());
-        DBNStatement statement;
+        DBNStatement statement = null;
         if (isReadonly()) {
             statement = connection.createStatement();
         } else {
-            if (connection.getMetaData().supportsResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)) {
-                statement = connection.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
-            } else {
-                statement = connection.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
+            // ensure we always get a statement,
+            DatabaseMetaData metaData = connection.getMetaData();
+            if (metaData.supportsResultSetType(ResultSet.TYPE_SCROLL_INSENSITIVE)) {
+                try {
+                    statement = connection.createStatement(
+                            ResultSet.TYPE_SCROLL_INSENSITIVE,
+                            ResultSet.CONCUR_UPDATABLE);
+
+                } catch (Throwable e) {
+                    LOGGER.error("Failed to create SCROLL_INSENSITIVE statement", e);
+                }
+            }
+
+            if (statement == null && metaData.supportsResultSetType(ResultSet.TYPE_FORWARD_ONLY)) {
+                try {
+                    statement = connection.createStatement(
+                            ResultSet.TYPE_FORWARD_ONLY,
+                            ResultSet.CONCUR_READ_ONLY);
+                } catch (Throwable e) {
+                    LOGGER.error("Failed to create FORWARD_ONLY statement", e);
+                }
+            }
+
+            if (statement == null) {
+                // default statement creation
+                statement = connection.createStatement();
             }
         }
         statementRef.set(statement);
@@ -368,6 +395,7 @@ public class DatasetEditorModel
             DBNConnection connection = getConnection();
             connection.notifyDataChanges(dataset.getVirtualFile());
         } catch (SQLException e) {
+            set(INSERTING, false);
             MessageUtil.showErrorDialog(getProject(), "Could not insert record for " + dataset.getQualifiedNameWithType() + ".", e);
         }
     }
@@ -394,6 +422,7 @@ public class DatasetEditorModel
             DBNConnection connection = getConnection();
             connection.notifyDataChanges(dataset.getVirtualFile());
         } catch (SQLException e) {
+            set(INSERTING, false);
             MessageUtil.showErrorDialog(getProject(), "Could not duplicate record in " + dataset.getQualifiedNameWithType() + ".", e);
         }
     }

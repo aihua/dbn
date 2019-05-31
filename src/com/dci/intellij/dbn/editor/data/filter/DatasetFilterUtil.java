@@ -5,7 +5,9 @@ import com.dci.intellij.dbn.data.grid.options.DataGridSettings;
 import com.dci.intellij.dbn.data.sorting.SortDirection;
 import com.dci.intellij.dbn.data.sorting.SortingInstruction;
 import com.dci.intellij.dbn.data.sorting.SortingState;
+import com.dci.intellij.dbn.database.DatabaseCompatibility;
 import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
+import com.dci.intellij.dbn.database.JdbcProperty;
 import com.dci.intellij.dbn.object.DBColumn;
 import com.dci.intellij.dbn.object.DBDataset;
 
@@ -52,11 +54,25 @@ public class DatasetFilterUtil {
     }
 
     public static void createSimpleSelectStatement(DBDataset dataset, StringBuilder buffer) {
-        buffer.append("select a.* from ");
-        buffer.append(dataset.getSchema().getQuotedName(true));
-        buffer.append(".");
-        buffer.append(dataset.getQuotedName(true));
-        buffer.append(" a");
+        DatabaseCompatibility compatibility = dataset.getConnectionHandler().getCompatibility();
+        // TODO not implemented yet - returning always true at the moment
+        boolean aliased = compatibility.isSupported(JdbcProperty.SQL_DATASET_ALIASING);
 
+        String schemaName = dataset.getSchema().getQuotedName(true);
+        String datasetName = dataset.getQuotedName(true);
+
+        if (aliased) {
+            // IMPORTANT oracle jdbc seems to create readonly result-set if dataset is not aliased
+            buffer.append("select a.* from ");
+            buffer.append(schemaName);
+            buffer.append(".");
+            buffer.append(datasetName);
+            buffer.append(" a");
+        } else {
+            buffer.append("select * from ");
+            buffer.append(schemaName);
+            buffer.append(".");
+            buffer.append(datasetName);
+        }
     }
 }

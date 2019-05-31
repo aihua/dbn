@@ -1,6 +1,8 @@
 package com.dci.intellij.dbn.connection;
 
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
+import com.dci.intellij.dbn.common.routine.ThrowableConsumer;
+import com.dci.intellij.dbn.common.routine.ThrowableRunnable;
 
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -87,5 +89,34 @@ public class ResultSetUtil extends DisposableBase{
             columnNames.add(metaData.getColumnName(i+1));
         }
         return columnNames;
+    }
+
+    public static void forEachRow(ResultSet resultSet, ThrowableRunnable<SQLException> consumer) throws SQLException {
+        try {
+            if (resultSet != null && !ResourceUtil.isClosed(resultSet)) {
+                while (resultSet.next()) {
+                    consumer.run();
+                }
+            }
+        } finally {
+            ResourceUtil.close(resultSet);
+        }
+    }
+
+    public static <T> void forEachRow(ResultSet resultSet, String columnName, Class<T> columnType, ThrowableConsumer<T, SQLException> consumer) throws SQLException {
+        forEachRow(resultSet, () -> {
+            Object object = null;
+            if (CharSequence.class.isAssignableFrom(columnType)) {
+                object = resultSet.getString(columnName);
+
+            } else if (Integer.class.isAssignableFrom(columnType)) {
+                object = resultSet.getInt(columnName);
+
+            } else {
+                throw new UnsupportedOperationException("Lookup not implemented. Add more handlers here");
+            }
+
+            consumer.accept((T) object);
+        });
     }
 }

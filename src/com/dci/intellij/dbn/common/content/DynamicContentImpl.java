@@ -1,14 +1,16 @@
 package com.dci.intellij.dbn.common.content;
 
+import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.content.dependency.ContentDependencyAdapter;
 import com.dci.intellij.dbn.common.content.dependency.VoidContentDependencyAdapter;
-import com.dci.intellij.dbn.common.content.loader.DynamicContentLoadException;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoader;
 import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.list.AbstractFiltrableList;
 import com.dci.intellij.dbn.common.list.FiltrableList;
+import com.dci.intellij.dbn.common.notification.NotificationGroup;
+import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.common.property.DisposablePropertyHolder;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.thread.ThreadMonitor;
@@ -17,18 +19,27 @@ import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.GenericDatabaseElement;
+import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
+import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
+import java.util.Collections;
 import java.util.List;
 
 import static com.dci.intellij.dbn.common.content.DynamicContentStatus.*;
 
-public abstract class DynamicContentImpl<T extends DynamicContentElement> extends DisposablePropertyHolder<DynamicContentStatus> implements DynamicContent<T> {
-    protected static final List EMPTY_CONTENT = java.util.Collections.unmodifiableList(new ArrayList(0));
-    protected static final List EMPTY_DISPOSED_CONTENT = java.util.Collections.unmodifiableList(new ArrayList(0));
-    protected static final List EMPTY_UNTOUCHED_CONTENT = java.util.Collections.unmodifiableList(new ArrayList(0));
+public abstract class DynamicContentImpl<T extends DynamicContentElement>
+        extends DisposablePropertyHolder<DynamicContentStatus>
+        implements DynamicContent<T>,
+                   NotificationSupport {
+    private static final Logger LOGGER = LoggerFactory.createLogger();
+
+    protected static final List EMPTY_CONTENT = java.util.Collections.unmodifiableList(Collections.emptyList());
+    protected static final List EMPTY_DISPOSED_CONTENT = java.util.Collections.unmodifiableList(Collections.emptyList());
+    protected static final List EMPTY_UNTOUCHED_CONTENT = java.util.Collections.unmodifiableList(Collections.emptyList());
 
     private long changeTimestamp = 0;
 
@@ -80,7 +91,7 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
     }
 
     @Override
-    public abstract DynamicContentLoader<T> getLoader();
+    public abstract DynamicContentLoader<T, ?> getLoader();
 
     @Override
     public ContentDependencyAdapter getDependencyAdapter() {
@@ -161,7 +172,7 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
             try {
                 performLoad(false);
                 set(LOADED, true);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 setElements(EMPTY_CONTENT);
                 set(DIRTY, true);
             } finally {
@@ -184,7 +195,7 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
                             element.refresh();
                         });
                 set(LOADED, true);
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 setElements(EMPTY_CONTENT);
                 set(DIRTY, true);
             } finally {
@@ -232,6 +243,7 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
                     "Loading data dictionary" + connectionString, false,
                     (progress) -> {
                         try{
+                            progress.setText("Loading " + getContentDescription());
                             ensure();
                         } finally {
                             set(LOADING_IN_BACKGROUND, false);
@@ -240,23 +252,45 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement> extend
         }
     }
 
-    private void performLoad(boolean force) throws InterruptedException {
+    private void performLoad(boolean force) {
         //System.out.println( this + " :invoked by " + ThreadMonitor.current());
         checkDisposed();
         dependencyAdapter.beforeLoad(force);
         checkDisposed();
+
         try {
             // mark first the dirty status since dirty dependencies may
             // become valid due to parallel background load
             set(DIRTY, false);
-            DynamicContentLoader<T> loader = getLoader();
+            DynamicContentLoader<T, ?> loader = getLoader();
             loader.loadContent(this, force);
 
             // refresh inner elements
             if (force) elements.forEach(t -> t.refresh());
-        } catch (DynamicContentLoadException e) {
-            set(DIRTY, !e.isModelException());
+
+        } catch (ProcessCanceledException e) {
+            throw e;
+
+        } catch (SQLFeatureNotSupportedException e) {
+            // unsupported feature: log in notification area
+            elements = EMPTY_CONTENT;
+            sendErrorNotification(
+                    NotificationGroup.METADATA,
+                    "Failed to load {0}. Feature not supported: {1}",
+                    getContentDescription(), e);
+
+        } catch (SQLException e) {
+            // connectivity / timeout exceptions: mark content dirty (no logging)
+            elements = EMPTY_CONTENT;
+            set(DIRTY, true);
+
+        } catch (Throwable e) {
+            // any other exception: log error
+            LOGGER.error("Failed to load content", e);
+            elements = EMPTY_CONTENT;
+            set(DIRTY, true);
         }
+
         checkDisposed();
         dependencyAdapter.afterLoad();
     }

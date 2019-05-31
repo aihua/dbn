@@ -114,7 +114,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
                                 } else {
                                     // load the arguments in background
                                     executionInput.getMethod().getArguments();
-                                    Dispatch.invokeNonModal(() -> {
+                                    Dispatch.run(() -> {
                                         MethodExecutionInputDialog executionDialog = new MethodExecutionInputDialog(executionInput, debuggerType);
                                         executionDialog.show();
                                         if (executionDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
@@ -137,7 +137,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
             @Nullable MethodExecutionInput selection,
             boolean editable,
             boolean debug,
-            @Nullable ParametricRunnable<MethodExecutionInput> callback) {
+            @Nullable ParametricRunnable<MethodExecutionInput, RuntimeException> callback) {
 
         Project project = getProject();
         Progress.prompt(project, "Loading method execution history", true,
@@ -152,7 +152,7 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
                     }
 
                     if (!progress.isCanceled()) {
-                        Dispatch.invoke(() -> {
+                        Dispatch.run(() -> {
                             MethodExecutionHistoryDialog executionHistoryDialog = new MethodExecutionHistoryDialog(project, selectedInput, editable, debug);
                             executionHistoryDialog.show();
                             MethodExecutionInput newlySelected = executionHistoryDialog.getSelectedExecutionInput();
@@ -224,7 +224,11 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
         }
     }
 
-    public void debugExecute(MethodExecutionInput executionInput, @NotNull DBNConnection connection, DBDebuggerType debuggerType) throws SQLException {
+    public void debugExecute(
+            @NotNull MethodExecutionInput executionInput,
+            @NotNull DBNConnection connection,
+            DBDebuggerType debuggerType) throws SQLException {
+
         DBMethod method = executionInput.getMethod();
         if (method != null) {
             ConnectionHandler connectionHandler = method.getConnectionHandler();
@@ -243,7 +247,10 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
         }
     }
 
-    public void promptMethodBrowserDialog(MethodExecutionInput executionInput, boolean debug, ParametricRunnable<MethodExecutionInput> callback) {
+    public void promptMethodBrowserDialog(
+            @Nullable MethodExecutionInput executionInput,  boolean debug,
+            @Nullable ParametricRunnable.Basic<MethodExecutionInput> callback) {
+
         Project project = getProject();
         Progress.prompt(project, "Loading executable elements", true,
                 (progress) -> {
@@ -262,14 +269,14 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
                             new ObjectTreeModel(schema, settings.getVisibleObjectTypes(), settings.getMethod()) :
                             new ObjectTreeModel(null, settings.getVisibleObjectTypes(), null);
 
-                    Dispatch.invoke(() -> {
+                    Dispatch.run(() -> {
                         Failsafe.nn(project);
                         MethodExecutionBrowserDialog browserDialog = new MethodExecutionBrowserDialog(project, objectTreeModel, true);
                         browserDialog.show();
                         if (browserDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
                             DBMethod method = browserDialog.getSelectedMethod();
                             MethodExecutionInput methodExecutionInput = executionManager.getExecutionInput(method);
-                            if (methodExecutionInput != null) {
+                            if (callback != null && methodExecutionInput != null) {
                                 callback.run(methodExecutionInput);
                             }
                         }

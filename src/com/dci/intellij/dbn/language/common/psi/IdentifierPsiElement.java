@@ -24,8 +24,8 @@ import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBObjectBundle;
 import com.dci.intellij.dbn.object.common.DBObjectPsiElement;
 import com.dci.intellij.dbn.object.common.DBObjectPsiFacade;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.DBVirtualObject;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.lang.ASTNode;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.openapi.application.ApplicationManager;
@@ -277,7 +277,7 @@ public abstract class IdentifierPsiElement extends LeafPsiElement<IdentifierElem
                 return underlyingObject;
             }
 
-            return resolveActualObject(underlyingObject);
+            return null;
         } catch (ProcessCanceledException ignore){
             return null;
         } finally {

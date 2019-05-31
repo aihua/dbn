@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.routine.ParametricRunnable;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.util.messages.MessageBus;
 import com.intellij.util.messages.MessageBusConnection;
@@ -39,11 +40,13 @@ public class EventUtil {
         messageBusConnection.subscribe(topic, handler);
     }
 
-    public static <T> void notify(@Nullable Project project, Topic<T> topic, ParametricRunnable<T> callback) {
+    public static <T> void notify(@Nullable Project project, Topic<T> topic, ParametricRunnable.Basic<T> callback) {
         if (Failsafe.check(project) && /*!project.isDefault() &&*/ project != Failsafe.DUMMY_PROJECT) {
-            MessageBus messageBus = project.getMessageBus();
-            T publisher = messageBus.syncPublisher(topic);
-            Failsafe.guarded(() -> callback.run(publisher));
+            try {
+                MessageBus messageBus = project.getMessageBus();
+                T publisher = messageBus.syncPublisher(topic);
+                callback.run(publisher);
+            } catch (ProcessCanceledException ignore) {}
         }
     }
 }

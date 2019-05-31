@@ -14,12 +14,13 @@ import com.dci.intellij.dbn.common.list.AbstractFiltrableList;
 import com.dci.intellij.dbn.common.list.FiltrableList;
 import com.dci.intellij.dbn.common.list.FiltrableListImpl;
 import com.dci.intellij.dbn.common.options.SettingsChangeNotifier;
+import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.connection.config.ConnectionBundleSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSettingsListener;
 import com.dci.intellij.dbn.object.common.DBObjectBundle;
-import com.dci.intellij.dbn.object.common.DBObjectType;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
@@ -73,7 +74,7 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
         virtualConnections.add(new VirtualConnectionHandler(
                 ConnectionId.VIRTUAL_ISO92_SQL_CONNECTION,
                 "Virtual - ISO-92 SQL",
-                DatabaseType.UNKNOWN,
+                DatabaseType.GENERIC,
                 92,
                 project));
     }
@@ -223,7 +224,7 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
     @NotNull
     @Override
     public String getName() {
-        return getPresentableText();
+        return CommonUtil.nvl(getPresentableText(), "Connection Bundle");
     }
 
     @Override

@@ -9,13 +9,14 @@ import com.dci.intellij.dbn.common.content.loader.DynamicContentResultSetLoader;
 import com.dci.intellij.dbn.common.content.loader.DynamicSubcontentLoader;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
+import com.dci.intellij.dbn.database.common.metadata.def.DBNestedTableMetadata;
+import com.dci.intellij.dbn.database.common.metadata.def.DBTableMetadata;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.object.DBColumn;
 import com.dci.intellij.dbn.object.DBIndex;
 import com.dci.intellij.dbn.object.DBNestedTable;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.DBTable;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationList;
@@ -23,6 +24,7 @@ import com.dci.intellij.dbn.object.common.list.DBObjectNavigationListImpl;
 import com.dci.intellij.dbn.object.common.list.DBObjectRelationListContainer;
 import com.dci.intellij.dbn.object.properties.PresentableProperty;
 import com.dci.intellij.dbn.object.properties.SimplePresentableProperty;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -32,24 +34,24 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.dci.intellij.dbn.object.common.DBObjectRelationType.INDEX_COLUMN;
-import static com.dci.intellij.dbn.object.common.DBObjectType.*;
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.TEMPORARY;
+import static com.dci.intellij.dbn.object.type.DBObjectRelationType.INDEX_COLUMN;
+import static com.dci.intellij.dbn.object.type.DBObjectType.*;
 
-public class DBTableImpl extends DBDatasetImpl implements DBTable {
+public class DBTableImpl extends DBDatasetImpl<DBTableMetadata> implements DBTable {
     private static final List<DBColumn> EMPTY_COLUMN_LIST = new ArrayList<DBColumn>();
 
     private DBObjectList<DBIndex> indexes;
     private DBObjectList<DBNestedTable> nestedTables;
 
-    DBTableImpl(DBSchema schema, ResultSet resultSet) throws SQLException {
-        super(schema, resultSet);
+    DBTableImpl(DBSchema schema, DBTableMetadata metadata) throws SQLException {
+        super(schema, metadata);
     }
 
     @Override
-    protected String initObject(ResultSet resultSet) throws SQLException {
-        String name = resultSet.getString("TABLE_NAME");
-        set(TEMPORARY, resultSet.getString("IS_TEMPORARY").equals("Y"));
+    protected String initObject(DBTableMetadata metadata) throws SQLException {
+        String name = metadata.getTableName();
+        set(TEMPORARY, metadata.isTemporary());
         return name;
     }
 
@@ -191,7 +193,7 @@ public class DBTableImpl extends DBDatasetImpl implements DBTable {
      *                         Loaders                       *
      *********************************************************/
     static {
-        new DynamicSubcontentLoader<DBNestedTable>(TABLE, NESTED_TABLE, true) {
+        new DynamicSubcontentLoader<DBNestedTable, DBNestedTableMetadata>(TABLE, NESTED_TABLE, true) {
 
             @Override
             public boolean match(DBNestedTable nestedTable, DynamicContent dynamicContent) {
@@ -200,8 +202,8 @@ public class DBTableImpl extends DBDatasetImpl implements DBTable {
             }
 
             @Override
-            public DynamicContentLoader<DBNestedTable> createAlternativeLoader() {
-                return new DynamicContentResultSetLoader<DBNestedTable>(TABLE, NESTED_TABLE, false, true) {
+            public DynamicContentLoader<DBNestedTable, DBNestedTableMetadata> createAlternativeLoader() {
+                return new DynamicContentResultSetLoader<DBNestedTable, DBNestedTableMetadata>(TABLE, NESTED_TABLE, false, true) {
 
                     @Override
                     public ResultSet createResultSet(DynamicContent<DBNestedTable> dynamicContent, DBNConnection connection) throws SQLException {
@@ -211,9 +213,9 @@ public class DBTableImpl extends DBDatasetImpl implements DBTable {
                     }
 
                     @Override
-                    public DBNestedTable createElement(DynamicContent<DBNestedTable> dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
-                        DBTable table = (DBTable) dynamicContent.getParentElement();
-                        return new DBNestedTableImpl(table, resultSet);
+                    public DBNestedTable createElement(DynamicContent<DBNestedTable> content, DBNestedTableMetadata metadata, LoaderCache cache) throws SQLException {
+                        DBTable table = (DBTable) content.getParentElement();
+                        return new DBNestedTableImpl(table, metadata);
                     }
                 };
             }

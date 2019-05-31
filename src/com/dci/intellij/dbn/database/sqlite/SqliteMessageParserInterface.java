@@ -5,9 +5,10 @@ import com.dci.intellij.dbn.database.DatabaseObjectIdentifier;
 import org.jetbrains.annotations.Nullable;
 
 import java.sql.SQLException;
+import java.sql.SQLSyntaxErrorException;
 import java.sql.SQLTimeoutException;
 
-public class SqliteMessageParserInterface implements DatabaseMessageParserInterface {
+class SqliteMessageParserInterface implements DatabaseMessageParserInterface {
     @Override
     @Nullable
     public DatabaseObjectIdentifier identifyObject(SQLException exception) {
@@ -21,7 +22,7 @@ public class SqliteMessageParserInterface implements DatabaseMessageParserInterf
 
     @Override
     public boolean isModelException(SQLException e) {
-        return false;
+        return e instanceof SQLSyntaxErrorException;
     }
 
     @Override

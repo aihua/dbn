@@ -1,5 +1,7 @@
 package com.dci.intellij.dbn.database;
 
+import com.dci.intellij.dbn.common.LoggerFactory;
+import com.dci.intellij.dbn.common.routine.ThrowableCallable;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.DatabaseAttachmentHandler;
 import com.dci.intellij.dbn.data.sorting.SortDirection;
@@ -7,10 +9,16 @@ import com.dci.intellij.dbn.editor.session.SessionStatus;
 import com.dci.intellij.dbn.language.common.QuoteDefinition;
 import com.dci.intellij.dbn.language.common.QuotePair;
 import com.dci.intellij.dbn.object.common.DBObject;
+import com.intellij.openapi.diagnostic.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public abstract class DatabaseCompatibilityInterface {
+import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
+
+public abstract class DatabaseCompatibilityInterface implements DatabaseInterface{
+    private static final Logger LOGGER = LoggerFactory.createLogger();
+
     private DatabaseInterfaceProvider provider;
 
     public DatabaseCompatibilityInterface(DatabaseInterfaceProvider parent) {
@@ -63,4 +71,18 @@ public abstract class DatabaseCompatibilityInterface {
     public DatabaseAttachmentHandler getDatabaseAttachmentHandler() {
         return null;
     };
+
+    public  <T> T attempt(JdbcProperty feature, ThrowableCallable<T, SQLException> loader) throws SQLException {
+        ConnectionHandler connectionHandler = DatabaseInterface.getConnectionHandler();
+        DatabaseCompatibility compatibility = connectionHandler.getCompatibility();
+        try {
+            if (compatibility.isSupported(feature)) {
+                return loader.call();
+            }
+        } catch (SQLFeatureNotSupportedException | AbstractMethodError e) {
+            LOGGER.warn("JDBC feature not supported " + feature + " (" + e.getMessage() + ")");
+            compatibility.markUnsupported(feature);
+        }
+        return null;
+    }
 }

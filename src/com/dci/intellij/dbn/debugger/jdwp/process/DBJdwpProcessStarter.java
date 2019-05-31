@@ -30,22 +30,15 @@ public abstract class DBJdwpProcessStarter extends DBDebugProcessStarter {
 
     public static final Key<Integer> JDWP_DEBUGGER_PORT = new Key<Integer>("JDWP_DEBUGGER_PORT");
 
-    public DBJdwpProcessStarter(ConnectionHandler connectionHandler) {
+    DBJdwpProcessStarter(ConnectionHandler connectionHandler) {
         super(connectionHandler);
     }
 
     private static int findFreePort(int minPortNumber, int maxPortNumber) throws ExecutionException {
         for (int portNumber = minPortNumber; portNumber < maxPortNumber; portNumber++) {
             try {
-                ServerSocket socket = null;
-                try {
-                    socket = new ServerSocket(portNumber);
+                try (ServerSocket ignored = new ServerSocket(portNumber)) {
                     return portNumber;
-                } finally {
-                    if (socket != null) {
-                        socket.close();
-                    }
-
                 }
             } catch (Exception ignore) {}
         }

@@ -23,6 +23,7 @@ import com.dci.intellij.dbn.object.common.operation.DBOperationExecutor;
 import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.object.properties.PresentableProperty;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.vfs.file.DBObjectVirtualFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -31,7 +32,15 @@ import javax.swing.*;
 import java.sql.SQLException;
 import java.util.List;
 
-public interface DBObject extends PropertyHolder<DBObjectProperty>, BrowserTreeNode, DynamicContentElement, LookupItemBuilderProvider, Referenceable, EnvironmentTypeProvider, PresentableConnectionProvider {
+public interface DBObject extends
+        PropertyHolder<DBObjectProperty>,
+        BrowserTreeNode,
+        DynamicContentElement,
+        LookupItemBuilderProvider,
+        Referenceable,
+        EnvironmentTypeProvider,
+        PresentableConnectionProvider {
+
     @NotNull
     DBObjectType getObjectType();
 

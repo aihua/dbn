@@ -2,36 +2,36 @@ package com.dci.intellij.dbn.object.impl;
 
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.browser.ui.HtmlToolTipBuilder;
+import com.dci.intellij.dbn.database.common.metadata.def.DBNestedTableMetadata;
 import com.dci.intellij.dbn.object.DBNestedTable;
 import com.dci.intellij.dbn.object.DBNestedTableColumn;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.DBTable;
 import com.dci.intellij.dbn.object.DBType;
 import com.dci.intellij.dbn.object.common.DBObjectImpl;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import org.jetbrains.annotations.NotNull;
 
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DBNestedTableImpl extends DBObjectImpl implements DBNestedTable {
+public class DBNestedTableImpl extends DBObjectImpl<DBNestedTableMetadata> implements DBNestedTable {
     private List<DBNestedTableColumn> columns;
     private DBObjectRef<DBType> typeRef;
 
-    DBNestedTableImpl(DBTable parent, ResultSet resultSet) throws SQLException {
-        super(parent, resultSet);
+    DBNestedTableImpl(DBTable parent, DBNestedTableMetadata metadata) throws SQLException {
+        super(parent, metadata);
 
     }
 
     @Override
-    protected String initObject(ResultSet resultSet) throws SQLException {
-        String name = resultSet.getString("NESTED_TABLE_NAME");
+    protected String initObject(DBNestedTableMetadata metadata) throws SQLException {
+        String name = metadata.getNestedTableName();
 
-        String typeOwner = resultSet.getString("DATA_TYPE_OWNER");
-        String typeName = resultSet.getString("DATA_TYPE_NAME");
+        String typeOwner = metadata.getDataTypeOwner();
+        String typeName = metadata.getDataTypeName();
         DBSchema schema = getConnectionHandler().getObjectBundle().getSchema(typeOwner);
         typeRef = DBObjectRef.from(schema == null ? null : schema.getType(typeName));
         // todo !!!

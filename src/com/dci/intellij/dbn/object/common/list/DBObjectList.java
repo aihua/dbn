@@ -5,8 +5,8 @@ import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.connection.ConnectionProvider;
 import com.dci.intellij.dbn.object.common.DBObject;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.filter.quick.ObjectQuickFilter;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.psi.PsiDirectory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -20,6 +20,7 @@ public interface DBObjectList<T extends DBObject> extends BrowserTreeNode, Dynam
     PsiDirectory getPsiDirectory();
 
     DBObjectType getObjectType();
+
     void addObject(T object);
 
     boolean isFiltered();

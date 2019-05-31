@@ -20,7 +20,6 @@ import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSettings;
-import com.dci.intellij.dbn.connection.config.ConnectionSettingsAdapter;
 import com.dci.intellij.dbn.connection.config.ConnectionSettingsListener;
 import com.dci.intellij.dbn.connection.info.ConnectionInfo;
 import com.dci.intellij.dbn.connection.info.ui.ConnectionInfoDialog;
@@ -41,6 +40,7 @@ import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.options.ConfigurationException;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -60,10 +60,7 @@ import java.util.stream.Collectors;
 import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
 import static com.dci.intellij.dbn.common.util.CollectionUtil.isLast;
 import static com.dci.intellij.dbn.common.util.CommonUtil.list;
-import static com.dci.intellij.dbn.common.util.MessageUtil.options;
-import static com.dci.intellij.dbn.common.util.MessageUtil.showErrorDialog;
-import static com.dci.intellij.dbn.common.util.MessageUtil.showInfoDialog;
-import static com.dci.intellij.dbn.common.util.MessageUtil.showWarningDialog;
+import static com.dci.intellij.dbn.common.util.MessageUtil.*;
 import static com.dci.intellij.dbn.connection.transaction.TransactionAction.actions;
 
 @State(
@@ -127,7 +124,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     *                       Listeners                        *
     *********************************************************/
 
-    private ConnectionSettingsListener connectionSettingsListener = new ConnectionSettingsAdapter() {
+    private ConnectionSettingsListener connectionSettingsListener = new ConnectionSettingsListener() {
         @Override
         public void connectionChanged(ConnectionId connectionId) {
             ConnectionHandler connectionHandler = getConnectionHandler(connectionId);
@@ -137,6 +134,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
                         project,
                         "Refreshing database objects", true,
                         (progress) -> {
+                            connectionHandler.resetCompatibilityMonitor();
                             List<TransactionAction> actions = actions(TransactionAction.DISCONNECT);
 
                             DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(project);
@@ -146,6 +144,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
                                 transactionManager.execute(connectionHandler, connection, actions, false, null);
                             }
                             connectionHandler.getObjectBundle().getObjectListContainer().refresh();
+
                         });
             }
         }
@@ -251,11 +250,9 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
                     Progress.modal(project, "Connecting to " + connectionName, false, (progress) -> {
                         try {
                             DBNConnection connection = ResourceUtil.connect(connectionSettings, null, authenticationInfo, SessionId.TEST, false, null);
-                            if (connection != null) {
-                                ConnectionInfo connectionInfo = new ConnectionInfo(connection.getMetaData());
-                                ResourceUtil.close(connection);
-                                showConnectionInfoDialog(connectionInfo, connectionName, environmentType);
-                            } // TODO else??
+                            ConnectionInfo connectionInfo = new ConnectionInfo(connection.getMetaData());
+                            ResourceUtil.close(connection);
+                            showConnectionInfoDialog(connectionInfo, connectionName, environmentType);
                         } catch (Exception e) {
                             showErrorConnectionMessage(project, connectionName, e);
                         }
@@ -268,7 +265,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
 
     private static void ensureAuthenticationProvided(
             @NotNull ConnectionDatabaseSettings databaseSettings,
-            @NotNull ParametricRunnable<AuthenticationInfo> callback) {
+            @NotNull ParametricRunnable.Basic<AuthenticationInfo> callback) {
 
         AuthenticationInfo authenticationInfo = databaseSettings.getAuthenticationInfo().clone();
         if (!authenticationInfo.isProvided()) {
@@ -333,7 +330,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     }
 
     public static void showConnectionInfoDialog(ConnectionHandler connectionHandler) {
-        Dispatch.invoke(() -> {
+        Dispatch.run(() -> {
             ConnectionInfoDialog infoDialog = new ConnectionInfoDialog(connectionHandler);
             infoDialog.setModal(true);
             infoDialog.show();
@@ -341,7 +338,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     }
 
     private static void showConnectionInfoDialog(ConnectionInfo connectionInfo, String connectionName, EnvironmentType environmentType) {
-        Dispatch.invoke(() -> {
+        Dispatch.run(() -> {
             ConnectionInfoDialog infoDialog = new ConnectionInfoDialog(null, connectionInfo, connectionName, environmentType);
             infoDialog.setModal(true);
             infoDialog.show();
@@ -351,7 +348,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     static void promptAuthenticationDialog(
             @Nullable ConnectionHandler connectionHandler,
             @NotNull AuthenticationInfo authenticationInfo,
-            @NotNull ParametricRunnable<AuthenticationInfo> callback) {
+            @NotNull ParametricRunnable.Basic<AuthenticationInfo> callback) {
 
         ConnectionAuthenticationDialog passwordDialog = new ConnectionAuthenticationDialog(null, connectionHandler, authenticationInfo);
         passwordDialog.show();
@@ -366,8 +363,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
 
                     storedAuthenticationInfo.setUser(newAuthenticationInfo.getUser());
                     storedAuthenticationInfo.setPassword(newAuthenticationInfo.getPassword());
-                    storedAuthenticationInfo.setOsAuthentication(newAuthenticationInfo.isOsAuthentication());
-                    storedAuthenticationInfo.setEmptyAuthentication(newAuthenticationInfo.isEmptyAuthentication());
+                    storedAuthenticationInfo.setType(newAuthenticationInfo.getType());
 
                     storedAuthenticationInfo.updateKeyChain(oldUser, oldPassword);
                 } else {
@@ -465,7 +461,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
         }
 
         private void resolveIdleStatus(ConnectionHandler connectionHandler) {
-            Failsafe.guarded(() -> {
+            try {
                 List<TransactionAction> actions = actions(TransactionAction.DISCONNECT_IDLE);
 
                 Failsafe.nd(connectionHandler);
@@ -481,7 +477,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
                             if (idleMinutes > idleMinutesToDisconnect) {
                                 if (connection.hasDataChanges()) {
                                     connection.set(ResourceStatus.RESOLVING_TRANSACTION, true);
-                                    Dispatch.invokeNonModal(() -> {
+                                    Dispatch.run(() -> {
                                         IdleConnectionDialog idleConnectionDialog = new IdleConnectionDialog(connectionHandler, connection);
                                         idleConnectionDialog.show();
                                     });
@@ -490,14 +486,14 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
                                 }
                             }
                         });
-            });
+            } catch (ProcessCanceledException ignore) {}
         }
     }
 
     void disposeConnections(@NotNull List<ConnectionHandler> connectionHandlers) {
         if (connectionHandlers.size() > 0) {
             Project project = getProject();
-            Dispatch.invoke(() -> {
+            Dispatch.run(() -> {
                 List<ConnectionId> connectionIds = ConnectionHandler.ids(connectionHandlers);
 
                 ExecutionManager executionManager = ExecutionManager.getInstance(project);

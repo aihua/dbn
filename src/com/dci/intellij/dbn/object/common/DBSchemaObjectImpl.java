@@ -3,13 +3,13 @@ package com.dci.intellij.dbn.object.common;
 import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.content.DynamicContentStatus;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentResultSetLoader;
-import com.dci.intellij.dbn.common.util.ChangeTimestamp;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ResourceUtil;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseDDLInterface;
-import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
+import com.dci.intellij.dbn.database.common.metadata.DBObjectMetadata;
+import com.dci.intellij.dbn.database.common.metadata.def.DBObjectDependencyMetadata;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.psql.PSQLLanguage;
@@ -17,8 +17,8 @@ import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationList;
-import com.dci.intellij.dbn.object.common.loader.DBObjectTimestampLoader;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatusHolder;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.vfs.DatabaseFileSystem;
 import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBObjectVirtualFile;
@@ -27,26 +27,25 @@ import org.jetbrains.annotations.Nullable;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import static com.dci.intellij.dbn.object.common.DBObjectType.*;
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.*;
+import static com.dci.intellij.dbn.object.type.DBObjectType.*;
 
 
-public abstract class DBSchemaObjectImpl extends DBObjectImpl implements DBSchemaObject {
+public abstract class DBSchemaObjectImpl<M extends DBObjectMetadata> extends DBObjectImpl<M> implements DBSchemaObject {
     private DBObjectList<DBObject> referencedObjects;
     private DBObjectList<DBObject> referencingObjects;
     private DBObjectStatusHolder objectStatus;
 
-    public DBSchemaObjectImpl(@NotNull DBSchema schema, ResultSet resultSet) throws SQLException {
-        super(schema, resultSet);
+    public DBSchemaObjectImpl(@NotNull DBSchema schema, M metadata) throws SQLException {
+        super(schema, metadata);
     }
 
-    public DBSchemaObjectImpl(@NotNull DBSchemaObject parent, ResultSet resultSet) throws SQLException {
-        super(parent, resultSet);
+    public DBSchemaObjectImpl(@NotNull DBSchemaObject parent, M metadata) throws SQLException {
+        super(parent, metadata);
     }
 
     @Override
@@ -95,25 +94,6 @@ public abstract class DBSchemaObjectImpl extends DBObjectImpl implements DBSchem
     @Override
     protected List<DBObjectNavigationList> createNavigationLists() {
         return new ArrayList<>();
-    }
-
-    @Override
-    @NotNull
-    public ChangeTimestamp loadChangeTimestamp(DBContentType contentType) throws SQLException {
-        if (DatabaseFeature.OBJECT_CHANGE_TRACING.isSupported(this)) {
-            Timestamp timestamp = getTimestampLoader(contentType).load(this);
-            return new ChangeTimestamp(timestamp == null ? new Timestamp(System.currentTimeMillis()) : timestamp);
-        }
-        return new ChangeTimestamp(new Timestamp(System.currentTimeMillis()));
-    }
-
-    public DBObjectTimestampLoader getTimestampLoader(DBContentType contentType) {
-        return new DBObjectTimestampLoader(getTypeName().toUpperCase());
-    }
-
-    @Override
-    public String loadCodeFromDatabase(DBContentType contentType) throws SQLException {
-        return null;
     }
 
     @Override
@@ -194,7 +174,7 @@ public abstract class DBSchemaObjectImpl extends DBObjectImpl implements DBSchem
      *                         Loaders                       *
      *********************************************************/
     static {
-        new DynamicContentResultSetLoader(null, INCOMING_DEPENDENCY, true, false) {
+        new DynamicContentResultSetLoader<DBObject, DBObjectDependencyMetadata>(null, INCOMING_DEPENDENCY, true, false) {
             @Override
             public ResultSet createResultSet(DynamicContent dynamicContent, DBNConnection connection) throws SQLException {
                 DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
@@ -203,28 +183,28 @@ public abstract class DBSchemaObjectImpl extends DBObjectImpl implements DBSchem
             }
 
             @Override
-            public DBObject createElement(DynamicContent dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
-                String objectOwner = resultSet.getString("OBJECT_OWNER");
-                String objectName = resultSet.getString("OBJECT_NAME");
-                String objectTypeName = resultSet.getString("OBJECT_TYPE");
+            public DBObject createElement(DynamicContent<DBObject> content, DBObjectDependencyMetadata metadata, LoaderCache cache) throws SQLException {
+                String objectOwner = metadata.getObjectOwner();
+                String objectName = metadata.getObjectName();
+                String objectTypeName = metadata.getObjectType();
                 DBObjectType objectType = get(objectTypeName);
                 if (objectType == PACKAGE_BODY) objectType = PACKAGE;
                 if (objectType == TYPE_BODY) objectType = TYPE;
 
-                DBSchema schema = (DBSchema) loaderCache.getObject(objectOwner);
+                DBSchema schema = (DBSchema) cache.getObject(objectOwner);
 
                 if (schema == null) {
-                    DBSchemaObject schemaObject = (DBSchemaObject) dynamicContent.getParentElement();
+                    DBSchemaObject schemaObject = (DBSchemaObject) content.getParentElement();
                     ConnectionHandler connectionHandler = schemaObject.getConnectionHandler();
                     schema = connectionHandler.getObjectBundle().getSchema(objectOwner);
-                    loaderCache.setObject(objectOwner,  schema);
+                    cache.setObject(objectOwner,  schema);
                 }
 
                 return schema == null ? null : schema.getChildObject(objectType, objectName, 0, true);
             }
         };
 
-        new DynamicContentResultSetLoader(null, OUTGOING_DEPENDENCY, true, false) {
+        new DynamicContentResultSetLoader<DBObject, DBObjectDependencyMetadata>(null, OUTGOING_DEPENDENCY, true, false) {
             @Override
             public ResultSet createResultSet(DynamicContent dynamicContent, DBNConnection connection) throws SQLException {
                 DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
@@ -233,20 +213,20 @@ public abstract class DBSchemaObjectImpl extends DBObjectImpl implements DBSchem
             }
 
             @Override
-            public DBObject createElement(DynamicContent dynamicContent, ResultSet resultSet, LoaderCache loaderCache) throws SQLException {
-                String objectOwner = resultSet.getString("OBJECT_OWNER");
-                String objectName = resultSet.getString("OBJECT_NAME");
-                String objectTypeName = resultSet.getString("OBJECT_TYPE");
+            public DBObject createElement(DynamicContent<DBObject> content, DBObjectDependencyMetadata metadata, LoaderCache cache) throws SQLException {
+                String objectOwner = metadata.getObjectOwner();
+                String objectName = metadata.getObjectName();
+                String objectTypeName = metadata.getObjectType();
                 DBObjectType objectType = get(objectTypeName);
                 if (objectType == PACKAGE_BODY) objectType = PACKAGE;
                 if (objectType == TYPE_BODY) objectType = TYPE;
 
-                DBSchema schema = (DBSchema) loaderCache.getObject(objectOwner);
+                DBSchema schema = (DBSchema) cache.getObject(objectOwner);
                 if (schema == null) {
-                    DBSchemaObject schemaObject = (DBSchemaObject) dynamicContent.getParentElement();
+                    DBSchemaObject schemaObject = (DBSchemaObject) content.getParentElement();
                     ConnectionHandler connectionHandler = schemaObject.getConnectionHandler();
                     schema = connectionHandler.getObjectBundle().getSchema(objectOwner);
-                    loaderCache.setObject(objectOwner,  schema);
+                    cache.setObject(objectOwner,  schema);
                 }
                 return schema == null ? null : schema.getChildObject(objectType, objectName, 0, true);
             }

@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.database.sqlite.adapter.rs;
 
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
-import com.dci.intellij.dbn.database.sqlite.adapter.ResultSetElement;
+import com.dci.intellij.dbn.database.sqlite.adapter.SqliteMetadataResultSetRow;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -18,11 +18,11 @@ import static com.dci.intellij.dbn.database.sqlite.adapter.SqliteRawMetaData.Raw
 
 public abstract class SqliteIndexesResultSet extends SqliteDatasetInfoResultSetStub<SqliteIndexesResultSet.Index> {
 
-    public SqliteIndexesResultSet(String ownerName, SqliteDatasetNamesResultSet datasetNames, DBNConnection connection) throws SQLException {
+    protected SqliteIndexesResultSet(String ownerName, SqliteDatasetNamesResultSet datasetNames, DBNConnection connection) throws SQLException {
         super(ownerName, datasetNames, connection);
     }
 
-    public SqliteIndexesResultSet(String ownerName, String datasetName, DBNConnection connection) throws SQLException {
+    protected SqliteIndexesResultSet(String ownerName, String datasetName, DBNConnection connection) throws SQLException {
         super(ownerName, datasetName, connection);
     }
 
@@ -32,16 +32,16 @@ public abstract class SqliteIndexesResultSet extends SqliteDatasetInfoResultSetS
 
         for (RawIndexInfo.Row row : indexInfo.getRows()) {
             Index element = new Index();
-            element.setTableName(tableName);
-            element.setIndexName(row.getName());
-            element.setUnique(row.getUnique() == 1);
-            element.setValid(true);
-            addElement(element);
+            element.tableName = tableName;
+            element.indexName = row.getName();
+            element.unique = row.getUnique() == 1;
+            element.valid = true;
+            add(element);
         }
     }
 
     private RawIndexInfo getIndexInfo(final String tableName) throws SQLException {
-        return getCache().get(
+        return cache().get(
                 ownerName + "." + tableName + ".INDEX_INFO",
                 () -> new RawIndexInfo(loadIndexInfo(tableName)));
     }
@@ -50,61 +50,24 @@ public abstract class SqliteIndexesResultSet extends SqliteDatasetInfoResultSetS
 
     @Override
     public String getString(String columnLabel) throws SQLException {
-        Index index = getCurrentElement();
+        Index index = current();
         return
-                columnLabel.equals("TABLE_NAME") ? index.getTableName() :
-                columnLabel.equals("INDEX_NAME") ? index.getIndexName() :
-                columnLabel.equals("IS_UNIQUE") ? toFlag(index.isUnique()) :
+                columnLabel.equals("TABLE_NAME") ? index.tableName :
+                columnLabel.equals("INDEX_NAME") ? index.indexName :
+                columnLabel.equals("IS_UNIQUE") ? toFlag(index.unique) :
                 columnLabel.equals("IS_VALID") ? "Y" : null;
     }
 
 
-    public static class Index implements ResultSetElement<Index> {
-        String tableName;
-        String indexName;
-        boolean unique;
-        boolean valid;
-
-        public void setTableName(String tableName) {
-            this.tableName = tableName;
-        }
-
-        public void setIndexName(String indexName) {
-            this.indexName = indexName;
-        }
-
-        public void setUnique(boolean unique) {
-            this.unique = unique;
-        }
-
-        public void setValid(boolean valid) {
-            this.valid = valid;
-        }
-
-        public String getTableName() {
-            return tableName;
-        }
-
-        public String getIndexName() {
-            return indexName;
-        }
-
-        public boolean isUnique() {
-            return unique;
-        }
-
-        public boolean isValid() {
-            return valid;
-        }
+    static class Index implements SqliteMetadataResultSetRow<Index> {
+        private String tableName;
+        private String indexName;
+        private boolean unique;
+        private boolean valid;
 
         @Override
-        public String getName() {
+        public String identifier() {
             return tableName + "." + indexName;
-        }
-
-        @Override
-        public int compareTo(Index index) {
-            return (tableName + "." + indexName).compareTo(index.tableName + "." + index.indexName);
         }
 
         @Override

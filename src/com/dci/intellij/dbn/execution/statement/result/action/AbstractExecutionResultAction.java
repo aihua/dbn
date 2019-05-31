@@ -1,25 +1,24 @@
 package com.dci.intellij.dbn.execution.statement.result.action;
 
 import com.dci.intellij.dbn.common.action.DataKeys;
-import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.action.DumbAwareContextAction;
 import com.dci.intellij.dbn.execution.ExecutionManager;
 import com.dci.intellij.dbn.execution.ExecutionResult;
 import com.dci.intellij.dbn.execution.statement.result.StatementExecutionCursorResult;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.project.DumbAwareAction;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 
-public abstract class AbstractExecutionResultAction extends DumbAwareAction {
+public abstract class AbstractExecutionResultAction extends DumbAwareContextAction<StatementExecutionCursorResult> {
     protected AbstractExecutionResultAction(String text, Icon icon) {
         super(text, null, icon);
     }
 
     @Nullable
-    public StatementExecutionCursorResult getExecutionResult(AnActionEvent e) {
+    protected StatementExecutionCursorResult getTarget(@NotNull AnActionEvent e) {
         StatementExecutionCursorResult result = e.getData(DataKeys.STATEMENT_EXECUTION_CURSOR_RESULT);
         if (result == null) {
             Project project = e.getProject();
@@ -33,11 +32,4 @@ public abstract class AbstractExecutionResultAction extends DumbAwareAction {
         }
         return result;
     }
-
-    @Override
-    public void update(@NotNull AnActionEvent e) {
-        StatementExecutionCursorResult executionResult = getExecutionResult(e);
-        e.getPresentation().setEnabled(Failsafe.check(executionResult));
-    }
-
 }

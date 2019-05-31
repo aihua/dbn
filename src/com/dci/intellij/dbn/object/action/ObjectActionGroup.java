@@ -3,18 +3,18 @@ package com.dci.intellij.dbn.object.action;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.execution.compiler.action.CompileActionGroup;
-import com.dci.intellij.dbn.execution.method.action.DebugMethodAction;
-import com.dci.intellij.dbn.execution.method.action.DebugProgramMethodAction;
-import com.dci.intellij.dbn.execution.method.action.RunMethodAction;
-import com.dci.intellij.dbn.execution.method.action.RunProgramMethodAction;
+import com.dci.intellij.dbn.execution.method.action.MethodDebugAction;
+import com.dci.intellij.dbn.execution.method.action.MethodRunAction;
+import com.dci.intellij.dbn.execution.method.action.ProgramMethodDebugAction;
+import com.dci.intellij.dbn.execution.method.action.ProgramMethodRunAction;
 import com.dci.intellij.dbn.generator.action.GenerateStatementActionGroup;
 import com.dci.intellij.dbn.object.DBMethod;
 import com.dci.intellij.dbn.object.DBProgram;
 import com.dci.intellij.dbn.object.common.DBObject;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationList;
 import com.dci.intellij.dbn.object.dependency.action.ObjectDependencyTreeAction;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.project.DumbAware;
 
@@ -39,7 +39,9 @@ public class ObjectActionGroup extends DefaultActionGroup implements DumbAware {
                 } 
 
                 if (contentType == DBContentType.CODE || contentType == DBContentType.CODE_AND_DATA || contentType == DBContentType.CODE_SPEC_AND_BODY) {
-                    add(new EditObjectCodeAction(schemaObject));
+                    if (DatabaseFeature.OBJECT_SOURCE_EDITING.isSupported(object)) {
+                        add(new EditObjectCodeAction(schemaObject));
+                    }
                 }
             }
 
@@ -62,17 +64,17 @@ public class ObjectActionGroup extends DefaultActionGroup implements DumbAware {
 
         if (object instanceof DBMethod ) {
             addSeparator();
-            add(new RunMethodAction((DBMethod) object));
+            add(new MethodRunAction((DBMethod) object));
             if (DatabaseFeature.DEBUGGING.isSupported(object)) {
-                add(new DebugMethodAction((DBMethod) object));
+                add(new MethodDebugAction((DBMethod) object));
             }
         }
 
         if (object instanceof DBProgram && object.is(SCHEMA_OBJECT)) {
             addSeparator();
-            add(new RunProgramMethodAction((DBProgram) object));
+            add(new ProgramMethodRunAction((DBProgram) object));
             if (DatabaseFeature.DEBUGGING.isSupported(object)) {
-                add(new DebugProgramMethodAction((DBProgram) object));
+                add(new ProgramMethodDebugAction((DBProgram) object));
             }
         }
 

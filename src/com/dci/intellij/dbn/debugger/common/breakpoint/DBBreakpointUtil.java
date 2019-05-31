@@ -113,7 +113,8 @@ public class DBBreakpointUtil {
             DBBreakpointType databaseBreakpointType = (DBBreakpointType) XDebuggerUtil.getInstance().findBreakpointType(DBBreakpointType.class);
             Project project = connectionHandler.getProject();
             XBreakpointManager breakpointManager = XDebuggerManager.getInstance(project).getBreakpointManager();
-            Collection<XLineBreakpoint<XBreakpointProperties>> breakpoints = (Collection<XLineBreakpoint<XBreakpointProperties>>) breakpointManager.getBreakpoints(databaseBreakpointType);
+            Collection<XLineBreakpoint<XBreakpointProperties>> breakpoints =
+                    (Collection<XLineBreakpoint<XBreakpointProperties>>) breakpointManager.getBreakpoints(databaseBreakpointType);
 
             List<XLineBreakpoint<XBreakpointProperties>> connectionBreakpoints = new ArrayList<XLineBreakpoint<XBreakpointProperties>>();
             for (XLineBreakpoint<XBreakpointProperties> breakpoint : breakpoints) {

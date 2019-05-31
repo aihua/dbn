@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.database.common;
 
 import com.dci.intellij.dbn.common.LoggerFactory;
-import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.connection.DatabaseType;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
@@ -10,7 +10,6 @@ import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
 import com.dci.intellij.dbn.database.common.statement.CallableStatementOutput;
 import com.dci.intellij.dbn.database.common.statement.StatementExecutionProcessor;
 import com.intellij.openapi.diagnostic.Logger;
-import com.intellij.openapi.project.Project;
 import org.jdom.Document;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
@@ -18,6 +17,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLFeatureNotSupportedException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -54,28 +54,28 @@ public class DatabaseInterfaceImpl implements DatabaseInterface{
     protected ResultSet executeQuery(@NotNull DBNConnection connection, boolean forceExecution, String loaderId, @Nullable Object... arguments) throws SQLException {
         StatementExecutionProcessor executionProcessor = getExecutionProcessor(loaderId);
         ResultSet result = executionProcessor.executeQuery(connection, forceExecution, arguments);
-        checkDisposed();
+        checkDisposed(connection);
         return result;
     }
 
     protected <T extends CallableStatementOutput> T executeCall(@NotNull DBNConnection connection, @Nullable T outputReader, String loaderId, @Nullable Object... arguments) throws SQLException {
         StatementExecutionProcessor executionProcessor = getExecutionProcessor(loaderId);
         T result = executionProcessor.executeCall(connection, outputReader, arguments);
-        checkDisposed();
+        checkDisposed(connection);
         return result;
     }
 
     protected boolean executeStatement(@NotNull DBNConnection connection, String loaderId, @Nullable Object... arguments) throws SQLException {
         StatementExecutionProcessor executionProcessor = getExecutionProcessor(loaderId);
         boolean result = executionProcessor.executeStatement(connection, arguments);
-        checkDisposed();
+        checkDisposed(connection);
         return result;
     }
 
     protected void executeUpdate(@NotNull DBNConnection connection, String loaderId, @Nullable Object... arguments) throws SQLException {
         StatementExecutionProcessor executionProcessor = getExecutionProcessor(loaderId);
         executionProcessor.executeUpdate(connection, arguments);
-        checkDisposed();
+        checkDisposed(connection);
     }
 
     @NotNull
@@ -83,17 +83,13 @@ public class DatabaseInterfaceImpl implements DatabaseInterface{
         StatementExecutionProcessor executionProcessor = processors.get(loaderId);
         if (executionProcessor == null) {
             DatabaseType databaseType = provider.getDatabaseType();
-            String databaseTypeName = databaseType == DatabaseType.UNKNOWN ? "this" : databaseType.getName();
-            throw new SQLException("Feature [" + loaderId + "] not implemented / supported for " + databaseTypeName + " database type");
+            throw new SQLFeatureNotSupportedException("Feature [" + loaderId + "] not implemented / supported for " + databaseType.getName() + " database type");
         }
         return executionProcessor;
     }
 
-    private void checkDisposed() throws SQLException {
-        Project project = provider.getProject();
-        if (project == null || project.isDisposed()) {
-            throw AlreadyDisposedException.INSTANCE;
-        }
+    private void checkDisposed(DBNConnection connection) throws SQLException {
+        Failsafe.nd(connection.getProject());
     }
 
     public DatabaseInterfaceProvider getProvider() {

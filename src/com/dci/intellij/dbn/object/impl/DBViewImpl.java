@@ -5,39 +5,37 @@ import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseDDLInterface;
-import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
+import com.dci.intellij.dbn.database.DatabaseInterface;
+import com.dci.intellij.dbn.database.common.metadata.def.DBViewMetadata;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.sql.SQLLanguage;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.DBType;
 import com.dci.intellij.dbn.object.DBView;
-import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBObjectBundle;
-import com.dci.intellij.dbn.object.common.DBObjectType;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationList;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationListImpl;
-import com.dci.intellij.dbn.object.common.loader.DBSourceCodeLoader;
 import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 import org.jetbrains.annotations.NotNull;
 
-import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DBViewImpl extends DBDatasetImpl implements DBView {
+public class DBViewImpl extends DBDatasetImpl<DBViewMetadata> implements DBView {
     private DBType type;
-    DBViewImpl(DBSchema schema, ResultSet resultSet) throws SQLException {
-        super(schema, resultSet);
+    DBViewImpl(DBSchema schema, DBViewMetadata metadata) throws SQLException {
+        super(schema, metadata);
     }
 
     @Override
-    protected String initObject(ResultSet resultSet) throws SQLException {
-        String name = resultSet.getString("VIEW_NAME");
-        set(DBObjectProperty.SYSTEM_OBJECT, resultSet.getString("IS_SYSTEM_VIEW").equals("Y"));
-        String typeOwner = resultSet.getString("VIEW_TYPE_OWNER");
-        String typeName = resultSet.getString("VIEW_TYPE");
+    protected String initObject(DBViewMetadata metadata) throws SQLException {
+        String name = metadata.getViewName();
+        set(DBObjectProperty.SYSTEM_OBJECT, metadata.isSystemView());
+        String typeOwner = metadata.getViewTypeOwner();
+        String typeName = metadata.getViewType();
         if (typeOwner != null && typeName != null) {
             DBObjectBundle objectBundle = getConnectionHandler().getObjectBundle();
             DBSchema typeSchema = objectBundle.getSchema(typeOwner);
@@ -90,46 +88,23 @@ public class DBViewImpl extends DBDatasetImpl implements DBView {
     }
 
     /*********************************************************
-     *                         Loaders                       *
-     *********************************************************/
-
-    private class SourceCodeLoader extends DBSourceCodeLoader {
-        protected SourceCodeLoader(DBObject object) {
-            super(object, false);
-        }
-
-        @Override
-        public ResultSet loadSourceCode(DBNConnection connection) throws SQLException {
-            DatabaseMetadataInterface metadataInterface = getConnectionHandler().getInterfaceProvider().getMetadataInterface();
-            String ownerName = getSchema().getName();
-            String viewName = getName();
-            return metadataInterface.loadViewSourceCode(
-                    ownerName,
-                    viewName,
-                    connection);
-        }
-    }
-
-    /*********************************************************
      *                  DBEditableCodeObject                 *
      ********************************************************/
 
     @Override
-    public String loadCodeFromDatabase(DBContentType contentType) throws SQLException {
-        SourceCodeLoader loader = new SourceCodeLoader(this);
-        return loader.load();
-    }
-
-    @Override
     public void executeUpdateDDL(DBContentType contentType, String oldCode, String newCode) throws SQLException {
         ConnectionHandler connectionHandler = getConnectionHandler();
-        DBNConnection connection = connectionHandler.getPoolConnection(getSchemaIdentifier(), false);
-        try {
-            DatabaseDDLInterface ddlInterface = connectionHandler.getInterfaceProvider().getDDLInterface();
-            ddlInterface.updateView(getName(), newCode, connection);
-        } finally {
-            connectionHandler.freePoolConnection(connection);
-        }
+        DatabaseInterface.run(
+                connectionHandler,
+                (provider) -> {
+                    DBNConnection connection = connectionHandler.getPoolConnection(getSchemaIdentifier(), false);
+                    try {
+                        DatabaseDDLInterface ddlInterface = provider.getDDLInterface();
+                        ddlInterface.updateView(getName(), newCode, connection);
+                    } finally {
+                        connectionHandler.freePoolConnection(connection);
+                    }
+                });
     }
 
     @Override

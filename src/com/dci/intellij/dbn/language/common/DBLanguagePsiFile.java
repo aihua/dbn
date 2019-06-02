@@ -345,7 +345,7 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
         VirtualFile virtualFile = getViewProvider().getVirtualFile();
         return virtualFile.getFileSystem() instanceof DatabaseFileSystem ?
                 virtualFile.isValid() :
-                Read.call(() -> super.isValid());
+                super.isValid();
     }
 
     public String getParseRootId() {

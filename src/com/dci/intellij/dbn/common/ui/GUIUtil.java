@@ -6,6 +6,7 @@ import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.editor.colors.EditorColorsScheme;
 import com.intellij.openapi.ui.Splitter;
 import com.intellij.openapi.ui.popup.JBPopup;
+import com.intellij.openapi.util.SystemInfo;
 import com.intellij.ui.awt.RelativePoint;
 import com.intellij.ui.popup.list.ListPopupImpl;
 import com.intellij.util.ui.UIUtil;
@@ -16,16 +17,16 @@ import javax.swing.border.Border;
 import javax.swing.border.TitledBorder;
 import javax.swing.table.TableCellEditor;
 import java.awt.*;
+import java.awt.event.InputEvent;
 import java.lang.reflect.Method;
 import java.util.EventListener;
 
 public class GUIUtil{
-    public static final Font REGULAR_FONT = com.intellij.util.ui.UIUtil.getLabelFont();
+    public static final Font REGULAR_FONT = UIUtil.getLabelFont();
     public static final Font BOLD_FONT = new Font(REGULAR_FONT.getName(), Font.BOLD, REGULAR_FONT.getSize());
-    public static final String DARK_LAF_NAME = "Darcula";
 
-    public static void updateSplitterProportion(final JComponent root, final float proportion) {
-        SwingUtilities.invokeLater(() -> {
+    public static void updateSplitterProportion(JComponent root, float proportion) {
+        Dispatch.runConditional(() -> {
             if (root instanceof Splitter) {
                 Splitter splitter = (Splitter) root;
                 splitter.setProportion(proportion);
@@ -87,12 +88,12 @@ public class GUIUtil{
         return false;
     }
 
-    public static boolean isFocused(Component component, boolean recoursive) {
+    public static boolean isFocused(Component component, boolean recursive) {
         if (component.isFocusOwner()) return true;
-        if (recoursive && component instanceof JComponent) {
+        if (recursive && component instanceof JComponent) {
             JComponent parentComponent = (JComponent) component;
             for (Component childComponent : parentComponent.getComponents()) {
-                if (isFocused(childComponent, recoursive)) {
+                if (isFocused(childComponent, recursive)) {
                     return true;
                 }
             }
@@ -102,15 +103,7 @@ public class GUIUtil{
 
 
     public static boolean isDarkLookAndFeel() {
-        return UIManager.getLookAndFeel().getName().contains(DARK_LAF_NAME);
-    }
-
-    public static boolean supportsDarkLookAndFeel() {
-        if (isDarkLookAndFeel()) return true;
-        for (UIManager.LookAndFeelInfo lookAndFeelInfo : UIManager.getInstalledLookAndFeels()) {
-            if (lookAndFeelInfo.getName().contains(DARK_LAF_NAME)) return true;
-        }
-        return false;
+        return UIUtil.isUnderDarcula();
     }
 
     public static void updateBorderTitleForeground(JPanel panel) {
@@ -183,24 +176,6 @@ public class GUIUtil{
         popup.show(new RelativePoint(sourceComponent, new Point(0, sourceComponent.getHeight() + verticalShift)));
     }
 
-    public static Color adjustColor(Color color, double shift) {
-        if (isDarkLookAndFeel()) {
-            shift = -shift;
-        }
-        int red = (int) Math.round(Math.min(255, color.getRed() + 255 * shift));
-        int green = (int) Math.round(Math.min(255, color.getGreen() + 255 * shift));
-        int blue = (int) Math.round(Math.min(255, color.getBlue() + 255 * shift));
-
-        red = Math.max(Math.min(255, red), 0);
-        green = Math.max(Math.min(255, green), 0);
-        blue = Math.max(Math.min(255, blue), 0);
-
-        int alpha = color.getAlpha();
-
-        return new Color(red, green, blue, alpha);
-
-    }
-
     public static Font getEditorFont() {
         EditorColorsScheme scheme = EditorColorsManager.getInstance().getGlobalScheme();
         return new Font(scheme.getEditorFontName(), Font.PLAIN, UIUtil.getLabelFont().getSize());
@@ -219,5 +194,19 @@ public class GUIUtil{
             component.repaint();
             component.requestFocus();
         });
+    }
+
+    public static void setPanelBackground(JPanel panel, Color background) {
+        panel.setBackground(background);
+        for (Component component : panel.getComponents()) {
+            if (component instanceof JPanel) {
+                JPanel childPanel = (JPanel) component;
+                setPanelBackground(childPanel, background);
+            }
+        }
+    }
+
+    public static int ctrlDownMask() {
+        return SystemInfo.isMac ? InputEvent.META_DOWN_MASK : InputEvent.CTRL_DOWN_MASK;
     }
 }

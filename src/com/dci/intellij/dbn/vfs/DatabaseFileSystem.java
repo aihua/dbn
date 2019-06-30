@@ -37,14 +37,14 @@ import com.dci.intellij.dbn.vfs.file.DBObjectListVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBObjectVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBSessionBrowserVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBSessionStatementVirtualFile;
-import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.components.ApplicationComponent;
+import com.intellij.openapi.components.BaseComponent;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileListener;
+import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.openapi.vfs.VirtualFileSystem;
 import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NonNls;
@@ -57,15 +57,9 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 
-import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.CONSOLES;
-import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.DATASET_FILTERS;
-import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.OBJECTS;
-import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.OBJECT_CONTENTS;
-import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.SESSION_BROWSERS;
-import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.SESSION_STATEMENTS;
-import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.values;
+import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.FilePathType.*;
 
-public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysicalFileSystem, */ApplicationComponent {
+public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysicalFileSystem, */BaseComponent {
     public static final String PS = "/";
     private static final String PROTOCOL = "db";
     private static final String PROTOCOL_PREFIX = PROTOCOL + "://";
@@ -107,7 +101,8 @@ public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysic
     }
 
     public static DatabaseFileSystem getInstance() {
-        return ApplicationManager.getApplication().getComponent(DatabaseFileSystem.class);
+        return (DatabaseFileSystem) VirtualFileManager.getInstance().getFileSystem(PROTOCOL);
+        //return ApplicationManager.getApplication().getComponent(DatabaseFileSystem.class);
     }
                                                                             
     @Override
@@ -458,9 +453,22 @@ public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysic
     }
 
     private boolean isEditable(DBObject object) {
-        return Failsafe.check(object) && (
-                object.getContentType().has(DBContentType.DATA) ||
-                DatabaseFeature.OBJECT_SOURCE_EDITING.isSupported(object));
+        if (Failsafe.check(object)) {
+            DBContentType contentType = object.getContentType();
+            boolean editable =
+                    object.is(DBObjectProperty.SCHEMA_OBJECT) &&
+                            (contentType.has(DBContentType.DATA) ||
+                                    DatabaseFeature.OBJECT_SOURCE_EDITING.isSupported(object));
+
+            if (!editable) {
+                DBObject parentObject = object.getParentObject();
+                if (parentObject instanceof DBSchemaObject) {
+                    return isEditable(parentObject);
+                }
+            }
+            return editable;
+        }
+        return false;
     }
 
     private void openSchemaObject(@NotNull DBSchemaObject object, EditorProviderId editorProviderId, boolean scrollBrowser, boolean focusEditor) {

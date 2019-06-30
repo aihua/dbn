@@ -10,6 +10,7 @@ import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.message.MessageType;
 import com.dci.intellij.dbn.common.thread.CancellableDatabaseCall;
+import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.thread.Read;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.EventUtil;
@@ -73,9 +74,7 @@ import javax.swing.*;
 import java.sql.SQLException;
 import java.util.concurrent.TimeUnit;
 
-import static com.dci.intellij.dbn.execution.ExecutionStatus.CANCELLED;
-import static com.dci.intellij.dbn.execution.ExecutionStatus.EXECUTING;
-import static com.dci.intellij.dbn.execution.ExecutionStatus.PROMPTED;
+import static com.dci.intellij.dbn.execution.ExecutionStatus.*;
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.COMPILABLE;
 
 @Nullifiable
@@ -194,7 +193,7 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
     public DBLanguagePsiFile getPsiFile() {
         DBLanguagePsiFile psiFile = psiFileRef.get();
         if (psiFile == null) {
-            ExecutablePsiElement executablePsiElement = cachedExecutableRef.get();
+            ExecutablePsiElement executablePsiElement = WeakRef.get(cachedExecutableRef);
             if (executablePsiElement != null && executablePsiElement.isValid()) {
                 psiFile = executablePsiElement.getFile();
                 psiFileRef = PsiFileRef.from(psiFile);
@@ -472,8 +471,12 @@ public class StatementExecutionBasicProcessor extends DisposableBase implements 
         ConnectionId connectionId = executionInput.getConnectionHandlerId();
         StatementExecutionQueue executionQueue = executionManager.getExecutionQueue(connectionId, sessionId);
         executionQueue.cancelExecution(this);
+        CancellableDatabaseCall<StatementExecutionResult> databaseCall = this.databaseCall;
         if (databaseCall != null) {
-            databaseCall.cancelSilently();
+            Progress.background(
+                    getProject(),
+                    "Cancelling statement execution", false,
+                    (progress) -> databaseCall.cancelSilently());
         }
     }
 

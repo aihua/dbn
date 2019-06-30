@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.common.locale.options.RegionalSettings;
 import com.dci.intellij.dbn.common.locale.options.RegionalSettingsListener;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
+import com.dci.intellij.dbn.common.ui.table.DBNTableHeaderRenderer;
 import com.dci.intellij.dbn.common.ui.table.DBNTableWithGutter;
 import com.dci.intellij.dbn.common.ui.table.TableSelectionRestorer;
 import com.dci.intellij.dbn.common.util.EventUtil;
@@ -36,8 +37,6 @@ import javax.swing.table.TableColumn;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.beans.PropertyChangeEvent;
-import java.beans.PropertyChangeListener;
 
 public class BasicTable<T extends BasicDataModel> extends DBNTableWithGutter<T> implements EditorColorsListener, Disposable {
     private BasicTableCellRenderer cellRenderer;
@@ -53,12 +52,7 @@ public class BasicTable<T extends BasicDataModel> extends DBNTableWithGutter<T> 
         dataGridSettings = DataGridSettings.getInstance(project);
         cellRenderer = createCellRenderer();
         DataGridTextAttributes displayAttributes = cellRenderer.getAttributes();
-        Color selectionFgColor = displayAttributes.getSelection().getFgColor();
-        Color selectionBgColor = displayAttributes.getSelection().getBgColor();
-        if (selectionFgColor != null && selectionBgColor != null) {
-            setSelectionForeground(selectionFgColor);
-            setSelectionBackground(selectionBgColor);
-        }
+
         EditorColorsManager.getInstance().addEditorColorsListener(this, this);
         Color bgColor = displayAttributes.getPlainData(false, false).getBgColor();
         setBackground(bgColor == null ? UIUtil.getTableBackground() : bgColor);
@@ -71,25 +65,22 @@ public class BasicTable<T extends BasicDataModel> extends DBNTableWithGutter<T> 
             }
         });
 
-        addPropertyChangeListener(new PropertyChangeListener() {
-            @Override
-            public void propertyChange(PropertyChangeEvent e) {
-                Object newProperty = e.getNewValue();
-                if (newProperty instanceof Font) {
-                    Font font = (Font) newProperty;
-                    adjustRowHeight();
-                    JTableHeader tableHeader = getTableHeader();
-                    if (tableHeader != null) {
-                        TableCellRenderer defaultRenderer = tableHeader.getDefaultRenderer();
-                        if (defaultRenderer instanceof BasicTableHeaderRenderer) {
-                            BasicTableHeaderRenderer renderer = (BasicTableHeaderRenderer) defaultRenderer;
-                            renderer.setFont(font);
-                        }
+        addPropertyChangeListener(e -> {
+            Object newProperty = e.getNewValue();
+            if (newProperty instanceof Font) {
+                Font font = (Font) newProperty;
+                adjustRowHeight();
+                JTableHeader tableHeader = getTableHeader();
+                if (tableHeader != null) {
+                    TableCellRenderer defaultRenderer = tableHeader.getDefaultRenderer();
+                    if (defaultRenderer instanceof DBNTableHeaderRenderer) {
+                        DBNTableHeaderRenderer renderer = (DBNTableHeaderRenderer) defaultRenderer;
+                        renderer.setFont(font);
                     }
-                    accommodateColumnsSize();
                 }
-
+                accommodateColumnsSize();
             }
+
         });
 
         EventUtil.subscribe(project, this, RegionalSettingsListener.TOPIC, regionalSettingsListener);
@@ -234,7 +225,6 @@ public class BasicTable<T extends BasicDataModel> extends DBNTableWithGutter<T> 
      *********************************************************/
     @Override
     public void globalSchemeChange(EditorColorsScheme scheme) {
-        cellRenderer.getAttributes().load();
         updateBackground(isLoading);
         resizeAndRepaint();
 /*        JBScrollPane scrollPane = UIUtil.getParentOfType(JBScrollPane.class, this);

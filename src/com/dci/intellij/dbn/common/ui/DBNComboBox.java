@@ -71,7 +71,7 @@ public class DBNComboBox<T extends Presentable> extends JComboBox<T> implements 
 
         setRenderer(new ColoredListCellRenderer<T>() {
             @Override
-            protected void customizeCellRenderer(@NotNull JList list, T value, int index, boolean selected, boolean hasFocus) {
+            protected void customizeCellRenderer(@NotNull JList<? extends T> list, T value, int index, boolean selected, boolean hasFocus) {
                 if (value != null) {
                     append(DBNComboBox.this.getName(value));
                     setIcon(value.getIcon());

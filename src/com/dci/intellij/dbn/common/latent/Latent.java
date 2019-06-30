@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.common.latent;
 
 
+import com.dci.intellij.dbn.common.Colors;
 import com.dci.intellij.dbn.common.dispose.RegisteredDisposable;
 import com.intellij.openapi.Disposable;
 
@@ -52,7 +53,14 @@ public interface Latent<T> {
         };
     }
 
-    public static <T> ThreadLocalLatent<T> thread(Loader<T> loader) {
+    static <T> Latent<T> laf(Loader<T> loader) {
+        BasicLatent<T> latent = basic(loader);
+        Colors.subscribe(() -> latent.reset());
+        return latent;
+    }
+
+
+    static <T> ThreadLocalLatent<T> thread(Loader<T> loader) {
         return new ThreadLocalLatent<T>(loader){};
     }
 

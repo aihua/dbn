@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.connection.mapping;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.Icons;
+import com.dci.intellij.dbn.common.ProjectRef;
 import com.dci.intellij.dbn.common.action.ProjectAction;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.list.FiltrableList;
@@ -534,17 +535,19 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
         if (showCreateOption) {
             actionGroup.addSeparator();
-            actionGroup.add(new ConnectionSetupAction());
+            actionGroup.add(new ConnectionSetupAction(project));
         }
 
-        ListPopup popupBuilder = JBPopupFactory.getInstance().createActionGroupPopup(
-                "Select Connection",
-                actionGroup,
-                SimpleDataContext.getProjectContext(null),
-                JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
-                true);
+        Dispatch.run(() -> {
+            ListPopup popupBuilder = JBPopupFactory.getInstance().createActionGroupPopup(
+                    "Select Connection",
+                    actionGroup,
+                    SimpleDataContext.getProjectContext(project),
+                    JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
+                    true);
 
-        popupBuilder.showCenteredInCurrentWindow(project);
+            popupBuilder.showCenteredInCurrentWindow(project);
+        });
     }
 
 
@@ -592,8 +595,10 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     }
 
     private static class ConnectionSetupAction extends ProjectAction {
-        private ConnectionSetupAction() {
+        private ProjectRef projectRef;
+        private ConnectionSetupAction(Project project) {
             super("Setup New Connection", null, Icons.CONNECTION_NEW);
+            this.projectRef = ProjectRef.from(project);
         }
 
         @Override
@@ -601,14 +606,21 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
             ProjectSettingsManager settingsManager = ProjectSettingsManager.getInstance(project);
             settingsManager.openProjectSettings(ConfigId.CONNECTIONS);
         }
+
+        @Nullable
+        @Override
+        protected Project getProject() {
+            return projectRef.get();
+        }
     }
 
     /***************************************************
      *             Select schema popup                 *
      ***************************************************/
     public void promptSchemaSelector(DBLanguagePsiFile psiFile, Runnable callback) throws IncorrectOperationException {
+        Project project = getProject();
         ConnectionAction.invoke("selecting the current schema", true, psiFile,
-                (action) -> Progress.prompt(psiFile.getProject(), "Loading schemas", true,
+                (action) -> Progress.prompt(project, "Loading schemas", true,
                         (progress) -> {
                             DefaultActionGroup actionGroup = new DefaultActionGroup();
 
@@ -624,11 +636,11 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                 Dispatch.run(() -> {ListPopup popupBuilder = JBPopupFactory.getInstance().createActionGroupPopup(
                         "Select Schema",
                         actionGroup,
-                        SimpleDataContext.getProjectContext(null),
+                        SimpleDataContext.getProjectContext(project),
                         JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
                         true);
 
-                                popupBuilder.showCenteredInCurrentWindow(getProject());
+                                popupBuilder.showCenteredInCurrentWindow(project);
                             });
                         }));
     }
@@ -678,6 +690,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
      *             Select schema popup                 *
      ***************************************************/
     public void promptSessionSelector(DBLanguagePsiFile psiFile, Runnable callback) throws IncorrectOperationException {
+        Project project = getProject();
         ConnectionAction.invoke("selecting the current session", true, psiFile,
                 (action) -> {
                     DefaultActionGroup actionGroup = new DefaultActionGroup();
@@ -695,11 +708,11 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                 ListPopup popupBuilder = JBPopupFactory.getInstance().createActionGroupPopup(
                         "Select Session",
                         actionGroup,
-                        SimpleDataContext.getProjectContext(null),
+                        SimpleDataContext.getProjectContext(project),
                         JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
                         true);
 
-                    popupBuilder.showCenteredInCurrentWindow(getProject());
+                    popupBuilder.showCenteredInCurrentWindow(project);
                 });
     }
 

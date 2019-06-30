@@ -1,13 +1,14 @@
 package com.dci.intellij.dbn.common.ui.table;
 
+import com.dci.intellij.dbn.common.Colors;
 import com.dci.intellij.dbn.common.ProjectRef;
 import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.Nullifiable;
 import com.dci.intellij.dbn.common.dispose.RegisteredDisposable;
 import com.dci.intellij.dbn.common.thread.Dispatch;
+import com.dci.intellij.dbn.data.grid.ui.table.basic.BasicTableHeaderRenderer;
 import com.intellij.openapi.project.Project;
-import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
@@ -35,7 +36,6 @@ import java.util.TimerTask;
 public abstract class DBNTable<T extends DBNTableModel> extends JTable implements RegisteredDisposable {
     private static final int MAX_COLUMN_WIDTH = 300;
     private static final int MIN_COLUMN_WIDTH = 10;
-    private static final Color GRID_COLOR = new JBColor(new Color(0xE6E6E6), Color.DARK_GRAY);
     protected DBNTableGutter tableGutter;
     private ProjectRef projectRef;
     private double scrollDistance;
@@ -55,18 +55,19 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
     public DBNTable(Project project, T tableModel, boolean showHeader) {
         super(tableModel);
         projectRef = ProjectRef.from(project);
-        setGridColor(GRID_COLOR);
+        setGridColor(Colors.tableGridColor());
         Font font = getFont();//UIUtil.getListFont();
         setFont(font);
         setBackground(UIUtil.getTextFieldBackground());
 
         adjustRowHeight(1);
 
-        final JTableHeader tableHeader = getTableHeader();
+        JTableHeader tableHeader = getTableHeader();
         if (!showHeader) {
             tableHeader.setVisible(false);
             tableHeader.setPreferredSize(new Dimension(-1, 0));
         } else {
+            tableHeader.setDefaultRenderer(new BasicTableHeaderRenderer());
             tableHeader.addMouseMotionListener(new MouseMotionAdapter() {
                 @Override
                 public void mouseDragged(MouseEvent e) {
@@ -91,6 +92,16 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
                 }
             });
         }
+
+        updateComponentColors();
+        Colors.subscribe(() -> updateComponentColors());
+    }
+
+    private void updateComponentColors() {
+        setGridColor(Colors.tableGridColor());
+
+        setSelectionBackground(Colors.tableSelectionBackgroundColor());
+        setSelectionForeground(Colors.tableSelectionForegroundColor());
     }
 
     protected void adjustRowHeight(int padding) {

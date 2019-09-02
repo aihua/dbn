@@ -1,13 +1,9 @@
 package com.dci.intellij.dbn.editor.data.statusbar;
 
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.wm.StatusBar;
-import com.intellij.openapi.wm.StatusBarWidget;
-import com.intellij.openapi.wm.StatusBarWidgetProvider;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
+//import com.intellij.openapi.wm.StatusBarWidgetProvider;
 
-public class DatasetEditorStatusBarWidgetProvider implements StatusBarWidgetProvider {
+public class DatasetEditorStatusBarWidgetProvider/* implements StatusBarWidgetProvider*/ {
+/*
   @Nullable
   @Override
   public StatusBarWidget getWidget(@NotNull Project project) {
@@ -20,4 +16,5 @@ public class DatasetEditorStatusBarWidgetProvider implements StatusBarWidgetProv
     return StatusBar.Anchors.after(StatusBar.StandardWidgets.ENCODING_PANEL);
   }
 
+*/
 }

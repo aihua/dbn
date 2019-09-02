@@ -14,8 +14,11 @@ import com.dci.intellij.dbn.data.model.DataModelCell;
 import com.dci.intellij.dbn.data.model.DataModelRow;
 import com.dci.intellij.dbn.data.model.DataModelState;
 import com.dci.intellij.dbn.data.model.basic.BasicDataModel;
+import com.dci.intellij.dbn.data.model.basic.BasicDataModelCell;
 import com.dci.intellij.dbn.data.preview.LargeValuePreviewPopup;
 import com.dci.intellij.dbn.data.value.LargeObjectValue;
+import com.intellij.ide.IdeTooltip;
+import com.intellij.ide.IdeTooltipManager;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.editor.colors.EditorColorsListener;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
@@ -25,10 +28,12 @@ import com.intellij.openapi.ui.popup.JBPopup;
 import com.intellij.openapi.ui.popup.JBPopupAdapter;
 import com.intellij.openapi.ui.popup.LightweightWindowEvent;
 import com.intellij.ui.components.JBViewport;
+import com.intellij.util.Alarm;
 import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.TableModelEvent;
 import javax.swing.table.JTableHeader;
@@ -37,6 +42,9 @@ import javax.swing.table.TableColumn;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionAdapter;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 
 public class BasicTable<T extends BasicDataModel> extends DBNTableWithGutter<T> implements EditorColorsListener, Disposable {
     private BasicTableCellRenderer cellRenderer;
@@ -45,6 +53,8 @@ public class BasicTable<T extends BasicDataModel> extends DBNTableWithGutter<T> 
     private RegionalSettings regionalSettings;
     private DataGridSettings dataGridSettings;
     private TableSelectionRestorer selectionRestorer = createSelectionRestorer();
+    private BigDecimal selectionSum;
+    private BigDecimal selectionAverage;
 
     public BasicTable(Project project, T dataModel) {
         super(project, dataModel, true);
@@ -62,6 +72,11 @@ public class BasicTable<T extends BasicDataModel> extends DBNTableWithGutter<T> 
                 if (e.getClickCount() == 1 && e.getButton() == MouseEvent.BUTTON1 && valuePopup == null) {
                     showCellValuePopup();
                 }
+            }
+
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                super.mouseMoved(e);
             }
         });
 
@@ -83,11 +98,81 @@ public class BasicTable<T extends BasicDataModel> extends DBNTableWithGutter<T> 
 
         });
 
+        getSelectionModel().addListSelectionListener(e -> {
+            BigDecimal total = BigDecimal.ZERO;
+            BigDecimal count = BigDecimal.ZERO;
+            if (!e.getValueIsAdjusting()) {
+                selectionSum = null;
+                selectionAverage = null;
+                int rows = getSelectedRowCount();
+                int columns = getSelectedColumnCount();
+                if (columns == 1 && rows > 1 && rows < 100) {
+                    int selectedColumn = getSelectedColumn();
+                    int[] selectedRows = getSelectedRows();
+                    for (int selectedRow : selectedRows) {
+                        Object value = getValueAt(selectedRow, selectedColumn);
+                        if (value instanceof BasicDataModelCell) {
+                            BasicDataModelCell cell = (BasicDataModelCell) value;
+                            Object userValue = cell.getUserValue();
+                            if (userValue == null || userValue instanceof Number) {
+                                if (userValue != null) {
+                                    count = count.add(BigDecimal.ONE);
+                                    Number number = (Number) userValue;
+                                    total = total.add(new BigDecimal(number.toString()));
+                                }
+
+                            } else {
+                                return;
+                            }
+                        } else {
+                            return;
+                        }
+                    }
+                    selectionSum = total;
+                    selectionAverage = total.divide(count, total.scale(), RoundingMode.HALF_UP);
+                    showSelectionTooltip();
+                }
+            }
+        });
+
+        addMouseMotionListener(new MouseMotionAdapter() {
+            private Alarm runner = new Alarm(BasicTable.this);
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                if (selectionSum != null && isCellSelected(e.getPoint())) {
+                    runner.cancelAllRequests();
+                    runner.addRequest(() -> showSelectionTooltip(), 100);
+                }
+            }
+        });
+
         EventUtil.subscribe(project, this, RegionalSettingsListener.TOPIC, regionalSettingsListener);
         //EventUtil.subscribe(this, EditorColorsManager.TOPIC, this);
         EditorColorsManager.getInstance().addEditorColorsListener(this, this);
 
         //EventUtil.subscribe(this, UISettingsListener.TOPIC, this);
+    }
+
+    boolean isCellSelected(Point point) {
+        DataModelCell cell = getCellAtLocation(point);
+        if (cell != null) {
+            int rowIndex = cell.getRow().getIndex();
+            int columnIndex = cell.getColumnInfo().getColumnIndex();
+            return isCellSelected(rowIndex, columnIndex);
+        }
+        return false;
+    }
+
+    private void showSelectionTooltip() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.add(new JLabel("Sum: " + selectionSum), BorderLayout.CENTER);
+        panel.add(new JLabel("Avg: " + selectionAverage), BorderLayout.SOUTH);
+        Point mousePosition = getMousePosition();
+        if (mousePosition != null && isCellSelected(mousePosition)) {
+            IdeTooltip tooltip = new IdeTooltip(this, mousePosition, panel);
+            tooltip.setFont(UIUtil.getLabelFont().deriveFont((float) 16));
+            IdeTooltipManager.getInstance().show(tooltip, true);
+        }
     }
 
     private RegionalSettingsListener regionalSettingsListener = new RegionalSettingsListener() {
@@ -300,6 +385,14 @@ public class BasicTable<T extends BasicDataModel> extends DBNTableWithGutter<T> 
 
     protected boolean isLargeValuePopupActive() {
         return true;
+    }
+
+    public BigDecimal getSelectionSum() {
+        return selectionSum;
+    }
+
+    public BigDecimal getSelectionAverage() {
+        return selectionAverage;
     }
 
     private boolean canDisplayCompleteValue(int rowIndex, int columnIndex) {

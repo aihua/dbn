@@ -32,6 +32,7 @@ import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.vfs.DBVirtualFileImpl;
+import com.dci.intellij.dbn.vfs.file.DBConsoleVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
@@ -243,6 +244,11 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
                 if (file instanceof DBEditableObjectVirtualFile) {
                     DBEditableObjectVirtualFile databaseFile = (DBEditableObjectVirtualFile) file;
                     navigateToElement(databaseFile.getObject(), true);
+
+                } else if (file instanceof DBConsoleVirtualFile) {
+                    DBConsoleVirtualFile consoleVirtualFile = (DBConsoleVirtualFile) file;
+                    navigateToElement(consoleVirtualFile.getObject(), true);
+
                 }
                 else  if (file instanceof DBVirtualFileImpl) {
                     DBVirtualFileImpl databaseVirtualFile = (DBVirtualFileImpl) file;
@@ -262,8 +268,12 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
                     if (newFile instanceof DBEditableObjectVirtualFile) {
                         DBEditableObjectVirtualFile databaseFile = (DBEditableObjectVirtualFile) newFile;
                         navigateToElement(databaseFile.getObject(), true);
-                    }
-                    else  if (newFile instanceof DBVirtualFileImpl) {
+
+                    } else if (newFile instanceof DBConsoleVirtualFile) {
+                        DBConsoleVirtualFile consoleVirtualFile = (DBConsoleVirtualFile) newFile;
+                        navigateToElement(consoleVirtualFile.getObject(), true);
+
+                    } else if (newFile instanceof DBVirtualFileImpl) {
                         DBVirtualFileImpl databaseVirtualFile = (DBVirtualFileImpl) newFile;
                         ConnectionHandler connectionHandler = databaseVirtualFile.getConnectionHandler();
                         FileEditor oldEditor = event.getOldEditor();
@@ -272,7 +282,8 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
 
                         Progress.background(
                                 getProject(),
-                                "Loading data dictionary", false,
+                                connectionHandler.getMetaLoadTitle(),
+                                false,
                                 (progress) -> {
                                     BrowserTreeNode treeNode = schemaId == null ?
                                             connectionHandler.getObjectBundle() :
@@ -394,7 +405,6 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
                     ConnectionDetailSettings settings = connectionHandler.getSettings().getDetailSettings();
                     if (settings.isRestoreWorkspaceDeep()) {
                         DBObjectBundle objectBundle = connectionHandler.getObjectBundle();
-                        String connectionString = " (" + connectionHandler.getName() + ")";
                         List<Element> schemaElements = connectionElement.getChildren();
 
                         schemaElements.forEach(schemaElement -> {
@@ -402,7 +412,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
                             DBSchema schema = objectBundle.getSchema(schemaName);
                             if (schema != null) {
                                 Progress.background(project,
-                                        "Loading data dictionary" + connectionString, true,
+                                        connectionHandler.getMetaLoadTitle(), true,
                                         (progress) -> {
                                             String objectTypesAttr = schemaElement.getAttributeValue("object-types");
                                             List<DBObjectType> objectTypes = DBObjectType.fromCsv(objectTypesAttr);

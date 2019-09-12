@@ -4,10 +4,12 @@ import com.dci.intellij.dbn.common.property.Property;
 
 public enum DynamicContentStatus implements Property {
     MASTER,
+    MUTABLE,
     INTERNAL,
-    CONCURRENT,
+    PASSIVE,
 
     DIRTY,
+    ERROR,
     LOADED,
 
     CHANGING,

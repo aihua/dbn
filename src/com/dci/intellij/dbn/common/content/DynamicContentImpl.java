@@ -29,14 +29,7 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.util.Collections;
 import java.util.List;
 
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.CHANGING;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.DIRTY;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.INTERNAL;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.LOADED;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.LOADING;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.LOADING_IN_BACKGROUND;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.MASTER;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.REFRESHING;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.*;
 
 public abstract class DynamicContentImpl<T extends DynamicContentElement>
         extends DisposablePropertyHolder<DynamicContentStatus>
@@ -48,7 +41,7 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
     protected static final List EMPTY_DISPOSED_CONTENT = java.util.Collections.unmodifiableList(Collections.emptyList());
     protected static final List EMPTY_UNTOUCHED_CONTENT = java.util.Collections.unmodifiableList(Collections.emptyList());
 
-    private long changeTimestamp = 0;
+    private short changeSignature = 0;
 
     private GenericDatabaseElement parent;
     private ContentDependencyAdapter dependencyAdapter;
@@ -106,8 +99,8 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
     }
 
     @Override
-    public long getChangeTimestamp() {
-        return changeTimestamp;
+    public short getChangeSignature() {
+        return changeSignature;
     }
 
     @Override
@@ -139,6 +132,16 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
     }
 
     @Override
+    public boolean isMutable() {
+        return is(MUTABLE);
+    }
+
+    @Override
+    public boolean isPassive() {
+        return is(PASSIVE);
+    }
+
+    @Override
     public void markDirty() {
         set(DIRTY, true);
     }
@@ -146,6 +149,10 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
     private boolean shouldLoad() {
         if (isDisposed() || isLoading()) {
             return false;
+        }
+
+        if (isPassive()) {
+            return true;
         }
 
         ConnectionHandler connectionHandler = getConnectionHandler();
@@ -161,7 +168,15 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
     }
 
     private boolean shouldReload() {
-        return !isDisposed() && isLoaded() && !isLoading();
+        if (isDisposed() || isLoading()) {
+            return false;
+        }
+
+        if(isPassive()) {
+            return true;
+        }
+
+        return isLoaded();
     }
 
     private boolean shouldRefresh() {
@@ -178,13 +193,9 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
             set(LOADING, true);
             try {
                 performLoad(false);
-                set(LOADED, true);
-            } catch (Throwable e) {
-                setElements(EMPTY_CONTENT);
-                set(DIRTY, true);
             } finally {
                 set(LOADING, false);
-                updateChangeTimestamp();
+                updateChangeSignature();
             }
         }
     }
@@ -195,20 +206,15 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
             set(LOADING, true);
             try {
                 performLoad(true);
-                List<T> elements = getAllElements();
-                CollectionUtil.forEach(elements,
-                        (element) -> {
-                            checkDisposed();
-                            element.refresh();
-                        });
-                set(LOADED, true);
-            } catch (Throwable e) {
-                setElements(EMPTY_CONTENT);
-                set(DIRTY, true);
             } finally {
                 set(LOADING, false);
-                updateChangeTimestamp();
+                updateChangeSignature();
             }
+            CollectionUtil.forEach(elements,
+                    (element) -> {
+                        checkDisposed();
+                        element.refresh();
+                    });
         }
     }
 
@@ -231,7 +237,11 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
                 markDirty();
                 dependencyAdapter.refreshSources();
                 if (!is(INTERNAL)){
-                    CollectionUtil.forEach(elements, element -> element.refresh());
+                    CollectionUtil.forEach(elements,
+                            (element) -> {
+                                checkDisposed();
+                                element.refresh();
+                            });
                 }
             } finally {
                 set(REFRESHING, false);
@@ -244,10 +254,9 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
         if (shouldLoadInBackground()) {
             set(LOADING_IN_BACKGROUND, true);
             ConnectionHandler connectionHandler = getConnectionHandler();
-            String connectionString = " (" + connectionHandler.getName() + ')';
             Progress.background(
                     getProject(),
-                    "Loading data dictionary" + connectionString, false,
+                    connectionHandler.getMetaLoadTitle(), false,
                     (progress) -> {
                         try{
                             progress.setText("Loading " + getContentDescription());
@@ -271,6 +280,7 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
             set(DIRTY, false);
             DynamicContentLoader<T, ?> loader = getLoader();
             loader.loadContent(this, force);
+            set(LOADED, true);
 
             // refresh inner elements
             if (force) elements.forEach(t -> t.refresh());
@@ -281,6 +291,8 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
         } catch (SQLFeatureNotSupportedException e) {
             // unsupported feature: log in notification area
             elements = EMPTY_CONTENT;
+            set(LOADED, true);
+            set(ERROR, true);
             sendWarningNotification(
                     NotificationGroup.METADATA,
                     "Failed to load {0}. Feature not supported: {1}",
@@ -303,8 +315,8 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
     }
 
     @Override
-    public void updateChangeTimestamp() {
-        changeTimestamp = System.currentTimeMillis();
+    public void updateChangeSignature() {
+        changeSignature = (short) (System.currentTimeMillis() % 10000);
     }
 
 

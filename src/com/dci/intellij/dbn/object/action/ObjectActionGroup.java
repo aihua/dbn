@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.object.action;
 
+import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.execution.compiler.action.CompileActionGroup;
@@ -8,6 +9,7 @@ import com.dci.intellij.dbn.execution.method.action.MethodRunAction;
 import com.dci.intellij.dbn.execution.method.action.ProgramMethodDebugAction;
 import com.dci.intellij.dbn.execution.method.action.ProgramMethodRunAction;
 import com.dci.intellij.dbn.generator.action.GenerateStatementActionGroup;
+import com.dci.intellij.dbn.object.DBConsole;
 import com.dci.intellij.dbn.object.DBMethod;
 import com.dci.intellij.dbn.object.DBProgram;
 import com.dci.intellij.dbn.object.common.DBObject;
@@ -15,16 +17,13 @@ import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationList;
 import com.dci.intellij.dbn.object.dependency.action.ObjectDependencyTreeAction;
 import com.dci.intellij.dbn.object.type.DBObjectType;
+import com.dci.intellij.dbn.vfs.DBConsoleType;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.project.DumbAware;
 
 import java.util.List;
 
-import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.COMPILABLE;
-import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.DISABLEABLE;
-import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.EDITABLE;
-import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.REFERENCEABLE;
-import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.SCHEMA_OBJECT;
+import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.*;
 
 public class ObjectActionGroup extends DefaultActionGroup implements DumbAware {
 
@@ -35,12 +34,12 @@ public class ObjectActionGroup extends DefaultActionGroup implements DumbAware {
             if (object.is(EDITABLE)) {
                 DBContentType contentType = schemaObject.getContentType();
                 if (contentType == DBContentType.DATA || contentType == DBContentType.CODE_AND_DATA) {
-                    add(new EditObjectDataAction(schemaObject));
+                    add(new ObjectEditDataAction(schemaObject));
                 } 
 
                 if (contentType == DBContentType.CODE || contentType == DBContentType.CODE_AND_DATA || contentType == DBContentType.CODE_SPEC_AND_BODY) {
                     if (DatabaseFeature.OBJECT_SOURCE_EDITING.isSupported(object)) {
-                        add(new EditObjectCodeAction(schemaObject));
+                        add(new ObjectEditCodeAction(schemaObject));
                     }
                 }
             }
@@ -50,12 +49,12 @@ public class ObjectActionGroup extends DefaultActionGroup implements DumbAware {
             }
 
             if (object.is(DISABLEABLE) && DatabaseFeature.OBJECT_DISABLING.isSupported(object)) {
-                add(new EnableDisableAction(schemaObject));
+                add(new ObjectEnableDisableAction(schemaObject));
             }
 
             if (object.is(SCHEMA_OBJECT)) {
                 if (object.getObjectType() != DBObjectType.CONSTRAINT || DatabaseFeature.CONSTRAINT_MANIPULATION.isSupported(object)) {
-                    add(new DropObjectAction((DBSchemaObject) object));
+                    add(new ObjectDropAction((DBSchemaObject) object));
                 }
 
                 //add(new TestAction(object));
@@ -96,6 +95,17 @@ public class ObjectActionGroup extends DefaultActionGroup implements DumbAware {
                 } else {
                     add(new ObjectNavigationListActionGroup(parentObject, navigationList, false));
                 }
+            }
+        }
+        if (object instanceof DBConsole) {
+            DBConsole console = (DBConsole) object;
+            add(new ConsoleRenameAction(console));
+            add(new ConsoleDeleteAction(console));
+            addSeparator();
+            ConnectionHandler connectionHandler = object.getConnectionHandler();
+            add(new ConsoleCreateAction(connectionHandler, DBConsoleType.STANDARD));
+            if (DatabaseFeature.DEBUGGING.isSupported(connectionHandler)) {
+                add(new ConsoleCreateAction(connectionHandler, DBConsoleType.DEBUG));
             }
         }
         

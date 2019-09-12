@@ -21,7 +21,8 @@ public class ConsoleDeleteAction extends DumbAwareProjectAction {
         VirtualFile virtualFile = Lookup.getVirtualFile(e);
         if (virtualFile instanceof DBConsoleVirtualFile) {
             DBConsoleVirtualFile consoleVirtualFile = (DBConsoleVirtualFile) virtualFile;
-            DatabaseConsoleManager.getInstance(project).deleteConsole(consoleVirtualFile);
+            DatabaseConsoleManager consoleManager = DatabaseConsoleManager.getInstance(project);
+            consoleManager.deleteConsole(consoleVirtualFile.getConsole());
         }
     }
 

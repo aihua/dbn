@@ -41,6 +41,7 @@ import com.intellij.openapi.editor.EditorFactory;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.TextRange;
+import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
@@ -91,7 +92,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
                         return true;
                     }
                     BasePsiElement relevantPsiElement = getRelevantPsiElement();
-                    if (getName().equalsIgnoreCase(relevantPsiElement.getText())) {
+                    if (StringUtil.equalsIgnoreCase(getName(), relevantPsiElement.getText())) {
                         if (relevantPsiElement instanceof IdentifierPsiElement) {
                             IdentifierPsiElement identifierPsiElement = (IdentifierPsiElement) relevantPsiElement;
                             return identifierPsiElement.getObjectType() == objectType;
@@ -187,7 +188,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
     }
 
     @Override
-    public DBObject getChildObject(DBObjectType objectType, String name, int overload, boolean lookupHidden) {
+    public DBObject getChildObject(DBObjectType objectType, String name, short overload, boolean lookupHidden) {
         DBObjectList<DBObject> childObjectList = getChildObjectList(objectType);
         return childObjectList == null ? null : childObjectList.getObject(name, overload);
     }

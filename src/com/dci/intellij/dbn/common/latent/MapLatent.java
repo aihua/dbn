@@ -1,16 +1,16 @@
 package com.dci.intellij.dbn.common.latent;
 
 import com.dci.intellij.dbn.common.dispose.DisposableBase;
-import gnu.trove.THashMap;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class MapLatent<K, V, E extends Throwable> extends DisposableBase {
     private MapLoader<K, V, E> loader;
-    private Map<K, V> map = new THashMap<>();
+    private Map<K, V> map = new HashMap<>();
     private AtomicInteger hitCount = new AtomicInteger();
 
     private MapLatent(MapLoader<K, V, E> loader) {

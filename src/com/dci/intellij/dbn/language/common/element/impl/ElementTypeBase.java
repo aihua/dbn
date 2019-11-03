@@ -25,7 +25,6 @@ import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.psi.tree.IElementType;
 import gnu.trove.THashSet;
-import org.apache.commons.lang.StringUtils;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -62,7 +61,7 @@ public abstract class ElementTypeBase extends IElementType implements ElementTyp
     ElementTypeBase(@NotNull ElementTypeBundle bundle, ElementTypeBase parent, String id, @Nullable String description) {
         super(id, bundle.getLanguageDialect(), false);
         idx = TokenType.INDEXER.incrementAndGet();
-        this.id = id;
+        this.id = id.intern();
         this.hashCode = id.hashCode();
         this.description = description;
         this.bundle = bundle;
@@ -79,7 +78,7 @@ public abstract class ElementTypeBase extends IElementType implements ElementTyp
             def.setAttribute("id", defId);
             bundle.markIndexesDirty();
         }
-        this.id = defId;
+        this.id = defId.intern();
         this.bundle = bundle;
         this.parent = parent;
         if (StringUtil.isNotEmpty(def.getAttributeValue("exit")) && !(parent instanceof SequenceElementType)) {
@@ -320,7 +319,7 @@ public abstract class ElementTypeBase extends IElementType implements ElementTyp
 
     protected boolean getBooleanAttribute(Element element, String attributeName) {
         String attributeValue = element.getAttributeValue(attributeName);
-        if (StringUtils.isNotEmpty(attributeValue)) {
+        if (StringUtil.isNotEmpty(attributeValue)) {
             if (attributeValue.equals("true")) return true;
             if (attributeValue.equals("false")) return false;
             LOGGER.warn('[' + getLanguageDialect().getID() + "] Invalid element boolean attribute '" + attributeName + "' (id=" + this.id + "). Expected 'true' or 'false'");

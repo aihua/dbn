@@ -53,6 +53,7 @@ import com.dci.intellij.dbn.object.common.list.DBObjectRelationListContainer;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatus;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatusHolder;
 import com.dci.intellij.dbn.object.type.DBObjectType;
+import com.intellij.openapi.util.text.StringUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -95,7 +96,7 @@ public class DBSchemaImpl extends DBObjectImpl<DBSchemaMetadata> implements DBSc
         set(PUBLIC_SCHEMA, metadata.isPublic());
         set(SYSTEM_SCHEMA, metadata.isSystem());
         set(EMPTY_SCHEMA, metadata.isEmpty());
-        set(USER_SCHEMA, name.equalsIgnoreCase(getConnectionHandler().getUserName()));
+        set(USER_SCHEMA, StringUtil.equalsIgnoreCase(name, getConnectionHandler().getUserName()));
         return name;
     }
 
@@ -186,7 +187,7 @@ public class DBSchemaImpl extends DBObjectImpl<DBSchemaMetadata> implements DBSc
     }
 
     @Override
-    public DBObject getChildObject(DBObjectType objectType, String name, int overload, boolean lookupHidden) {
+    public DBObject getChildObject(DBObjectType objectType, String name, short overload, boolean lookupHidden) {
         if (objectType.isSchemaObject()) {
             DBObject object = super.getChildObject(objectType, name, overload, lookupHidden);
             if (object == null && objectType != SYNONYM) {
@@ -391,14 +392,14 @@ public class DBSchemaImpl extends DBObjectImpl<DBSchemaMetadata> implements DBSc
     }
 
     @Override
-    public DBProcedure getProcedure(String name, int overload) {
+    public DBProcedure getProcedure(String name, short overload) {
         return overload > 0 ?
                 procedures.getObject(name, overload) :
                 getObjectFallbackOnSynonym(procedures, name);
     }
 
     @Override
-    public DBFunction getFunction(String name, int overload) {
+    public DBFunction getFunction(String name, short overload) {
         return overload > 0 ?
                 functions.getObject(name, overload) :
                 getObjectFallbackOnSynonym(functions, name);
@@ -412,7 +413,7 @@ public class DBSchemaImpl extends DBObjectImpl<DBSchemaMetadata> implements DBSc
     }
 
     @Override
-    public DBMethod getMethod(String name, DBObjectType methodType, int overload) {
+    public DBMethod getMethod(String name, DBObjectType methodType, short overload) {
         if (methodType == null) {
             DBMethod method = getProcedure(name, overload);
             if (method == null) method = getFunction(name, overload);
@@ -426,7 +427,7 @@ public class DBSchemaImpl extends DBObjectImpl<DBSchemaMetadata> implements DBSc
     }
 
     @Override
-    public DBMethod getMethod(String name, int overload) {
+    public DBMethod getMethod(String name, short overload) {
         return getMethod(name, null, overload);
     }
 
@@ -1038,7 +1039,7 @@ public class DBSchemaImpl extends DBObjectImpl<DBSchemaMetadata> implements DBSc
                 String programName = metadata.getProgramName();
                 String methodName = metadata.getMethodName();
                 String methodType = metadata.getMethodType();
-                int overload = metadata.getOverload();
+                short overload = metadata.getOverload();
                 DBSchema schema = (DBSchema) content.getParentElement();
                 DBProgram program = programName == null ? null : schema.getProgram(programName);
 
@@ -1071,7 +1072,7 @@ public class DBSchemaImpl extends DBObjectImpl<DBSchemaMetadata> implements DBSc
                 String datasetName = metadata.getDatasetName();
                 String columnName = metadata.getColumnName();
                 String constraintName = metadata.getConstraintName();
-                int position = metadata.getPosition();
+                short position = metadata.getPosition();
 
 /*
             DBSchema schema = (DBSchema) dynamicContent.getParent();

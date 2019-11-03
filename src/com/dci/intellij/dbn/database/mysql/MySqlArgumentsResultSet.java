@@ -18,9 +18,9 @@ public class MySqlArgumentsResultSet extends DisposableBase implements ResultSet
         String programName;
         String methodName;
         String methodType;
-        int overload;
-        int position;
-        int sequence;
+        short overload;
+        short position;
+        short sequence;
         String inOut = "IN";
         String dataTypeOwner;
         String dataTypePackage;
@@ -43,7 +43,7 @@ public class MySqlArgumentsResultSet extends DisposableBase implements ResultSet
                 String methodType = resultSet.getString("METHOD_TYPE");
                 boolean betweenBrackets = false;
                 boolean typePostfixSet = false;
-                int argumentPosition = methodType.equals("FUNCTION") ? 0 : 1;
+                short argumentPosition = (short) (methodType.equals("FUNCTION") ? 0 : 1);
 
                 Argument argument = null;
 
@@ -180,6 +180,15 @@ public class MySqlArgumentsResultSet extends DisposableBase implements ResultSet
             columnLabel.equals("SEQUENCE") ? currentArgument.position :
             columnLabel.equals("DATA_PRECISION") ? (currentArgument.dataPrecision == null ? 0 : currentArgument.dataPrecision) :
             columnLabel.equals("DATA_SCALE") ? (currentArgument.dataScale == null ? 0 : currentArgument.dataScale) : 0;
+    }
+
+    @Override
+    public short getShort(String columnLabel) throws SQLException {
+        return
+                columnLabel.equals("POSITION") ? currentArgument.position :
+                (short) (columnLabel.equals("SEQUENCE") ? currentArgument.position :
+                columnLabel.equals("DATA_PRECISION") ? (currentArgument.dataPrecision == null ? 0 : currentArgument.dataPrecision) :
+                columnLabel.equals("DATA_SCALE") ? (currentArgument.dataScale == null ? 0 : currentArgument.dataScale) : 0);
     }
 
     @Override

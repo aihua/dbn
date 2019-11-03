@@ -327,7 +327,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
                 }
             }
 
-            String[] options = {"OK", "Create New..."};
+            String[] options = {"Create New...", "Cancel"};
             MessageUtil.showInfoDialog(getProject(),
                     "No DDL files found",
                     message.toString(), options, 0,

@@ -20,7 +20,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 public class PSQLStructureViewModelGrouper implements Grouper {
-    private ActionPresentation actionPresentation = new ActionPresentationData("Group by Object Type", "", Icons.ACTION_GROUP);
+    private final ActionPresentation actionPresentation = new ActionPresentationData("Group by Object Type", "", Icons.ACTION_GROUP);
 
     private static final Collection<Group> EMPTY_GROUPS = new ArrayList<>(0);
 

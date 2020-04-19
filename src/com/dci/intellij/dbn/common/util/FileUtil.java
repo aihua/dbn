@@ -1,14 +1,23 @@
 package com.dci.intellij.dbn.common.util;
 
+import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.vfs.DatabaseFileSystem;
+import com.intellij.ide.plugins.IdeaPluginDescriptor;
+import com.intellij.ide.plugins.PluginManager;
+import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.util.Arrays;
+import java.util.Objects;
 
 public class FileUtil {
+    private static final Logger LOGGER = LoggerFactory.createLogger();
+
     public static File createFileByRelativePath(@NotNull final File absoluteBase, @NotNull final String relativeTail) {
         // assert absoluteBase.isAbsolute() && absoluteBase.isDirectory(); : assertion seem to be too costly
 
@@ -76,5 +85,21 @@ public class FileUtil {
             }
         }
         return true;
+    }
+
+    public static File findFileRecursively(File directory, String fileName) {
+        File[] files = CommonUtil.nvl(directory.listFiles(), new File[0]);
+        return Arrays.stream(files).
+                filter(f -> !f.isDirectory() && f.getName().equals(fileName)).
+                findFirst().
+                orElseGet(() -> Arrays.stream(files).
+                        filter(f -> f.isDirectory()).
+                        map(f -> findFileRecursively(f, fileName)).
+                        filter(f -> f != null).findFirst().orElse(null));
+    }
+
+    public static File getPluginDeploymentRoot() {
+        IdeaPluginDescriptor pluginDescriptor = PluginManager.getPlugin(PluginId.getId("DBN"));
+        return Objects.requireNonNull(pluginDescriptor).getPath();
     }
 }

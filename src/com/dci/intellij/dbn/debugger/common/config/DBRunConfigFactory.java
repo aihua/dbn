@@ -40,7 +40,6 @@ public abstract class DBRunConfigFactory<T extends DBRunConfigType, C extends DB
     }
 
     @NotNull
-    @Override
     public String getId() {
         return getName();
     }

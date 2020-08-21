@@ -4,7 +4,6 @@ import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.ProjectRef;
 import com.dci.intellij.dbn.common.action.DataKeys;
 import com.dci.intellij.dbn.common.action.Lookup;
-import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.DisposableUserDataHolderBase;
 import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
@@ -71,8 +70,13 @@ import java.beans.PropertyChangeListener;
 import java.sql.SQLException;
 import java.util.List;
 
-import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.*;
-import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.*;
+import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.CONNECTED;
+import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.LOADED;
+import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.LOADING;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.DELIBERATE_ACTION;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.PRESERVE_CHANGES;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.REBUILD;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.USE_CURRENT_FILTER;
 import static com.dci.intellij.dbn.editor.data.model.RecordStatus.INSERTING;
 import static com.dci.intellij.dbn.editor.data.model.RecordStatus.MODIFIED;
 
@@ -89,14 +93,14 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
     private static final DatasetLoadInstructions COL_VISIBILITY_STATUS_CHANGE_LOAD_INSTRUCTIONS = new DatasetLoadInstructions(USE_CURRENT_FILTER, PRESERVE_CHANGES, DELIBERATE_ACTION, REBUILD);
     private static final DatasetLoadInstructions CON_STATUS_CHANGE_LOAD_INSTRUCTIONS = new DatasetLoadInstructions(USE_CURRENT_FILTER);
 
-    private DBObjectRef<DBDataset> datasetRef;
-    private DBEditableObjectVirtualFile databaseFile;
-    private DatasetEditorForm editorForm;
-    private DatasetEditorStatusHolder status;
+    private final ProjectRef projectRef;
+    private final DBObjectRef<DBDataset> datasetRef;
+    private final DBEditableObjectVirtualFile databaseFile;
+    private final DatasetEditorForm editorForm;
+    private final DatasetEditorStatusHolder status;
+    private final ConnectionHandlerRef connectionHandlerRef;
+    private final DataEditorSettings settings;
     private StructureViewModel structureViewModel;
-    private ConnectionHandlerRef connectionHandlerRef;
-    private DataEditorSettings settings;
-    private ProjectRef projectRef;
     private String dataLoadError;
 
     private DatasetEditorState editorState = new DatasetEditorState();
@@ -332,9 +336,7 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
                                 dataLoadError = e.getMessage();
                                 handleLoadError(e, instructions);
                             } catch (Exception e) {
-                                if (e != AlreadyDisposedException.INSTANCE) {
-                                    LOGGER.error("Error loading table data", e);
-                                }
+                                LOGGER.error("Error loading table data", e);
                             } finally {
                                 status.set(LOADED, true);
                                 editorForm.hideLoadingHint();
@@ -547,7 +549,7 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
     /*******************************************************
      *                      Listeners                      *
      *******************************************************/
-    private ConnectionStatusListener connectionStatusListener = (connectionId, sessionId) -> {
+    private final ConnectionStatusListener connectionStatusListener = (connectionId, sessionId) -> {
         ConnectionHandler connectionHandler = getConnectionHandler();
         if (connectionHandler.getConnectionId() == connectionId && sessionId == SessionId.MAIN) {
             boolean connected = connectionHandler.isConnected(SessionId.MAIN);
@@ -556,10 +558,12 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
             if (statusChanged) {
                 Dispatch.run(() -> {
                     DatasetEditorTable editorTable = getEditorTable();
-                    editorTable.updateBackground(!connected);
                     if (connected) {
-                        loadData(CON_STATUS_CHANGE_LOAD_INSTRUCTIONS);
+                        // TODO is reload really needed on reconnection (perfornamce issue identifier)
+                        //editorTable.updateBackground(false);
+                        //loadData(CON_STATUS_CHANGE_LOAD_INSTRUCTIONS);
                     } else {
+                        editorTable.updateBackground(true);
                         editorTable.cancelEditing();
                         GUIUtil.repaint(editorTable);
                     }
@@ -568,7 +572,7 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
         }
     };
 
-    private TransactionListener transactionListener = new TransactionListener() {
+    private final TransactionListener transactionListener = new TransactionListener() {
         @Override
         public void beforeAction(@NotNull ConnectionHandler connectionHandler, DBNConnection connection, TransactionAction action) {
             if (connectionHandler == getConnectionHandler()) {
@@ -619,7 +623,7 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
         }
     };
 
-    private DataGridSettingsChangeListener dataGridSettingsChangeListener =
+    private final DataGridSettingsChangeListener dataGridSettingsChangeListener =
             visible -> loadData(COL_VISIBILITY_STATUS_CHANGE_LOAD_INSTRUCTIONS);
 
 

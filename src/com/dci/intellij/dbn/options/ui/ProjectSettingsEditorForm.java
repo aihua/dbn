@@ -28,13 +28,10 @@ import com.dci.intellij.dbn.options.ConfigId;
 import com.dci.intellij.dbn.options.ProjectSettings;
 import com.dci.intellij.dbn.options.general.GeneralProjectSettings;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
-import com.intellij.ide.plugins.PluginInstaller;
 import com.intellij.ide.plugins.PluginManagerMain;
 import com.intellij.ide.plugins.PluginNode;
-import com.intellij.ide.plugins.RepositoryHelper;
 import com.intellij.openapi.editor.colors.EditorColors;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
-import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.HyperlinkAdapter;
 import com.intellij.ui.HyperlinkLabel;
@@ -49,8 +46,7 @@ import javax.swing.*;
 import javax.swing.event.HyperlinkEvent;
 import java.awt.*;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Collections;
 
 public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<ProjectSettings> {
     private JPanel mainPanel;
@@ -142,6 +138,8 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
                                         }
                                     });
 
+                                    }
+
                                 } catch (Exception ex) {
                                     sendErrorNotification(
                                             NotificationGroup.SOFTWARE,
@@ -160,7 +158,7 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
     }
 
     public void setDialog(ProjectSettingsDialog dialog) {
-        this.dialogRef = WeakRef.from(dialog);
+        this.dialogRef = WeakRef.of(dialog);
     }
 
     private void addSettingsPanel(Configuration configuration) {

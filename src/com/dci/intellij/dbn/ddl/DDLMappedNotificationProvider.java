@@ -38,12 +38,12 @@ public class DDLMappedNotificationProvider extends EditorNotifications.Provider<
     public DDLMappedNotificationProvider(@NotNull Project project, @NotNull FrameStateManager frameStateManager) {
         this.projectRef = ProjectRef.from(project);
 
-        EventUtil.subscribe(project, project, DDLFileAttachmentManagerListener.TOPIC, ddlFileAttachmentManagerListener);
-        EventUtil.subscribe(project, project, FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorManagerListener);
-        EventUtil.subscribe(project, project, DDLFileSettingsChangeListener.TOPIC, ddlFileSettingsChangeListener);
+        EventUtil.subscribe(project, null, DDLFileAttachmentManagerListener.TOPIC, ddlFileAttachmentManagerListener);
+        EventUtil.subscribe(project, null, FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorManagerListener);
+        EventUtil.subscribe(project, null, DDLFileSettingsChangeListener.TOPIC, ddlFileSettingsChangeListener);
     }
 
-    private DDLFileAttachmentManagerListener ddlFileAttachmentManagerListener = new DDLFileAttachmentManagerListener() {
+    private final DDLFileAttachmentManagerListener ddlFileAttachmentManagerListener = new DDLFileAttachmentManagerListener() {
         @Override
         public void ddlFileDetached(VirtualFile virtualFile) {
             Project project = getProject();
@@ -63,7 +63,7 @@ public class DDLMappedNotificationProvider extends EditorNotifications.Provider<
         }
     };
 
-    private FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerAdapter() {
+    private final FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerAdapter() {
         @Override
         public void fileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
             updateDdlFileHeaders(file);
@@ -78,7 +78,7 @@ public class DDLMappedNotificationProvider extends EditorNotifications.Provider<
             Project project = getProject();
             if (!project.isDisposed() && file instanceof DBEditableObjectVirtualFile) {
                 DBEditableObjectVirtualFile editableObjectFile = (DBEditableObjectVirtualFile) file;
-                if (!editableObjectFile.isDisposed()) {
+                if (editableObjectFile.isValid()) {
                     DBObjectRef<DBSchemaObject> objectRef = editableObjectFile.getObjectRef();
                     DDLFileAttachmentManager attachmentManager = DDLFileAttachmentManager.getInstance(project);
                     List<VirtualFile> attachedDDLFiles = attachmentManager.getAttachedDDLFiles(objectRef);
@@ -93,13 +93,10 @@ public class DDLMappedNotificationProvider extends EditorNotifications.Provider<
         }
     };
 
-    private final DDLFileSettingsChangeListener ddlFileSettingsChangeListener = new DDLFileSettingsChangeListener() {
-        @Override
-        public void settingsChanged() {
-            Project project = getProject();
-            EditorNotifications notifications = EditorNotifications.getInstance(project);
-            notifications.updateAllNotifications();
-        }
+    private final DDLFileSettingsChangeListener ddlFileSettingsChangeListener = () -> {
+        Project project = getProject();
+        EditorNotifications notifications = EditorNotifications.getInstance(project);
+        notifications.updateAllNotifications();
     };
 
     @NotNull

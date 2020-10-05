@@ -59,8 +59,8 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
 
     public static final String COMPONENT_NAME = "DBNavigator.Project.SessionEditorManager";
 
+    private final List<DBSessionBrowserVirtualFile> openFiles = ContainerUtil.createConcurrentList();
     private Timer timestampUpdater;
-    private List<DBSessionBrowserVirtualFile> openFiles = ContainerUtil.createConcurrentList();
 
     private SessionBrowserManager(Project project) {
         super(project);
@@ -272,7 +272,7 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
         EventUtil.subscribe(getProject(), this, FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorManagerListener);
     }
 
-    private FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerAdapter() {
+    private final FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerAdapter() {
         @Override
         public void fileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
             if (file instanceof DBSessionBrowserVirtualFile) {
@@ -282,7 +282,7 @@ public class SessionBrowserManager extends AbstractProjectComponent implements P
 
                 if (schedule) {
                     timestampUpdater = new Timer("DBN - Session Browser (timestamp update timer)");
-                    timestampUpdater.schedule(new UpdateTimestampTask(), TimeUtil.ONE_SECOND, TimeUtil.ONE_SECOND);
+                    timestampUpdater.schedule(new UpdateTimestampTask(), TimeUtil.Millis.ONE_SECOND, TimeUtil.Millis.ONE_SECOND);
                 }
             }
         }

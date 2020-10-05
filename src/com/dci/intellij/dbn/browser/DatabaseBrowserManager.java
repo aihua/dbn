@@ -14,7 +14,6 @@ import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.latent.Latent;
-import com.dci.intellij.dbn.common.latent.RuntimeLatent;
 import com.dci.intellij.dbn.common.options.setting.BooleanSetting;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
@@ -46,6 +45,8 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 import org.jdom.Element;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
@@ -64,12 +65,15 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
 
     public static final String TOOL_WINDOW_ID = "DB Browser";
 
-    private BooleanSetting autoscrollFromEditor = new BooleanSetting("autoscroll-from-editor", true);
-    private BooleanSetting autoscrollToEditor   = new BooleanSetting("autoscroll-to-editor", false);
-    private BooleanSetting showObjectProperties = new BooleanSetting("show-object-properties", true);
+    private final BooleanSetting autoscrollFromEditor = new BooleanSetting("autoscroll-from-editor", true);
+    private final BooleanSetting autoscrollToEditor   = new BooleanSetting("autoscroll-to-editor", false);
+    private final BooleanSetting showObjectProperties = new BooleanSetting("show-object-properties", true);
+
     public static final ThreadLocal<Boolean> AUTOSCROLL_FROM_EDITOR = new ThreadLocal<>();
-    private RuntimeLatent<BrowserToolWindowForm> toolWindowForm =
-            Latent.disposable(this, () -> new BrowserToolWindowForm(getProject()));
+
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private final Latent<BrowserToolWindowForm> toolWindowForm = Latent.disposable(this, () -> new BrowserToolWindowForm(getProject()));
 
     private DatabaseBrowserManager(Project project) {
         super(project);

@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.common;
 
 import com.dci.intellij.dbn.common.latent.Latent;
-import com.dci.intellij.dbn.common.latent.RuntimeLatent;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.data.grid.color.BasicTableTextAttributes;
 import com.dci.intellij.dbn.data.grid.color.DataGridTextAttributesKeys;
@@ -25,7 +24,7 @@ public interface Colors {
     Color COMPONENT_BORDER_COLOR = new JBColor(new Color(0x8C8C8C), new Color(0x656565));
     Color HINT_COLOR = new JBColor(new Color(-12029286), new Color(-10058060));
 
-    RuntimeLatent<ColorsImpl> COLORS = Latent.runtime(() -> new ColorsImpl());
+    Latent<ColorsImpl> COLORS = Latent.basic(() -> new ColorsImpl());
 
     static Color tableHeaderBorderColor() {
         return get().tableHeaderBorderColor;
@@ -53,25 +52,25 @@ public interface Colors {
 
 
     class ColorsImpl implements Colors {
-        private Color tableHeaderBorderColor = adjust(UIUtil.getPanelBackground(), -0.07);
-        private Color tableGridColor = adjust(UIUtil.getTableBackground(), -0.09);
+        private final Color tableHeaderBorderColor = adjust(UIUtil.getPanelBackground(), -0.07);
+        private final Color tableGridColor = adjust(UIUtil.getTableBackground(), -0.09);
 
-        private Color tableCaretRowColor = nvlf(
+        private final Color tableCaretRowColor = nvlf(
                 getGlobalScheme().getAttributes(DataGridTextAttributesKeys.CARET_ROW).getBackgroundColor(),
                 getGlobalScheme().getColor(EditorColors.CARET_ROW_COLOR));
 
-        private Color tableSelectionBackgroundColor = nvlf(
+        private final Color tableSelectionBackgroundColor = nvlf(
                 BasicTableTextAttributes.get().getSelection().getBgColor(),
                 getGlobalScheme().getColor(EditorColors.SELECTION_BACKGROUND_COLOR),
                 UIUtil.getTableSelectionBackground());
 
-        private Color tableSelectionForegroundColor = nvlf(
+        private final Color tableSelectionForegroundColor = nvlf(
                 BasicTableTextAttributes.get().getSelection().getFgColor(),
                 getGlobalScheme().getColor(EditorColors.SELECTION_FOREGROUND_COLOR),
                 UIUtil.getTableSelectionForeground());
 
 
-        private Color tableLineNumberColor = getGlobalScheme().getColor(EditorColors.LINE_NUMBERS_COLOR);
+        private final Color tableLineNumberColor = getGlobalScheme().getColor(EditorColors.LINE_NUMBERS_COLOR);
 
         ColorsImpl() {
             MessageBusConnection connection = ApplicationManager.getApplication().getMessageBus().connect();

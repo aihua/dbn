@@ -9,8 +9,8 @@ import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionManager;
 import com.dci.intellij.dbn.connection.info.ConnectionInfo;
+import com.intellij.diagnostic.AbstractMessage;
 import com.intellij.diagnostic.LogMessage;
-import com.intellij.diagnostic.LogMessageEx;
 import com.intellij.ide.DataManager;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManager;
@@ -27,6 +27,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.util.Consumer;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.awt.*;
 import java.io.UnsupportedEncodingException;
@@ -63,21 +64,19 @@ abstract class IssueReportSubmitter extends ErrorReportSubmitter {
 
     @Override
     public SubmittedReportInfo submit(IdeaLoggingEvent[] events, Component parentComponent) {
-        final SubmittedReportInfo[] reportInfo = new SubmittedReportInfo[1];
-        Consumer<SubmittedReportInfo> consumer = new Consumer<SubmittedReportInfo>() {
-            @Override
-            public void consume(SubmittedReportInfo submittedReportInfo) {
-                reportInfo[0] = submittedReportInfo;
-            }
-        };
+        SubmittedReportInfo[] reportInfo = new SubmittedReportInfo[1];
+        Consumer<SubmittedReportInfo> consumer = submittedReportInfo -> reportInfo[0] = submittedReportInfo;
         LogMessage data = (LogMessage) events[0].getData();
         String additionalInfo = data == null ? null : data.getAdditionalInfo();
         submit(events, additionalInfo, parentComponent, consumer);
         return reportInfo[0];
     }
 
-    @Override
-    public boolean submit(@NotNull final IdeaLoggingEvent[] events, String additionalInfo, @NotNull Component parentComponent, @NotNull final Consumer<SubmittedReportInfo> consumer) {
+    public boolean submit(@NotNull IdeaLoggingEvent[] events,
+                          @Nullable String additionalInfo,
+                          @NotNull Component parentComponent,
+                          @NotNull Consumer<SubmittedReportInfo> consumer){
+
         DataContext dataContext = DataManager.getInstance().getDataContext(parentComponent);
         Project project = PlatformDataKeys.PROJECT.getData(dataContext);
 
@@ -96,7 +95,7 @@ abstract class IssueReportSubmitter extends ErrorReportSubmitter {
 
         IdeaLoggingEvent event = events[0];
         String eventSummary = event.getThrowableText();
-        final String summary = eventSummary.substring(0, Math.min(Math.max(100, eventSummary.length()), 100));
+        final String summary = eventSummary.substring(0, Math.min(eventSummary.length(), 100));
 
         String platformBuild = ApplicationInfo.getInstance().getBuild().asString();
         ConnectionInfo connectionInfo = ConnectionManager.getLastUsedConnectionInfo();
@@ -137,8 +136,8 @@ abstract class IssueReportSubmitter extends ErrorReportSubmitter {
         description.append(getMarkupElement(MarkupElement.CODE));
 
         Object eventData = event.getData();
-        if (eventData instanceof LogMessageEx) {
-            List<Attachment> attachments = ((LogMessageEx) eventData).getAttachments();
+        if (eventData instanceof AbstractMessage) {
+            List<Attachment> attachments = ((AbstractMessage) eventData).getIncludedAttachments();
             if (attachments.size() > 0) {
                 Set<String> attachmentTexts = new HashSet<String>();
                 for (Attachment attachment : attachments) {

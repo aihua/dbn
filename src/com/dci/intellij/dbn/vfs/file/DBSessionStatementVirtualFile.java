@@ -31,14 +31,14 @@ import java.nio.charset.Charset;
 
 public class DBSessionStatementVirtualFile extends DBVirtualFileImpl implements DBParseableVirtualFile {
     private long modificationTimestamp = LocalTimeCounter.currentTime();
-    private WeakRef<SessionBrowser> sessionBrowser;
+    private final WeakRef<SessionBrowser> sessionBrowser;
     private CharSequence content = "";
     private SchemaId schemaId;
 
 
     public DBSessionStatementVirtualFile(SessionBrowser sessionBrowser, String content) {
         super(sessionBrowser.getProject());
-        this.sessionBrowser = WeakRef.from(sessionBrowser);
+        this.sessionBrowser = WeakRef.of(sessionBrowser);
         this.content = content;
         ConnectionHandler connectionHandler = Failsafe.nn(sessionBrowser.getConnectionHandler());
         name = connectionHandler.getName();
@@ -90,12 +90,6 @@ public class DBSessionStatementVirtualFile extends DBVirtualFileImpl implements 
 
     public void setSchemaId(SchemaId schemaId) {
         this.schemaId = schemaId;
-    }
-
-    @NotNull
-    @Override
-    public String getName() {
-        return name;
     }
 
     @Override

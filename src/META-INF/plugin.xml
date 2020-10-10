@@ -2,7 +2,7 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.2.0711.1</version>
+    <version>3.2.0745.1</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
@@ -31,9 +31,10 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
-            <li><b>3.2.0711</b>
+            <li><b>3.2.0745</b>
             <ul>
                 <li>Support for latest IDE versions
+                <li>Bug fixes and performance improvements
             </ul>
             <li><b>3.2.0589</b>
             <ul>
@@ -519,7 +520,6 @@
         <editorTabColorProvider order="first" implementation="com.dci.intellij.dbn.editor.DBEditorTabColorProvider"/>
 
         <errorHandler implementation="com.dci.intellij.dbn.error.JiraIssueReportSubmitter"/>
-        <!--<errorHandler implementation="com.dci.intellij.dbn.error.YouTrackIssueReportSubmitter"/>-->
         <liveTemplateContext implementation="com.dci.intellij.dbn.language.sql.template.SQLTemplateContextType"/>
         <liveTemplateContext implementation="com.dci.intellij.dbn.language.psql.template.PSQLTemplateContextType"/>
         <defaultLiveTemplatesProvider implementation="com.dci.intellij.dbn.language.sql.template.SQLTemplateProvider"/>
@@ -556,7 +556,7 @@
             <category>DBNavigator</category>
         </intentionAction>-->
         <fileTemplateGroup implementation="com.dci.intellij.dbn.common.file.DBNFileTemplateGroupDescriptorFactory"/>
-        <!--<statusBarWidgetProvider implementation="com.dci.intellij.dbn.editor.data.statusbar.DatasetEditorStatusBarWidgetProvider"/>-->
+        <statusBarWidgetFactory implementation="com.dci.intellij.dbn.editor.data.statusbar.DatasetEditorStatusBarWidgetFactory"/>
     </extensions>
     <helpset file="help.jar" path="/Help.hs"/>
 

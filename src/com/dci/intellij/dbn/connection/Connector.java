@@ -29,12 +29,12 @@ import java.util.Properties;
 class Connector {
     private static final Logger LOGGER = LoggerFactory.createLogger();
 
-    private SessionId sessionId;
-    private AuthenticationInfo authenticationInfo;
-    private ConnectionSettings connectionSettings;
-    private ConnectionHandlerStatusHolder connectionStatus;
-    private DatabaseAttachmentHandler databaseAttachmentHandler;
-    private boolean autoCommit;
+    private final SessionId sessionId;
+    private final AuthenticationInfo authenticationInfo;
+    private final ConnectionSettings connectionSettings;
+    private final ConnectionHandlerStatusHolder connectionStatus;
+    private final DatabaseAttachmentHandler databaseAttachmentHandler;
+    private final boolean autoCommit;
 
     Connector(
             SessionId sessionId,
@@ -160,32 +160,21 @@ class Connector {
                 }
             }
 
-            try {
-
-                // TODO move this to ConnectionUtils
-                try {
-                    connection.setAutoCommit(autoCommit);
-                } catch (SQLException e) {
-                    // need to try twice (don't remember why)
-                    connection.setAutoCommit(autoCommit);
-                }
-            }catch (Exception e){
-                // ignored - some databases not support to change auto-commit
-                LOGGER.warn("Unable to set auto-commit to " + autoCommit+". Maybe your database does not support transactions...", e);
-            }
-
             DatabaseMetaData metaData = connection.getMetaData();
             DatabaseType databaseType = ResourceUtil.getDatabaseType(metaData);
             databaseSettings.setResolvedDatabaseType(databaseType);
             databaseSettings.setDatabaseVersion(ResourceUtil.getDatabaseVersion(metaData));
             databaseSettings.setConnectivityStatus(ConnectivityStatus.VALID);
-            return new DBNConnection(
+            DBNConnection conn = DBNConnection.wrap(
                     project,
                     connection,
                     connectionSettings.getDatabaseSettings().getName(),
                     connectionType,
                     connectionSettings.getConnectionId(),
                     sessionId);
+
+            ResourceUtil.setAutoCommit(conn, autoCommit);
+            return conn;
 
         } catch (Throwable e) {
             DatabaseType databaseType = ResourceUtil.getDatabaseType(databaseSettings.getDriver());

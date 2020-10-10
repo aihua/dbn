@@ -27,7 +27,7 @@ import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
 
 @State(
     name = DatabaseSessionManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class DatabaseSessionManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.DatabaseSessionManager";

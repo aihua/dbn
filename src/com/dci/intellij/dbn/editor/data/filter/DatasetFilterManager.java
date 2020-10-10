@@ -25,7 +25,7 @@ import java.util.Map;
 
 @State(
     name = DatasetFilterManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class DatasetFilterManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.DatasetFilterManager";

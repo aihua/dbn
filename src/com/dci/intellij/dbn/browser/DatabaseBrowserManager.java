@@ -58,7 +58,7 @@ import java.util.List;
 
 @State(
     name = DatabaseBrowserManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class DatabaseBrowserManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.DatabaseBrowserManager";

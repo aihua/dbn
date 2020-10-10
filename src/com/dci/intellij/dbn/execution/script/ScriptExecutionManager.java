@@ -64,7 +64,7 @@ import static com.dci.intellij.dbn.execution.ExecutionStatus.EXECUTING;
 
 @State(
     name = ScriptExecutionManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class ScriptExecutionManager extends AbstractProjectComponent implements PersistentStateComponent<Element>{
     public static final String COMPONENT_NAME = "DBNavigator.Project.ScriptExecutionManager";

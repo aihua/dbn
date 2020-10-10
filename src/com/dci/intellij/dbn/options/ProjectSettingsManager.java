@@ -39,7 +39,7 @@ import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
 
 @State(
     name = ProjectSettingsManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class ProjectSettingsManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.Settings";

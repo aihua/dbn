@@ -80,7 +80,7 @@ import static com.dci.intellij.dbn.execution.ExecutionStatus.QUEUED;
 
 @State(
     name = StatementExecutionManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class StatementExecutionManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.StatementExecutionManager";

@@ -24,7 +24,7 @@ import java.util.List;
 
 @State(
     name = ObjectNameFilterManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class ObjectNameFilterManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
 

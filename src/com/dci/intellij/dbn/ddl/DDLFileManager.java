@@ -38,7 +38,7 @@ import java.util.List;
 
 @State(
     name = DDLFileManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class DDLFileManager extends AbstractProjectComponent implements PersistentStateComponent<Element>, NotificationSupport {
 

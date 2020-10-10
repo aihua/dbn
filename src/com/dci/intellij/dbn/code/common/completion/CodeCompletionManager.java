@@ -14,7 +14,7 @@ import org.jetbrains.annotations.Nullable;
 
 @State(
     name = CodeCompletionManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class CodeCompletionManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.CodeCompletionManager";

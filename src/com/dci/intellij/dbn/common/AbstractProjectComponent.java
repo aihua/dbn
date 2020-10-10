@@ -72,18 +72,19 @@ public abstract class AbstractProjectComponent extends DisposableBase
     }
 
     @Override
-    public void beforeWriteActionStart(Object action) {
+    public void beforeWriteActionStart(@NotNull Object action) {
     }
 
     @Override
-    public void writeActionStarted(Object action) {
+    public void writeActionStarted(@NotNull Object action) {
     }
 
     @Override
-    public void writeActionFinished(Object action) {
+    public void writeActionFinished(@NotNull Object action) {
     }
 
-    public void afterWriteActionFinished(Object action) {
+    @Override
+    public void afterWriteActionFinished(@NotNull Object action) {
     }
 
     /***********************************************

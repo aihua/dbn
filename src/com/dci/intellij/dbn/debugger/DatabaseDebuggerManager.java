@@ -85,7 +85,7 @@ import static com.dci.intellij.dbn.common.util.CommonUtil.list;
 
 @State(
     name = DatabaseDebuggerManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class DatabaseDebuggerManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.DebuggerManager";

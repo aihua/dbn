@@ -26,7 +26,7 @@ import org.jetbrains.annotations.Nullable;
 
 @State(
     name = EnvironmentManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class EnvironmentManager extends AbstractProjectComponent implements PersistentStateComponent<Element>, Disposable {
 

@@ -48,7 +48,7 @@ import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
 
 @State(
     name = DatabaseFileManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class DatabaseFileManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.DatabaseFileManager";

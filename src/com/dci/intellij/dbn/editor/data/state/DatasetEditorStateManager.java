@@ -17,7 +17,7 @@ import org.jetbrains.annotations.Nullable;
 
 @State(
     name = DatasetEditorStateManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class DatasetEditorStateManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
 

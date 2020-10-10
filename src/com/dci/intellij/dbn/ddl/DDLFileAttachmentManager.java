@@ -63,7 +63,7 @@ import static com.dci.intellij.dbn.common.util.MessageUtil.options;
 
 @State(
     name = DDLFileAttachmentManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class DDLFileAttachmentManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
 

@@ -30,7 +30,7 @@ import java.util.Map;
 
 @State(
     name = ObjectQuickFilterManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class ObjectQuickFilterManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.ObjectQuickFilterManager";

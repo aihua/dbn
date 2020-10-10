@@ -18,7 +18,7 @@ import org.jetbrains.annotations.NotNull;
 
 @State(
     name = ObjectDependencyManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class ObjectDependencyManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.ObjectDependencyManager";

@@ -41,7 +41,7 @@ import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
 
 @State(
     name = DatabaseConsoleManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class DatabaseConsoleManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.DatabaseConsoleManager";

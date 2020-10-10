@@ -53,7 +53,7 @@ import static com.dci.intellij.dbn.common.util.CommonUtil.list;
 
 @State(
     name = SessionBrowserManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class SessionBrowserManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
 

@@ -31,7 +31,7 @@ import org.jetbrains.annotations.Nullable;
 
 @State(
     name = DBLCodeStyleManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class DBLCodeStyleManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
 

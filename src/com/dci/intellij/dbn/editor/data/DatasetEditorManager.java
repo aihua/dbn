@@ -52,7 +52,7 @@ import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.USE_CURREN
 
 @State(
     name = DatasetEditorManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class DatasetEditorManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.DataEditorManager";

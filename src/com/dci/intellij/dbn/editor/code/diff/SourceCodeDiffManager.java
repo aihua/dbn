@@ -32,7 +32,7 @@ import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
 
 @State(
     name = SourceCodeDiffManager.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class SourceCodeDiffManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
 

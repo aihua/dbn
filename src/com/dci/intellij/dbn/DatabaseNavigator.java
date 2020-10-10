@@ -22,7 +22,7 @@ import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.setBoo
 
 @State(
     name = DatabaseNavigator.COMPONENT_NAME,
-    storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
+    storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class DatabaseNavigator implements ApplicationComponent, PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Application.Settings";

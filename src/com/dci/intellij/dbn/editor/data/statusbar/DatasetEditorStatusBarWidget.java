@@ -50,6 +50,12 @@ public class DatasetEditorStatusBarWidget extends AbstractProjectComponent imple
         return WIDGET_ID;
     }
 
+    @Nullable
+    @Override
+    public WidgetPresentation getPresentation(@NotNull PlatformType platformType) {
+        return null;
+    }
+
     @NotNull
     @Override
     public String getComponentName() {

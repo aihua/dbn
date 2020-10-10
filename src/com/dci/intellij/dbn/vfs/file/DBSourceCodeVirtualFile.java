@@ -25,7 +25,6 @@ import com.dci.intellij.dbn.object.common.status.DBObjectStatus;
 import com.dci.intellij.dbn.vfs.DBParseableVirtualFile;
 import com.dci.intellij.dbn.vfs.DatabaseFileViewProvider;
 import com.intellij.lang.Language;
-import com.intellij.notebook.editor.BackedVirtualFile;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.event.DocumentEvent;
@@ -42,9 +41,13 @@ import java.io.OutputStream;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.*;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.LATEST;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MERGED;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.OUTDATED;
+import static com.dci.intellij.dbn.vfs.VirtualFileStatus.REFRESHING;
 
-public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBParseableVirtualFile, ConnectionProvider, DocumentListener, BackedVirtualFile {
+public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBParseableVirtualFile, ConnectionProvider, DocumentListener/*, BackedVirtualFile*/ {
 
     private static final Logger LOGGER = LoggerFactory.createLogger();
 
@@ -302,7 +305,6 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
     }
 
     @NotNull
-    @Override
     public VirtualFile getOriginFile() {
         return getMainDatabaseFile();
     }

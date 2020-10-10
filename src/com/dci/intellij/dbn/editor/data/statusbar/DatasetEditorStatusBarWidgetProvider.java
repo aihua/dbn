@@ -9,12 +9,5 @@ public class DatasetEditorStatusBarWidgetProvider /*implements StatusBarWidgetPr
   public StatusBarWidget getWidget(@NotNull Project project) {
     return DatasetEditorStatusBarWidget.getInstance(project);
   }
-
-  @NotNull
-  @Override
-  public String getAnchor() {
-    return StatusBar.Anchors.after(StatusBar.StandardWidgets.ENCODING_PANEL);
-  }
-
 */
 }

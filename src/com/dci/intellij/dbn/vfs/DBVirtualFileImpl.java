@@ -202,7 +202,8 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
 
     public void invalidate() {
         if (valid) {
-            valid = false;DatabaseFileViewProvider cachedViewProvider = getCachedViewProvider();
+            valid = false;
+            DatabaseFileViewProvider cachedViewProvider = getCachedViewProvider();
             if (cachedViewProvider != null) {
                 cachedViewProvider.markInvalidated();
                 List<PsiFile> cachedPsiFiles = cachedViewProvider.getCachedPsiFiles();

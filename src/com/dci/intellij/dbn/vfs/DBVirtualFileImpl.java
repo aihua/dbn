@@ -205,7 +205,7 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
             valid = false;
             DatabaseFileViewProvider cachedViewProvider = getCachedViewProvider();
             if (cachedViewProvider != null) {
-                DebugUtil.performPsiModification("disposing database view provider", () -> cachedViewProvider.markInvalidated());
+                cachedViewProvider.markInvalidated();
                 List<PsiFile> cachedPsiFiles = cachedViewProvider.getCachedPsiFiles();
                 for (PsiFile cachedPsiFile: cachedPsiFiles) {
                     if (cachedPsiFile instanceof DBLanguagePsiFile) {

@@ -121,7 +121,7 @@ public class ProjectSettingsEditorForm extends CompositeConfigurationEditorForm<
                                                 try {
                                                     PluginManagerMain.downloadPlugins(
                                                             Collections.singletonList(pluginNode),
-                                                            Collections.singletonList(pluginDescriptor),
+                                                            Collections.singletonList(pluginDescriptor.getPluginId()),
                                                             () -> PluginManagerMain.notifyPluginsUpdated(project),
                                                             new PluginManagerMain.PluginEnabler.HEADLESS(), null);
                                                 } catch (IOException e1) {

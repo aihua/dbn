@@ -3,7 +3,6 @@ package com.dci.intellij.dbn;
 import com.dci.intellij.dbn.init.DatabaseNavigatorInitializer;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManager;
-import com.intellij.ide.plugins.PluginManagerCore;
 import com.intellij.ide.plugins.PluginNode;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.ApplicationComponent;
@@ -172,7 +171,7 @@ public class DatabaseNavigator implements ApplicationComponent, PersistentStateC
     @Nullable
     public static IdeaPluginDescriptor getPluginDescriptor() {
         //TODO use RepositoryHelper (??)
-        return PluginManagerCore.getPlugin(DBN_PLUGIN_ID);
+        return PluginManager.getPlugin(DBN_PLUGIN_ID);
     }
 }
 

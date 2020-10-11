@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.common.ui.table;
 
 import com.dci.intellij.dbn.common.dispose.Disposable;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.colors.EditorColorsListener;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.editor.colors.EditorColorsScheme;

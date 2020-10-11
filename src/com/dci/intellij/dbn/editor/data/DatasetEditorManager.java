@@ -4,7 +4,6 @@ import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.options.setting.SettingsSupport;
-import com.dci.intellij.dbn.common.util.EventUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.data.record.ColumnSortingType;
 import com.dci.intellij.dbn.data.record.DatasetRecord;
@@ -66,6 +65,7 @@ public class DatasetEditorManager extends AbstractProjectComponent implements Pe
 
     private DatasetEditorManager(Project project) {
         super(project);
+        subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorListener);
     }
 
     public static DatasetEditorManager getInstance(@NotNull Project project) {
@@ -201,9 +201,7 @@ public class DatasetEditorManager extends AbstractProjectComponent implements Pe
     };
 
     @Override
-    public void initComponent() {
-        EventUtil.subscribe(getProject(), this, FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorListener);
-    }
+    public void initComponent() {}
 
     /****************************************
      *       PersistentStateComponent       *

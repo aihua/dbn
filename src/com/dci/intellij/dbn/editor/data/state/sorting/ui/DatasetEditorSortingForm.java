@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.editor.data.state.sorting.ui;
 
-import com.dci.intellij.dbn.common.dispose.Disposer;
+import com.dci.intellij.dbn.common.dispose.DisposableContainer;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.ui.DBNHeaderForm;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
@@ -14,6 +14,7 @@ import com.dci.intellij.dbn.editor.data.DatasetEditor;
 import com.dci.intellij.dbn.object.DBColumn;
 import com.dci.intellij.dbn.object.DBDataset;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
+import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.util.PlatformIcons;
 import org.jetbrains.annotations.NotNull;
@@ -24,22 +25,22 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class DatasetEditorSortingForm extends DBNFormImpl<DatasetEditorSortingDialog>{
+public class DatasetEditorSortingForm extends DBNFormImpl{
     private JPanel mainPanel;
     private JPanel sortingInstructionsPanel;
     private JPanel actionsPanel;
     private JPanel headerPanel;
 
-    private DBObjectRef<DBDataset> datasetRef;
-    private List<DatasetSortingColumnForm> sortingInstructionForms = new ArrayList<DatasetSortingColumnForm>();
-    private SortingState sortingState;
+    private final DBObjectRef<DBDataset> dataset;
+    private final List<DatasetSortingColumnForm> sortingInstructionForms = DisposableContainer.concurrentList(this);
+    private final SortingState sortingState;
 
 
     DatasetEditorSortingForm(DatasetEditorSortingDialog parentComponent, DatasetEditor datasetEditor) {
         super(parentComponent);
         DBDataset dataset = datasetEditor.getDataset();
         sortingState = datasetEditor.getEditorState().getSortingState();
-        this.datasetRef = DBObjectRef.from(dataset);
+        this.dataset = DBObjectRef.of(dataset);
 
         BoxLayout sortingInstructionsPanelLayout = new BoxLayout(sortingInstructionsPanel, BoxLayout.Y_AXIS);
         sortingInstructionsPanel.setLayout(sortingInstructionsPanelLayout);
@@ -70,7 +71,7 @@ public class DatasetEditorSortingForm extends DBNFormImpl<DatasetEditorSortingDi
     }
 
     private void createHeaderForm(DBDataset dataset) {
-        DBNHeaderForm headerForm = new DBNHeaderForm(dataset, this);
+        DBNHeaderForm headerForm = new DBNHeaderForm(this, dataset);
         headerPanel.add(headerForm.getComponent(), BorderLayout.CENTER);
     }
 
@@ -108,24 +109,22 @@ public class DatasetEditorSortingForm extends DBNFormImpl<DatasetEditorSortingDi
 
     @NotNull
     @Override
-    public JPanel ensureComponent() {
+    public JPanel getMainComponent() {
         return mainPanel;
     }
 
+    @NotNull
     public DBDataset getDataset() {
-        return datasetRef.get();
+        return dataset.ensure();
     }
 
     public void addSortingColumn(DBColumn column) {
-        DBDataset dataset = datasetRef.get();
-        if (dataset != null) {
-            SortingInstruction datasetSortingInstruction = new SortingInstruction(column.getName(), SortDirection.ASCENDING);
-            DatasetSortingColumnForm sortingInstructionForm = new DatasetSortingColumnForm(this, datasetSortingInstruction);
-            sortingInstructionForms.add(sortingInstructionForm);
-            sortingInstructionsPanel.add(sortingInstructionForm.getComponent());
-            updateIndexes();
-            GUIUtil.repaint(sortingInstructionsPanel);
-        }
+        SortingInstruction datasetSortingInstruction = new SortingInstruction(column.getName(), SortDirection.ASCENDING);
+        DatasetSortingColumnForm sortingInstructionForm = new DatasetSortingColumnForm(this, datasetSortingInstruction);
+        sortingInstructionForms.add(sortingInstructionForm);
+        sortingInstructionsPanel.add(sortingInstructionForm.getComponent());
+        updateIndexes();
+        GUIUtil.repaint(sortingInstructionsPanel);
     }
 
     private void updateIndexes() {
@@ -150,11 +149,4 @@ public class DatasetEditorSortingForm extends DBNFormImpl<DatasetEditorSortingDi
             sortingState.addSortingInstruction(sortingColumnForm.getSortingInstruction());
         }
     }
-
-    @Override
-    public void disposeInner() {
-        Disposer.dispose(sortingInstructionForms);
-        super.disposeInner();
-    }
-
 }

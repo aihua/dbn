@@ -4,8 +4,8 @@ import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.content.dependency.ContentDependencyAdapter;
 import com.dci.intellij.dbn.common.content.dependency.VoidContentDependencyAdapter;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoader;
-import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.list.AbstractFiltrableList;
 import com.dci.intellij.dbn.common.list.FiltrableList;
@@ -352,7 +352,7 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
             notifyChangeListeners();
         }
         if (is(MASTER)) {
-            Disposer.disposeInBackground(oldElements);
+            SafeDisposer.dispose(oldElements, false, true);
         }
     }
 
@@ -434,13 +434,13 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
     public void disposeInner() {
         if (elements != EMPTY_CONTENT && elements != EMPTY_UNTOUCHED_CONTENT) {
             if (!dependencyAdapter.isSubContent()) {
-                Disposer.dispose(elements);
+                SafeDisposer.dispose(elements, false, false);
             }
             elements = EMPTY_DISPOSED_CONTENT;
         }
-        Disposer.dispose(dependencyAdapter);
+        dependencyAdapter.dispose();
         dependencyAdapter = VoidContentDependencyAdapter.INSTANCE;
         parent = null;
-        super.disposeInner();
+        nullify();
     }
 }

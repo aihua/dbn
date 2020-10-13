@@ -1,9 +1,8 @@
 package com.dci.intellij.dbn.data.model.basic;
 
 import com.dci.intellij.dbn.common.ProjectRef;
-import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.dispose.Nullifiable;
+import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.list.FiltrableList;
@@ -34,14 +33,13 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-@Nullifiable
 public class BasicDataModel<
         R extends DataModelRow<? extends BasicDataModel<R, C>, C>,
         C extends DataModelCell<R, ? extends BasicDataModel<R, C>>>
         extends DisposablePropertyHolder<RecordStatus>
         implements DataModel<R,C> {
 
-    private final ProjectRef projectRef;
+    private final ProjectRef project;
     private DataModelHeader<? extends ColumnInfo> header;
     private DataModelState state;
     private List<R> rows = new ArrayList<>();
@@ -51,8 +49,8 @@ public class BasicDataModel<
 
     private final Set<TableModelListener> tableModelListeners = new HashSet<>();
     private final Set<DataModelListener> dataModelListeners = new HashSet<>();
-    private final Latent<BasicDataGutterModel> listModel = Latent.disposable(this, () -> new BasicDataGutterModel(BasicDataModel.this));
-    private final Latent<DataSearchResult> searchResult = Latent.disposable(this, () -> new DataSearchResult());
+    private final Latent<BasicDataGutterModel> listModel = Latent.basic(() -> new BasicDataGutterModel(BasicDataModel.this));
+    private final Latent<DataSearchResult> searchResult = Latent.basic(() -> new DataSearchResult());
 
 
     private final RegionalSettingsListener regionalSettingsListener = new RegionalSettingsListener() {
@@ -68,7 +66,7 @@ public class BasicDataModel<
 
 
     public BasicDataModel(Project project) {
-        this.projectRef = ProjectRef.from(project);
+        this.project = ProjectRef.of(project);
         formatter = Latent.thread(() -> Formatter.getInstance(project).clone());
         subscribe(project, this, RegionalSettingsListener.TOPIC, regionalSettingsListener);
     }
@@ -104,14 +102,12 @@ public class BasicDataModel<
     @Override
     @NotNull
     public Project getProject() {
-        return projectRef.ensure();
+        return project.ensure();
     }
 
     public void setHeader(@NotNull DataModelHeader<? extends ColumnInfo> header) {
-        DataModelHeader oldHeader = this.header;
-        this.header = header;
-        Disposer.register(this, header);
-        Disposer.dispose(oldHeader);
+        this.header = SafeDisposer.replace(this.header, header, false);
+        SafeDisposer.register(this, this.header);
     }
 
     @Override
@@ -198,7 +194,7 @@ public class BasicDataModel<
         updateRowIndexes(index);
         getState().setRowCount(getRowCount());
 
-        Disposer.dispose(row);
+        SafeDisposer.dispose(row, false);
     }
 
     @Nullable
@@ -366,7 +362,7 @@ public class BasicDataModel<
      *******************************************************  */
     @Override
     public void disposeInner() {
-        Disposer.dispose(rows);
-        super.disposeInner();
+        SafeDisposer.dispose(rows, false, false);
+        nullify();
     }
 }

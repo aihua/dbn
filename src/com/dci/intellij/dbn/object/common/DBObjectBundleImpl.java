@@ -14,9 +14,8 @@ import com.dci.intellij.dbn.common.content.DynamicContentStatus;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoaderImpl;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentResultSetLoader;
-import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.dispose.Nullifiable;
+import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.event.EventNotifier;
 import com.dci.intellij.dbn.common.event.ProjectEventAdapter;
 import com.dci.intellij.dbn.common.filter.Filter;
@@ -97,6 +96,7 @@ import com.dci.intellij.dbn.vfs.file.DBObjectVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBSourceCodeVirtualFile;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Disposer;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiFileFactory;
 import org.jetbrains.annotations.NotNull;
@@ -110,22 +110,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-import static com.dci.intellij.dbn.object.type.DBObjectRelationType.ROLE_PRIVILEGE;
-import static com.dci.intellij.dbn.object.type.DBObjectRelationType.ROLE_ROLE;
-import static com.dci.intellij.dbn.object.type.DBObjectRelationType.USER_PRIVILEGE;
-import static com.dci.intellij.dbn.object.type.DBObjectRelationType.USER_ROLE;
-import static com.dci.intellij.dbn.object.type.DBObjectType.CHARSET;
-import static com.dci.intellij.dbn.object.type.DBObjectType.CONSOLE;
-import static com.dci.intellij.dbn.object.type.DBObjectType.OBJECT_PRIVILEGE;
-import static com.dci.intellij.dbn.object.type.DBObjectType.ROLE;
-import static com.dci.intellij.dbn.object.type.DBObjectType.SCHEMA;
-import static com.dci.intellij.dbn.object.type.DBObjectType.SYNONYM;
-import static com.dci.intellij.dbn.object.type.DBObjectType.SYSTEM_PRIVILEGE;
-import static com.dci.intellij.dbn.object.type.DBObjectType.USER;
+import static com.dci.intellij.dbn.object.type.DBObjectRelationType.*;
+import static com.dci.intellij.dbn.object.type.DBObjectType.*;
 
-@Nullifiable
 public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectBundle, NotificationSupport, ProjectEventAdapter {
-    private final ConnectionHandlerRef connectionHandlerRef;
+    private final ConnectionHandlerRef connectionHandler;
     private final BrowserTreeNode treeParent;
     private final List<BrowserTreeNode> allPossibleTreeChildren;
     private List<BrowserTreeNode> visibleTreeChildren;
@@ -146,27 +135,27 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     private final DBObjectRelationListContainer objectRelationLists;
     private final int connectionConfigHash;
 
-    private final MapLatent<DBObjectRef, LookupItemBuilder, RuntimeException> sqlLookupItemBuilders =
+    private final MapLatent<DBObjectRef<?>, LookupItemBuilder, RuntimeException> sqlLookupItemBuilders =
             MapLatent.create((objectRef) ->
                     new ObjectLookupItemBuilder(objectRef, SQLLanguage.INSTANCE));
 
-    private final MapLatent<DBObjectRef, LookupItemBuilder, RuntimeException> psqlLookupItemBuilders =
+    private final MapLatent<DBObjectRef<?>, LookupItemBuilder, RuntimeException> psqlLookupItemBuilders =
             MapLatent.create((objectRef) ->
                     new ObjectLookupItemBuilder(objectRef, PSQLLanguage.INSTANCE));
 
-    private final MapLatent<DBObjectRef, DBObjectPsiFacade, RuntimeException> objectPsiFacades =
+    private final MapLatent<DBObjectRef<?>, DBObjectPsiFacade, RuntimeException> objectPsiFacades =
             MapLatent.create((objectRef) ->
                     new DBObjectPsiFacade(objectRef));
 
-    private final MapLatent<DBObjectRef, DBObjectVirtualFile, RuntimeException> virtualFiles =
+    private final MapLatent<DBObjectRef<?>, DBObjectVirtualFile<?>, RuntimeException> virtualFiles =
             MapLatent.create((objectRef) ->
-                    new DBObjectVirtualFile(getProject(), objectRef));
+                    new DBObjectVirtualFile<>(getProject(), objectRef));
 
 
     private final PsiFile fakeObjectFile;
 
     public DBObjectBundleImpl(ConnectionHandler connectionHandler, BrowserTreeNode treeParent) {
-        this.connectionHandlerRef = ConnectionHandlerRef.from(connectionHandler);
+        this.connectionHandler = ConnectionHandlerRef.from(connectionHandler);
         this.treeParent = treeParent;
         connectionConfigHash = connectionHandler.getSettings().getDatabaseSettings().hashCode();
 
@@ -207,6 +196,8 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
         subscribe(project, this, DataDefinitionChangeListener.TOPIC, dataDefinitionChangeListener);
         subscribe(project, this, SourceCodeManagerListener.TOPIC, sourceCodeManagerListener);
         subscribe(project, this, CompileManagerListener.TOPIC, compileManagerListener);
+
+        Disposer.register(connectionHandler, this);
     }
 
     private final DataDefinitionChangeListener dataDefinitionChangeListener = new DataDefinitionChangeListener() {
@@ -247,7 +238,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     };
 
     @Override
-    public LookupItemBuilder getLookupItemBuilder(DBObjectRef objectRef, DBLanguage language) {
+    public LookupItemBuilder getLookupItemBuilder(DBObjectRef<?> objectRef, DBLanguage<?> language) {
         if (language == SQLLanguage.INSTANCE) {
             return sqlLookupItemBuilders.get(objectRef);
         }
@@ -258,12 +249,12 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     }
 
     @Override
-    public DBObjectPsiFacade getObjectPsiFacade(DBObjectRef objectRef) {
+    public DBObjectPsiFacade getObjectPsiFacade(DBObjectRef<?> objectRef) {
         return objectPsiFacades.get(objectRef);
     }
 
     @Override
-    public DBObjectVirtualFile getObjectVirtualFile(DBObjectRef objectRef) {
+    public DBObjectVirtualFile<?> getObjectVirtualFile(DBObjectRef<?> objectRef) {
         return virtualFiles.get(objectRef);
     }
 
@@ -280,13 +271,13 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     @NotNull
     @Override
     public ConnectionId getConnectionId() {
-        return connectionHandlerRef.getConnectionId();
+        return connectionHandler.getConnectionId();
     }
 
     @Override
     @NotNull
     public ConnectionHandler getConnectionHandler() {
-        return connectionHandlerRef.ensure();
+        return connectionHandler.ensure();
     }
 
     @Override
@@ -803,18 +794,6 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
         return getConnectionHandler().getName();
     }
 
-    @Override
-    public void disposeInner() {
-        Disposer.disposeInBackground(
-                objectLists,
-                objectRelationLists,
-                sqlLookupItemBuilders,
-                psqlLookupItemBuilders,
-                objectPsiFacades,
-                virtualFiles);
-        super.disposeInner();
-    }
-
     /*********************************************************
      *                         Loaders                       *
      *********************************************************/
@@ -990,5 +969,17 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
                 return null;
             }
         };
+    }
+
+
+    @Override
+    public void disposeInner() {
+        SafeDisposer.dispose(objectLists, false, true);
+        SafeDisposer.dispose(objectRelationLists, false, true);
+        sqlLookupItemBuilders.reset();
+        psqlLookupItemBuilders.reset();
+        objectPsiFacades.reset();
+        virtualFiles.reset();
+        nullify();
     }
 }

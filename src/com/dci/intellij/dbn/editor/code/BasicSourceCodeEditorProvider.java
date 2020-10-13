@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.editor.code;
 
-import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.editor.BasicTextEditor;
 import com.dci.intellij.dbn.common.editor.BasicTextEditorProvider;
@@ -17,6 +16,7 @@ import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -108,7 +108,6 @@ public abstract class BasicSourceCodeEditorProvider extends BasicTextEditorProvi
         DataManager.registerDataProvider(actionsPanel.getComponent(), sourceCodeEditor);
         //FileEditorManager.getInstance(editor.getProject()).addTopComponent(fileEditor, actionToolbar.getComponent());
         editorComponent.getParent().add(actionsPanel.getComponent(), BorderLayout.NORTH);
-        Disposer.register(sourceCodeEditor, actionsPanel);
     }
 
     @Override

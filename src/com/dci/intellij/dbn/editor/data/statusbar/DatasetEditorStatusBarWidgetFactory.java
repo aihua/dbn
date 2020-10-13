@@ -11,7 +11,7 @@ public class DatasetEditorStatusBarWidgetFactory /*implements StatusBarWidgetFac
     @NotNull
     @Override
     public String getDisplayName() {
-        return "Math";
+        return "DB Table Math";
     }
 
     @Override

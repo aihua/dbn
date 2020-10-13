@@ -115,7 +115,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
         return variablesCache;
     }
 
-    private PsiDocumentTransactionListener psiDocumentTransactionListener = new PsiDocumentTransactionListener() {
+    private final PsiDocumentTransactionListener psiDocumentTransactionListener = new PsiDocumentTransactionListener() {
         @Override
         public void transactionStarted(@NotNull Document document, @NotNull PsiFile file) {}
 
@@ -530,6 +530,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     }
 
     @Override
+
     public void loadState(@NotNull Element element) {
         variablesCache.readState(element);
     }

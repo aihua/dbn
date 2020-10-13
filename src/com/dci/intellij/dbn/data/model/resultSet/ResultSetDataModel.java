@@ -1,9 +1,9 @@
 package com.dci.intellij.dbn.data.model.resultSet;
 
-import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ResourceUtil;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.jdbc.DBNResultSet;
@@ -11,6 +11,7 @@ import com.dci.intellij.dbn.connection.jdbc.DBNStatement;
 import com.dci.intellij.dbn.connection.jdbc.ResourceStatus;
 import com.dci.intellij.dbn.data.model.sortable.SortableDataModel;
 import com.dci.intellij.dbn.data.model.sortable.SortableDataModelState;
+import com.intellij.openapi.util.Disposer;
 import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
@@ -26,7 +27,7 @@ public class ResultSetDataModel<
         C extends ResultSetDataModelCell<R, ? extends ResultSetDataModel<R, C>>>
         extends SortableDataModel<R, C> {
 
-    private final ConnectionHandler connectionHandler;
+    private final ConnectionHandlerRef connectionHandler;
     private DBNResultSet resultSet;
 
     @Getter
@@ -40,19 +41,20 @@ public class ResultSetDataModel<
     @Getter
     private long fetchDuration = -1;
 
-    public ResultSetDataModel(ConnectionHandler connectionHandler) {
+    public ResultSetDataModel(@NotNull ConnectionHandler connectionHandler) {
         super(connectionHandler.getProject());
-        this.connectionHandler = connectionHandler;
+        this.connectionHandler = connectionHandler.getRef();
     }
 
-    public ResultSetDataModel(DBNResultSet resultSet, ConnectionHandler connectionHandler, int maxRecords) throws SQLException {
+    public ResultSetDataModel(DBNResultSet resultSet, @NotNull ConnectionHandler connectionHandler, int maxRecords) throws SQLException {
         super(connectionHandler.getProject());
-        this.connectionHandler = connectionHandler;
+        this.connectionHandler = connectionHandler.getRef();
         this.resultSet = resultSet;
-        DBNStatement statement = resultSet.getStatement();
+        DBNStatement<?> statement = resultSet.getStatement();
         this.executeDuration = statement == null ? 0 : statement.getExecuteDuration();
-        setHeader(new ResultSetDataModelHeader(connectionHandler, resultSet));
+        setHeader(new ResultSetDataModelHeader<>(connectionHandler, resultSet));
         fetchNextRecords(maxRecords, false);
+
         Disposer.register(connectionHandler, this);
     }
 
@@ -165,7 +167,7 @@ public class ResultSetDataModel<
 
     @NotNull
     public ConnectionHandler getConnectionHandler() {
-        return Failsafe.nn(connectionHandler);
+        return connectionHandler.ensure();
     }
 
     @Override

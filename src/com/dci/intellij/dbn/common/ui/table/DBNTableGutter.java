@@ -27,9 +27,6 @@ public abstract class DBNTableGutter<T extends DBNTableWithGutter> extends JList
         setBackground(UIUtil.getPanelBackground());
 
         setCellRenderer(createCellRenderer());
-        //EventUtil.subscribe(this, EditorColorsManager.TOPIC, this);
-        EditorColorsManager.getInstance().addEditorColorsListener(this, this);
-
         ApplicationManager.getApplication().getMessageBus().connect().subscribe(EditorColorsManager.TOPIC, this);
         Disposer.register(table, this);
     }

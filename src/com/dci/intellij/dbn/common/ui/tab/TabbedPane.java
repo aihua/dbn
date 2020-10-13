@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.common.ui.tab;
 
 import com.dci.intellij.dbn.common.ui.DBNForm;
 import com.intellij.openapi.Disposable;
+import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.util.ActionCallback;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.wm.IdeFocusManager;
@@ -13,7 +14,7 @@ import javax.swing.*;
 
 public class TabbedPane extends JBEditorTabs implements Disposable {
     public TabbedPane(@NotNull DBNForm form) {
-        super(form.getProject(), IdeFocusManager.findInstance(), form);
+        super(form.getProject(), ActionManager.getInstance(), IdeFocusManager.findInstance(), form);
     }
 
     public void select(JComponent component, boolean requestFocus) {

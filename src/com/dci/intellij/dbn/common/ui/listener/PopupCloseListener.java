@@ -18,6 +18,11 @@ public class PopupCloseListener implements JBPopupListener {
     }
 
     @Override
+    public void beforeShown(LightweightWindowEvent lightweightWindowEvent) {
+
+    }
+
+    @Override
     public void onClosed(@NotNull LightweightWindowEvent event) {
         Disposer.dispose(content);
     }

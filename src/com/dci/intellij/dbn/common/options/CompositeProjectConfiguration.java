@@ -9,7 +9,7 @@ public abstract class CompositeProjectConfiguration<P extends ProjectConfigurati
         extends CompositeConfiguration<P, E>
         implements ProjectConfiguration<P, E> {
 
-    private ProjectRef projectRef;
+    private ProjectRef project;
 
     public CompositeProjectConfiguration(P parent) {
         super(parent);
@@ -17,14 +17,16 @@ public abstract class CompositeProjectConfiguration<P extends ProjectConfigurati
 
     public CompositeProjectConfiguration(@NotNull Project project) {
         super(null);
-        this.projectRef = ProjectRef.of(project);
+        this.project = ProjectRef.of(project);
     }
 
     @NotNull
     @Override
     public Project getProject() {
-        P parent = getParent();
-        return parent == null ? projectRef.ensure() : parent.getProject();
-    }
+        if (project != null) {
+            return project.ensure();
+        }
 
+        return getParent().getProject();
+    }
 }

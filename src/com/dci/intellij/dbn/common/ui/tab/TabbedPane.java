@@ -11,14 +11,12 @@ import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.wm.IdeFocusManager;
 import com.intellij.ui.tabs.TabInfo;
 import com.intellij.ui.tabs.impl.JBEditorTabs;
-import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.util.List;
 
 public class TabbedPane extends JBEditorTabs implements StatefulDisposable {
-    @Getter
     private boolean disposed;
 
     public TabbedPane(@NotNull DBNForm form) {
@@ -72,7 +70,7 @@ public class TabbedPane extends JBEditorTabs implements StatefulDisposable {
 
     @Override
     public void dispose() {
-        if (!disposed) {
+        if (!disposed && !super.isDisposed()) {
             disposed = true;
             Dispatch.runConditional(() -> {
                 List<TabInfo> tabInfos = getTabs();
@@ -80,6 +78,7 @@ public class TabbedPane extends JBEditorTabs implements StatefulDisposable {
                     Unsafe.silent(() -> removeTab(tabInfo, true));
                 }
             });
+            super.dispose();
             nullify();
         }
     }

@@ -52,7 +52,7 @@ public class DDLFileManager extends AbstractProjectComponent implements Persiste
 
     public void registerExtensions(DDLFileExtensionSettings settings) {
         extensionRegisterer.addRequest(() -> {
-            Dispatch.run(() -> WriteCommandAction.writeCommandAction(getProject()).run(() -> {
+            Dispatch.run(() -> WriteCommandAction.runWriteCommandAction(getProject(), () -> {
                 FileTypeManager fileTypeManager = FileTypeManager.getInstance();
                 List<DDLFileType> ddlFileTypeList = settings.getDDLFileTypes();
                 for (DDLFileType ddlFileType : ddlFileTypeList) {
@@ -138,7 +138,7 @@ public class DDLFileManager extends AbstractProjectComponent implements Persiste
                     }
                 }
 
-                Dispatch.run(() -> WriteCommandAction.writeCommandAction(getProject()).run(() -> {
+                Dispatch.run(() -> WriteCommandAction.runWriteCommandAction(getProject(), () -> {
                     StringBuilder restoredAssociations = new StringBuilder();
                     for (String extension : ddlFileType.getExtensions()) {
                         if (!registeredExtension.contains(extension)) {

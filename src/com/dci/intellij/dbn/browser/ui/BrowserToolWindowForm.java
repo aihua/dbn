@@ -7,6 +7,7 @@ import com.dci.intellij.dbn.browser.options.DatabaseBrowserSettings;
 import com.dci.intellij.dbn.browser.options.listener.DisplayModeSettingsListener;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.SafeDisposer;
+import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.common.util.ActionUtil;
@@ -14,6 +15,7 @@ import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.config.ConnectionSettingsListener;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.properties.ui.ObjectPropertiesForm;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.ActionToolbar;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
@@ -37,8 +39,8 @@ public class BrowserToolWindowForm extends DBNFormImpl {
     private @Getter @Setter BrowserDisplayMode displayMode;
     private final ObjectPropertiesForm objectPropertiesForm;
 
-    public BrowserToolWindowForm(Project project) {
-        super(project);
+    public BrowserToolWindowForm(Disposable parent, @NotNull Project project) {
+        super(parent, project);
         //toolWindow.setIcon(dbBrowser.getIcon(0));
         DatabaseBrowserManager browserManager = DatabaseBrowserManager.getInstance(project);
 
@@ -58,13 +60,14 @@ public class BrowserToolWindowForm extends DBNFormImpl {
         GUIUtil.updateSplitterProportion(mainPanel, (float) 0.7);
 
 
-        subscribe(DisplayModeSettingsListener.TOPIC, displayModeSettingsListener);
-        subscribe(ConnectionSettingsListener.TOPIC, connectionSettingsListener);
+        ProjectEvents.subscribe(project, this, DisplayModeSettingsListener.TOPIC, displayModeSettingsListener);
+        ProjectEvents.subscribe(project, this, ConnectionSettingsListener.TOPIC, connectionSettingsListener);
     }
 
     public void rebuild() {
-        Project project = getProject();
-        displayMode = DatabaseBrowserSettings.getInstance(project).getGeneralSettings().getDisplayMode();
+        Project project = ensureProject();
+        DatabaseBrowserSettings browserSettings = DatabaseBrowserSettings.getInstance(project);
+        displayMode = browserSettings.getGeneralSettings().getDisplayMode();
         DatabaseBrowserForm oldBrowserForm = this.browserForm;
         TabbedBrowserForm previousTabbedForm =
                 oldBrowserForm instanceof TabbedBrowserForm ?
@@ -80,7 +83,6 @@ public class BrowserToolWindowForm extends DBNFormImpl {
         browserPanel.add(this.browserForm.getComponent(), BorderLayout.CENTER);
         GUIUtil.repaint(browserPanel);
 
-        Disposer.register(this, this.browserForm);
         SafeDisposer.dispose(oldBrowserForm, true, true);
     }
 
@@ -100,7 +102,8 @@ public class BrowserToolWindowForm extends DBNFormImpl {
 
 
     public void showObjectProperties() {
-        DatabaseBrowserManager browserManager = DatabaseBrowserManager.getInstance(getProject());
+        Project project = ensureProject();
+        DatabaseBrowserManager browserManager = DatabaseBrowserManager.getInstance(project);
         DatabaseBrowserTree activeBrowserTree = browserManager.getActiveBrowserTree();
         BrowserTreeNode treeNode = activeBrowserTree == null ? null : activeBrowserTree.getSelectedNode();
         if (treeNode instanceof DBObject) {

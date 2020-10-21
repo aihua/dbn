@@ -2,7 +2,7 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.2.0845.2</version>
+    <version>3.2.0921.2</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
@@ -31,7 +31,7 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
-            <li><b>3.2.0845</b>
+            <li><b>3.2.0921</b>
             <ul>
                 <li>Support for latest IDE versions
                 <li>Bug fixes and performance improvements
@@ -551,12 +551,25 @@
         <additionalTextAttributes scheme="VibrantInk" file="resources/DBNVibrantInkColors.xml" id="DBN-VibrantInk"/>
         <additionalTextAttributes scheme="WarmNeon" file="resources/DBNWarmNeonColors.xml" id="DBN-WarmNeon"/>
 
-<!--        <intentionAction>
-            <className>com.dci.intellij.dbn.code.common.intention.ExecuteScriptIntentionAction</className>
-            <category>DBNavigator</category>
-        </intentionAction>-->
         <fileTemplateGroup implementation="com.dci.intellij.dbn.common.file.DBNFileTemplateGroupDescriptorFactory"/>
         <!--<statusBarWidgetFactory implementation="com.dci.intellij.dbn.editor.data.statusbar.DatasetEditorStatusBarWidgetFactory"/>-->
+
+        <intentionAction><className>com.dci.intellij.dbn.code.common.intention.ExecuteScriptIntentionAction</className><category>Database</category></intentionAction>
+        <intentionAction><className>com.dci.intellij.dbn.code.common.intention.ExecuteStatementIntentionAction</className><category>Database</category></intentionAction>
+        <intentionAction><className>com.dci.intellij.dbn.code.common.intention.DebugStatementIntentionAction</className><category>Database</category></intentionAction>
+        <intentionAction><className>com.dci.intellij.dbn.code.common.intention.RunMethodIntentionAction</className><category>Database</category></intentionAction>
+        <intentionAction><className>com.dci.intellij.dbn.code.common.intention.DebugMethodIntentionAction</className><category>Database</category></intentionAction>
+        <intentionAction><className>com.dci.intellij.dbn.code.common.intention.ExplainPlanIntentionAction</className><category>Database</category></intentionAction>
+        <intentionAction><className>com.dci.intellij.dbn.code.common.intention.DatabaseConnectIntentionAction</className><category>Database</category></intentionAction>
+        <intentionAction><className>com.dci.intellij.dbn.code.common.intention.JumpToExecutionResultIntentionAction</className><category>Database</category></intentionAction>
+        <intentionAction><className>com.dci.intellij.dbn.code.common.intention.SelectConnectionIntentionAction</className><category>Database</category></intentionAction>
+        <intentionAction><className>com.dci.intellij.dbn.code.common.intention.SelectSchemaIntentionAction</className><category>Database</category></intentionAction>
+        <intentionAction><className>com.dci.intellij.dbn.code.common.intention.SelectSessionIntentionAction</className><category>Database</category></intentionAction>
+        <intentionAction><className>com.dci.intellij.dbn.code.common.intention.ToggleDatabaseLoggingIntentionAction</className><category>Database</category></intentionAction>
+        <!--<intentionAction><className>com.dci.intellij.dbn.code.common.intention.SetupCodeCompletionIntentionAction</className><category>Database</category></intentionAction>-->
+
+        <fileDocumentManagerListener implementation="com.dci.intellij.dbn.connection.console.DatabaseConsoleFileInitializer"/>
+
     </extensions>
     <helpset file="help.jar" path="/Help.hs"/>
 

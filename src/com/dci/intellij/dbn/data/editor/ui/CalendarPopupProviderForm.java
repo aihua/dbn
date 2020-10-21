@@ -110,7 +110,7 @@ public class CalendarPopupProviderForm extends TextFieldPopupProviderForm implem
         actionsPanelBottom.add(actionToolbarBottom.getComponent(), BorderLayout.EAST);
 
         updateComponentColors();
-        Colors.subscribe(() -> updateComponentColors());
+        Colors.subscribe(this, () -> updateComponentColors());
     }
 
     private void updateComponentColors() {
@@ -133,7 +133,7 @@ public class CalendarPopupProviderForm extends TextFieldPopupProviderForm implem
     }
 
     public Formatter getFormatter() {
-        return Formatter.getInstance(getProject());
+        return Formatter.getInstance(ensureProject());
     }
 
     private Date getDateForPopup() {

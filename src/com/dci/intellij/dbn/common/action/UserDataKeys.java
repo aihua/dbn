@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.common.action;
 
-import com.dci.intellij.dbn.common.ProjectRef;
+import com.dci.intellij.dbn.common.project.ProjectRef;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
@@ -16,7 +16,6 @@ public interface UserDataKeys {
     Key<DatabaseSession> DATABASE_SESSION = Key.create("DBNavigator.DatabaseSession");
     Key<SchemaId> DATABASE_SCHEMA = Key.create("DBNavigator.DatabaseSchema");
     Key<ProjectRef> PROJECT_REF = Key.create("DBNavigator.ProjectRef");
-    Key<String> CONSOLE_TEXT = Key.create("DBNavigator.ConsoleText");
     Key<List<StatementExecutionProcessor>> STATEMENT_EXECUTION_PROCESSORS = Key.create("DBNavigator.StatementExecutionProcessors");
 
 }

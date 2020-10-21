@@ -6,6 +6,7 @@ import com.dci.intellij.dbn.browser.model.BrowserTreeEventListener;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.browser.ui.DatabaseBrowserTree;
 import com.dci.intellij.dbn.common.dispose.SafeDisposer;
+import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.ui.DBNForm;
@@ -41,7 +42,8 @@ public class ObjectPropertiesForm extends DBNFormImpl {
         objectTypeLabel.setText("Object properties:");
         objectLabel.setText("(no object selected)");
 
-        subscribe(getProject(), this, BrowserTreeEventListener.TOPIC, browserTreeEventListener);
+        Project project = ensureProject();
+        ProjectEvents.subscribe(project, this, BrowserTreeEventListener.TOPIC, browserTreeEventListener);
     }
 
     @NotNull
@@ -53,7 +55,8 @@ public class ObjectPropertiesForm extends DBNFormImpl {
     private final BrowserTreeEventListener browserTreeEventListener = new BrowserTreeEventAdapter() {
         @Override
         public void selectionChanged() {
-            DatabaseBrowserManager browserManager = DatabaseBrowserManager.getInstance(getProject());
+            Project project = ensureProject();
+            DatabaseBrowserManager browserManager = DatabaseBrowserManager.getInstance(project);
             if (browserManager.getShowObjectProperties().value()) {
                 DatabaseBrowserTree activeBrowserTree = browserManager.getActiveBrowserTree();
                 if (activeBrowserTree != null) {

@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.ddl;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.notification.NotificationGroup;
 import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.common.thread.Dispatch;
@@ -24,7 +25,9 @@ import com.intellij.openapi.fileTypes.FileNameMatcher;
 import com.intellij.openapi.fileTypes.FileTypeEvent;
 import com.intellij.openapi.fileTypes.FileTypeListener;
 import com.intellij.openapi.fileTypes.FileTypeManager;
+import com.intellij.openapi.project.DumbAwareRunnable;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.startup.StartupManager;
 import com.intellij.util.Alarm;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
@@ -43,25 +46,31 @@ public class DDLFileManager extends AbstractProjectComponent implements Persiste
 
     public static final String COMPONENT_NAME = "DBNavigator.Project.DDLFileManager";
 
-    private DDLFileManager(Project project) {
+    private DDLFileManager(@NotNull Project project) {
         super(project);
-        subscribe(FileTypeManager.TOPIC, fileTypeListener);
+
+        ProjectEvents.subscribe(project, this, FileTypeManager.TOPIC, fileTypeListener);
+
+        StartupManager startupManager = StartupManager.getInstance(project);
+        startupManager.registerPostStartupActivity((DumbAwareRunnable) () -> registerExtensions(getExtensionSettings()));
     }
 
     private final Alarm extensionRegisterer = new Alarm(DDLFileManager.this);
 
     public void registerExtensions(DDLFileExtensionSettings settings) {
-        extensionRegisterer.addRequest(() -> {
-            Dispatch.run(() -> WriteCommandAction.writeCommandAction(getProject()).run(() -> {
-                FileTypeManager fileTypeManager = FileTypeManager.getInstance();
-                List<DDLFileType> ddlFileTypeList = settings.getDDLFileTypes();
-                for (DDLFileType ddlFileType : ddlFileTypeList) {
-                    for (String extension : ddlFileType.getExtensions()) {
-                        fileTypeManager.associateExtension(ddlFileType.getLanguageFileType(), extension);
+        Dispatch.run(() -> {
+            extensionRegisterer.addRequest(() -> {
+                Dispatch.run(() -> WriteCommandAction.writeCommandAction(getProject()).run(() -> {
+                    FileTypeManager fileTypeManager = FileTypeManager.getInstance();
+                    List<DDLFileType> ddlFileTypeList = settings.getDDLFileTypes();
+                    for (DDLFileType ddlFileType : ddlFileTypeList) {
+                        for (String extension : ddlFileType.getExtensions()) {
+                            fileTypeManager.associateExtension(ddlFileType.getLanguageFileType(), extension);
+                        }
                     }
-                }
-            }));
-        }, 0);
+                }));
+            }, 0);
+        });
     }
 
     public static DDLFileManager getInstance(@NotNull Project project) {
@@ -171,15 +180,6 @@ public class DDLFileManager extends AbstractProjectComponent implements Persiste
     @NotNull
     public String getComponentName() {
         return COMPONENT_NAME;
-    }
-
-    @Override
-    public void projectOpened() {
-        Dispatch.run(() -> registerExtensions(getExtensionSettings()));
-    }
-
-    @Override
-    public void projectClosed() {
     }
 
     /*********************************************

@@ -12,6 +12,7 @@ import com.dci.intellij.dbn.browser.ui.DatabaseBrowserForm;
 import com.dci.intellij.dbn.browser.ui.DatabaseBrowserTree;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.options.setting.BooleanSetting;
@@ -74,7 +75,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private final Latent<BrowserToolWindowForm> toolWindowForm = Latent.basic(() -> {
-        BrowserToolWindowForm form = new BrowserToolWindowForm(getProject());
+        BrowserToolWindowForm form = new BrowserToolWindowForm(this, getProject());
         Disposer.register(this, form);
         return form;
     });
@@ -82,8 +83,8 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
     private DatabaseBrowserManager(Project project) {
         super(project);
 
-        subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorManagerListener);
-        subscribe(ObjectFilterChangeListener.TOPIC, filterChangeListener);
+        ProjectEvents.subscribe(project, this, FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorManagerListener);
+        ProjectEvents.subscribe(project, this, ObjectFilterChangeListener.TOPIC, filterChangeListener);
     }
 
     @Nullable
@@ -186,10 +187,6 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
     @NonNls @NotNull
     public String getComponentName() {
         return COMPONENT_NAME;
-    }
-
-    @Override
-    public void initComponent() {
     }
 
     public static void scrollToSelectedElement(ConnectionHandler connectionHandler) {

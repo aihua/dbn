@@ -2,8 +2,8 @@ package com.dci.intellij.dbn.connection.console;
 
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
-import com.dci.intellij.dbn.common.action.UserDataKeys;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.options.setting.SettingsSupport;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.util.CommonUtil;
@@ -45,9 +45,9 @@ import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
 public class DatabaseConsoleManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.DatabaseConsoleManager";
 
-    private DatabaseConsoleManager(Project project) {
+    private DatabaseConsoleManager(@NotNull Project project) {
         super(project);
-        subscribe(SessionManagerListener.TOPIC, sessionManagerListener);
+        ProjectEvents.subscribe(project, this, SessionManagerListener.TOPIC, sessionManagerListener);
     }
 
     public static DatabaseConsoleManager getInstance(@NotNull Project project) {
@@ -129,10 +129,7 @@ public class DatabaseConsoleManager extends AbstractProjectComponent implements 
     /***************************************
      *         SessionManagerListener      *
      ***************************************/
-    private SessionManagerListener sessionManagerListener = new SessionManagerListener() {
-        @Override
-        public void sessionCreated(DatabaseSession session) {}
-
+    private final SessionManagerListener sessionManagerListener = new SessionManagerListener() {
         @Override
         public void sessionDeleted(DatabaseSession session) {
             ConnectionManager connectionManager = ConnectionManager.getInstance(getProject());
@@ -148,9 +145,6 @@ public class DatabaseConsoleManager extends AbstractProjectComponent implements 
                 }
             }
         }
-
-        @Override
-        public void sessionChanged(DatabaseSession session) {}
     };
 
     /*********************************************
@@ -216,28 +210,11 @@ public class DatabaseConsoleManager extends AbstractProjectComponent implements 
 
                     DBConsole console = consoleBundle.getConsole(consoleName, consoleType, true);
                     DBConsoleVirtualFile virtualFile = console.getVirtualFile();
-                    virtualFile.putUserData(UserDataKeys.CONSOLE_TEXT, consoleText);
-                    //virtualFile.setText(consoleText);
+                    virtualFile.setText(consoleText);
                     virtualFile.setDatabaseSchemaName(schema);
                     virtualFile.setDatabaseSession(databaseSession);
                 }
             }
         }
     }
-
-    @Override
-    public void projectOpened() {
-        ConnectionManager connectionManager = ConnectionManager.getInstance(getProject());
-        for (ConnectionHandler connectionHandler : connectionManager.getConnectionHandlers()) {
-            for (DBConsole console : connectionHandler.getConsoleBundle().getConsoles()) {
-                DBConsoleVirtualFile virtualFile = console.getVirtualFile();
-                String text = virtualFile.getUserData(UserDataKeys.CONSOLE_TEXT);
-                virtualFile.putUserData(UserDataKeys.CONSOLE_TEXT, null);
-                virtualFile.setText(text);
-            }
-        }
-
-        super.projectOpened();
-    }
-
 }

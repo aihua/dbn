@@ -54,7 +54,7 @@ public class MethodExecutionInputTypeAttributeForm extends DBNFormImpl {
         DBDataType dataType = typeAttribute.getDataType();
         GenericDataType genericDataType = dataType.getGenericDataType();
 
-        Project project = argument.getProject();
+        Project project = getProject();
 
         String value = getExecutionInput().getInputValue(argument, typeAttribute);
         if (genericDataType.is(GenericDataType.XMLTYPE, GenericDataType.CLOB)) {
@@ -94,7 +94,7 @@ public class MethodExecutionInputTypeAttributeForm extends DBNFormImpl {
     }
 
     public MethodExecutionInputArgumentForm getParentForm() {
-        return ensureParentComponent();
+        return ensureParent();
     }
 
     @NotNull

@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
+import com.dci.intellij.dbn.common.navigation.NavigationInstructions;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -45,7 +46,7 @@ public class ExecutionManager extends AbstractProjectComponent implements Persis
     public static final String TOOL_WINDOW_ID = "DB Execution Console";
     private final Latent<ExecutionConsoleForm> executionConsoleForm =
             Latent.basic(() -> {
-                ExecutionConsoleForm form = new ExecutionConsoleForm(getProject());
+                ExecutionConsoleForm form = new ExecutionConsoleForm(this, getProject());
                 Disposer.register(this, form);
                 return form;
             });
@@ -157,7 +158,7 @@ public class ExecutionManager extends AbstractProjectComponent implements Persis
 
             executionConsoleForm.addResult(executionResult);
             if (!executionResult.isBulkExecution() && !executionResult.hasCompilerResult() && !focusOnExecution()) {
-                executionResult.navigateToEditor(NavigationInstruction.FOCUS);
+                executionResult.navigateToEditor(NavigationInstructions.FOCUS);
             }
         });
     }
@@ -211,25 +212,6 @@ public class ExecutionManager extends AbstractProjectComponent implements Persis
     public void closeExecutionResults(List<ConnectionId> connectionIds){
         ExecutionConsoleForm executionConsoleForm = getExecutionConsoleForm();
         executionConsoleForm.closeExecutionResults(connectionIds);
-    }
-
-    /*********************************************************
-     *                    ProjectComponent                   *
-     *********************************************************/
-    @Override
-    public void projectOpened() {
-    }
-
-    @Override
-    public void projectClosed() {
-    }
-
-
-    @Override
-    public void projectClosing() {
-        if (executionConsoleForm.loaded()) {
-            getExecutionConsoleForm().removeAllTabs();
-        }
     }
 
     @Override

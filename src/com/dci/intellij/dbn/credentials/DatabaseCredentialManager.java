@@ -2,11 +2,11 @@ package com.dci.intellij.dbn.credentials;
 
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.components.BaseComponent;
+import com.intellij.openapi.components.NamedComponent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class DatabaseCredentialManager implements BaseComponent {
+public class DatabaseCredentialManager implements NamedComponent {
     public static boolean USE = false;
 
     public static DatabaseCredentialManager getInstance() {
@@ -51,12 +51,6 @@ public class DatabaseCredentialManager implements BaseComponent {
     private boolean isMemoryStorage() {
         return false;//PasswordSafe.getInstance().isMemoryOnly();
     }
-
-    @Override
-    public void initComponent() {}
-
-    @Override
-    public void disposeComponent() { }
 
     @NotNull
     @Override

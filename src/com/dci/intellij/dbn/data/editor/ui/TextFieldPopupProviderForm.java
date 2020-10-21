@@ -1,12 +1,12 @@
 package com.dci.intellij.dbn.data.editor.ui;
 
+import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.ui.Borders;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.ui.KeyAdapter;
 import com.dci.intellij.dbn.common.ui.KeyUtil;
-import com.dci.intellij.dbn.common.ui.listener.PopupCloseListener;
 import com.intellij.ide.DataManager;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.actionSystem.AnAction;
@@ -18,6 +18,7 @@ import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.keymap.KeymapUtil;
 import com.intellij.openapi.ui.popup.JBPopup;
+import com.intellij.openapi.util.Disposer;
 import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
@@ -39,11 +40,11 @@ public abstract class TextFieldPopupProviderForm extends DBNFormImpl implements 
     @Getter private final Set<AnAction> actions = new HashSet<>();
 
     TextFieldPopupProviderForm(TextFieldWithPopup<?> editorComponent, boolean autoPopup, boolean buttonVisible) {
-        super(editorComponent.getProject());
+        super(editorComponent, editorComponent.getProject());
         this.editorComponent = editorComponent;
         this.autoPopup = autoPopup;
         this.buttonVisible = buttonVisible;
-        subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorManagerListener);
+        ProjectEvents.subscribe(ensureProject(), this, FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorManagerListener);
     }
 
     private final FileEditorManagerListener fileEditorManagerListener = new FileEditorManagerAdapter() {
@@ -121,7 +122,7 @@ public abstract class TextFieldPopupProviderForm extends DBNFormImpl implements 
                     if (!isShowingPopup()) {
                         popup = createPopup();
                         if (popup != null) {
-                            popup.addListener(PopupCloseListener.create(this));
+                            Disposer.register(TextFieldPopupProviderForm.this, popup);
 
                             JPanel panel = (JPanel) popup.getContent();
                             panel.setBorder(Borders.COMPONENT_LINE_BORDER);

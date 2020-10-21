@@ -13,7 +13,7 @@ import com.intellij.diagnostic.AbstractMessage;
 import com.intellij.diagnostic.LogMessage;
 import com.intellij.ide.DataManager;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
-import com.intellij.ide.plugins.PluginManager;
+import com.intellij.ide.plugins.PluginManagerCore;
 import com.intellij.idea.IdeaLogger;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.actionSystem.PlatformDataKeys;
@@ -51,7 +51,7 @@ abstract class IssueReportSubmitter extends ErrorReportSubmitter {
     public IdeaPluginDescriptor getPluginDescriptor() {
         IdeaPluginDescriptor pluginDescriptor = (IdeaPluginDescriptor) super.getPluginDescriptor();
         if (pluginDescriptor == null) {
-            pluginDescriptor = PluginManager.getPlugin(DatabaseNavigator.DBN_PLUGIN_ID);
+            pluginDescriptor = PluginManagerCore.getPlugin(DatabaseNavigator.DBN_PLUGIN_ID);
             setPluginDescriptor(pluginDescriptor);
         }
         return pluginDescriptor;
@@ -81,17 +81,6 @@ abstract class IssueReportSubmitter extends ErrorReportSubmitter {
         Project project = PlatformDataKeys.PROJECT.getData(dataContext);
 
         String localPluginVersion = getPluginDescriptor().getVersion();
-        String repositoryPluginVersion = DatabaseNavigator.getInstance().getRepositoryPluginVersion();
-
-        if (repositoryPluginVersion != null && repositoryPluginVersion.compareTo(localPluginVersion) > 0) {
-            NotificationSupport.sendWarningNotification(
-                    project,
-                    NotificationGroup.REPORTING,
-                    "A newer version of Database Navigator plugin is available in repository. Error report not sent.");
-
-            consumer.consume(new SubmittedReportInfo(getTicketUrlStub(), "", FAILED));
-            return false;
-        }
 
         IdeaLoggingEvent event = events[0];
         String eventSummary = event.getThrowableText();

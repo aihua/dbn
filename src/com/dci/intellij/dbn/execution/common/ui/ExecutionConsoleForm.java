@@ -5,8 +5,10 @@ import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.environment.options.EnvironmentVisibilitySettings;
 import com.dci.intellij.dbn.common.environment.options.listener.EnvironmentManagerListener;
+import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.message.MessageType;
+import com.dci.intellij.dbn.common.navigation.NavigationInstructions;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.common.ui.listener.MouseClickedListener;
@@ -17,7 +19,6 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.execution.ExecutionManager;
 import com.dci.intellij.dbn.execution.ExecutionResult;
-import com.dci.intellij.dbn.execution.NavigationInstruction;
 import com.dci.intellij.dbn.execution.common.message.ui.ExecutionMessagesPanel;
 import com.dci.intellij.dbn.execution.common.options.ExecutionEngineSettings;
 import com.dci.intellij.dbn.execution.common.result.ui.ExecutionResultForm;
@@ -36,6 +37,7 @@ import com.dci.intellij.dbn.execution.statement.processor.StatementExecutionProc
 import com.dci.intellij.dbn.execution.statement.result.StatementExecutionCursorResult;
 import com.dci.intellij.dbn.execution.statement.result.StatementExecutionResult;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
+import com.intellij.openapi.Disposable;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
@@ -66,10 +68,10 @@ public class ExecutionConsoleForm extends DBNFormImpl{
 
     private boolean canScrollToSource;
 
-    public ExecutionConsoleForm(Project project) {
-        super(project);
-        subscribe(project, this, EnvironmentManagerListener.TOPIC, environmentManagerListener);
-        subscribe(project, this, PsiDocumentTransactionListener.TOPIC, psiDocumentTransactionListener);
+    public ExecutionConsoleForm(Disposable parent, Project project) {
+        super(parent, project);
+        ProjectEvents.subscribe(project, this, EnvironmentManagerListener.TOPIC, environmentManagerListener);
+        ProjectEvents.subscribe(project, this, PsiDocumentTransactionListener.TOPIC, psiDocumentTransactionListener);
     }
 
     private TabbedPane getResultTabs() {
@@ -163,7 +165,7 @@ public class ExecutionConsoleForm extends DBNFormImpl{
                     ExecutionResult<?> executionResult = getExecutionResult(newSelection);
                     if (executionResult instanceof StatementExecutionResult) {
                         StatementExecutionResult statementExecutionResult = (StatementExecutionResult) executionResult;
-                        statementExecutionResult.navigateToEditor(NavigationInstruction.SCROLL);
+                        statementExecutionResult.navigateToEditor(NavigationInstructions.SCROLL);
                     }
                 }
             }

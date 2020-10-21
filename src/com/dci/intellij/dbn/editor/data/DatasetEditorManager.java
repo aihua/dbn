@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.editor.data;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.options.setting.SettingsSupport;
 import com.dci.intellij.dbn.common.util.MessageUtil;
 import com.dci.intellij.dbn.data.record.ColumnSortingType;
@@ -44,10 +45,7 @@ import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.sql.SQLException;
 
-import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.DELIBERATE_ACTION;
-import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.PRESERVE_CHANGES;
-import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.REBUILD;
-import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.USE_CURRENT_FILTER;
+import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.*;
 
 @State(
     name = DatasetEditorManager.COMPONENT_NAME,
@@ -65,7 +63,8 @@ public class DatasetEditorManager extends AbstractProjectComponent implements Pe
 
     private DatasetEditorManager(Project project) {
         super(project);
-        subscribe(FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorListener);
+
+        ProjectEvents.subscribe(project, this, FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorListener);
     }
 
     public static DatasetEditorManager getInstance(@NotNull Project project) {
@@ -199,9 +198,6 @@ public class DatasetEditorManager extends AbstractProjectComponent implements Pe
             }
         }
     };
-
-    @Override
-    public void initComponent() {}
 
     /****************************************
      *       PersistentStateComponent       *

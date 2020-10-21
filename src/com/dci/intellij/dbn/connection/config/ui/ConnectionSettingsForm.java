@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.connection.config.ui;
 
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
+import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.options.Configuration;
 import com.dci.intellij.dbn.common.options.ui.CompositeConfigurationEditorForm;
 import com.dci.intellij.dbn.common.thread.Dispatch;
@@ -24,6 +25,7 @@ import com.dci.intellij.dbn.connection.config.ConnectionSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSshTunnelSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSslSettings;
 import com.intellij.openapi.options.ConfigurationException;
+import com.intellij.openapi.project.Project;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.ui.tabs.TabInfo;
@@ -98,7 +100,7 @@ public class ConnectionSettingsForm extends CompositeConfigurationEditorForm<Con
 
         headerForm = new DBNHeaderForm(this, name, icon, color);
         headerPanel.add(headerForm.getComponent(), BorderLayout.CENTER);
-        subscribe(ConnectionPresentationChangeListener.TOPIC, connectionPresentationChangeListener);
+        ProjectEvents.subscribe(ensureProject(), this, ConnectionPresentationChangeListener.TOPIC, connectionPresentationChangeListener);
 
         //databaseSettingsForm.notifyPresentationChanges();
         //detailSettingsForm.notifyPresentationChanges();
@@ -163,9 +165,10 @@ public class ConnectionSettingsForm extends CompositeConfigurationEditorForm<Con
                 if (source == testButton || source == infoButton) {
                     ConnectionSettingsForm connectionSettingsForm = configuration.getSettingsEditor();
                     if (connectionSettingsForm != null) {
+                        Project project = ensureProject();
                         try {
                             ConnectionSettings temporaryConfig = connectionSettingsForm.getTemporaryConfig();
-                            ConnectionManager connectionManager = ConnectionManager.getInstance(getProject());
+                            ConnectionManager connectionManager = ConnectionManager.getInstance(project);
 
                             if (source == testButton) connectionManager.testConfigConnection(temporaryConfig, true);
                             if (source == infoButton) {
@@ -179,7 +182,7 @@ public class ConnectionSettingsForm extends CompositeConfigurationEditorForm<Con
 
                             refreshConnectionList(configuration);
                         } catch (ConfigurationException e1) {
-                            MessageUtil.showErrorDialog(getProject(), "Configuration error", e1.getMessage());
+                            MessageUtil.showErrorDialog(project, "Configuration error", e1.getMessage());
                         }
                     }
                 }

@@ -1,14 +1,15 @@
 package com.dci.intellij.dbn.execution.statement.processor;
 
-import com.dci.intellij.dbn.common.ProjectRef;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.editor.BasicTextEditor;
-import com.dci.intellij.dbn.common.event.EventNotifier;
+import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.message.MessageType;
+import com.dci.intellij.dbn.common.navigation.NavigationInstructions;
+import com.dci.intellij.dbn.common.project.ProjectRef;
 import com.dci.intellij.dbn.common.thread.CancellableDatabaseCall;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.thread.Read;
@@ -28,7 +29,6 @@ import com.dci.intellij.dbn.editor.EditorProviderId;
 import com.dci.intellij.dbn.execution.ExecutionContext;
 import com.dci.intellij.dbn.execution.ExecutionManager;
 import com.dci.intellij.dbn.execution.ExecutionOption;
-import com.dci.intellij.dbn.execution.NavigationInstruction;
 import com.dci.intellij.dbn.execution.compiler.CompileManagerListener;
 import com.dci.intellij.dbn.execution.compiler.CompileType;
 import com.dci.intellij.dbn.execution.compiler.CompilerAction;
@@ -73,9 +73,7 @@ import javax.swing.*;
 import java.sql.SQLException;
 import java.util.concurrent.TimeUnit;
 
-import static com.dci.intellij.dbn.execution.ExecutionStatus.CANCELLED;
-import static com.dci.intellij.dbn.execution.ExecutionStatus.EXECUTING;
-import static com.dci.intellij.dbn.execution.ExecutionStatus.PROMPTED;
+import static com.dci.intellij.dbn.execution.ExecutionStatus.*;
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.COMPILABLE;
 
 public class StatementExecutionBasicProcessor extends StatefulDisposable.Base implements StatementExecutionProcessor {
@@ -546,7 +544,7 @@ public class StatementExecutionBasicProcessor extends StatefulDisposable.Base im
         if (isDataDefinitionStatement()) {
             DBSchemaObject affectedObject = getAffectedObject();
             if (affectedObject != null) {
-                EventNotifier.notify(project,
+                ProjectEvents.notify(project,
                         DataDefinitionChangeListener.TOPIC,
                         (listener) -> listener.dataDefinitionChanged(affectedObject));
             } else {
@@ -554,7 +552,7 @@ public class StatementExecutionBasicProcessor extends StatefulDisposable.Base im
                 IdentifierPsiElement subjectPsiElement = getSubjectPsiElement();
                 if (affectedSchema != null && subjectPsiElement != null) {
                     DBObjectType objectType = subjectPsiElement.getObjectType();
-                    EventNotifier.notify(project,
+                    ProjectEvents.notify(project,
                             DataDefinitionChangeListener.TOPIC,
                             (listener) -> listener.dataDefinitionChanged(affectedSchema, objectType));
                 }
@@ -621,7 +619,7 @@ public class StatementExecutionBasicProcessor extends StatefulDisposable.Base im
                                 if (compileType == CompileType.DEBUG) {
                                     compilerManager.compileObject(object, compileType, compilerAction);
                                 }
-                                EventNotifier.notify(project,
+                                ProjectEvents.notify(project,
                                         CompileManagerListener.TOPIC,
                                         (listener) -> listener.compileFinished(connectionHandler, object));
                             }
@@ -723,14 +721,14 @@ public class StatementExecutionBasicProcessor extends StatefulDisposable.Base im
     }
 
     @Override
-    public void navigateToEditor(NavigationInstruction instruction) {
+    public void navigateToEditor(NavigationInstructions instructions) {
         FileEditor fileEditor = getFileEditor();
         ExecutablePsiElement cachedExecutable = getCachedExecutable();
         if (cachedExecutable != null) {
             if (fileEditor != null) {
-                cachedExecutable.navigateInEditor(fileEditor, instruction);
+                cachedExecutable.navigateInEditor(fileEditor, instructions);
             } else {
-                cachedExecutable.navigate(instruction.isFocus());
+                cachedExecutable.navigate(instructions.isFocus());
             }
         }
     }

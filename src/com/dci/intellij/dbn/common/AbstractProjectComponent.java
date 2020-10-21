@@ -69,6 +69,16 @@ public abstract class AbstractProjectComponent extends StatefulDisposable.Base i
     }
 
     @Override
+    public void projectOpened() {
+
+    }
+
+    @Override
+    public void projectClosed() {
+
+    }
+
+    @Override
     public void checkDisposed() {
         super.checkDisposed();
         getProject();

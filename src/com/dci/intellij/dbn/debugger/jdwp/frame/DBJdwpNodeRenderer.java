@@ -168,16 +168,6 @@ public class DBJdwpNodeRenderer extends NodeRendererImpl {
         return label;
     }
 
-    @Nullable
-    @Override
-    public String calcIdLabel(ValueDescriptor descriptor, DebugProcess process, DescriptorLabelListener labelListener) {
-        String label = super.calcIdLabel(descriptor, process, labelListener);
-        if (label != null) {
-            label = adjustIdLabel(label);
-        }
-        return label;
-    }
-
     @NotNull
     private static String adjustIdLabel(@NotNull String label) {
         int index = label.indexOf("@");

@@ -448,8 +448,8 @@
         <toolWindow id="DB Browser" icon="/img/window/DatabaseBrowser.png" anchor="left" factoryClass="com.dci.intellij.dbn.browser.DatabaseBrowserToolWindowFactory"/>
         <toolWindow id="DB Execution Console" icon="/img/window/ExecutionConsole.png" anchor="bottom" factoryClass="com.dci.intellij.dbn.execution.ExecutionConsoleToolWindowFactory" />
 
-        <fileType name="DBN-SQL" language="DBN-SQL" implementationClass="com.dci.intellij.dbn.language.sql.SQLFileType" fieldName="INSTANCE" extensions="sql;vw"/>
-        <fileType name="DBN-PSQL" language="DBN-PSQL" implementationClass="com.dci.intellij.dbn.language.psql.PSQLFileType" fieldName="INSTANCE" extensions="psql;plsql;trg;prc;fnc;pkg;pks;pkb;tpe;tps;tpb"/>
+        <fileTypeFactory order="last" implementation="com.dci.intellij.dbn.language.sql.SQLFileTypeFactory"/>
+        <fileTypeFactory order="last" implementation="com.dci.intellij.dbn.language.psql.PSQLFileTypeFactory"/>
 
         <fileIconProvider order="last" implementation="com.dci.intellij.dbn.vfs.DBFileIconProvider"/>
 

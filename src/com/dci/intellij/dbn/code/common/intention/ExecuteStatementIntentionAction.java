@@ -76,10 +76,4 @@ public class ExecuteStatementIntentionAction extends GenericIntentionAction impl
     public boolean startInWriteAction() {
         return false;
     }
-
-    @NotNull
-    @Override
-    public Priority getPriority() {
-        return Priority.TOP;
-    }
 }

@@ -13,7 +13,7 @@ public abstract class GenericIntentionAction implements IntentionAction, Iconabl
     @Override
     @NotNull
     public String getFamilyName() {
-        return "DB-Navigator intentions";
+        return getText();
     }
 
     @Nullable

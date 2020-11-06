@@ -1,9 +1,8 @@
 package com.dci.intellij.dbn.common.ui.tab;
 
+import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
-import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.ui.DBNForm;
-import com.dci.intellij.dbn.common.util.Unsafe;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.util.ActionCallback;
@@ -14,7 +13,6 @@ import com.intellij.ui.tabs.impl.JBEditorTabs;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
-import java.util.List;
 
 public class TabbedPane extends JBEditorTabs implements StatefulDisposable {
     private boolean disposed;
@@ -72,13 +70,10 @@ public class TabbedPane extends JBEditorTabs implements StatefulDisposable {
     public void dispose() {
         if (!disposed && !super.isDisposed()) {
             disposed = true;
-            Dispatch.runConditional(() -> {
-                List<TabInfo> tabInfos = getTabs();
-                for (TabInfo tabInfo : tabInfos) {
-                    Unsafe.silent(() -> removeTab(tabInfo, true));
-                }
-            });
-            super.dispose();
+            for (TabInfo tabInfo : myInfo2Label.keySet()) {
+                Object object = tabInfo.getObject();
+                SafeDisposer.dispose(object);
+            }
             nullify();
         }
     }

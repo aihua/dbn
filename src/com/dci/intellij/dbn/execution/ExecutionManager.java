@@ -29,6 +29,8 @@ import com.intellij.ui.content.Content;
 import com.intellij.ui.content.ContentFactory;
 import com.intellij.ui.content.ContentFactoryImpl;
 import com.intellij.ui.content.ContentManager;
+import lombok.Getter;
+import lombok.Setter;
 import org.jdom.Element;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
@@ -36,11 +38,17 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
+import static com.dci.intellij.dbn.common.navigation.NavigationInstruction.*;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.getBoolean;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.setBoolean;
+
 @State(
     name = ExecutionManager.COMPONENT_NAME,
     storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 public class ExecutionManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
+    private @Getter @Setter boolean retainStickyNames = false;
+
     public static final String COMPONENT_NAME = "DBNavigator.Project.ExecutionManager";
 
     public static final String TOOL_WINDOW_ID = "DB Execution Console";
@@ -99,19 +107,11 @@ public class ExecutionManager extends AbstractProjectComponent implements Persis
         return getExecutionConsoleForm().getExecutionResultForm(executionResult);
     }
 
-    public void addExecutionResult(@NotNull CompilerResult compilerResult) {
+    public void addCompilerResult(@NotNull CompilerResult compilerResult) {
         Dispatch.run(() -> {
             showExecutionConsole();
             ExecutionConsoleForm executionConsoleForm = getExecutionConsoleForm();
-            executionConsoleForm.addResult(compilerResult);
-        });
-    }
-
-    public void addExecutionResults(List<CompilerResult> compilerResults) {
-        Dispatch.run(() -> {
-            showExecutionConsole();
-            ExecutionConsoleForm executionConsoleForm = getExecutionConsoleForm();
-            executionConsoleForm.addResults(compilerResults);
+            executionConsoleForm.addCompilerResult(compilerResult);
         });
     }
 
@@ -119,7 +119,7 @@ public class ExecutionManager extends AbstractProjectComponent implements Persis
         Dispatch.run(() -> {
             showExecutionConsole();
             ExecutionConsoleForm executionConsoleForm = getExecutionConsoleForm();
-            executionConsoleForm.addResult(explainPlanResult);
+            executionConsoleForm.addResult(explainPlanResult, NavigationInstructions.create(SELECT, FOCUS));
         });
     }
 
@@ -133,7 +133,7 @@ public class ExecutionManager extends AbstractProjectComponent implements Persis
         });
     }
 
-    public void addExecutionResult(@NotNull StatementExecutionResult executionResult) {
+    public void addExecutionResult(@NotNull StatementExecutionResult executionResult, NavigationInstructions instructions) {
         Dispatch.run(() -> {
             showExecutionConsole();
             ExecutionConsoleForm executionConsoleForm = getExecutionConsoleForm();
@@ -156,9 +156,9 @@ public class ExecutionManager extends AbstractProjectComponent implements Persis
                         LogOutput.createSysOutput(context, " - Statement execution finished\n", false));
             }
 
-            executionConsoleForm.addResult(executionResult);
+            executionConsoleForm.addResult(executionResult, instructions);
             if (!executionResult.isBulkExecution() && !executionResult.hasCompilerResult() && !focusOnExecution()) {
-                executionResult.navigateToEditor(NavigationInstructions.FOCUS);
+                executionResult.navigateToEditor(NavigationInstructions.create(FOCUS, SCROLL, SELECT));
             }
         });
     }
@@ -179,10 +179,10 @@ public class ExecutionManager extends AbstractProjectComponent implements Persis
         });
     }
 
-    public void selectExecutionResult(final StatementExecutionResult executionResult) {
+    public void selectExecutionResult(StatementExecutionResult executionResult) {
         Dispatch.run(() -> {
             ExecutionConsoleForm executionConsoleForm = getExecutionConsoleForm();
-            executionConsoleForm.selectResult(executionResult);
+            executionConsoleForm.selectResult(executionResult, NavigationInstructions.create(FOCUS, SCROLL, SELECT));
             showExecutionConsole();
         });
 
@@ -229,13 +229,15 @@ public class ExecutionManager extends AbstractProjectComponent implements Persis
     /*********************************************
      *            PersistentStateComponent       *
      *********************************************/
-    @Nullable
-    @Override
     public Element getState() {
-        return null;
+        Element element = new Element("state");
+        setBoolean(element, "retain-sticky-names", retainStickyNames);
+        return element;
     }
 
     @Override
     public void loadState(@NotNull Element element) {
+        retainStickyNames = getBoolean(element, "retain-sticky-names", retainStickyNames);
     }
+
 }

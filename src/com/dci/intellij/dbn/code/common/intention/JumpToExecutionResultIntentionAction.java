@@ -88,4 +88,9 @@ public class JumpToExecutionResultIntentionAction extends GenericIntentionAction
     public boolean startInWriteAction() {
         return false;
     }
+
+    @Override
+    protected Integer getGroupPriority() {
+        return super.getGroupPriority();
+    }
 }

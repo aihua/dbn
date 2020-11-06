@@ -73,6 +73,7 @@ import javax.swing.*;
 import java.sql.SQLException;
 import java.util.concurrent.TimeUnit;
 
+import static com.dci.intellij.dbn.common.navigation.NavigationInstruction.*;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.*;
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.COMPILABLE;
 
@@ -91,7 +92,12 @@ public class StatementExecutionBasicProcessor extends StatefulDisposable.Base im
     private final String name;
     private final Icon icon;
 
+    private String stickyResultName;
+
     private final Latent<String> resultName = Latent.basic(() -> {
+        if (stickyResultName != null) {
+            return stickyResultName;
+        }
         String resultName = null;
         ExecutablePsiElement executablePsiElement = executionInput.getExecutablePsiElement();
         if (executablePsiElement!= null) {
@@ -340,7 +346,8 @@ public class StatementExecutionBasicProcessor extends StatefulDisposable.Base im
             if (executionResult != null) {
                 Project project = getProject();
                 ExecutionManager executionManager = ExecutionManager.getInstance(project);
-                executionManager.addExecutionResult(executionResult);
+                executionManager.addExecutionResult(executionResult,
+                        NavigationInstructions.create(FOCUS, SCROLL, SELECT));
             }
 
             if (executionException != null && debug) {
@@ -695,6 +702,11 @@ public class StatementExecutionBasicProcessor extends StatefulDisposable.Base im
     @NotNull
     public String getResultName() {
         return resultName.get();
+    }
+
+    public void setResultName(String resultName, boolean sticky) {
+        this.resultName.set(resultName);
+        stickyResultName = sticky ? resultName : null;
     }
 
     @Override

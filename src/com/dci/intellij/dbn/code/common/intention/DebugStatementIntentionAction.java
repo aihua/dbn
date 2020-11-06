@@ -77,4 +77,9 @@ public class DebugStatementIntentionAction extends GenericIntentionAction implem
     public boolean startInWriteAction() {
         return false;
     }
+
+    @Override
+    protected Integer getGroupPriority() {
+        return 1;
+    }
 }

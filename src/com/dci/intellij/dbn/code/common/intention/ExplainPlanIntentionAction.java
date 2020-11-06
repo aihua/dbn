@@ -69,4 +69,9 @@ public class ExplainPlanIntentionAction extends GenericIntentionAction implement
     public boolean startInWriteAction() {
         return false;
     }
+
+    @Override
+    protected Integer getGroupPriority() {
+        return 2;
+    }
 }

@@ -20,6 +20,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class MethodExecutionHistory implements PersistentStateElement, Disposable{
@@ -27,7 +28,7 @@ public class MethodExecutionHistory implements PersistentStateElement, Disposabl
     private boolean groupEntries = true;
     private DBObjectRef<DBMethod> selection;
 
-    private List<MethodExecutionInput> executionInputs = CollectionUtil.createConcurrentList();
+    private final List<MethodExecutionInput> executionInputs = CollectionUtil.createConcurrentList();
 
     public MethodExecutionHistory(Project project) {
         this.project = ProjectRef.of(project);
@@ -43,7 +44,8 @@ public class MethodExecutionHistory implements PersistentStateElement, Disposabl
     }
 
     public void setExecutionInputs(List<MethodExecutionInput> executionInputs) {
-        this.executionInputs = executionInputs;
+        this.executionInputs.clear();
+        this.executionInputs.addAll(executionInputs);
     }
 
     public boolean isGroupEntries() {
@@ -67,7 +69,7 @@ public class MethodExecutionHistory implements PersistentStateElement, Disposabl
     }
 
     @Nullable
-    public List<DBMethod> getRecentlyExecutedMethods(DBProgram program) {
+    public List<DBMethod> getRecentlyExecutedMethods(@NotNull DBProgram program) {
         List<DBMethod> recentObjects = new ArrayList<DBMethod>();
         List<DBProcedure> procedures = program.getProcedures();
         List<DBFunction> functions = program.getFunctions();
@@ -87,24 +89,20 @@ public class MethodExecutionHistory implements PersistentStateElement, Disposabl
     }
 
     @NotNull
-    public MethodExecutionInput getExecutionInput(DBMethod method) {
+    public MethodExecutionInput getExecutionInput(@NotNull DBMethod method) {
         MethodExecutionInput executionInput = getExecutionInput(method, true);
         return Failsafe.nn(executionInput);
     }
 
     @Nullable
-    public MethodExecutionInput getExecutionInput(DBMethod method, boolean create) {
+    public MethodExecutionInput getExecutionInput(@NotNull DBMethod method, boolean create) {
         for (MethodExecutionInput executionInput : executionInputs) {
             if (executionInput.getMethodRef().is(method)) {
                 return executionInput;
             }
         }
         if (create) {
-            MethodExecutionInput executionInput = new MethodExecutionInput(getProject(), method);
-            executionInputs.add(executionInput);
-            java.util.Collections.sort(executionInputs);
-            selection = DBObjectRef.of(method);
-            return executionInput;
+            return createExecutionInput(method);
         }
         return null;
     }
@@ -118,14 +116,29 @@ public class MethodExecutionHistory implements PersistentStateElement, Disposabl
 
         DBMethod method = methodRef.get();
         if (method != null) {
-            MethodExecutionInput executionInput = new MethodExecutionInput(getProject(), method);
-            executionInputs.add(executionInput);
-            java.util.Collections.sort(executionInputs);
-            selection = methodRef;
-            return executionInput;
+            return createExecutionInput(method);
         }
 
         return null;
+    }
+
+    @NotNull
+    public MethodExecutionInput createExecutionInput(@NotNull DBMethod method) {
+        DBObjectRef<DBMethod> methodRef = method.getRef();
+        MethodExecutionInput executionInput = getExecutionInput(methodRef);
+        if (executionInput == null) {
+            synchronized (this) {
+                executionInput = getExecutionInput(methodRef);
+                if (executionInput == null) {
+                    executionInput = new MethodExecutionInput(getProject(), method);
+                    executionInputs.add(executionInput);
+                    Collections.sort(executionInputs);
+                    selection = DBObjectRef.of(method);
+                    return executionInput;
+                }
+            }
+        }
+        return executionInput;
     }
 
     @Nullable
@@ -147,6 +160,7 @@ public class MethodExecutionHistory implements PersistentStateElement, Disposabl
      * @param element*/
     @Override
     public void readState(Element element) {
+        executionInputs.clear();
         Element historyElement = element.getChild("execution-history");
         if (historyElement != null) {
             groupEntries = SettingsSupport.getBoolean(historyElement, "group-entries", groupEntries);
@@ -156,9 +170,11 @@ public class MethodExecutionHistory implements PersistentStateElement, Disposabl
                 Element configElement = (Element) object;
                 MethodExecutionInput executionInput = new MethodExecutionInput(getProject());
                 executionInput.readConfiguration(configElement);
-                executionInputs.add(executionInput);
+                if (getExecutionInput(executionInput.getMethodRef()) == null) {
+                    executionInputs.add(executionInput);
+                }
             }
-            java.util.Collections.sort(executionInputs);
+            Collections.sort(executionInputs);
 
             Element selectionElement = historyElement.getChild("selection");
             if (selectionElement != null) {

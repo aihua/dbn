@@ -112,7 +112,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
 
     @Nullable
     private static ConnectionHandler getLastUsedConnection() {
-        return lastUsedConnection.get();
+        return lastUsedConnection == null ? null : lastUsedConnection.get();
     }
 
     @Nullable

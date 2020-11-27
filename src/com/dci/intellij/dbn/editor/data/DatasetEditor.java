@@ -637,7 +637,6 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
     }
 
     @Nullable
-    @Override
     public VirtualFile getFile() {
         return getDatabaseFile();
     }

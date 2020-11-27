@@ -366,7 +366,6 @@ public class SessionBrowser extends DisposableUserDataHolderBase implements File
         return null;
     }
 
-    @Override
     public @Nullable VirtualFile getFile() {
         return getDatabaseFile();
     }

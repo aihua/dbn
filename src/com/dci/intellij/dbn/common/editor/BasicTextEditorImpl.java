@@ -55,7 +55,6 @@ public abstract class BasicTextEditorImpl<T extends VirtualFile> extends Statefu
         return virtualFile.ensure();
     }
 
-    @Override
     public @Nullable VirtualFile getFile() {
         return virtualFile.get();
     }

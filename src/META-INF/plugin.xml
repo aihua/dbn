@@ -2,7 +2,7 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.2.1062.2</version>
+    <version>3.2.1242.2</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
@@ -31,8 +31,9 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
-            <li><b>3.2.1062</b>
+            <li><b>3.2.1242</b>
             <ul>
+                <li>Resource monitor enhancements
                 <li>"Rename" feature for execution results
                 <li>Support for latest IDE versions
                 <li>Editor intention action descriptions
@@ -210,8 +211,8 @@
         <component><implementation-class>com.dci.intellij.dbn.object.dependency.ObjectDependencyManager</implementation-class></component>
         <component><implementation-class>com.dci.intellij.dbn.options.ProjectSettingsManager</implementation-class></component>
         <component><implementation-class>com.dci.intellij.dbn.vfs.DatabaseFileManager</implementation-class></component>
-        <component><implementation-class>com.dci.intellij.dbn.connection.console.DatabaseConsoleManager</implementation-class></component>
         <component><implementation-class>com.dci.intellij.dbn.connection.session.DatabaseSessionManager</implementation-class></component>
+        <component><implementation-class>com.dci.intellij.dbn.connection.console.DatabaseConsoleManager</implementation-class></component>
     </project-components>
     <module-components>
         <!--<component><implementation-class>com.dci.intellij.dbn.browser.cache.ModuleBrowserCacheComponent</implementation-class></component>-->
@@ -267,7 +268,7 @@
                 <keyboard-shortcut keymap="$default" first-keystroke="ctrl shift M"/>
             </action>
             <action class="com.dci.intellij.dbn.menu.action.ResourceMonitorOpenAction" text="Resource Monitor" id="DBNavigator.Actions.MainMenu.ResourceMonitor"/>
-            <action class="com.dci.intellij.dbn.menu.action.PendingTransactionsOpenAction" text="Uncommitted Changes" id="DBNavigator.Actions.MainMenu.PendingTransactions"/>
+            <action class="com.dci.intellij.dbn.menu.action.PendingTransactionsOpenAction" text="Open Transactions" id="DBNavigator.Actions.MainMenu.PendingTransactions"/>
             <separator/>
             <group id="DBNavigator.ActionGroup.Development" text="Development" popup="true">
                 <action id="DBNavigator.Actions.MainMenu.DevelopmentReset" class="com.dci.intellij.dbn.menu.action.MetaDataDefinitionReloadAction" text="Reload Metadata Definitions"/>

@@ -89,7 +89,16 @@ class Connector {
             ConnectionType connectionType = sessionId.getConnectionType();
             String appName = "Database Navigator - " + connectionType.getName();
             properties.put("ApplicationName", appName);
-            properties.put("v$session.program", appName);
+
+            DatabaseType databaseType = databaseSettings.getDatabaseType();
+            if (databaseType == DatabaseType.GENERIC) {
+                databaseType = DatabaseType.resolve(databaseSettings.getDriver());
+            }
+
+            if (databaseType == DatabaseType.ORACLE) {
+                properties.put("v$session.program", appName);
+            }
+
             Map<String, String> configProperties = databaseSettings.getParent().getPropertiesSettings().getProperties();
             if (configProperties != null) {
                 properties.putAll(configProperties);
@@ -106,7 +115,6 @@ class Connector {
             if (sslSettings.isActive()) {
                 SslConnectionManager connectionManager = SslConnectionManager.getInstance();
                 connectionManager.ensureSslConnection(connectionSettings);
-                DatabaseType databaseType = databaseSettings.getDatabaseType();
                 if (databaseType == DatabaseType.MYSQL) {
                     properties.setProperty("useSSL", "true");
                     properties.setProperty("requireSSL", "true");
@@ -128,14 +136,10 @@ class Connector {
                     connectionUrl = databaseSettings.getConnectionUrl(localHost, localPort);
                 }
             }
-            /** THIS IS IMPORTANT. As we have created an isolated classloader for external driver config,
-             * we must set context loader used by driver to ensure all required classes are available to connect */
-            // TODO review / cleanup? not needed if URL class loaders are constructed properly with parent class loader (see com.dci.intellij.dbn.driver.DatabaseDriverManager recent changes)
-            //Thread.currentThread().setContextClassLoader(driver.getClass().getClassLoader());
 
             Connection connection = driver.connect(connectionUrl, properties);
             if (connection == null) {
-                throw new SQLException("Driver failed to create connection for this configuration. No failure information provided.");
+                throw new SQLException("Driver failed to create connection for this configuration. No failure information provided by jdbc vendor.");
             }
 
             if (connectionStatus != null) {
@@ -161,7 +165,7 @@ class Connector {
             }
 
             DatabaseMetaData metaData = connection.getMetaData();
-            DatabaseType databaseType = ResourceUtil.getDatabaseType(metaData);
+            databaseType = ResourceUtil.getDatabaseType(metaData);
             databaseSettings.setResolvedDatabaseType(databaseType);
             databaseSettings.setDatabaseVersion(ResourceUtil.getDatabaseVersion(metaData));
             databaseSettings.setConnectivityStatus(ConnectivityStatus.VALID);

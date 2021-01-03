@@ -39,7 +39,7 @@ public abstract class AbstractProjectComponent extends StatefulDisposable.Base i
     }
 
     @Deprecated
-    public final void projectOpened() {}
+    public void projectOpened() {}
 
     @Deprecated
     public final void projectClosed() {}

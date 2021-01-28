@@ -29,10 +29,9 @@ import java.io.File;
 import java.nio.charset.Charset;
 
 import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
-import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.getSelection;
-import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.initComboBox;
-import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.setSelection;
+import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.*;
 import static com.dci.intellij.dbn.common.ui.GUIUtil.updateBorderTitleForeground;
+import static com.dci.intellij.dbn.data.export.processor.DataExportFeature.*;
 
 public class ExportDataForm extends DBNFormImpl {
     private static final FileChooserDescriptor DIRECTORY_FILE_DESCRIPTOR = new FileChooserDescriptor(false, true, false, false, false, false);
@@ -41,27 +40,31 @@ public class ExportDataForm extends DBNFormImpl {
     private JRadioButton scopeGlobalRadioButton;
     private JRadioButton scopeSelectionRadioButton;
     private JRadioButton formatSQLRadioButton;
-    private JRadioButton formatExcelRadioButton;
-    private JRadioButton formatCSVRadioButton;
-    private JRadioButton formatCustomRadioButton;
     private JRadioButton formatHTMLRadioButton;
     private JRadioButton formatXMLRadioButton;
+    private JRadioButton formatJiraRadioButton;
+    private JRadioButton formatExcelRadioButton;
     private JRadioButton formatExcelXRadioButton;
-
-    private JTextField valueSeparatorTextField;
+    private JRadioButton formatCSVRadioButton;
+    private JRadioButton formatCustomRadioButton;
     private JRadioButton destinationClipboardRadioButton;
     private JRadioButton destinationFileRadioButton;
+
+    private JTextField valueSeparatorTextField;
     private JTextField fileNameTextField;
     private TextFieldWithBrowseButton fileLocationTextField;
     private JCheckBox createHeaderCheckBox;
+    private JCheckBox friendlyHeadersCheckBox;
     private JCheckBox quoteValuesCheckBox;
     private JCheckBox quoteAllValuesCheckBox;
+
+    private JComboBox<CharsetOption> encodingComboBox;
     private JPanel headerPanel;
     private JPanel scopePanel;
     private JPanel formatPanel;
     private JPanel destinationPanel;
     private JPanel optionsPanel;
-    private JComboBox<CharsetOption> encodingComboBox;
+
     private JLabel encodingLabel;
 
     private final DataExportInstructions instructions;
@@ -87,12 +90,15 @@ public class ExportDataForm extends DBNFormImpl {
         formatSQLRadioButton.addActionListener(actionListener);
         formatHTMLRadioButton.addActionListener(actionListener);
         formatXMLRadioButton.addActionListener(actionListener);
+        formatJiraRadioButton.addActionListener(actionListener);
         formatExcelRadioButton.addActionListener(actionListener);
         formatExcelXRadioButton.addActionListener(actionListener);
         formatCSVRadioButton.addActionListener(actionListener);
         formatCustomRadioButton.addActionListener(actionListener);
         destinationClipboardRadioButton.addActionListener(actionListener);
         destinationFileRadioButton.addActionListener(actionListener);
+        createHeaderCheckBox.addActionListener(actionListener);
+        friendlyHeadersCheckBox.addActionListener(actionListener);
 
         scopeSelectionRadioButton.setEnabled(hasSelection);
         scopeSelectionRadioButton.setSelected(hasSelection);
@@ -109,6 +115,7 @@ public class ExportDataForm extends DBNFormImpl {
         formatExcelXRadioButton.setSelected(format == DataExportFormat.EXCELX);
         formatHTMLRadioButton.setSelected(format == DataExportFormat.HTML);
         formatXMLRadioButton.setSelected(format == DataExportFormat.XML);
+        formatJiraRadioButton.setSelected(format == DataExportFormat.JIRA);
         formatCSVRadioButton.setSelected(format == DataExportFormat.CSV);
         formatCustomRadioButton.setSelected(format == DataExportFormat.CUSTOM);
 
@@ -116,6 +123,7 @@ public class ExportDataForm extends DBNFormImpl {
         quoteValuesCheckBox.setSelected(instructions.isQuoteValuesContainingSeparator());
         quoteAllValuesCheckBox.setSelected(instructions.isQuoteAllValues());
         createHeaderCheckBox.setSelected(instructions.isCreateHeader());
+        friendlyHeadersCheckBox.setSelected(instructions.isFriendlyHeaders());
 
         DataExportInstructions.Destination destination = instructions.getDestination();
         if (destinationClipboardRadioButton.isEnabled()) {
@@ -167,6 +175,7 @@ public class ExportDataForm extends DBNFormImpl {
                 DataExportInstructions.Scope.SELECTION  :
                 DataExportInstructions.Scope.GLOBAL);
         instructions.setCreateHeader(createHeaderCheckBox.isSelected());
+        instructions.setFriendlyHeaders(friendlyHeadersCheckBox.isSelected());
         instructions.setQuoteValuesContainingSeparator(quoteValuesCheckBox.isSelected());
         instructions.setQuoteAllValues(quoteAllValuesCheckBox.isSelected());
         instructions.setValueSeparator(valueSeparatorTextField.isEnabled() ? valueSeparatorTextField.getText().trim() : null);
@@ -190,10 +199,11 @@ public class ExportDataForm extends DBNFormImpl {
     private DataExportFormat getFormat() {
         return
             formatSQLRadioButton.isSelected() ? DataExportFormat.SQL :
-            formatExcelRadioButton.isSelected() ? DataExportFormat.EXCEL :
-            formatExcelXRadioButton.isSelected() ? DataExportFormat.EXCELX :
             formatHTMLRadioButton.isSelected() ? DataExportFormat.HTML :
             formatXMLRadioButton.isSelected() ? DataExportFormat.XML :
+            formatJiraRadioButton.isSelected() ? DataExportFormat.JIRA :
+            formatExcelRadioButton.isSelected() ? DataExportFormat.EXCEL :
+            formatExcelXRadioButton.isSelected() ? DataExportFormat.EXCELX :
             formatCSVRadioButton.isSelected() ? DataExportFormat.CSV :
             formatCustomRadioButton.isSelected() ? DataExportFormat.CUSTOM : null;
     }
@@ -242,18 +252,24 @@ public class ExportDataForm extends DBNFormImpl {
     private void enableDisableFields() {
         DataExportProcessor processor = DataExportManager.getExportProcessor(getExportInstructions().getFormat());
 
-        boolean canCreateHeader = processor != null && processor.canCreateHeader();
-        boolean canQuoteValues = processor != null && processor.canQuoteValues();
-        boolean canExportToClipboard = processor != null && processor.canExportToClipboard();
-        boolean supportsFileEncoding = processor != null && processor.supportsFileEncoding();
+        boolean supportsCreateHeader      = HEADER_CREATION.isSupported(processor);
+        boolean supportsFriendlyHeader    = FRIENDLY_HEADER.isSupported(processor) && supportsCreateHeader;
+        boolean supportsValueQuoting      = VALUE_QUOTING.isSupported(processor);
+        boolean supportsExportToClipboard = EXPORT_TO_CLIPBOARD.isSupported(processor);
+        boolean supportsFileEncoding      = FILE_ENCODING.isSupported(processor);
 
-        destinationClipboardRadioButton.setEnabled(canExportToClipboard);
-        quoteValuesCheckBox.setEnabled(canQuoteValues);
-        quoteAllValuesCheckBox.setEnabled(canQuoteValues);
-        createHeaderCheckBox.setEnabled(canCreateHeader);
+        destinationClipboardRadioButton.setEnabled(supportsExportToClipboard);
+        quoteValuesCheckBox.setEnabled(supportsValueQuoting);
+        quoteAllValuesCheckBox.setEnabled(supportsValueQuoting);
+        createHeaderCheckBox.setEnabled(supportsCreateHeader);
+        friendlyHeadersCheckBox.setEnabled(supportsFriendlyHeader && createHeaderCheckBox.isSelected());
 
         if (!destinationClipboardRadioButton.isEnabled() && destinationClipboardRadioButton.isSelected()) {
             destinationFileRadioButton.setSelected(true);
+        }
+
+        if (!friendlyHeadersCheckBox.isEnabled()) {
+            friendlyHeadersCheckBox.setSelected(false);
         }
 
         valueSeparatorTextField.setEnabled(formatCustomRadioButton.isSelected());

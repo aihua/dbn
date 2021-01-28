@@ -3,8 +3,6 @@ package com.dci.intellij.dbn.object.common;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNodeBase;
 import com.dci.intellij.dbn.code.common.lookup.LookupItemBuilder;
-import com.dci.intellij.dbn.common.lookup.ConsumerStoppedException;
-import com.dci.intellij.dbn.common.lookup.LookupConsumer;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.GenericDatabaseElement;
@@ -26,6 +24,7 @@ import com.dci.intellij.dbn.vfs.file.DBObjectVirtualFile;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiFile;
+import com.intellij.util.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -34,7 +33,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class DBVirtualObjectBundle extends BrowserTreeNodeBase implements DBObjectBundle{
-    private VirtualConnectionHandler connectionHandler;
+    private final VirtualConnectionHandler connectionHandler;
 
     public DBVirtualObjectBundle(@NotNull VirtualConnectionHandler connectionHandler) {
         this.connectionHandler = connectionHandler;
@@ -154,12 +153,12 @@ public class DBVirtualObjectBundle extends BrowserTreeNodeBase implements DBObje
     }
 
     @Override
-    public void lookupObjectsOfType(LookupConsumer consumer, DBObjectType objectType) throws ConsumerStoppedException {
+    public void lookupObjectsOfType(Consumer consumer, DBObjectType objectType) {
 
     }
 
     @Override
-    public void lookupChildObjectsOfType(LookupConsumer consumer, DBObject parentObject, DBObjectType objectType, ObjectTypeFilter filter, DBSchema currentSchema) throws ConsumerStoppedException {
+    public void lookupChildObjectsOfType(Consumer consumer, DBObject parentObject, DBObjectType objectType, ObjectTypeFilter filter, DBSchema currentSchema) {
 
     }
 

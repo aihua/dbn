@@ -3,16 +3,24 @@ package com.dci.intellij.dbn.code.common.completion;
 import com.dci.intellij.dbn.code.common.completion.options.CodeCompletionSettings;
 import com.dci.intellij.dbn.code.common.completion.options.filter.CodeCompletionFilterSettings;
 import com.dci.intellij.dbn.code.common.style.options.ProjectCodeStyleSettings;
+import com.dci.intellij.dbn.common.thread.ThreadFactory;
+import com.dci.intellij.dbn.common.util.Measured;
 import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Unsafe;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.PsiFileRef;
+import com.dci.intellij.dbn.language.common.element.impl.IdentifierElementType;
+import com.dci.intellij.dbn.language.common.element.impl.LeafElementType;
+import com.dci.intellij.dbn.language.common.element.impl.TokenElementType;
 import com.dci.intellij.dbn.language.common.psi.BasePsiElement;
+import com.dci.intellij.dbn.language.common.psi.IdentifierPsiElement;
 import com.dci.intellij.dbn.language.common.psi.PsiUtil;
 import com.dci.intellij.dbn.language.sql.SQLLanguage;
+import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.options.ProjectSettings;
 import com.dci.intellij.dbn.options.ProjectSettingsManager;
 import com.intellij.codeInsight.completion.CompletionParameters;
@@ -28,7 +36,19 @@ import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
 public class CodeCompletionContext {
+
     private @Getter @Setter boolean extended;
     private final PsiFileRef<DBLanguagePsiFile> file;
     private final ConnectionHandlerRef connectionHandler;
@@ -41,6 +61,10 @@ public class CodeCompletionContext {
     private final @Getter PsiElement elementAtCaret;
     private final @Getter boolean newLine;
 
+    private @Getter @Setter DBObject parentObject;
+    private @Getter @Setter IdentifierPsiElement parentIdentifierPsiElement;
+    private final Map<String, LeafElementType> completionCandidates = new HashMap<>();
+    private final Set<Future> completionTasks = new HashSet<>();
 
     public CodeCompletionContext(DBLanguagePsiFile file, CompletionParameters parameters, CompletionResultSet result) {
         this.file = PsiFileRef.of(file);
@@ -109,5 +133,58 @@ public class CodeCompletionContext {
     public DBLanguage getLanguage() {
         DBLanguageDialect languageDialect = getFile().getLanguageDialect();
         return languageDialect == null ? SQLLanguage.INSTANCE : languageDialect.getBaseLanguage();
+    }
+
+    public boolean isLiveConnection() {
+        ConnectionHandler connectionHandler = getConnectionHandler();
+        return connectionHandler != null && !connectionHandler.isVirtual();
+    }
+
+    public void async(String identifier, Runnable runnable) {
+        ExecutorService executor = ThreadFactory.getCodeCompletionExecutor();
+        completionTasks.add(executor.submit(() ->
+                Unsafe.silent(() ->
+                        Measured.run("code completion " + identifier + " load", () -> runnable.run()))));
+    }
+
+    public void awaitCompletion() {
+        ExecutorService executor = ThreadFactory.getCodeCompletionExecutor();
+        Unsafe.silent(() -> executor.invokeAll(
+                completionTasks.
+                        stream().
+                        map(future -> (Callable<Object>) () -> future.get()).
+                        collect(Collectors.toList()),
+                200,
+                TimeUnit.MILLISECONDS));
+    }
+
+    public void addCompletionCandidate(@Nullable LeafElementType leafElementType) {
+        if (leafElementType != null) {
+            String leafUniqueKey = getLeafUniqueKey(leafElementType);
+            if (leafUniqueKey != null) {
+                completionCandidates.put(leafUniqueKey, leafElementType);
+            }
+        }
+    }
+
+    public boolean hasCompletionCandidates() {
+        return !completionCandidates.isEmpty();
+    }
+
+    public Collection<LeafElementType> getCompletionCandidates() {
+        return completionCandidates.values();
+    }
+
+    private static String getLeafUniqueKey(LeafElementType leaf) {
+        if (leaf instanceof TokenElementType) {
+            TokenElementType tokenElementType = (TokenElementType) leaf;
+            String text = tokenElementType.getText();
+            String id = tokenElementType.tokenType.getId();
+            return StringUtil.isEmpty(text) ? id : id + text;
+        } else if (leaf instanceof IdentifierElementType){
+            IdentifierElementType identifierElementType = (IdentifierElementType) leaf;
+            return identifierElementType.getQualifiedObjectTypeName();
+        }
+        return null;
     }
 }

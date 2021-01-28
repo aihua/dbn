@@ -30,10 +30,8 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 
 public abstract class DataExportProcessor {
-    public abstract boolean canCreateHeader();
-    public abstract boolean canExportToClipboard();
-    public abstract boolean canQuoteValues();
-    public abstract boolean supportsFileEncoding();
+    public abstract boolean supports(DataExportFeature feature);
+
     public abstract void performExport(DataExportModel model, DataExportInstructions instructions, ConnectionHandler connectionHandler) throws DataExportException;
 
     Formatter getFormatter(Project project) {
@@ -139,4 +137,9 @@ public abstract class DataExportProcessor {
         return "";
     }
 
+    protected String getColumnName(DataExportModel model, DataExportInstructions instructions, int columnIndex) {
+        return instructions.isFriendlyHeaders() ?
+                model.getColumnFriendlyName(columnIndex) :
+                model.getColumnName(columnIndex);
+    }
 }

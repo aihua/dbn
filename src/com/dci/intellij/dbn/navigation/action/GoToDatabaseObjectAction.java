@@ -8,7 +8,7 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionManager;
-import com.dci.intellij.dbn.navigation.GoToDatabaseObjectModel;
+import com.dci.intellij.dbn.navigation.object.DBObjectLookupModel;
 import com.dci.intellij.dbn.navigation.options.ObjectsLookupSettings;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.action.AnObjectAction;
@@ -132,11 +132,11 @@ public class GoToDatabaseObjectAction extends GotoActionBase implements DumbAwar
 
 
     private class SelectConnectionAction extends ActionGroup {
-        private ConnectionHandlerRef connectionHandlerRef;
+        private final ConnectionHandlerRef connectionHandler;
 
         private SelectConnectionAction(ConnectionHandler connectionHandler) {
             super();
-            connectionHandlerRef = ConnectionHandlerRef.from(connectionHandler);
+            this.connectionHandler = ConnectionHandlerRef.from(connectionHandler);
             Presentation presentation = getTemplatePresentation();
             presentation.setText(connectionHandler.getName(), false);
             presentation.setIcon(connectionHandler.getIcon());
@@ -144,7 +144,7 @@ public class GoToDatabaseObjectAction extends GotoActionBase implements DumbAwar
         }
 
         public ConnectionHandler getConnectionHandler() {
-            return connectionHandlerRef.ensure();
+            return connectionHandler.ensure();
         }
 
         @Override
@@ -194,7 +194,7 @@ public class GoToDatabaseObjectAction extends GotoActionBase implements DumbAwar
             // remove action lock here since the pop-up will not be fired to remove it onClose()
             removeActionLock();
         } else {
-            GoToDatabaseObjectModel model = new GoToDatabaseObjectModel(project, connectionHandler, selectedSchema);
+            DBObjectLookupModel model = new DBObjectLookupModel(project, connectionHandler, selectedSchema);
             String predefinedText = getPredefinedText(project);
 
             popup = ChooseByNamePopup.createPopup(project, model, getPsiContext(e), predefinedText);
@@ -240,7 +240,7 @@ public class GoToDatabaseObjectAction extends GotoActionBase implements DumbAwar
     }
 
     private static boolean isValidPredefinedText(String predefinedText) {
-        return predefinedText != null && !predefinedText.contains("\n") && predefinedText.trim().length() < 50;
+        return predefinedText != null && predefinedText.length() < 40 && predefinedText.matches("^[a-zA-Z0-9 _\\-$#]*$");
     }
 
     private static void removeActionLock() {
@@ -250,9 +250,9 @@ public class GoToDatabaseObjectAction extends GotoActionBase implements DumbAwar
     }
 
     private class Callback extends ChooseByNamePopupComponent.Callback {
-        private final GoToDatabaseObjectModel model;
+        private final DBObjectLookupModel model;
 
-        private Callback(GoToDatabaseObjectModel model) {
+        private Callback(DBObjectLookupModel model) {
             this.model = model;
         }
 

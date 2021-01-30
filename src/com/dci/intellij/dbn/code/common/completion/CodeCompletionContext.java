@@ -3,10 +3,9 @@ package com.dci.intellij.dbn.code.common.completion;
 import com.dci.intellij.dbn.code.common.completion.options.CodeCompletionSettings;
 import com.dci.intellij.dbn.code.common.completion.options.filter.CodeCompletionFilterSettings;
 import com.dci.intellij.dbn.code.common.style.options.ProjectCodeStyleSettings;
-import com.dci.intellij.dbn.common.thread.ThreadFactory;
-import com.dci.intellij.dbn.common.util.Measured;
+import com.dci.intellij.dbn.common.routine.AsyncTaskExecutor;
+import com.dci.intellij.dbn.common.thread.ThreadPool;
 import com.dci.intellij.dbn.common.util.StringUtil;
-import com.dci.intellij.dbn.common.util.Unsafe;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.language.common.DBLanguage;
@@ -38,14 +37,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 public class CodeCompletionContext {
 
@@ -63,8 +56,11 @@ public class CodeCompletionContext {
 
     private @Getter @Setter DBObject parentObject;
     private @Getter @Setter IdentifierPsiElement parentIdentifierPsiElement;
+
     private final Map<String, LeafElementType> completionCandidates = new HashMap<>();
-    private final Set<Future> completionTasks = new HashSet<>();
+    private final @Getter AsyncTaskExecutor queue = new AsyncTaskExecutor(
+            ThreadPool.getCodeCompletionExecutor(),
+            200, TimeUnit.MILLISECONDS);
 
     public CodeCompletionContext(DBLanguagePsiFile file, CompletionParameters parameters, CompletionResultSet result) {
         this.file = PsiFileRef.of(file);
@@ -140,22 +136,12 @@ public class CodeCompletionContext {
         return connectionHandler != null && !connectionHandler.isVirtual();
     }
 
-    public void async(String identifier, Runnable runnable) {
-        ExecutorService executor = ThreadFactory.getCodeCompletionExecutor();
-        completionTasks.add(executor.submit(() ->
-                Unsafe.silent(() ->
-                        Measured.run("code completion " + identifier + " load", () -> runnable.run()))));
+    public void queue(Runnable runnable) {
+        queue.submit(runnable);
     }
 
     public void awaitCompletion() {
-        ExecutorService executor = ThreadFactory.getCodeCompletionExecutor();
-        Unsafe.silent(() -> executor.invokeAll(
-                completionTasks.
-                        stream().
-                        map(future -> (Callable<Object>) () -> future.get()).
-                        collect(Collectors.toList()),
-                200,
-                TimeUnit.MILLISECONDS));
+        queue.awaitCompletion();
     }
 
     public void addCompletionCandidate(@Nullable LeafElementType leafElementType) {

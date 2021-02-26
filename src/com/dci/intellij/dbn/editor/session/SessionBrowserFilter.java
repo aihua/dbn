@@ -4,17 +4,19 @@ import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.util.Cloneable;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.editor.session.model.SessionBrowserModelRow;
+import lombok.Data;
 
-public class SessionBrowserFilterState implements Filter<SessionBrowserModelRow>, Cloneable<SessionBrowserFilterState> {
+@Data
+public class SessionBrowserFilter implements Filter<SessionBrowserModelRow>, Cloneable<SessionBrowserFilter> {
     private String user;
     private String host;
     private String status;
 
 
-    public SessionBrowserFilterState() {
+    public SessionBrowserFilter() {
     }
 
-    private SessionBrowserFilterState(String user, String host, String status) {
+    private SessionBrowserFilter(String user, String host, String status) {
         this.user = user;
         this.host = host;
         this.status = status;
@@ -58,31 +60,7 @@ public class SessionBrowserFilterState implements Filter<SessionBrowserModelRow>
     }
 
     @Override
-    public SessionBrowserFilterState clone(){
-        return new SessionBrowserFilterState(user, host, status);
-    }
-
-    /*****************************************************************
-     *                     equals / hashCode                         *
-     *****************************************************************/
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-
-        SessionBrowserFilterState that = (SessionBrowserFilterState) o;
-
-        if (user != null ? !user.equals(that.user) : that.user != null) return false;
-        if (host != null ? !host.equals(that.host) : that.host != null) return false;
-        return !(status != null ? !status.equals(that.status) : that.status != null);
-
-    }
-
-    @Override
-    public int hashCode() {
-        int result = user != null ? user.hashCode() : 0;
-        result = 31 * result + (host != null ? host.hashCode() : 0);
-        result = 31 * result + (status != null ? status.hashCode() : 0);
-        return result;
+    public SessionBrowserFilter clone(){
+        return new SessionBrowserFilter(user, host, status);
     }
 }

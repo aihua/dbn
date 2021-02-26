@@ -12,6 +12,7 @@ public enum DBObjectProperty implements Property {
     DEBUGABLE,
     INVALIDABLE,
     REFERENCEABLE,
+    ROOT_OBJECT,
     SCHEMA_OBJECT,
     SYSTEM_OBJECT,
 
@@ -50,10 +51,10 @@ public enum DBObjectProperty implements Property {
     TREE_LOADED // belongs to DBObjectStatus (here for optimization reasons)
     ;
 
-    private final int index = Property.idx(this);
+    private final long index = Property.idx(this);
 
     @Override
-    public int index() {
+    public long index() {
         return index;
     }
 }

@@ -263,6 +263,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
         return getObjectType().getIcon();
     }
 
+    @NotNull
     @Override
     public String getQualifiedName() {
         return objectRef.getPath();
@@ -314,7 +315,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
     public void buildToolTip(HtmlToolTipBuilder ttb) {
         ConnectionHandler connectionHandler = getConnectionHandler();
         ttb.append(true, getQualifiedName(), false);
-        ttb.append(true, "Connection: ", "-2", null, false );
+        ttb.append(true, "Connection: ", null, null, false );
         ttb.append(false, connectionHandler.getPresentableText(), false);
     }
 

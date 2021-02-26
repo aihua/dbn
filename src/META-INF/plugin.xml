@@ -2,7 +2,7 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.2.2143.2</version>
+    <version>3.2.3024.2</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
@@ -31,7 +31,7 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
-            <li><b>3.2.2143</b>
+            <li><b>3.2.3024</b>
             <ul>
                 <li>New Jira-Markup data-export format
                 <li>Code completion - overall performance improvements
@@ -553,10 +553,11 @@
         <editorNotificationProvider implementation="com.dci.intellij.dbn.editor.session.SessionBrowserNotificationProvider"/>
 
         <additionalTextAttributes scheme="Default" file="resources/textAttributes/DBNDefaultColors.xml" id="DBN-Default"/>
+        <additionalTextAttributes scheme="Darcula" file="resources/textAttributes/DBNDarculaColors.xml" id="DBN-Darcula"/>
         <additionalTextAttributes scheme="AllHallowsEve" file="resources/textAttributes/DBNAllHallowsEveColors.xml" id="DBN-AllHallowsEve"/>
         <additionalTextAttributes scheme="Blackboard" file="resources/textAttributes/DBNBlackboardColors.xml" id="DBN-Blackboard"/>
         <additionalTextAttributes scheme="Cobalt" file="resources/textAttributes/DBNCobaltColors.xml" id="DBN-Cobalt"/>
-        <additionalTextAttributes scheme="Darcula" file="resources/textAttributes/DBNDarculaColors.xml" id="DBN-Darcula"/>
+        <additionalTextAttributes scheme="Monocai" file="resources/textAttributes/DBNMonocaiColors.xml" id="DBN-Monocai"/>
         <additionalTextAttributes scheme="Monokai" file="resources/textAttributes/DBNMonokaiColors.xml" id="DBN-Monokai"/>
         <additionalTextAttributes scheme="Railscasts" file="resources/textAttributes/DBNRailscastsColors.xml" id="DBN-Railscasts"/>
         <additionalTextAttributes scheme="Twilight" file="resources/textAttributes/DBNTwilightColors.xml" id="DBN-Twilight"/>

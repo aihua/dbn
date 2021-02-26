@@ -8,9 +8,7 @@ import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.filter.Filter;
-import com.dci.intellij.dbn.common.list.AbstractFiltrableList;
-import com.dci.intellij.dbn.common.list.FiltrableList;
-import com.dci.intellij.dbn.common.list.FiltrableListImpl;
+import com.dci.intellij.dbn.common.list.FilteredList;
 import com.dci.intellij.dbn.common.options.SettingsChangeNotifier;
 import com.dci.intellij.dbn.common.project.ProjectRef;
 import com.dci.intellij.dbn.common.util.CommonUtil;
@@ -31,13 +29,15 @@ import java.util.List;
 
 public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTreeNode, StatefulDisposable {
 
-    private static final Filter<ConnectionHandler> ACTIVE_CONNECTIONS_FILTER =
-            connectionHandler -> connectionHandler != null && connectionHandler.isEnabled();
+    @NotNull
+    private static Filter<ConnectionHandler> createActiveConnectionsFilter() {
+        return connectionHandler -> connectionHandler != null && connectionHandler.isEnabled();
+    }
 
 
     private final ProjectRef project;
     private final List<ConnectionHandler> virtualConnections = new ArrayList<>();
-    private AbstractFiltrableList<ConnectionHandler> connectionHandlers = new FiltrableListImpl<>(ACTIVE_CONNECTIONS_FILTER);
+    private FilteredList<ConnectionHandler> connectionHandlers = FilteredList.stateful(createActiveConnectionsFilter());
 
     public ConnectionBundle(Project project) {
         this.project = ProjectRef.of(project);
@@ -91,8 +91,8 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
     }
 
     public void applySettings(ConnectionBundleSettings configuration) {
-        AbstractFiltrableList<ConnectionHandler> newConnectionHandlers = new FiltrableListImpl<>(ACTIVE_CONNECTIONS_FILTER);
-        List<ConnectionHandler> oldConnectionHandlers = new ArrayList<>(this.connectionHandlers.getFullList());
+        FilteredList<ConnectionHandler> newConnectionHandlers = FilteredList.stateful(createActiveConnectionsFilter());
+        List<ConnectionHandler> oldConnectionHandlers = new ArrayList<>(this.connectionHandlers.getBase());
         List<ConnectionSettings> connectionSettings = configuration.getConnections();
         boolean listChanged = false;
         for (ConnectionSettings connectionSetting : connectionSettings) {
@@ -178,7 +178,7 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
     }
 
     public void setConnectionHandlers(List<ConnectionHandler> connectionHandlers) {
-        this.connectionHandlers = new FiltrableListImpl<>(connectionHandlers, ACTIVE_CONNECTIONS_FILTER);
+        this.connectionHandlers = FilteredList.stateful(createActiveConnectionsFilter(), connectionHandlers);
     }
 
     public boolean containsConnection(ConnectionHandler connectionHandler) {
@@ -186,18 +186,18 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
     }
 
     public ConnectionHandler getConnection(ConnectionId id) {
-        for (ConnectionHandler connectionHandler : connectionHandlers.getFullList()){
+        for (ConnectionHandler connectionHandler : connectionHandlers.getBase()){
             if (connectionHandler.getConnectionId() == id) return connectionHandler;
         }
         return null;
     }
 
-    public FiltrableList<ConnectionHandler> getConnectionHandlers() {
+    public FilteredList<ConnectionHandler> getConnectionHandlers() {
         return connectionHandlers;
     }
 
     public List<ConnectionHandler> getAllConnectionHandlers() {
-        return connectionHandlers.getFullList();
+        return connectionHandlers.getBase();
     }
 
     /*********************************************************
@@ -335,7 +335,7 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
 
 
     public boolean isEmpty() {
-        return connectionHandlers.getFullList().isEmpty();
+        return connectionHandlers.getBase().isEmpty();
     }
 
 

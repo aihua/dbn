@@ -23,7 +23,7 @@ public interface Write {
 
     static void run(Project project, Runnable runnable) {
         Dispatch.run(() -> {
-            WriteCommandAction.writeCommandAction(nd(project)).run(() -> {
+            WriteCommandAction.runWriteCommandAction(nd(project), () -> {
                 try {
                     nd(project);
                     runnable.run();

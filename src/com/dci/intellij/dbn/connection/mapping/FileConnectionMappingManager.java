@@ -18,6 +18,7 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionManager;
+import com.dci.intellij.dbn.connection.ConnectionSelectorOptions;
 import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.action.AbstractConnectionAction;
@@ -39,8 +40,8 @@ import com.dci.intellij.dbn.vfs.DatabaseFileSystem;
 import com.dci.intellij.dbn.vfs.file.DBConsoleVirtualFile;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
-import com.intellij.openapi.actionSystem.impl.SimpleDataContext;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
@@ -75,6 +76,7 @@ import static com.dci.intellij.dbn.common.action.UserDataKeys.*;
 import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
 import static com.dci.intellij.dbn.common.util.MessageUtil.options;
 import static com.dci.intellij.dbn.common.util.MessageUtil.showWarningDialog;
+import static com.dci.intellij.dbn.connection.ConnectionSelectorOptions.Option.*;
 
 @State(
     name = FileConnectionMappingManager.COMPONENT_NAME,
@@ -469,7 +471,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     }
 
 
-    public void selectConnectionAndSchema(@NotNull DBLanguagePsiFile file, @NotNull Runnable callback) {
+    public void selectConnectionAndSchema(@NotNull DBLanguagePsiFile file, DataContext dataContext, @NotNull Runnable callback) {
         Dispatch.run(() -> {
             Project project = getProject();
             ConnectionHandler activeConnection = file.getConnectionHandler();
@@ -481,11 +483,15 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                                         "You can not execute statements against this connection. Please select a proper connection to continue.";
 
 
+                ConnectionSelectorOptions options = new ConnectionSelectorOptions();
+                options.set(SHOW_CREATE_CONNECTION, true);
+                options.set(PROMPT_SCHEMA_SELECTION, true);
+
                 showWarningDialog(project,
                         "No valid connection", message,
                         options("Select Connection", "Cancel"), 0,
                         (option) -> conditional(option == 0,
-                                () -> promptConnectionSelector(file, false, true, true, callback)));
+                                () -> promptConnectionSelector(file, dataContext, options, callback)));
 
             } else if (file.getSchemaId() == null) {
                 String message =
@@ -498,7 +504,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                             if (option == 0) {
                                 callback.run();
                             } else if (option == 1) {
-                                promptSchemaSelector(file, callback);
+                                promptSchemaSelector(file, dataContext, callback);
                             }
                         });
             } else {
@@ -510,7 +516,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     /***************************************************
      *             Select connection popup             *
      ***************************************************/
-    public void promptConnectionSelector(DBLanguagePsiFile psiFile, boolean showVirtualConnections, boolean showCreateOption, boolean promptSchemaSelection, Runnable callback) {
+    public void promptConnectionSelector(DBLanguagePsiFile psiFile, DataContext dataContext, ConnectionSelectorOptions options, Runnable callback) {
         Project project = getProject();
         ConnectionManager connectionManager = ConnectionManager.getInstance(project);
         ConnectionBundle connectionBundle = connectionManager.getConnectionBundle();
@@ -519,20 +525,28 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
         DefaultActionGroup actionGroup = new DefaultActionGroup();
         if (connectionHandlers.size() > 0) {
             for (ConnectionHandler connectionHandler : connectionHandlers) {
-                ConnectionSelectAction connectionAction = new ConnectionSelectAction(connectionHandler, psiFile, promptSchemaSelection, callback);
+                ConnectionSelectAction connectionAction = new ConnectionSelectAction(
+                        connectionHandler,
+                        psiFile,
+                        options.is(PROMPT_SCHEMA_SELECTION),
+                        callback);
                 actionGroup.add(connectionAction);
             }
         }
 
-        if (showVirtualConnections) {
+        if (options.is(SHOW_VIRTUAL_CONNECTIONS)) {
             actionGroup.addSeparator();
             for (ConnectionHandler virtualConnectionHandler : connectionBundle.getVirtualConnections()) {
-                ConnectionSelectAction connectionAction = new ConnectionSelectAction(virtualConnectionHandler, psiFile, promptSchemaSelection, callback);
+                ConnectionSelectAction connectionAction = new ConnectionSelectAction(
+                        virtualConnectionHandler,
+                        psiFile,
+                        options.is(PROMPT_SCHEMA_SELECTION),
+                        callback);
                 actionGroup.add(connectionAction);
             }
         }
 
-        if (showCreateOption) {
+        if (options.is(SHOW_CREATE_CONNECTION)) {
             actionGroup.addSeparator();
             actionGroup.add(new ConnectionSetupAction(project));
         }
@@ -541,7 +555,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
             ListPopup popupBuilder = JBPopupFactory.getInstance().createActionGroupPopup(
                     "Select Connection",
                     actionGroup,
-                    SimpleDataContext.getProjectContext(project),
+                    dataContext,
                     JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
                     true);
 
@@ -568,7 +582,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
             if (file != null) {
                 file.setConnectionHandler(connectionHandler);
                 if (promptSchemaSelection) {
-                    promptSchemaSelector(file, callback);
+                    promptSchemaSelector(file, e.getDataContext(), callback);
                 } else {
                     if (file.getSchemaId() == null) {
                         SchemaId defaultSchema = connectionHandler.getDefaultSchema();
@@ -617,7 +631,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     /***************************************************
      *             Select schema popup                 *
      ***************************************************/
-    public void promptSchemaSelector(DBLanguagePsiFile psiFile, Runnable callback) throws IncorrectOperationException {
+    public void promptSchemaSelector(DBLanguagePsiFile psiFile, DataContext dataContext, Runnable callback) throws IncorrectOperationException {
         Project project = getProject();
         ConnectionAction.invoke("selecting the current schema", true, psiFile,
                 (action) -> Progress.prompt(project, "Loading schemas", true,
@@ -636,7 +650,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                 Dispatch.run(() -> {ListPopup popupBuilder = JBPopupFactory.getInstance().createActionGroupPopup(
                         "Select Schema",
                         actionGroup,
-                        SimpleDataContext.getProjectContext(project),
+                        dataContext,
                         JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
                         true);
 
@@ -689,7 +703,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     /***************************************************
      *             Select schema popup                 *
      ***************************************************/
-    public void promptSessionSelector(DBLanguagePsiFile psiFile, Runnable callback) throws IncorrectOperationException {
+    public void promptSessionSelector(DBLanguagePsiFile psiFile, DataContext dataContext, Runnable callback) throws IncorrectOperationException {
         Project project = getProject();
         ConnectionAction.invoke("selecting the current session", true, psiFile,
                 (action) -> {
@@ -708,7 +722,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                 ListPopup popupBuilder = JBPopupFactory.getInstance().createActionGroupPopup(
                         "Select Session",
                         actionGroup,
-                        SimpleDataContext.getProjectContext(project),
+                        dataContext,
                         JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
                         true);
 

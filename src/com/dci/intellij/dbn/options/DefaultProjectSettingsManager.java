@@ -3,7 +3,6 @@ package com.dci.intellij.dbn.options;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.component.ApplicationComponent;
 import com.dci.intellij.dbn.common.latent.Latent;
-import com.intellij.ide.ApplicationInitializedListener;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
@@ -18,8 +17,8 @@ import org.jetbrains.annotations.Nullable;
     name = "DBNavigator.DefaultProject.Settings",
     storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
-public class DefaultProjectSettingsManager implements ApplicationComponent, PersistentStateComponent<Element>, ApplicationInitializedListener {
-    private boolean componentsInitialised = false;
+public class DefaultProjectSettingsManager implements ApplicationComponent, PersistentStateComponent<Element>/*, ApplicationInitializedListener*/ {
+    private boolean componentsInitialised = true;
 
     private final Latent<ProjectSettings> defaultProjectSettings = Latent.basic(() -> {
         ProjectManager projectManager = ProjectManager.getInstance();
@@ -27,7 +26,7 @@ public class DefaultProjectSettingsManager implements ApplicationComponent, Pers
         return new ProjectSettings(defaultProject);
     });
 
-    @Override
+    //@Override
     public void componentsInitialized() {
         componentsInitialised = true;
     }

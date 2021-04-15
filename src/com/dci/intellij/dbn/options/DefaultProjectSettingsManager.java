@@ -3,7 +3,6 @@ package com.dci.intellij.dbn.options;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.component.ApplicationComponent;
 import com.dci.intellij.dbn.common.latent.Latent;
-import com.intellij.diagnostic.LoadingState;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
@@ -49,13 +48,10 @@ public class DefaultProjectSettingsManager implements ApplicationComponent, Pers
     @Nullable
     @Override
     public Element getState() {
-        if (LoadingState.COMPONENTS_LOADED.isOccurred()) {
-            ProjectSettings projectSettings = getDefaultProjectSettings();
-            Element element = new Element("state");
-            projectSettings.writeConfiguration(element);
-            return element;
-        }
-        return null;
+        ProjectSettings projectSettings = getDefaultProjectSettings();
+        Element element = new Element("state");
+        projectSettings.writeConfiguration(element);
+        return element;
     }
 
     @Override

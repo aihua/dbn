@@ -428,13 +428,15 @@ public class StatementExecutionBasicProcessor extends StatefulDisposable.Base im
     }
 
     @Nullable
-    private StatementExecutionResult executeStatement(final String statementText) throws SQLException {
+    private StatementExecutionResult executeStatement(String statementText) throws SQLException {
         ExecutionContext context = getExecutionContext();
         assertNotCancelled();
 
         ConnectionHandler connectionHandler = getTargetConnection();
         DBNConnection connection = context.getConnection();
         DBNStatement statement = connection.createStatement();
+
+        statement.setFetchSize(executionInput.getResultSetFetchBlockSize());
         context.setStatement(statement);
 
         int timeout = context.getTimeout();

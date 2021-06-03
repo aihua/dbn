@@ -15,6 +15,7 @@ import com.dci.intellij.dbn.common.thread.Synchronized;
 import com.dci.intellij.dbn.common.util.ChangeTimestamp;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.EditorUtil;
+import com.dci.intellij.dbn.common.util.InternalApiUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -46,7 +47,6 @@ import com.dci.intellij.dbn.vfs.file.DBContentVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBSourceCodeVirtualFile;
 import com.intellij.openapi.components.PersistentStateComponent;
-import com.intellij.openapi.components.SettingsSavingComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.editor.Document;
@@ -85,7 +85,7 @@ import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
     name = SourceCodeManager.COMPONENT_NAME,
     storages = @Storage(file=DatabaseNavigator.STORAGE_FILE)
 )
-public class SourceCodeManager extends AbstractProjectComponent implements PersistentStateComponent<Element>, SettingsSavingComponent {
+public class SourceCodeManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.SourceCodeManager";
 
     public static SourceCodeManager getInstance(@NotNull Project project) {
@@ -323,7 +323,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
         String objectName = object.getName();
         DBObjectType objectType = object.getObjectType();
 
-        DatabaseDDLInterface ddlInterface = connectionHandler.getInterfaceProvider().getDDLInterface();
+        DatabaseDDLInterface ddlInterface = connectionHandler.getInterfaceProvider().getDdlInterface();
         ddlInterface.computeSourceCodeOffsets(sourceCodeContent, objectType.getTypeId(), objectName);
         return sourceCodeContent;
     }
@@ -469,7 +469,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
 
     private boolean isValidObjectTypeAndName(@NotNull DBLanguagePsiFile psiFile, @NotNull DBSchemaObject object, DBContentType contentType) {
         ConnectionHandler connectionHandler = object.getConnectionHandler();
-        DatabaseDDLInterface ddlInterface = connectionHandler.getInterfaceProvider().getDDLInterface();
+        DatabaseDDLInterface ddlInterface = connectionHandler.getInterfaceProvider().getDdlInterface();
         if (ddlInterface.includesTypeAndNameInSourceContent(object.getObjectType().getTypeId())) {
             PsiElement psiElement = PsiUtil.getFirstLeaf(psiFile);
 
@@ -568,6 +568,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
 
     @Override
     public boolean canCloseProject() {
+        boolean exitApp = InternalApiUtil.isApplicationExitInProgress();
         boolean canClose = true;
         Project project = getProject();
         FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
@@ -589,8 +590,8 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
                                 list(objectDescription),
                                 option -> {
                                     switch (option) {
-                                        case SAVE: saveSourceCodeChanges(databaseFile, () -> closeProject()); break;
-                                        case DISCARD: revertSourceCodeChanges(databaseFile, () -> closeProject()); break;
+                                        case SAVE: saveSourceCodeChanges(databaseFile, () -> closeProject(exitApp)); break;
+                                        case DISCARD: revertSourceCodeChanges(databaseFile, () -> closeProject(exitApp)); break;
                                         case SHOW: {
                                             List<DBSourceCodeVirtualFile> sourceCodeFiles = databaseFile.getSourceCodeFiles();
                                             for (DBSourceCodeVirtualFile sourceCodeFile : sourceCodeFiles) {
@@ -688,12 +689,5 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
 
     @Override
     public void loadState(@NotNull Element element) {
-    }
-
-    /*********************************************
-     *            SettingsSavingComponent        *
-     *********************************************/
-    @Override
-    public void save() {
     }
 }

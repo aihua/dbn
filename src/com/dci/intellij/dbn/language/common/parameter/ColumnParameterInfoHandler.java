@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.language.common.parameter;
 
+import com.dci.intellij.dbn.common.compatibility.Compatibility;
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.impl.IterationElementType;
 import com.dci.intellij.dbn.language.common.element.impl.TokenElementType;
@@ -25,24 +26,28 @@ public class ColumnParameterInfoHandler implements ParameterInfoHandler<BasePsiE
     public static final ObjectReferenceLookupAdapter ARGUMENT_LOOKUP_ADAPTER = new ObjectReferenceLookupAdapter(null, DBObjectType.ARGUMENT, null);
 
     @Override
+    @Compatibility
     public boolean couldShowInLookup() {
         return true;
     }
 
     @Nullable
     @Override
+    @Compatibility
     public Object[] getParametersForLookup(LookupElement item, ParameterInfoContext context) {
         return null;
     }
 
     @Nullable
     @Override
+    @Compatibility
     public Object[] getParametersForDocumentation(BasePsiElement method, ParameterInfoContext context) {
         return null;
     }
 
     @Nullable
     @Override
+    @Compatibility
     public BasePsiElement findElementForParameterInfo(@NotNull CreateParameterInfoContext context) {
         BasePsiElement handlerPsiElement = lookupHandlerElement(context.getFile(), context.getOffset());
         BasePsiElement providerPsiElement = lookupProviderElement(handlerPsiElement);
@@ -128,6 +133,7 @@ public class ColumnParameterInfoHandler implements ParameterInfoHandler<BasePsiE
             if (iterationPsiElement != null) {
                 IterationElementType iterationElementType = (IterationElementType) iterationPsiElement.elementType;
                 PsiElement paramPsiElement = iterationPsiElement.getFirstChild();
+                int paramIndex = -1;
                 BasePsiElement iteratedPsiElement = null;
                 while (paramPsiElement != null) {
                     ElementType elementType = PsiUtil.getElementType(paramPsiElement);
@@ -140,10 +146,12 @@ public class ColumnParameterInfoHandler implements ParameterInfoHandler<BasePsiE
                         }
                     } else if (paramPsiElement instanceof BasePsiElement) {
                         iteratedPsiElement = (BasePsiElement) paramPsiElement;
+                        paramIndex++;
                     }
 
                     paramPsiElement = paramPsiElement.getNextSibling();
                 }
+                context.setCurrentParameter(paramIndex);
                 return iteratedPsiElement == null ? handlerPsiElement : iteratedPsiElement;
             } else {
                 return handlerPsiElement;
@@ -186,11 +194,13 @@ public class ColumnParameterInfoHandler implements ParameterInfoHandler<BasePsiE
 
     @Nullable
     @Override
+    @Compatibility
     public String getParameterCloseChars() {
         return ",";
     }
 
     @Override
+    @Compatibility
     public boolean tracksParameterIndex() {
         return false;
     }
@@ -257,5 +267,10 @@ public class ColumnParameterInfoHandler implements ParameterInfoHandler<BasePsiE
             text.append("<no parameters>");
         }
         context.setupUIComponentPresentation(text.toString(), highlightStartOffset, highlightEndOffset, disable, false, false, context.getDefaultParameterColor());
+    }
+
+    @Override
+    public void processFoundElementForUpdatingParameterInfo(@Nullable BasePsiElement basePsiElement, @NotNull UpdateParameterInfoContext context) {
+        context.setParameterOwner(basePsiElement);
     }
 }

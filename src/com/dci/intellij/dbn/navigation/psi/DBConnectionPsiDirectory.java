@@ -2,9 +2,9 @@ package com.dci.intellij.dbn.navigation.psi;
 
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.SafeDisposer;
-import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.language.common.psi.EmptySearchScope;
+import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.vfs.file.DBConnectionVirtualFile;
 import com.intellij.lang.ASTNode;
 import com.intellij.lang.Language;
@@ -114,15 +114,16 @@ public class DBConnectionPsiDirectory implements PsiDirectory, Disposable {
     @Override
     @NotNull
     public PsiElement[] getChildren() {
-        List<PsiElement> children = new ArrayList<PsiElement>();
-        CollectionUtil.forEach(
-                virtualFile.getConnectionHandler().getObjectBundle().getObjectListContainer().getObjectLists(),
-                objectList -> {
-                    if (!objectList.isInternal() && Failsafe.check(objectList)) {
-                        PsiDirectory psiDirectory = objectList.getPsiDirectory();
-                        children.add(psiDirectory);
-                    }
-                });
+        List<PsiElement> children = new ArrayList<>();
+        DBObjectList[] objectLists = virtualFile.getConnectionHandler().getObjectBundle().getObjectListContainer().getElements();
+        if (objectLists != null) {
+            for (DBObjectList objectList : objectLists) {
+                if (!objectList.isInternal() && Failsafe.check(objectList)) {
+                    PsiDirectory psiDirectory = objectList.getPsiDirectory();
+                    children.add(psiDirectory);
+                }
+            }
+        }
         return children.toArray(new PsiElement[0]);
     }
 
@@ -314,12 +315,12 @@ public class DBConnectionPsiDirectory implements PsiDirectory, Disposable {
     }
 
     @Override
-    public <T> T getCopyableUserData(Key<T> key) {
+    public <T> T getCopyableUserData(@NotNull Key<T> key) {
         return null;  
     }
 
     @Override
-    public <T> void putCopyableUserData(Key<T> key, T value) {
+    public <T> void putCopyableUserData(@NotNull Key<T> key, T value) {
         
     }
 

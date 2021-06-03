@@ -32,7 +32,9 @@ public class CodeCompletionSortingSettingsForm extends ConfigurationEditorForm<C
         resetFormChanges();
         sortingItemsList.setCellRenderer(LIST_CELL_RENDERER);
         sortingItemsList.setFont(UIUtil.getLabelFont());
-        ActionToolbar actionToolbar = ActionUtil.createActionToolbar("", true,
+        ActionToolbar actionToolbar = ActionUtil.createActionToolbar(
+                actionPanel,
+                "", true,
                 new MoveUpAction(sortingItemsList, settings),
                 new MoveDownAction(sortingItemsList, settings));
         actionPanel.add(actionToolbar.getComponent(), BorderLayout.WEST);
@@ -88,7 +90,7 @@ public class CodeCompletionSortingSettingsForm extends ConfigurationEditorForm<C
 
     public static ListCellRenderer LIST_CELL_RENDERER = new ColoredListCellRenderer() {
         @Override
-        protected void customizeCellRenderer(JList list, Object value, int index, boolean selected, boolean hasFocus) {
+        protected void customizeCellRenderer(@NotNull JList list, Object value, int index, boolean selected, boolean hasFocus) {
             CodeCompletionSortingItem sortingItem = (CodeCompletionSortingItem) value;
             DBObjectType objectType = sortingItem.getObjectType();
             if (objectType == null) {

@@ -68,22 +68,22 @@ public interface Colors {
         private final Color tableSelectionBackgroundColor = nvlf(
                 BasicTableTextAttributes.get().getSelection().getBgColor(),
                 getGlobalScheme().getColor(EditorColors.SELECTION_BACKGROUND_COLOR),
-                UIUtil.getTableSelectionBackground(false));
+                UIUtil.getTableSelectionBackground());
 
         private final Color tableSelectionBackgroundColorFocused = nvlf(
                 BasicTableTextAttributes.get().getSelection().getBgColor(),
                 getGlobalScheme().getColor(EditorColors.SELECTION_BACKGROUND_COLOR),
-                UIUtil.getTableSelectionBackground(true));
+                UIUtil.getTableSelectionBackground());
 
         private final Color tableSelectionForegroundColor = nvlf(
                 BasicTableTextAttributes.get().getSelection().getFgColor(),
                 getGlobalScheme().getColor(EditorColors.SELECTION_FOREGROUND_COLOR),
-                UIUtil.getTableSelectionForeground(false));
+                UIUtil.getTableSelectionForeground());
 
         private final Color tableSelectionForegroundColorFocused = nvlf(
                 BasicTableTextAttributes.get().getSelection().getFgColor(),
                 getGlobalScheme().getColor(EditorColors.SELECTION_FOREGROUND_COLOR),
-                UIUtil.getTableSelectionForeground(true));
+                UIUtil.getTableSelectionForeground());
 
 
         private final Color tableLineNumberColor = getGlobalScheme().getColor(EditorColors.LINE_NUMBERS_COLOR);

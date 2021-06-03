@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.common.util;
 
-import com.intellij.diagnostic.LoadingState;
 import com.intellij.openapi.application.ex.ApplicationManagerEx;
 import com.intellij.openapi.util.objectTree.ThrowableInterner;
 import org.jetbrains.annotations.NotNull;
@@ -10,11 +9,11 @@ import org.jetbrains.annotations.NotNull;
  */
 public class InternalApiUtil {
     public static boolean isApplicationExitInProgress() {
-        return ApplicationManagerEx.getApplicationEx().isExitInProgress();
+        return ApplicationManagerEx.getApplicationEx().isDisposeInProgress();
     }
 
     public static boolean isComponentsLoadedOccurred() {
-        return LoadingState.COMPONENTS_LOADED.isOccurred();
+        return true;
     }
 
     @NotNull

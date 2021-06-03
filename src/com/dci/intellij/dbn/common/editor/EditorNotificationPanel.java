@@ -35,22 +35,22 @@ public class EditorNotificationPanel extends JPanel{
         switch (messageType) {
             case INFO: {
                 icon = Icons.COMMON_INFO;
-                background = HintUtil.getInformationColor();
+                background = HintUtil.INFORMATION_COLOR;
                 break;
             }
             case WARNING:{
                 icon = Icons.COMMON_WARNING;
-                background = HintUtil.getInformationColor();
+                background = HintUtil.INFORMATION_COLOR;
                 break;
             }
             case ERROR:{
                 //icon = AllIcons.General.Error;
-                background = HintUtil.getErrorColor();
+                background = HintUtil.ERROR_COLOR;
                 break;
             }
             default:{
                 //icon = AllIcons.General.Information;
-                background = HintUtil.getInformationColor();
+                background = HintUtil.INFORMATION_COLOR;
                 break;
             }
         }

@@ -35,10 +35,7 @@ import com.dci.intellij.dbn.object.common.status.DBObjectStatus;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatusHolder;
 import com.dci.intellij.dbn.vfs.DBConsoleType;
 import com.dci.intellij.dbn.vfs.file.DBConsoleVirtualFile;
-import com.intellij.execution.ExecutionException;
-import com.intellij.execution.Executor;
-import com.intellij.execution.RunManagerEx;
-import com.intellij.execution.RunnerAndConfigurationSettings;
+import com.intellij.execution.*;
 import com.intellij.execution.configurations.ConfigurationType;
 import com.intellij.execution.configurations.RunConfiguration;
 import com.intellij.execution.configurations.RuntimeConfigurationError;
@@ -251,7 +248,7 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
                     debuggerType == DBDebuggerType.JDBC ? DBMethodJdbcRunner.RUNNER_ID :
                     debuggerType == DBDebuggerType.JDWP ? DBMethodJdwpRunner.RUNNER_ID : null;
             if (runnerId != null) {
-                ProgramRunner programRunner = ProgramRunner.findRunnerById(runnerId);
+                ProgramRunner programRunner = RunnerRegistry.getInstance().findRunnerById(runnerId);
                 if (programRunner != null) {
                     try {
                         Executor executorInstance = DefaultDebugExecutor.getDebugExecutorInstance();
@@ -287,7 +284,7 @@ public class DatabaseDebuggerManager extends AbstractProjectComponent implements
                             debuggerType == DBDebuggerType.JDWP ? DBStatementJdwpRunner.RUNNER_ID :
                                     DBProgramRunner.INVALID_RUNNER_ID;
 
-            ProgramRunner programRunner = ProgramRunner.findRunnerById(runnerId);
+            ProgramRunner programRunner = RunnerRegistry.getInstance().findRunnerById(runnerId);
             if (programRunner != null) {
                 try {
                     Executor executorInstance = DefaultDebugExecutor.getDebugExecutorInstance();

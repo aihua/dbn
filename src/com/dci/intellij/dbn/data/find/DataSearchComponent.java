@@ -302,9 +302,9 @@ public class DataSearchComponent extends DBNFormImpl implements SelectionListene
 
     public void showHistory(boolean byClickingToolbarButton, JTextField textField) {
         FeatureUsageTracker.getInstance().triggerFeatureUsed("find.recent.search");
-        FindSettings settings = FindSettings.getInstance();
+        FindInProjectSettings settings = getFindSettings();
         String[] recent = textField == searchField ? settings.getRecentFindStrings() : settings.getRecentReplaceStrings();
-        JBList list = new JBList((Object[]) ArrayUtil.reverseArray(recent));
+        JBList<String> list = new JBList<>(ArrayUtil.reverseArray(recent));
         CompatibilityUtil.showSearchCompletionPopup(byClickingToolbarButton, actionsPanel, list, "Recent Searches", textField);
     }
 

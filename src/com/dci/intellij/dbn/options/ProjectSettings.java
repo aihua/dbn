@@ -5,6 +5,7 @@ import com.dci.intellij.dbn.code.common.completion.options.CodeCompletionSetting
 import com.dci.intellij.dbn.code.common.style.options.ProjectCodeStyleSettings;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.LoggerFactory;
+import com.dci.intellij.dbn.common.compatibility.Compatibility;
 import com.dci.intellij.dbn.common.options.CompositeProjectConfiguration;
 import com.dci.intellij.dbn.common.options.Configuration;
 import com.dci.intellij.dbn.common.options.ProjectConfiguration;
@@ -18,7 +19,7 @@ import com.dci.intellij.dbn.editor.data.options.DataEditorSettings;
 import com.dci.intellij.dbn.execution.common.options.ExecutionEngineSettings;
 import com.dci.intellij.dbn.navigation.options.NavigationSettings;
 import com.dci.intellij.dbn.options.general.GeneralProjectSettings;
-import com.dci.intellij.dbn.options.ui.ProjectSettingsEditorForm;
+import com.dci.intellij.dbn.options.ui.ProjectSettingsForm;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.options.ConfigurationException;
@@ -33,7 +34,7 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 
 public class ProjectSettings
-        extends CompositeProjectConfiguration<ProjectConfiguration, ProjectSettingsEditorForm>
+        extends CompositeProjectConfiguration<ProjectConfiguration, ProjectSettingsForm>
         implements SearchableConfigurable.Parent, Cloneable<ProjectSettings> {
 
     private static final Logger LOGGER = LoggerFactory.createLogger();
@@ -57,7 +58,7 @@ public class ProjectSettings
 
     @Override
     public String getHelpTopic() {
-        ProjectSettingsEditorForm settingsEditor = getSettingsEditor();
+        ProjectSettingsForm settingsEditor = getSettingsEditor();
         if (settingsEditor == null) {
             return super.getHelpTopic();
         } else {
@@ -117,8 +118,8 @@ public class ProjectSettings
      *********************************************************/
     @Override
     @NotNull
-    public ProjectSettingsEditorForm createConfigurationEditor() {
-        return new ProjectSettingsEditorForm(this);
+    public ProjectSettingsForm createConfigurationEditor() {
+        return new ProjectSettingsForm(this);
     }
 
     @Override
@@ -147,6 +148,7 @@ public class ProjectSettings
     }
 
     @Override
+    @Compatibility
     public boolean isVisible() {
         return true;
     }

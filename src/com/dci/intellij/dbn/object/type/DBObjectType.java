@@ -10,15 +10,9 @@ import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.EnumMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.StringTokenizer;
+import java.util.*;
 
+@Getter
 public enum DBObjectType implements DynamicContentType<DBObjectType> {
     
     ATTRIBUTE(DatabaseObjectTypeId.ATTRIBUTE, "attribute", "attribute", Icons.DBO_ATTRIBUTE, null, Icons.DBO_ATTRIBUTES, false),
@@ -110,22 +104,22 @@ public enum DBObjectType implements DynamicContentType<DBObjectType> {
     INCOMING_DEPENDENCY(DatabaseObjectTypeId.INCOMING_DEPENDENCY, "incoming dependency", "incoming dependencies", null, null, null, true),
     OUTGOING_DEPENDENCY(DatabaseObjectTypeId.INCOMING_DEPENDENCY, "outgoing dependency", "outgoing dependencies", null, null, null, true);
 
-    private final @Getter DatabaseObjectTypeId typeId;
-    private final @Getter String name;
-    private final @Getter String listName;
-    private final @Getter String presentableListName;
-    private final @Getter Icon icon;
+    private final DatabaseObjectTypeId typeId;
+    private final String name;
+    private final String listName;
+    private final String presentableListName;
+    private final Icon icon;
     private final Icon disabledIcon;
-    private final @Getter Icon listIcon;
-    private final @Getter boolean generic;
+    private final Icon listIcon;
+    private final boolean generic;
 
     private DBObjectType genericType;
-    private @Getter DBContentType contentType = DBContentType.NONE;
-    private final @Getter Set<DBObjectType> parents = new HashSet<>();
-    private final @Getter Set<DBObjectType> genericParents = new HashSet<>();
-    private final @Getter Set<DBObjectType> children = new HashSet<>();
-    private final @Getter Set<DBObjectType> inheritingTypes = new HashSet<>();
-    private final @Getter Set<DBObjectType> thisAsSet = new HashSet<>();
+    private DBContentType contentType = DBContentType.NONE;
+    private final Set<DBObjectType> parents = new HashSet<>();
+    private final Set<DBObjectType> genericParents = new HashSet<>();
+    private final Set<DBObjectType> children = new HashSet<>();
+    private final Set<DBObjectType> inheritingTypes = new HashSet<>();
+    private final Set<DBObjectType> thisAsSet = new HashSet<>();
     private Set<DBObjectType> familyTypes;
 
     private Map<DBContentType, Icon> icons;
@@ -447,7 +441,7 @@ public enum DBObjectType implements DynamicContentType<DBObjectType> {
 
     public static DBObjectType forListName(String name, DBObjectType parent) {
         for (DBObjectType objectType : values()) {
-            if (objectType.getListName().equals(name) && (parent == null || objectType.getParents().contains(parent))) {
+            if (Objects.equals(objectType.getListName(), name) && (parent == null || objectType.getParents().contains(parent))) {
                 return objectType;
             }
         }

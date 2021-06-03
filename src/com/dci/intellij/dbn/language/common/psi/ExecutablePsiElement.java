@@ -2,12 +2,14 @@ package com.dci.intellij.dbn.language.common.psi;
 
 import com.dci.intellij.dbn.code.common.style.options.CodeStyleCaseOption;
 import com.dci.intellij.dbn.code.common.style.options.CodeStyleCaseSettings;
+import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.util.Cloneable;
+import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.execution.statement.processor.StatementExecutionProcessor;
 import com.dci.intellij.dbn.language.common.WeakRef;
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.impl.NamedElementType;
-import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.lang.ASTNode;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
@@ -16,8 +18,13 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 
+import static com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute.*;
+
 public class ExecutablePsiElement extends NamedPsiElement implements Cloneable<ExecutablePsiElement> {
     private WeakRef<StatementExecutionProcessor> executionProcessor;
+    private final Latent<ElementType> specificElementType =         Latent.mutable(() -> getFileModificationStamp(), () -> resolveSpecificElementType(false));
+    private final Latent<ElementType> specificOverrideElementType = Latent.mutable(() -> getFileModificationStamp(), () -> resolveSpecificElementType(true));
+    private final Latent<SchemaId> contextSchema =                  Latent.mutable(() -> getFileModificationStamp(), () -> resolveContextSchema());
 
     public String prepareStatementText(){
         PsiElement lastChild = getLastChild();
@@ -38,20 +45,78 @@ public class ExecutablePsiElement extends NamedPsiElement implements Cloneable<E
         super(astNode, elementType);
     }
 
+    @Override
+    public ElementType getSpecificElementType() {
+        return getSpecificElementType(false);
+    }
+
+    @Override
+    public ElementType getSpecificElementType(boolean override) {
+        return override ?
+                specificOverrideElementType.get() :
+                specificElementType.get();
+    }
+
     public boolean isQuery() {
-        return getSpecificElementType().is(ElementTypeAttribute.QUERY);
+        return getSpecificElementType().is(QUERY);
     }
 
     public boolean isTransactional() {
-        return is(ElementTypeAttribute.TRANSACTIONAL) || getSpecificElementType().is(ElementTypeAttribute.TRANSACTIONAL);
+        return is(TRANSACTIONAL) || getSpecificElementType().is(TRANSACTIONAL);
     }
 
-    public boolean isPotentiallyTransactional() {
-        return is(ElementTypeAttribute.POTENTIALLY_TRANSACTIONAL) || getSpecificElementType().is(ElementTypeAttribute.POTENTIALLY_TRANSACTIONAL);
+    public boolean isTransactionalCandidate() {
+        return is(TRANSACTIONAL_CANDIDATE) || getSpecificElementType().is(TRANSACTIONAL_CANDIDATE);
     }
 
     public boolean isTransactionControl() {
-        return getSpecificElementType().is(ElementTypeAttribute.TRANSACTION_CONTROL);
+        return getSpecificElementType().is(TRANSACTION_CONTROL);
+    }
+
+    public boolean isSchemaChange() {
+        return is(SCHEMA_CHANGE) ||
+                getSpecificElementType(true).is(SCHEMA_CHANGE) ||
+                getSpecificElementType(false).is(SCHEMA_CHANGE);
+    }
+
+    @Nullable
+    public SchemaId getSchemaChangeTargetId() {
+        BasePsiElement subjectPsiElement = findFirstPsiElement(SUBJECT);
+        if (subjectPsiElement != null) {
+            ConnectionHandler connectionHandler = getConnectionHandler();
+            if (connectionHandler != null) {
+                return connectionHandler.getSchemaId(subjectPsiElement.getText());
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    public ExecutablePsiElement resolveSchemaChangeExecutable() {
+        PsiElement psiElement = getPrevSibling();
+        while (psiElement != null && psiElement != this) {
+            if (psiElement instanceof ExecutablePsiElement) {
+                ExecutablePsiElement executablePsiElement = (ExecutablePsiElement) psiElement;
+                if (executablePsiElement.isSchemaChange()) {
+                    return executablePsiElement;
+                }
+            }
+            psiElement = psiElement.getPrevSibling();
+        }
+        return null;
+    }
+
+    @Nullable
+    private SchemaId resolveContextSchema() {
+        ExecutablePsiElement executablePsiElement = resolveSchemaChangeExecutable();
+        if (executablePsiElement != null) {
+            return executablePsiElement.getSchemaChangeTargetId();
+        }
+        return null;
+    }
+
+    public SchemaId getContextSchema() {
+        return contextSchema.get();
     }
 
     public boolean isNestedExecutable() {
@@ -94,20 +159,20 @@ public class ExecutablePsiElement extends NamedPsiElement implements Cloneable<E
         String subject = null;
         String action = "";
         String subjectType = "";
-        if (is(ElementTypeAttribute.DATA_DEFINITION)) {
-            IdentifierPsiElement subjectPsiElement = (IdentifierPsiElement) findFirstPsiElement(ElementTypeAttribute.SUBJECT);
+        if (is(DATA_DEFINITION)) {
+            IdentifierPsiElement subjectPsiElement = (IdentifierPsiElement) findFirstPsiElement(SUBJECT);
             if (subjectPsiElement != null) {
                 subject = subjectPsiElement.getUnquotedText().toString();
             }
-            BasePsiElement actionPsiElement = findFirstPsiElement(ElementTypeAttribute.ACTION);
+            BasePsiElement actionPsiElement = findFirstPsiElement(ACTION);
             if (actionPsiElement != null) {
                 action = actionPsiElement.getText() + " ";
                 if (subjectPsiElement != null) {
-                    BasePsiElement compilableBlockPsiElement = findFirstPsiElement(ElementTypeAttribute.COMPILABLE_BLOCK);
+                    BasePsiElement compilableBlockPsiElement = findFirstPsiElement(COMPILABLE_BLOCK);
                     if (compilableBlockPsiElement != null) {
                         DBObjectType objectType = subjectPsiElement.getObjectType();
                         subjectType = objectType.getName().toUpperCase() + " ";
-                        if (compilableBlockPsiElement.is(ElementTypeAttribute.OBJECT_DECLARATION)) {
+                        if (compilableBlockPsiElement.is(OBJECT_DECLARATION)) {
                             subjectType += "BODY ";
                         }
                     }

@@ -60,6 +60,7 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
         Font font = getFont();//UIUtil.getListFont();
         setFont(font);
         setBackground(UIUtil.getTextFieldBackground());
+        setTransferHandler(DBNTableTransferHandler.INSTANCE);
 
         adjustRowHeight(1);
 
@@ -108,11 +109,19 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
         SafeDisposer.dispose(oldDataModel, false, true);
     }
 
+    protected void initTableSorter() {
+        setRowSorter(new DBNTableSorter(getModel()));
+        JTableHeader tableHeader = getTableHeader();
+        if (tableHeader != null) {
+            tableHeader.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        }
+    }
+
     private void updateComponentColors() {
         setGridColor(Colors.tableGridColor());
 
-        setSelectionBackground(Colors.tableSelectionBackgroundColor());
-        setSelectionForeground(Colors.tableSelectionForegroundColor());
+        setSelectionBackground(Colors.tableSelectionBackgroundColor(true));
+        setSelectionForeground(Colors.tableSelectionForegroundColor(true));
     }
 
     protected void adjustRowHeight(int padding) {
@@ -280,6 +289,17 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
             }
         }
 
+    }
+
+    public String getPresentableValueAt(int selectedRow, int selectedColumn) {
+        Object value = getValueAt(selectedRow, selectedColumn);
+        String presentableValue;
+        try {
+            presentableValue = getModel().getPresentableValue(value, selectedColumn);
+        } catch (UnsupportedOperationException e) {
+            presentableValue = value == null ? null : value.toString();
+        }
+        return presentableValue;
     }
 
     private class ScrollTask extends TimerTask {

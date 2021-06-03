@@ -14,6 +14,7 @@ import java.util.Map;
 
 @Getter
 public abstract class DBLanguageSyntaxHighlighter extends SyntaxHighlighterBase {
+    public static final TextAttributesKey[] EMPTY_ARRAY = new TextAttributesKey[0];
     protected Map colors = new HashMap<>();
     protected Map backgrounds = new HashMap();
 
@@ -42,7 +43,7 @@ public abstract class DBLanguageSyntaxHighlighter extends SyntaxHighlighterBase 
                         getAttributeKeys(tokenType, backgrounds),
                         getAttributeKeys(tokenType, colors)));
         } else {
-            return TextAttributesKey.EMPTY_ARRAY;
+            return EMPTY_ARRAY;
         }
     }
 

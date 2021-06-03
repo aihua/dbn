@@ -26,7 +26,6 @@ public class DBJdbcDebugValueModifier extends XValueModifier {
         setValue(new XExpressionImpl(expression, SQLLanguage.INSTANCE, null), callback);
     }
 
-    @Override
     public void setValue(@NotNull XExpression expr, @NotNull XModificationCallback callback) {
         String expression = expr.getExpression();
         DBJdbcDebugProcess debugProcess = value.getDebugProcess();

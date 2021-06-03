@@ -63,7 +63,7 @@ public class SessionBrowserDetailsForm extends DBNFormImpl{
             detailsTabbedPane.addTab(explainPlanTabInfo);
         }
 
-        detailsTabbedPane.addListener(new TabsListener(){
+        detailsTabbedPane.addListener(new TabsListener.Adapter(){
             @Override
             public void selectionChanged(TabInfo oldSelection, TabInfo newSelection) {
                 if (newSelection.getText().equals("Explain Plan")) {

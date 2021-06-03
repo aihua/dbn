@@ -21,7 +21,6 @@ public class DBExecutionTargetProvider extends ExecutionTargetProvider{
     }
 
     @NotNull
-    @Override
     public List<ExecutionTarget> getTargets(@NotNull Project project, @NotNull RunConfiguration config) {
         if (config instanceof DBRunConfig) {
             return DBExecutionTarget.asList();

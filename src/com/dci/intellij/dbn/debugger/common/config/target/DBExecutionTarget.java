@@ -50,7 +50,6 @@ public class DBExecutionTarget extends ExecutionTarget{
         return canRun(configuration.getConfiguration());
     }
 
-    @Override
     public boolean canRun(@NotNull RunConfiguration configuration) {
         return configuration instanceof DBRunConfig ;
     }

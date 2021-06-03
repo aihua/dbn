@@ -5,7 +5,6 @@ import com.dci.intellij.dbn.common.message.MessageType;
 import com.dci.intellij.dbn.common.util.Context;
 import com.intellij.codeInsight.hint.HintUtil;
 import com.intellij.openapi.actionSystem.ActionManager;
-import com.intellij.openapi.actionSystem.ActionPlaces;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.ui.HyperlinkAdapter;
@@ -17,6 +16,7 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.*;
 import javax.swing.event.HyperlinkEvent;
 import java.awt.*;
+import java.util.UUID;
 
 public class EditorNotificationPanel extends JPanel{
     protected final JLabel label = new JLabel();
@@ -35,22 +35,22 @@ public class EditorNotificationPanel extends JPanel{
         switch (messageType) {
             case INFO: {
                 icon = Icons.COMMON_INFO;
-                background = HintUtil.INFORMATION_COLOR;
+                background = HintUtil.getInformationColor();
                 break;
             }
             case WARNING:{
                 icon = Icons.COMMON_WARNING;
-                background = HintUtil.INFORMATION_COLOR;
+                background = HintUtil.getInformationColor();
                 break;
             }
             case ERROR:{
                 //icon = AllIcons.General.Error;
-                background = HintUtil.ERROR_COLOR;
+                background = HintUtil.getErrorColor();
                 break;
             }
             default:{
                 //icon = AllIcons.General.Information;
-                background = HintUtil.INFORMATION_COLOR;
+                background = HintUtil.getInformationColor();
                 break;
             }
         }
@@ -94,7 +94,7 @@ public class EditorNotificationPanel extends JPanel{
 
     private void executeAction(final String actionId) {
         AnAction action = ActionManager.getInstance().getAction(actionId);
-        AnActionEvent event = new AnActionEvent(null, Context.getDataContext(this), ActionPlaces.UNKNOWN,
+        AnActionEvent event = new AnActionEvent(null, Context.getDataContext(this), UUID.randomUUID().toString(),
                 action.getTemplatePresentation(), ActionManager.getInstance(),
                 0);
         action.beforeActionPerformedUpdate(event);

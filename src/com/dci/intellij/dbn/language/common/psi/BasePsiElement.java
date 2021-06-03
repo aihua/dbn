@@ -212,11 +212,15 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
         return null;
     }
 
+    public long getFileModificationStamp() {
+        return getFile().getModificationStamp();
+    }
+
     public String toString() {
         //return elementType.is(ElementTypeAttribute.SCOPE_DEMARCATION);
         return hasErrors() ?
-                "[INVALID] " + elementType.getDebugName() :
-                elementType.getDebugName() +
+                "[INVALID] " + elementType.getId() :
+                elementType.getId() +
                         (elementType.isScopeDemarcation() ? " SCOPE_DEMARCATION" : "") +
                         (elementType.isScopeIsolation() ? " SCOPE_ISOLATION" : "");
     }
@@ -658,9 +662,20 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
     }
 
     public ElementType getSpecificElementType() {
+        return getSpecificElementType(false);
+    }
+
+    public ElementType getSpecificElementType(boolean override) {
+        return resolveSpecificElementType(override);
+    }
+
+    protected ElementType resolveSpecificElementType(boolean override) {
         ElementType elementType = this.elementType;
         if (elementType.is(ElementTypeAttribute.GENERIC)) {
-            BasePsiElement specificElement = findFirstPsiElement(ElementTypeAttribute.SPECIFIC);
+
+            BasePsiElement specificElement = override ?
+                    findFirstPsiElement(ElementTypeAttribute.SPECIFIC_OVERRIDE) :
+                    findFirstPsiElement(ElementTypeAttribute.SPECIFIC);
             if (specificElement != null) {
                 elementType = specificElement.elementType;
             }
@@ -733,5 +748,6 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
         }
         return QuoteDefinition.DEFAULT_IDENTIFIER_QUOTE_DEFINITION;
     }
+
 
 }

@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.language.common;
 
-import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.util.CommonUtil;
+import com.dci.intellij.dbn.environment.Environment;
 import com.dci.intellij.dbn.language.common.element.ElementTypeBundle;
 import com.dci.intellij.dbn.language.common.element.impl.NamedElementType;
 import com.dci.intellij.dbn.language.common.element.parser.ParserBuilder;
@@ -11,14 +11,16 @@ import com.intellij.lang.ASTNode;
 import com.intellij.lang.PsiBuilder;
 import com.intellij.lang.PsiParser;
 import com.intellij.psi.tree.IElementType;
+import lombok.Getter;
 import org.jdom.Document;
 import org.jetbrains.annotations.NotNull;
 
+@Getter
 public abstract class DBLanguageParser implements PsiParser {
-    private DBLanguageDialect languageDialect;
-    private ElementTypeBundle elementTypes;
-    private TokenTypeBundle tokenTypes;
-    private String defaultParseRootId;
+    private final DBLanguageDialect languageDialect;
+    private final ElementTypeBundle elementTypes;
+    private final TokenTypeBundle tokenTypes;
+    private final String defaultParseRootId;
 
     public DBLanguageParser(DBLanguageDialect languageDialect, String tokenTypesFile, String elementTypesFile, String defaultParseRootId) {
         this.languageDialect = languageDialect;
@@ -32,13 +34,9 @@ public abstract class DBLanguageParser implements PsiParser {
         return getClass();
     }
 
-    public DBLanguageDialect getLanguageDialect() {
-        return languageDialect;
-    }
-
     @Override
     @NotNull
-    public ASTNode parse(IElementType rootElementType, PsiBuilder builder) {
+    public ASTNode parse(@NotNull IElementType rootElementType, @NotNull PsiBuilder builder) {
         return parse(rootElementType, builder, defaultParseRootId, 9999);
     }
 
@@ -47,7 +45,7 @@ public abstract class DBLanguageParser implements PsiParser {
         ParserContext context = new ParserContext(psiBuilder, languageDialect, databaseVersion);
         ParserBuilder builder = context.builder;
         if (parseRootId == null ) parseRootId = defaultParseRootId;
-        builder.setDebugMode(DatabaseNavigator.DEBUG);
+        builder.setDebugMode(Environment.DEBUG_MODE);
         PsiBuilder.Marker marker = builder.mark(null);
         NamedElementType root =  elementTypes.getNamedElementType(parseRootId);
         if (root == null) {
@@ -96,13 +94,5 @@ public abstract class DBLanguageParser implements PsiParser {
         if (!advancedLexer) builder.advanceLexer(rootParseNode);
         marker.done(rootElementType);
         return builder.getTreeBuilt();
-    }
-
-    public TokenTypeBundle getTokenTypes() {
-        return tokenTypes;
-    }
-
-    public ElementTypeBundle getElementTypes() {
-        return elementTypes;
     }
 }

@@ -10,6 +10,7 @@ import com.intellij.openapi.util.SystemInfo;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
 import com.intellij.ui.components.JBList;
+import com.intellij.ui.popup.PopupState;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;

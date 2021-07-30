@@ -16,7 +16,7 @@ import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
+import javax.swing.Icon;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -99,13 +99,9 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
 
     @NotNull
     @Override
-    public final String getPath() {
+    public final synchronized String getPath() {
         if (path == null) {
-            synchronized (this) {
-                if (path == null) {
-                    path = createPath();
-                }
-            }
+            path = createPath();
         }
         return path;
     }
@@ -123,13 +119,9 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
 
     @NotNull
     @Override
-    public final String getUrl() {
+    public final synchronized String getUrl() {
         if (url == null) {
-            synchronized (this) {
-                if (url == null) {
-                    url = createUrl();
-                }
-            }
+            url = createUrl();
         }
         return url;
     }

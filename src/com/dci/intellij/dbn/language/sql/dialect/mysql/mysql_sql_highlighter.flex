@@ -1,16 +1,14 @@
 package com.dci.intellij.dbn.language.sql.dialect.mysql;
 
+import com.dci.intellij.dbn.language.common.TokenTypeBundle;
 import com.intellij.lexer.FlexLexer;
 import com.intellij.psi.tree.IElementType;
-import com.dci.intellij.dbn.language.sql.SQLLanguage;
-import com.dci.intellij.dbn.language.common.TokenTypeBundle;
 
 %%
 
 %class MysqlSQLHighlighterFlexLexer
 %implements FlexLexer
 %public
-%pack
 %final
 %unicode
 %ignorecase
@@ -21,7 +19,6 @@ import com.dci.intellij.dbn.language.common.TokenTypeBundle;
 
 
 %{
-    private int braceCounter = 0;
     private TokenTypeBundle tt;
     public MysqlSQLHighlighterFlexLexer(TokenTypeBundle tt) {
         this.tt = tt;

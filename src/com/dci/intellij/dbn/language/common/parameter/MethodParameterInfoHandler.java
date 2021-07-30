@@ -1,5 +1,8 @@
 package com.dci.intellij.dbn.language.common.parameter;
 
+import com.dci.intellij.dbn.code.common.style.options.CodeStyleCaseOption;
+import com.dci.intellij.dbn.code.common.style.options.CodeStyleCaseSettings;
+import com.dci.intellij.dbn.code.psql.style.options.PSQLCodeStyleSettings;
 import com.dci.intellij.dbn.common.compatibility.Compatibility;
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.impl.IterationElementType;
@@ -197,6 +200,11 @@ public class MethodParameterInfoHandler implements ParameterInfoHandler<BasePsiE
 
     @Override
     public void updateUI(DBMethod method, @NotNull ParameterInfoUIContext context) {
+        PSQLCodeStyleSettings codeStyleSettings = PSQLCodeStyleSettings.getInstance(method.getProject());
+        CodeStyleCaseSettings caseSettings = codeStyleSettings.getCaseSettings();
+        CodeStyleCaseOption datatypeCaseOption = caseSettings.getDatatypeCaseOption();
+        CodeStyleCaseOption objectCaseOption = caseSettings.getObjectCaseOption();
+
         context.setUIComponentEnabled(true);
         StringBuilder text = new StringBuilder();
         int highlightStartOffset = 0;
@@ -212,7 +220,9 @@ public class MethodParameterInfoHandler implements ParameterInfoHandler<BasePsiE
                 if (text.length() > 0) {
                     text.append(", ");
                 }
-                text.append(argument.getName().toLowerCase());
+                text.append(objectCaseOption.format(argument.getName()));
+                text.append(" ");
+                text.append(datatypeCaseOption.format(argument.getDataType().getName()));
                 //text.append(" ");
                 //text.append(argument.getDataType().getQualifiedName());
                 if (highlight) {

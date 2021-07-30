@@ -1,17 +1,15 @@
 package com.dci.intellij.dbn.language.sql.dialect.postgres;
 
+import com.dci.intellij.dbn.language.common.DBLanguageDialectIdentifier;
+import com.dci.intellij.dbn.language.common.TokenTypeBundle;
 import com.intellij.lexer.FlexLexer;
 import com.intellij.psi.tree.IElementType;
-import com.dci.intellij.dbn.language.sql.SQLLanguage;
-import com.dci.intellij.dbn.language.common.TokenTypeBundle;
-import com.dci.intellij.dbn.language.common.DBLanguageDialectIdentifier;
 
 %%
 
 %class PostgresSQLParserFlexLexer
 %implements FlexLexer
 %public
-%pack
 %final
 %unicode
 %ignorecase

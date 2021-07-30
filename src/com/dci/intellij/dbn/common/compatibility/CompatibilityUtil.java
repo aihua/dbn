@@ -11,9 +11,8 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.JComponent;
-import javax.swing.UIManager;
-import java.awt.Color;
+import javax.swing.*;
+import java.awt.*;
 
 public class CompatibilityUtil {
     private static final Key<PsiFile> HARD_REF_TO_PSI = Key.create("HARD_REFERENCE_TO_PSI");
@@ -21,11 +20,6 @@ public class CompatibilityUtil {
     public static Color getEditorBackgroundColor(EditorEx editorEx) {
         return editorEx.getBackgroundColor();
     }
-
-    public static void showSearchCompletionPopup(boolean byClickingToolbarButton, JComponent toolbarComponent, JBList list, String title, JTextField textField) {
-        Utils.showCompletionPopup(byClickingToolbarButton ? toolbarComponent : null, list, title, textField, "");
-    }
-
 
     public static void setSmallerFont(JComponent component) {
         Utils.setSmallerFont(component);

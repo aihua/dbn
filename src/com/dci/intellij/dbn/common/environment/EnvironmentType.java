@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.common.environment;
 
 import com.dci.intellij.dbn.common.options.PersistentConfiguration;
-import com.dci.intellij.dbn.common.options.setting.SettingsSupport;
 import com.dci.intellij.dbn.common.ui.Presentable;
 import com.dci.intellij.dbn.common.util.Cloneable;
 import com.dci.intellij.dbn.common.util.CommonUtil;
@@ -9,17 +8,23 @@ import com.dci.intellij.dbn.common.util.StringUtil;
 import com.intellij.ui.JBColor;
 import com.intellij.util.ui.ColorIcon;
 import com.intellij.util.ui.UIUtil;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.Icon;
+import java.awt.Color;
 
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.getBooleanAttribute;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.setBooleanAttribute;
 
-public class EnvironmentType implements Cloneable<EnvironmentType>, PersistentConfiguration, Presentable, SettingsSupport {
+@Getter
+@Setter
+@EqualsAndHashCode
+public class EnvironmentType implements Cloneable<EnvironmentType>, PersistentConfiguration, Presentable {
 
     private static final Color DEFAULT_REGULAR_COLOR = Color.LIGHT_GRAY;
     private static final Color DEFAULT_DARK_COLOR = Color.DARK_GRAY;
@@ -63,7 +68,11 @@ public class EnvironmentType implements Cloneable<EnvironmentType>, PersistentCo
     }
 
     public EnvironmentType() {
-        id = EnvironmentTypeId.create();
+        this(EnvironmentTypeId.create());
+    }
+
+    public EnvironmentType(EnvironmentTypeId id) {
+        this.id = id;
     }
 
     public EnvironmentType(EnvironmentTypeId id, String name, String description, Color regularColor, Color darkColor, boolean readonlyCode, boolean dataEditable) {
@@ -74,10 +83,6 @@ public class EnvironmentType implements Cloneable<EnvironmentType>, PersistentCo
         this.darkColor = darkColor;
         this.readonlyCode = readonlyCode;
         this.readonlyData = dataEditable;
-    }
-
-    public EnvironmentTypeId getId() {
-        return id;
     }
 
     @Override
@@ -91,19 +96,6 @@ public class EnvironmentType implements Cloneable<EnvironmentType>, PersistentCo
     public Icon getIcon() {
         JBColor color = getColor();
         return color == null ? null : new ColorIcon(12, color);
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    @Override
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
     }
 
     @Nullable
@@ -131,22 +123,6 @@ public class EnvironmentType implements Cloneable<EnvironmentType>, PersistentCo
             darkColor = color; else
             regularColor = color;
         this.color = null;
-    }
-
-    public boolean isReadonlyCode() {
-        return readonlyCode;
-    }
-
-    public void setReadonlyCode(boolean readonlyCode) {
-        this.readonlyCode = readonlyCode;
-    }
-
-    public boolean isReadonlyData() {
-        return readonlyData;
-    }
-
-    public void setReadonlyData(boolean readonlyData) {
-        this.readonlyData = readonlyData;
     }
 
     @Override

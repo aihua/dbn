@@ -1,14 +1,13 @@
 package com.dci.intellij.dbn.common.property;
 
 import com.dci.intellij.dbn.common.util.Cloneable;
-import com.dci.intellij.dbn.common.util.Unsafe;
+import lombok.SneakyThrows;
 import org.jetbrains.annotations.Nullable;
 
 public abstract class PropertyHolderImpl<T extends Property> implements PropertyHolder<T>, Cloneable<PropertyHolder<T>> {
-    //private static PrimeNumberIndex INDEX = new PrimeNumberIndex(100);
+    private volatile long computed = 0;
 
-    private long computed = 0;
-
+    @SafeVarargs
     public PropertyHolderImpl(T ... properties) {
         for (T property : properties()) {
             if (property.implicit()) {
@@ -24,7 +23,7 @@ public abstract class PropertyHolderImpl<T extends Property> implements Property
 
     protected abstract T[] properties();
 
-    protected void replace(PropertyHolderImpl<T> source) {
+    protected synchronized void replace(PropertyHolderImpl<T> source) {
         this.computed = source.computed;
     }
 
@@ -41,7 +40,7 @@ public abstract class PropertyHolderImpl<T extends Property> implements Property
         return (computed & idx) == idx;
     }
 
-    private boolean set(T property) {
+    private synchronized boolean set(T property) {
         if (isNot(property)) {
             PropertyGroup group = property.group();
             if (group != null) {
@@ -59,7 +58,7 @@ public abstract class PropertyHolderImpl<T extends Property> implements Property
         return false;
     }
 
-    private boolean unset(T property) {
+    private synchronized boolean unset(T property) {
         if (is(property)) {
             computed -= property.index();
 
@@ -78,7 +77,7 @@ public abstract class PropertyHolderImpl<T extends Property> implements Property
         return false;
     }
 
-    public void reset() {
+    public synchronized void reset() {
         computed = 0;
         for (T property : properties()) {
             if (property.implicit()) {
@@ -120,14 +119,15 @@ public abstract class PropertyHolderImpl<T extends Property> implements Property
                 if (builder.length() > 0) {
                     builder.append(" / ");
                 }
-                builder.append(property.toString());
+                builder.append(property);
             }
         }
         return builder.toString();
     }
 
     @Override
+    @SneakyThrows
     public PropertyHolder<T> clone() {
-        return Unsafe.call(() -> (PropertyHolder<T>) super.clone());
+        return (PropertyHolder<T>) super.clone();
     }
 }

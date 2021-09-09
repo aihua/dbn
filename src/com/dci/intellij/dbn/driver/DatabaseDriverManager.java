@@ -1,15 +1,14 @@
 package com.dci.intellij.dbn.driver;
 
-import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.component.ApplicationComponent;
 import com.dci.intellij.dbn.common.latent.MapLatent;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.util.FileUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
-import com.dci.intellij.dbn.common.util.Unsafe;
 import com.dci.intellij.dbn.connection.DatabaseType;
 import com.intellij.openapi.application.ApplicationManager;
-import com.intellij.openapi.diagnostic.Logger;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -39,8 +38,8 @@ import java.util.jar.JarFile;
  * <li>Reload JDBC driver libraries</li>
  * </ol>
  */
+@Slf4j
 public class DatabaseDriverManager implements ApplicationComponent {
-    private static final Logger LOGGER = LoggerFactory.createLogger();
 
     private static final Map<DatabaseType, String> BUNDLED_LIBS = new HashMap<>();
     static {
@@ -50,7 +49,7 @@ public class DatabaseDriverManager implements ApplicationComponent {
     }
 
 
-    private final MapLatent<File, List<Driver>, Exception> driversCache =
+    private final MapLatent<File, List<Driver>> driversCache =
             MapLatent.create(file -> loadDrivers(file));
 
     public static DatabaseDriverManager getInstance() {
@@ -78,7 +77,7 @@ public class DatabaseDriverManager implements ApplicationComponent {
 
             return driversCache.get(libraryFile);
         } catch (Exception e) {
-            LOGGER.warn("failed to load drivers from library " + libraryFile, e);
+            log.warn("failed to load drivers from library " + libraryFile, e);
             throw e;
         }
     }
@@ -93,11 +92,11 @@ public class DatabaseDriverManager implements ApplicationComponent {
                 }
             }
         } catch (Throwable t) {
-            LOGGER.warn("Failed to dispose class loader", t);
+            log.warn("Failed to dispose class loader", t);
         }
     }
 
-    private List<Driver> loadDrivers(File libraryFile) throws Exception {
+    private List<Driver> loadDrivers(File libraryFile) {
         String taskDescription = ProgressMonitor.getTaskDescription();
         try {
             ProgressMonitor.setTaskDescription("Loading jdbc drivers from " + libraryFile);
@@ -110,7 +109,7 @@ public class DatabaseDriverManager implements ApplicationComponent {
                     URL[] urls = Arrays.
                             stream(files).
                             filter(file -> file.getName().endsWith(".jar")).
-                            map(file -> Unsafe.call(() -> file.toURI().toURL())).
+                            map(file -> getFileUrl(file)).
                             toArray(URL[]::new);
 
                     ClassLoader classLoader = new DriverClassLoader(urls, parentClassLoader);
@@ -119,7 +118,7 @@ public class DatabaseDriverManager implements ApplicationComponent {
 
                 return drivers;
             } else {
-                URL[] urls = new URL[]{libraryFile.toURI().toURL()};
+                URL[] urls = new URL[]{getFileUrl(libraryFile)};
                 ClassLoader classLoader = new DriverClassLoader(urls, parentClassLoader);
                 return loadDrivers(libraryFile, classLoader);
             }
@@ -128,6 +127,13 @@ public class DatabaseDriverManager implements ApplicationComponent {
             ProgressMonitor.setTaskDescription(taskDescription);
         }
     }
+
+    @NotNull
+    @SneakyThrows
+    private URL getFileUrl(File file) {
+        return file.toURI().toURL();
+    }
+
     private static List<Driver> loadDrivers(File libraryFile, ClassLoader classLoader) {
         List<Driver> drivers = new ArrayList<>();
         try {
@@ -147,12 +153,12 @@ public class DatabaseDriverManager implements ApplicationComponent {
                             drivers.add(driver);
                         }
                     } catch (Throwable t) {
-                        LOGGER.debug("Failed to load driver " + className + " from library " + libraryFile, t);
+                        log.debug("Failed to load driver " + className + " from library " + libraryFile, t);
                     }
                 }
             }
         } catch (Throwable t) {
-            LOGGER.debug("Failed to load drivers from library " + libraryFile, t);
+            log.debug("Failed to load drivers from library " + libraryFile, t);
         }
         return drivers;
     }
@@ -172,7 +178,7 @@ public class DatabaseDriverManager implements ApplicationComponent {
 
     public File getInternalDriverLibrary(DatabaseType databaseType) throws Exception{
         String driverLibrary = BUNDLED_LIBS.get(databaseType);
-        LOGGER.info("Loading driver library " + driverLibrary);
+        log.info("Loading driver library " + driverLibrary);
 
         File deploymentRoot = FileUtil.getPluginDeploymentRoot();
         return FileUtil.findFileRecursively(deploymentRoot, driverLibrary);

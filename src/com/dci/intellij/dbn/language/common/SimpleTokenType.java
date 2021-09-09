@@ -2,14 +2,14 @@ package com.dci.intellij.dbn.language.common;
 
 import com.dci.intellij.dbn.code.common.style.formatting.FormattingDefinition;
 import com.dci.intellij.dbn.code.common.style.formatting.FormattingDefinitionFactory;
-import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.language.common.element.TokenPairTemplate;
 import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.lang.Language;
-import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
 import com.intellij.psi.tree.IElementType;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.jdom.Element;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
@@ -18,8 +18,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 
+@Slf4j
+@Getter
 public class SimpleTokenType extends IElementType implements TokenType {
-    private static final Logger LOGGER = LoggerFactory.createLogger();
     private int idx;
     private String id;
     private String value;
@@ -62,7 +63,7 @@ public class SimpleTokenType extends IElementType implements TokenType {
 
         if (register) {
             int count = REGISTERED_COUNT.incrementAndGet();
-            LOGGER.info("Registering element " + id + " for language " + language.getID() + " (" + count + ")");
+            log.info("Registering element " + id + " for language " + language.getID() + " (" + count + ")");
         }
 
         String indexString = element.getAttributeValue("index");
@@ -85,40 +86,13 @@ public class SimpleTokenType extends IElementType implements TokenType {
     }
 
     @Override
-    public int getIdx() {
-        return idx;
-    }
-
-    @Override
-    public TokenPairTemplate getTokenPairTemplate() {
-        return tokenPairTemplate;
-    }
-
-    @Override
     public void setDefaultFormatting(FormattingDefinition defaultFormatting) {
         formatting = FormattingDefinitionFactory.mergeDefinitions(formatting, defaultFormatting);
-    }
-
-    @NotNull
-    @Override
-    public String getId() {
-        return id;
-    }
-
-
-    @Override
-    public int getLookupIndex() {
-        return lookupIndex;
     }
 
     @Override
     public String getValue() {
         return value == null ? "" : value;
-    }
-
-    @Override
-    public String getDescription() {
-        return description;
     }
 
     @Override
@@ -206,18 +180,6 @@ public class SimpleTokenType extends IElementType implements TokenType {
         return !isIdentifier();
         //return isKeyword() || isFunction() || isParameter() || isCharacter() || isOperator();
         //return isCharacter() || isOperator() || !isSuppressibleReservedWord();
-    }
-
-    @Override
-    @NotNull
-    public TokenTypeCategory getCategory() {
-        return category;
-    }
-
-    @Nullable
-    @Override
-    public DBObjectType getObjectType() {
-        return objectType;
     }
 
     @Override

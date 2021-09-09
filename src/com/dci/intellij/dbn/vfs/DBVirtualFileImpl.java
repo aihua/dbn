@@ -13,6 +13,9 @@ import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFilePathWrapper;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.impl.DebugUtil;
+import lombok.Getter;
+import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -21,6 +24,8 @@ import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@Getter
+@Setter
 public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtualFile, Presentable, VirtualFilePathWrapper {
     private static final AtomicInteger ID_STORE = new AtomicInteger(1000);
     private final int id;
@@ -30,7 +35,7 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
     protected String name;
     protected String path;
     protected String url;
-    private int documentHashCode;
+    private int documentSignature;
     private boolean valid = true;
 
     public DBVirtualFileImpl(@NotNull Project project) {
@@ -46,14 +51,6 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
     @Override
     public EnvironmentType getEnvironmentType() {
         return getConnectionHandler().getEnvironmentType();
-    }
-
-    public int getDocumentHashCode() {
-        return documentHashCode;
-    }
-
-    public void setDocumentHashCode(int documentHashCode) {
-        this.documentHashCode = documentHashCode;
     }
 
     @NotNull
@@ -80,16 +77,6 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
 
     @Override
     public abstract Icon getIcon();
-
-    public int getId() {
-        return id;
-    }
-
-    @NotNull
-    @Override
-    public String getName() {
-        return name;
-    }
 
     @Nullable
     @Override
@@ -164,11 +151,6 @@ public abstract class DBVirtualFileImpl extends VirtualFile implements DBVirtual
     @NotNull
     private String createUrl() {
         return DatabaseFileSystem.createUrl(this);
-    }
-
-    @Override
-    public boolean isValid() {
-        return valid;
     }
 
     @Override

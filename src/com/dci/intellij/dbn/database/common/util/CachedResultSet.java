@@ -1,12 +1,11 @@
 package com.dci.intellij.dbn.database.common.util;
 
-import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.data.Data;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.latent.MapLatent;
 import com.dci.intellij.dbn.connection.ResourceUtil;
 import com.dci.intellij.dbn.connection.ResultSetUtil;
-import com.intellij.openapi.diagnostic.Logger;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -19,9 +18,8 @@ import java.util.stream.Collectors;
 
 import static com.dci.intellij.dbn.common.util.CommonUtil.nvl;
 
+@Slf4j
 public class CachedResultSet extends StatefulDisposable.Base implements ResultSetStub {
-    private static final Logger LOGGER = LoggerFactory.createLogger();
-
     private List<CachedResultSetRow> rows = new ArrayList<>();
     private List<String> columnNames;
 
@@ -39,26 +37,25 @@ public class CachedResultSet extends StatefulDisposable.Base implements ResultSe
         }
     };
 
-    private final MapLatent<Condition, CachedResultSet, RuntimeException> filtered = MapLatent.create(condition -> {
+    private final MapLatent<Condition, CachedResultSet> filtered = MapLatent.create(condition -> {
         if (rows.isEmpty()) {
             return this;
         } else {
             List<CachedResultSetRow> filteredRows = new ArrayList<>();
-            for (int i = 0; i < rows.size(); i++) {
-                CachedResultSetRow element = rows.get(i);
+            for (CachedResultSetRow element : rows) {
                 try {
                     if (condition.evaluate(element)) {
                         filteredRows.add(element);
                     }
                 } catch (SQLException e) {
-                    LOGGER.error("Failed to filter cached result set", e);
+                    log.error("Failed to filter cached result set", e);
                 }
             }
             return new CachedResultSet(filteredRows, columnNames);
         }
     });
 
-    private final MapLatent<Columns, CachedResultSet, RuntimeException> grouped = MapLatent.create(columns -> {
+    private final MapLatent<Columns, CachedResultSet> grouped = MapLatent.create(columns -> {
         if (rows.isEmpty()) {
             return this;
         } else {
@@ -74,7 +71,7 @@ public class CachedResultSet extends StatefulDisposable.Base implements ResultSe
                     }
                 }
             } catch (Throwable e) {
-                LOGGER.error("Failed to group cached result set", e);
+                log.error("Failed to group cached result set", e);
             }
 
             return new CachedResultSet(groupedRows, columnNames);

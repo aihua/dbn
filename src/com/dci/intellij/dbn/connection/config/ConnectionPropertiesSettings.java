@@ -1,11 +1,10 @@
 package com.dci.intellij.dbn.connection.config;
 
-import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.options.BasicProjectConfiguration;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.config.ui.ConnectionPropertiesSettingsForm;
-import com.intellij.openapi.diagnostic.Logger;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import org.jdom.Element;
@@ -19,9 +18,8 @@ import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.setBoo
 
 @Getter
 @Setter
+@EqualsAndHashCode(callSuper = false)
 public class ConnectionPropertiesSettings extends BasicProjectConfiguration<ConnectionSettings, ConnectionPropertiesSettingsForm> {
-    public static final Logger LOGGER = LoggerFactory.createLogger();
-
     private Map<String, String> properties = new HashMap<>();
     private boolean enableAutoCommit = false;
 
@@ -53,14 +51,13 @@ public class ConnectionPropertiesSettings extends BasicProjectConfiguration<Conn
         enableAutoCommit = getBoolean(element, "auto-commit", enableAutoCommit);
         Element propertiesElement = element.getChild("properties");
         if (propertiesElement != null) {
-            for (Object o : propertiesElement.getChildren()) {
-                Element propertyElement = (Element) o;
+            for (Element propertyElement : propertiesElement.getChildren()) {
                 properties.put(
                         propertyElement.getAttributeValue("key"),
                         propertyElement.getAttributeValue("value"));
             }
         }
-        getParent().getDatabaseSettings().updateHashCode();
+        getParent().getDatabaseSettings().updateSignature();
     }
 
     @Override

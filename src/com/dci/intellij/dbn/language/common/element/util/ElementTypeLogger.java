@@ -13,19 +13,15 @@ import com.dci.intellij.dbn.language.common.element.parser.ParseResultType;
 import com.dci.intellij.dbn.language.common.element.parser.ParserBuilder;
 
 public class ElementTypeLogger {
-    private ElementType elementType;
+    private ElementTypeLogger() {}
 
-    public ElementTypeLogger(ElementType elementType) {
-        this.elementType = elementType;
-    }
-
-    public void logBegin(ParserBuilder builder, boolean optional, int depth) {
+    public static void logBegin(ElementType elementType, ParserBuilder builder, boolean optional, int depth) {
         // GTK enable disable debug
-        if (Environment.DEBUG_MODE) {
+        if (Environment.PARSER_DEBUG_MODE) {
             StringBuilder buffer = new StringBuilder();
             for (int i = 0; i < depth; i++) buffer.append('\t');
             buffer.append('"').append(elementType.getId()).append("\" [");
-            buffer.append(getTypeDescription());
+            buffer.append(getTypeDescription(elementType));
             buffer.append(": ");
             buffer.append(optional ? "optional" : "mandatory");
             buffer.append("] '").append(builder.getTokenText()).append("'");
@@ -35,8 +31,8 @@ public class ElementTypeLogger {
         }
     }
 
-    public void logEnd(ParseResultType resultType, int depth) {
-        if (Environment.DEBUG_MODE) {
+    public static void logEnd(ElementType elementType, ParseResultType resultType, int depth) {
+        if (Environment.PARSER_DEBUG_MODE) {
             StringBuilder buffer = new StringBuilder();
             if (!elementType.isLeaf()) {
                 for (int i = 0; i < depth; i++) buffer.append('\t');
@@ -53,7 +49,7 @@ public class ElementTypeLogger {
         }
     }
 
-    private String getTypeDescription(){
+    private static String getTypeDescription(ElementType elementType){
         if (elementType instanceof TokenElementType) return "token";
         if (elementType instanceof NamedElementType) return "element";
         if (elementType instanceof SequenceElementType) return "sequence";
@@ -67,8 +63,8 @@ public class ElementTypeLogger {
         return null;
     }
 
-    public void logErr(ParserBuilder builder, boolean optional, int depth) {
-        logBegin(builder, optional, depth);
-        logEnd(ParseResultType.NO_MATCH, depth);
+    public static void logErr(ElementType elementType, ParserBuilder builder, boolean optional, int depth) {
+        logBegin(elementType, builder, optional, depth);
+        logEnd(elementType, ParseResultType.NO_MATCH, depth);
     }
 }

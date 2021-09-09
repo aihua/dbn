@@ -133,21 +133,21 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
     private final DBObjectListContainer objectLists;
     private final DBObjectRelationListContainer objectRelationLists;
-    private final int connectionConfigHash;
+    private final long configSignature;
 
-    private final MapLatent<DBObjectRef<?>, LookupItemBuilder, RuntimeException> sqlLookupItemBuilders =
+    private final MapLatent<DBObjectRef<?>, LookupItemBuilder> sqlLookupItemBuilders =
             MapLatent.create((objectRef) ->
                     new ObjectLookupItemBuilder(objectRef, SQLLanguage.INSTANCE));
 
-    private final MapLatent<DBObjectRef<?>, LookupItemBuilder, RuntimeException> psqlLookupItemBuilders =
+    private final MapLatent<DBObjectRef<?>, LookupItemBuilder> psqlLookupItemBuilders =
             MapLatent.create((objectRef) ->
                     new ObjectLookupItemBuilder(objectRef, PSQLLanguage.INSTANCE));
 
-    private final MapLatent<DBObjectRef<?>, DBObjectPsiFacade, RuntimeException> objectPsiFacades =
+    private final MapLatent<DBObjectRef<?>, DBObjectPsiFacade> objectPsiFacades =
             MapLatent.create((objectRef) ->
                     new DBObjectPsiFacade(objectRef));
 
-    private final MapLatent<DBObjectRef<?>, DBObjectVirtualFile<?>, RuntimeException> virtualFiles =
+    private final MapLatent<DBObjectRef<?>, DBObjectVirtualFile<?>> virtualFiles =
             MapLatent.create((objectRef) ->
                     new DBObjectVirtualFile<>(getProject(), objectRef));
 
@@ -157,7 +157,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     public DBObjectBundleImpl(ConnectionHandler connectionHandler, BrowserTreeNode treeParent) {
         this.connectionHandler = ConnectionHandlerRef.from(connectionHandler);
         this.treeParent = treeParent;
-        connectionConfigHash = connectionHandler.getSettings().getDatabaseSettings().hashCode();
+        configSignature = connectionHandler.getSettings().getDatabaseSettings().getSignature();
 
         objectLists = new DBObjectListContainer(this);
         consoles = objectLists.createObjectList(CONSOLE, this, DynamicContentStatus.PASSIVE);
@@ -262,7 +262,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
     @Override
     public boolean isValid() {
-        return connectionConfigHash == getConnectionHandler().getSettings().getDatabaseSettings().hashCode();
+        return configSignature == getConnectionHandler().getSettings().getDatabaseSettings().getSignature();
     }
 
     @NotNull
@@ -275,6 +275,11 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     @NotNull
     public ConnectionHandler getConnectionHandler() {
         return connectionHandler.ensure();
+    }
+
+    @Override
+    public List<DBConsole> getConsoles() {
+        return getConnectionHandler().getConsoleBundle().getConsoles();
     }
 
     @Override
@@ -631,6 +636,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     @Override
     @Nullable
     public DBObject getObject(DBObjectType objectType, String name, short overload) {
+        if (objectType == CONSOLE) return getConnectionHandler().getConsoleBundle().getConsole(name);
         if (objectType == SCHEMA) return getSchema(name);
         if (objectType == USER) return getUser(name);
         if (objectType == ROLE) return getRole(name);

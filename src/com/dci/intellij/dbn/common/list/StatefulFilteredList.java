@@ -6,6 +6,7 @@ import com.dci.intellij.dbn.common.util.CollectionUtil;
 import lombok.SneakyThrows;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -16,16 +17,21 @@ import java.util.stream.Collectors;
 
 final class StatefulFilteredList<T> extends FilteredListBase<T> {
     private final Latent<List<T>> inner = Latent.mutable(
-            () -> filterHashCode(),
+            () -> filterSignature(),
             () -> base.stream().filter(t -> filter.accepts(t)).collect(Collectors.toList()));
 
 
-    protected StatefulFilteredList(Filter<T> filter, List<T> base) {
+    StatefulFilteredList(Filter<T> filter, List<T> base) {
         super(filter, base);
     }
 
-    protected StatefulFilteredList(Filter<T> filter) {
+    StatefulFilteredList(Filter<T> filter) {
         super(filter);
+    }
+
+    @Override
+    List<T> initBase(List<T> source) {
+        return source == null ? new ArrayList<>() : source;
     }
 
     @Override
@@ -226,9 +232,9 @@ final class StatefulFilteredList<T> extends FilteredListBase<T> {
         }
     }
 
-    private int filterHashCode(){
+    private int filterSignature(){
         Filter<T> filter = getFilter();
-        return filter == null ? 0 : filter.hashCode();
+        return filter == null ? 0 : filter.getSignature();
     }
 
     @SneakyThrows

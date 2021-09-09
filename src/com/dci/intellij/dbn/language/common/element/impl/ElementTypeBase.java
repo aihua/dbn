@@ -5,7 +5,6 @@ import com.dci.intellij.dbn.code.common.style.formatting.FormattingDefinitionFac
 import com.dci.intellij.dbn.code.common.style.formatting.IndentDefinition;
 import com.dci.intellij.dbn.code.common.style.formatting.SpacingDefinition;
 import com.dci.intellij.dbn.common.Icons;
-import com.dci.intellij.dbn.common.LoggerFactory;
 import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
@@ -22,19 +21,23 @@ import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttributeHolder;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeDefinitionException;
 import com.dci.intellij.dbn.object.type.DBObjectType;
-import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.psi.tree.IElementType;
 import gnu.trove.THashSet;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
+import javax.swing.Icon;
 import java.util.Set;
 import java.util.StringTokenizer;
 
+@Slf4j
+@Getter
+@Setter
 public abstract class ElementTypeBase extends IElementType implements ElementType {
-    private static final Logger LOGGER = LoggerFactory.createLogger();
     private static final FormattingDefinition STATEMENT_FORMATTING = new FormattingDefinition(null, IndentDefinition.NORMAL, SpacingDefinition.MIN_LINE_BREAK, null);
 
     private final int idx;
@@ -46,8 +49,8 @@ public abstract class ElementTypeBase extends IElementType implements ElementTyp
     private Branch branch;
     private FormattingDefinition formatting;
 
-    public final ElementTypeLookupCache lookupCache = createLookupCache();
-    public final ElementTypeParser parser = createParser();
+    private final ElementTypeLookupCache lookupCache = createLookupCache();
+    private final ElementTypeParser parser = createParser();
     private final ElementTypeBundle bundle;
     private final ElementTypeBase parent;
     private DBObjectType virtualObjectType;
@@ -82,7 +85,7 @@ public abstract class ElementTypeBase extends IElementType implements ElementTyp
         this.bundle = bundle;
         this.parent = parent;
         if (StringUtil.isNotEmpty(def.getAttributeValue("exit")) && !(parent instanceof SequenceElementType)) {
-            LOGGER.warn('[' + getLanguageDialect().getID() + "] Invalid element attribute 'exit'. (id=" + this.id + "). Attribute is only allowed for direct child of sequence element");
+            log.warn('[' + getLanguageDialect().getID() + "] Invalid element attribute 'exit'. (id=" + this.id + "). Attribute is only allowed for direct child of sequence element");
         }
         loadDefinition(def);
     }
@@ -98,16 +101,6 @@ public abstract class ElementTypeBase extends IElementType implements ElementTyp
             }
         }
         return branches;
-    }
-
-    @Override
-    public int getIdx() {
-        return idx;
-    }
-
-    @Override
-    public WrappingDefinition getWrapping() {
-        return wrapping;
     }
 
     public boolean isWrappingBegin(LeafElementType elementType) {
@@ -136,16 +129,6 @@ public abstract class ElementTypeBase extends IElementType implements ElementTyp
     @Override
     public void setDefaultFormatting(FormattingDefinition defaultFormatting) {
         formatting = FormattingDefinitionFactory.mergeDefinitions(formatting, defaultFormatting);
-    }
-
-    @Override
-    public boolean isScopeDemarcation() {
-        return scopeDemarcation;
-    }
-
-    @Override
-    public boolean isScopeIsolation() {
-        return scopeIsolation;
     }
 
     protected void loadDefinition(Element def) throws ElementTypeDefinitionException {
@@ -208,48 +191,6 @@ public abstract class ElementTypeBase extends IElementType implements ElementTyp
         scopeIsolation = is(ElementTypeAttribute.SCOPE_ISOLATION);
     }
 
-    @NotNull
-    @Override
-    public String getId() {
-        return id;
-    }
-
-    @Override
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    @Override
-    public Icon getIcon() {
-        return icon;
-    }
-
-    @Override
-    public ElementTypeBase getParent() {
-        return parent;
-    }
-
-    @Override
-    public Branch getBranch() {
-        return branch;
-    }
-
-    @Override
-    public ElementTypeLookupCache getLookupCache() {
-        return lookupCache;
-    }
-
-    @Override
-    @NotNull
-    public ElementTypeParser getParser() {
-        return parser;
-    }
-
-
     @Override
     public boolean is(ElementTypeAttribute attribute) {
         return attributes != null && attributes.is(attribute);
@@ -258,11 +199,6 @@ public abstract class ElementTypeBase extends IElementType implements ElementTyp
     @Override
     public boolean set(ElementTypeAttribute attribute, boolean value) {
         throw new AbstractMethodError("Operation not allowed");
-    }
-
-    @Override
-    public FormattingDefinition getFormatting() {
-        return formatting;
     }
 
     @Override
@@ -287,7 +223,7 @@ public abstract class ElementTypeBase extends IElementType implements ElementTyp
 
     @Override
     public boolean equals(Object obj) {
-        return super.equals(obj);
+        return this == obj;
     }
 
     @Override
@@ -323,7 +259,7 @@ public abstract class ElementTypeBase extends IElementType implements ElementTyp
         if (StringUtil.isNotEmpty(attributeValue)) {
             if (attributeValue.equals("true")) return true;
             if (attributeValue.equals("false")) return false;
-            LOGGER.warn('[' + getLanguageDialect().getID() + "] Invalid element boolean attribute '" + attributeName + "' (id=" + this.id + "). Expected 'true' or 'false'");
+            log.warn('[' + getLanguageDialect().getID() + "] Invalid element boolean attribute '" + attributeName + "' (id=" + this.id + "). Expected 'true' or 'false'");
         }
         return false;
     }

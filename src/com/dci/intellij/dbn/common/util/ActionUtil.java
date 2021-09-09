@@ -1,16 +1,10 @@
 package com.dci.intellij.dbn.common.util;
 
 import com.dci.intellij.dbn.common.action.Lookup;
-import com.intellij.openapi.actionSystem.ActionGroup;
-import com.intellij.openapi.actionSystem.ActionManager;
-import com.intellij.openapi.actionSystem.ActionPopupMenu;
-import com.intellij.openapi.actionSystem.ActionToolbar;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.DefaultActionGroup;
-import com.intellij.openapi.actionSystem.Separator;
+import com.intellij.openapi.actionSystem.*;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.JComponent;
+import javax.swing.*;
 import java.util.UUID;
 
 public class ActionUtil implements Lookup {
@@ -48,7 +42,7 @@ public class ActionUtil implements Lookup {
     public static ActionPopupMenu createActionPopupMenu(@NotNull JComponent component, String place, ActionGroup actionGroup){
         ActionManager actionManager = ActionManager.getInstance();
         ActionPopupMenu popupMenu = actionManager.createActionPopupMenu(adjustPlace(place), actionGroup);
-        popupMenu.setTargetComponent(component);
+        //popupMenu.setTargetComponent(component);
         return popupMenu;
     }
 

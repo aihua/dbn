@@ -2,7 +2,7 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.2.4702.3</version>
+    <version>3.2.5102.3</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
@@ -31,10 +31,10 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
-            <li><b>3.2.4702</b>
+            <li><b>3.2.5102</b>
             <ul>
                 <li>Oracle SQL and PLSQL language syntax updates
-                <li>Bug fixes and performance optimisations
+                <li>Bug fixes and performance improvements
             </ul>
             <li><b>3.2.4501</b>
             <ul>
@@ -293,7 +293,8 @@
             <separator/>
             <group id="DBNavigator.ActionGroup.Development" text="Development" popup="true">
                 <action id="DBNavigator.Actions.MainMenu.ParserDebugMode" class="com.dci.intellij.dbn.menu.action.developer.ParserDebugToggleAction" text="Enable Parser Debug Mode"/>
-                <action id="DBNavigator.Actions.MainMenu.DatabaseDebugMode" class="com.dci.intellij.dbn.menu.action.developer.DatabaseDebugToggleAction" text="Enable Database Debug Mode"/>
+                <action id="DBNavigator.Actions.MainMenu.DatabaseAccessDebugMode" class="com.dci.intellij.dbn.menu.action.developer.DatabaseAccessDebugToggleAction" text="Enable Database Access Debug Mode"/>
+                <action id="DBNavigator.Actions.MainMenu.DatabaseResourceDebugMode" class="com.dci.intellij.dbn.menu.action.developer.DatabaseResourceDebugToggleAction" text="Enable Database Resources Debug Mode"/>
                 <action id="DBNavigator.Actions.MainMenu.DevelopmentSlowDatabase" class="com.dci.intellij.dbn.menu.action.developer.SimulateSlowDatabaseAction" text="Enable Lagging Database Simulation"/>
                 <separator/>
                 <action id="DBNavigator.Actions.MainMenu.DevelopmentReset" class="com.dci.intellij.dbn.menu.action.MetaDataDefinitionReloadAction" text="Reload Metadata Definitions"/>
@@ -455,6 +456,7 @@
         </group>
     </actions>
     <extensions defaultExtensionNs="com.intellij">
+        <notificationGroup id="DBNavigator.NotificationGroup" displayType="BALLOON" key="DBNavigator"/>
         <!--<applicationInitializedListener implementation="com.dci.intellij.dbn.init.DatabaseNavigatorInitializer"/>-->
         <virtualFileSystem implementationClass="com.dci.intellij.dbn.vfs.DatabaseFileSystem" key="db" physical="false"/>
 

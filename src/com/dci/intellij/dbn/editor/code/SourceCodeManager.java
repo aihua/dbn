@@ -69,6 +69,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Objects;
 
 import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
 import static com.dci.intellij.dbn.common.navigation.NavigationInstruction.*;
@@ -76,10 +77,6 @@ import static com.dci.intellij.dbn.common.util.CommonUtil.list;
 import static com.dci.intellij.dbn.common.util.MessageUtil.*;
 import static com.dci.intellij.dbn.common.util.NamingUtil.unquote;
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.*;
-import static com.intellij.openapi.util.text.StringUtil.equalsIgnoreCase;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.LOADING;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
 
 @State(
     name = SourceCodeManager.COMPONENT_NAME,
@@ -478,13 +475,13 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
             String objectName = object.getName();
             String schemaName = object.getSchema().getName();
 
-            if (psiElement == null || !equalsIgnoreCase(psiElement.getText(), typeName)) {
+            if (psiElement == null || !StringUtil.equalsIgnoreCase(psiElement.getText(), typeName)) {
                 return false;
             }
 
             if (subtypeName != null) {
                 psiElement = PsiUtil.getNextLeaf(psiElement);
-                if (psiElement == null || !equalsIgnoreCase(psiElement.getText(), subtypeName)) {
+                if (psiElement == null || !StringUtil.equalsIgnoreCase(psiElement.getText(), subtypeName)) {
                     return false;
                 }
             }
@@ -494,18 +491,18 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
                 return false;
             }
 
-            if (equalsIgnoreCase(text(psiElement), schemaName)) {
+            if (StringUtil.equalsIgnoreCase(text(psiElement), schemaName)) {
                 psiElement = PsiUtil.getNextLeaf(psiElement) ;
-                if (psiElement == null || !psiElement.getText().equals(".")) {
+                if (psiElement == null || !Objects.equals(psiElement.getText(), ".")) {
                     return false;
                 } else {
                     psiElement = PsiUtil.getNextLeaf(psiElement);
-                    if (psiElement == null || !equalsIgnoreCase(text(psiElement), objectName)) {
+                    if (psiElement == null || !StringUtil.equalsIgnoreCase(text(psiElement), objectName)) {
                         return false;
                     }
                 }
             } else {
-                if (!equalsIgnoreCase(text(psiElement), objectName)) {
+                if (!StringUtil.equalsIgnoreCase(text(psiElement), objectName)) {
                     return false;
                 }
             }

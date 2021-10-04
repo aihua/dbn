@@ -4,18 +4,21 @@ import com.dci.intellij.dbn.common.content.DynamicContentElement;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
 import com.dci.intellij.dbn.common.util.CommonUtil;
 import com.dci.intellij.dbn.database.common.metadata.DBObjectMetadata;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
+@Slf4j
 public abstract class DynamicContentLoaderImpl<
                 T extends DynamicContentElement,
                 M extends DBObjectMetadata>
         implements DynamicContentLoader<T, M>{
 
-    private static final Map<DynamicContentType, Map<DynamicContentType, DynamicContentLoader>> LOADERS = new HashMap<>();
+    private static final Map<DynamicContentType, Map<DynamicContentType, DynamicContentLoader>> LOADERS = new ConcurrentHashMap<>();
 
     private static final DynamicContentType NULL = new DynamicContentType() {
         @Override
@@ -37,7 +40,8 @@ public abstract class DynamicContentLoaderImpl<
 
     private static void register(
             @Nullable DynamicContentType parentContentType,
-            @NotNull DynamicContentType contentType, @NotNull DynamicContentLoader loader) {
+            @NotNull DynamicContentType contentType,
+            @NotNull DynamicContentLoader loader) {
 
         parentContentType = CommonUtil.nvl(parentContentType, NULL);
         Map<DynamicContentType, DynamicContentLoader> childLoaders = LOADERS.computeIfAbsent(parentContentType, k -> new HashMap<>());
@@ -45,7 +49,7 @@ public abstract class DynamicContentLoaderImpl<
         if (contentLoader == null) {
             childLoaders.put(contentType, loader);
         } else if (contentLoader != loader){
-            System.out.println("Duplicate loader");
+            log.error("Duplicate content loader registration for parentContentType={} and contentType={}", parentContentType, contentType);
         }
     }
 

@@ -19,11 +19,13 @@ import java.util.List;
 import java.util.Set;
 import java.util.StringTokenizer;
 
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
+
 @Getter
 public class IterationElementType extends ElementTypeBase {
 
-    public ElementTypeBase iteratedElementType;
-    public TokenElementType[] separatorTokens;
+    private ElementTypeBase iteratedElementType;
+    private TokenElementType[] separatorTokens;
     private int[] elementsCountVariants;
     private int minIterations;
 
@@ -31,7 +33,7 @@ public class IterationElementType extends ElementTypeBase {
         if (separatorTokens != null) {
             Set<TokenType> nextPossibleTokens = createLookupCache().getNextPossibleTokens();
             for (TokenElementType separatorToken : separatorTokens) {
-                if (nextPossibleTokens.contains(separatorToken.tokenType)) {
+                if (nextPossibleTokens.contains(separatorToken.getTokenType())) {
                     return true;
                 }
             }
@@ -58,7 +60,7 @@ public class IterationElementType extends ElementTypeBase {
     protected void loadDefinition(Element def) throws ElementTypeDefinitionException {
         super.loadDefinition(def);
         ElementTypeBundle bundle = getElementBundle();
-        String separatorTokenIds = def.getAttributeValue("separator");
+        String separatorTokenIds = stringAttribute(def, "separator");
         if (separatorTokenIds != null) {
             StringTokenizer tokenizer = new StringTokenizer(separatorTokenIds, ",");
             List<TokenElementType> separators = new ArrayList<>();
@@ -82,7 +84,7 @@ public class IterationElementType extends ElementTypeBase {
         String type = child.getName();
         iteratedElementType = bundle.resolveElementDefinition(child, type, this);
 
-        String elementsCountDef = def.getAttributeValue("elements-count");
+        String elementsCountDef = stringAttribute(def, "elements-count");
         if (elementsCountDef != null) {
             List<Integer> variants = new ArrayList<>();
             StringTokenizer tokenizer = new StringTokenizer(elementsCountDef, ",");
@@ -106,7 +108,7 @@ public class IterationElementType extends ElementTypeBase {
             }
         }
 
-        String minIterationsDef = def.getAttributeValue("min-iterations");
+        String minIterationsDef = stringAttribute(def, "min-iterations");
         if (minIterationsDef != null) {
             minIterations = Integer.parseInt(minIterationsDef);
         }
@@ -140,7 +142,7 @@ public class IterationElementType extends ElementTypeBase {
     public boolean isSeparator(TokenType tokenType) {
         if (separatorTokens != null) {
             for (TokenElementType separatorToken: separatorTokens) {
-                if (separatorToken.tokenType == tokenType) return true;
+                if (separatorToken.getTokenType() == tokenType) return true;
             }
         }
         return false;
@@ -148,5 +150,9 @@ public class IterationElementType extends ElementTypeBase {
 
     public boolean isFollowedBySeparator() {
         return followedBySeparator.get();
+    }
+
+    public void setIteratedElementType(ElementTypeBase iteratedElementType) {
+        this.iteratedElementType = iteratedElementType;
     }
 }

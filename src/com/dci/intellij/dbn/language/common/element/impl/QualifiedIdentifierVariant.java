@@ -66,7 +66,7 @@ public class QualifiedIdentifierVariant implements Comparable{
 
     public boolean containsNonIdentifierTokens() {
         for (int i=0; i<matchedTokens; i++) {
-            if (!leafs[i].tokenType.isIdentifier()) {
+            if (!leafs[i].getTokenType().isIdentifier()) {
                 return true;
             }
         }
@@ -94,7 +94,7 @@ public class QualifiedIdentifierVariant implements Comparable{
                 buffer.append(identifierElementType.getObjectTypeName());
             } else if (leaf instanceof TokenElementType) {
                 TokenElementType tokenElementType = (TokenElementType) leaf;
-                buffer.append(tokenElementType.tokenType.getValue());
+                buffer.append(tokenElementType.getTokenType().getValue());
             }
             if (leaf != leafs[leafs.length-1]) {
                 buffer.append('.');
@@ -104,14 +104,14 @@ public class QualifiedIdentifierVariant implements Comparable{
     }
 
     public boolean matchesPsiElement(QualifiedIdentifierPsiElement psiElement) {
-        TokenElementType separatorToken = psiElement.elementType.getSeparatorToken();
+        TokenElementType separatorToken = psiElement.getElementType().getSeparatorToken();
         PsiElement child = psiElement.getFirstChild();
         int index = 0;
         while (child != null) {
             if (child instanceof LeafPsiElement) {
                 LeafPsiElement leafPsiElement = (LeafPsiElement) child;
 
-                if (leafPsiElement.elementType == separatorToken){
+                if (leafPsiElement.getElementType() == separatorToken){
                     index++;
                 } else {
                     if (leafs.length == index) {
@@ -120,7 +120,7 @@ public class QualifiedIdentifierVariant implements Comparable{
                     }
 
                     PsiElement reference = leafPsiElement.resolve();
-                    LeafElementType leafElementType = (LeafElementType) leafPsiElement.elementType;
+                    LeafElementType leafElementType = (LeafElementType) leafPsiElement.getElementType();
                     if (reference == null) {
                         if (!(leafElementType.isIdentifier() && leafs[index].isIdentifier()) ||
                                 !leafElementType.isSameAs(leafs[index])) {

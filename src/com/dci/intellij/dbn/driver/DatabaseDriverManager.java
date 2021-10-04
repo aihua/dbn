@@ -1,7 +1,6 @@
 package com.dci.intellij.dbn.driver;
 
 import com.dci.intellij.dbn.common.component.ApplicationComponent;
-import com.dci.intellij.dbn.common.latent.MapLatent;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.util.FileUtil;
 import com.dci.intellij.dbn.common.util.StringUtil;
@@ -23,6 +22,8 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
@@ -49,8 +50,7 @@ public class DatabaseDriverManager implements ApplicationComponent {
     }
 
 
-    private final MapLatent<File, List<Driver>> driversCache =
-            MapLatent.create(file -> loadDrivers(file));
+    private final Map<File, List<Driver>> driversCache = new ConcurrentHashMap<>();
 
     public static DatabaseDriverManager getInstance() {
         return ApplicationManager.getApplication().getComponent(DatabaseDriverManager.class);
@@ -71,11 +71,11 @@ public class DatabaseDriverManager implements ApplicationComponent {
     public List<Driver> loadDrivers(File libraryFile, boolean force) throws Exception{
         try{
             if (force) {
-                List<Driver> drivers = driversCache.removeKey(libraryFile);
+                List<Driver> drivers = driversCache.remove(libraryFile);
                 disposeClassLoader(drivers);
             }
 
-            return driversCache.get(libraryFile);
+            return driversCache.computeIfAbsent(libraryFile, file -> loadDrivers(file));
         } catch (Exception e) {
             log.warn("failed to load drivers from library " + libraryFile, e);
             throw e;
@@ -191,7 +191,7 @@ public class DatabaseDriverManager implements ApplicationComponent {
         if (libraryFile.exists()) {
             List<Driver> drivers = loadDrivers(libraryFile, false);
             for (Driver driver : drivers) {
-                if (driver.getClass().getName().equals(className)) {
+                if (Objects.equals(driver.getClass().getName(), className)) {
                     return driver;
                 }
             }

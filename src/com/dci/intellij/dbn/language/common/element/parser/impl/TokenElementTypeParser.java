@@ -1,13 +1,17 @@
 package com.dci.intellij.dbn.language.common.element.parser.impl;
 
+import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.language.common.SharedTokenTypeBundle;
 import com.dci.intellij.dbn.language.common.SimpleTokenType;
 import com.dci.intellij.dbn.language.common.TokenType;
 import com.dci.intellij.dbn.language.common.element.impl.TokenElementType;
-import com.dci.intellij.dbn.language.common.element.parser.*;
+import com.dci.intellij.dbn.language.common.element.parser.ElementTypeParser;
+import com.dci.intellij.dbn.language.common.element.parser.ParseResult;
+import com.dci.intellij.dbn.language.common.element.parser.ParseResultType;
+import com.dci.intellij.dbn.language.common.element.parser.ParserBuilder;
+import com.dci.intellij.dbn.language.common.element.parser.ParserContext;
 import com.dci.intellij.dbn.language.common.element.path.ParsePathNode;
 import com.intellij.lang.PsiBuilder;
-import com.intellij.openapi.util.text.StringUtil;
 import org.jetbrains.annotations.NotNull;
 
 public class TokenElementTypeParser extends ElementTypeParser<TokenElementType> {
@@ -21,7 +25,7 @@ public class TokenElementTypeParser extends ElementTypeParser<TokenElementType> 
         logBegin(builder, optional, depth);
 
         TokenType tokenType = builder.getTokenType();
-        if (tokenType == elementType.tokenType || isDummyToken(builder.getTokenText())) {
+        if (tokenType == elementType.getTokenType() || isDummyToken(builder.getTokenText())) {
 
             String text = elementType.getText();
             if (StringUtil.isNotEmpty(text) && StringUtil.equalsIgnoreCase(builder.getTokenText(), text)) {

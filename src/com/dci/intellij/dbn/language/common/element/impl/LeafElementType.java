@@ -27,8 +27,7 @@ import java.util.Set;
 @Getter
 @Setter
 public abstract class LeafElementType extends ElementTypeBase {
-    public TokenType tokenType;
-
+    private TokenType tokenType;
     private boolean optional;
 
     LeafElementType(ElementTypeBundle bundle, ElementTypeBase parent, String id, Element def) throws ElementTypeDefinitionException {
@@ -96,9 +95,9 @@ public abstract class LeafElementType extends ElementTypeBase {
                 }
             } else if (elementType instanceof IterationElementType) {
                 IterationElementType iterationElementType = (IterationElementType) elementType;
-                TokenElementType[] separatorTokens = iterationElementType.separatorTokens;
+                TokenElementType[] separatorTokens = iterationElementType.getSeparatorTokens();
                 if (separatorTokens == null) {
-                    ElementTypeLookupCache lookupCache = iterationElementType.iteratedElementType.getLookupCache();
+                    ElementTypeLookupCache lookupCache = iterationElementType.getIteratedElementType().getLookupCache();
                     lookupCache.collectFirstPossibleLeafs(context.reset(), possibleLeafs);
                 } else {
                     possibleLeafs.addAll(Arrays.asList(separatorTokens));
@@ -176,9 +175,9 @@ public abstract class LeafElementType extends ElementTypeBase {
                 }
             } else if (elementType instanceof IterationElementType) {
                 IterationElementType iterationElementType = (IterationElementType) elementType;
-                TokenElementType[] separatorTokens = iterationElementType.separatorTokens;
+                TokenElementType[] separatorTokens = iterationElementType.getSeparatorTokens();
                 if (separatorTokens == null) {
-                    ElementTypeLookupCache lookupCache = iterationElementType.iteratedElementType.getLookupCache();
+                    ElementTypeLookupCache lookupCache = iterationElementType.getIteratedElementType().getLookupCache();
                     if (required ?
                             lookupCache.isFirstRequiredToken(tokenType) :
                             lookupCache.isFirstPossibleToken(tokenType)) {
@@ -192,7 +191,7 @@ public abstract class LeafElementType extends ElementTypeBase {
                 }
             } else if (elementType instanceof WrapperElementType) {
                 WrapperElementType wrapperElementType = (WrapperElementType) elementType;
-                return wrapperElementType.getEndTokenElement().tokenType == tokenType;
+                return wrapperElementType.getEndTokenElement().getTokenType() == tokenType;
             }
 
             position = pathNode.getIndexInParent() + 1;
@@ -222,7 +221,7 @@ public abstract class LeafElementType extends ElementTypeBase {
                 }
             } else if (elementType instanceof IterationElementType) {
                 IterationElementType iteration = (IterationElementType) elementType;
-                TokenElementType[] separatorTokens = iteration.separatorTokens;
+                TokenElementType[] separatorTokens = iteration.getSeparatorTokens();
                 Collections.addAll(requiredLeafs, separatorTokens);
             }
             if (pathNode != null) {

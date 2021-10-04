@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.data.sorting;
 
-import com.dci.intellij.dbn.common.options.setting.SettingsSupport;
 import com.dci.intellij.dbn.common.state.PersistentStateElement;
 import com.dci.intellij.dbn.common.util.Cloneable;
 import com.dci.intellij.dbn.common.util.StringUtil;
@@ -11,6 +10,10 @@ import org.jdom.Element;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.integerAttribute;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
 
 @Getter
 @Setter
@@ -65,12 +68,11 @@ public class SortingState implements PersistentStateElement, Cloneable<SortingSt
     }
 
     private SortingInstruction getInstruction(String columnName) {
-        for (SortingInstruction instruction : sortingInstructions) {
-            if (instruction.getColumnName().equals(columnName)) {
-                return instruction;
-            }
-        }
-        return null;
+        return sortingInstructions
+                .stream()
+                .filter(instruction -> Objects.equals(instruction.getColumnName(), columnName))
+                .findFirst()
+                .orElse(null);
     }
 
     public void clear() {
@@ -132,10 +134,10 @@ public class SortingState implements PersistentStateElement, Cloneable<SortingSt
     public void readState(Element element) {
         if (element != null) {
             for (Element child:  element.getChildren()) {
-                String columnName = child.getAttributeValue("name");
-                String sortDirection = child.getAttributeValue("direction");
+                String columnName = stringAttribute(child, "name");
+                String sortDirection = stringAttribute(child, "direction");
                 SortingInstruction sortingInstruction = addSortingInstruction(columnName, SortDirection.valueOf(sortDirection));
-                sortingInstruction.setIndex(SettingsSupport.getIntegerAttribute(element, "index", 1));
+                sortingInstruction.setIndex(integerAttribute(element, "index", 1));
             }
             updateIndexes();
         }

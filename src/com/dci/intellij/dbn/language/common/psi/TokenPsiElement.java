@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.language.common.psi;
 
-import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.language.common.TokenType;
 import com.dci.intellij.dbn.language.common.element.impl.TokenElementType;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
@@ -13,7 +12,8 @@ import com.intellij.util.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
+import javax.swing.Icon;
+import java.util.Objects;
 
 public class TokenPsiElement extends LeafPsiElement<TokenElementType> {
     public TokenPsiElement(ASTNode astNode, TokenElementType elementType) {
@@ -98,7 +98,7 @@ public class TokenPsiElement extends LeafPsiElement<TokenElementType> {
                     return true;
                 } else {
                     if (localTokenType.isNumeric() || localTokenType.isLiteral()) {
-                        return StringUtil.equals(getChars(), remote.getChars());
+                        return Objects.equals(getChars(), remote.getChars());
                     } else {
                         return true;
                     }
@@ -109,6 +109,16 @@ public class TokenPsiElement extends LeafPsiElement<TokenElementType> {
     }
 
     public TokenType getTokenType() {
-        return elementType.tokenType;
+        return getElementType().getTokenType();
+    }
+
+    @Override
+    public boolean isCharacterToken() {
+        return getTokenType().isCharacter();
+    }
+
+    @Override
+    public boolean isToken(TokenType tokenType) {
+        return getTokenType() == tokenType;
     }
 }

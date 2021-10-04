@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.StringTokenizer;
 
 public class StringUtil extends com.intellij.openapi.util.text.StringUtil {
@@ -62,7 +63,7 @@ public class StringUtil extends com.intellij.openapi.util.text.StringUtil {
 
     public static boolean isOneOf(String string, String ... values) {
         for (String value : values) {
-            if (value.equals(string)) return true;
+            if (Objects.equals(value, string)) return true;
         }
         return false;
     }
@@ -74,7 +75,10 @@ public class StringUtil extends com.intellij.openapi.util.text.StringUtil {
         return false;
     }
 
-
+    public static boolean equalsIgnoreCase(@Nullable CharSequence s1, @Nullable CharSequence s2) {
+        // assuming most of the strings in DBN are .intern() "==" may speed up the evaluation (??)
+        return s1 == s2 || com.intellij.openapi.util.text.StringUtil.equalsIgnoreCase(s1, s2);
+    }
 
     public static boolean isInteger(@Nullable String string) {
         try {

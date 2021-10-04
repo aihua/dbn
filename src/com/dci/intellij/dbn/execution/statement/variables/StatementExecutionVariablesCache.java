@@ -3,8 +3,8 @@ package com.dci.intellij.dbn.execution.statement.variables;
 import com.dci.intellij.dbn.common.project.ProjectRef;
 import com.dci.intellij.dbn.common.state.PersistentStateElement;
 import com.dci.intellij.dbn.common.util.FileUtil;
+import com.dci.intellij.dbn.common.util.StringUtil;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import gnu.trove.THashSet;
 import org.jdom.Element;
@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 public class StatementExecutionVariablesCache implements PersistentStateElement {
@@ -40,7 +41,7 @@ public class StatementExecutionVariablesCache implements PersistentStateElement 
         if (virtualFile != null) {
             Set<StatementExecutionVariable> variables = getVariables(virtualFile);
             for (StatementExecutionVariable variable : variables) {
-                if (variable.getName().equals(executionVariable.getName())) {
+                if (Objects.equals(variable.getName(), executionVariable.getName())) {
                     variable.setValue(executionVariable.getValue());
                     return;
                 }

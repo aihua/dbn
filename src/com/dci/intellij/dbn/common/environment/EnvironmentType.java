@@ -17,9 +17,9 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.swing.Icon;
 import java.awt.Color;
+import java.util.Objects;
 
-import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.getBooleanAttribute;
-import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.setBooleanAttribute;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.*;
 
 @Getter
 @Setter
@@ -60,7 +60,7 @@ public class EnvironmentType implements Cloneable<EnvironmentType>, PersistentCo
 
     public static EnvironmentType forName(String name) {
         for (EnvironmentType environmentType : DEFAULT_ENVIRONMENT_TYPES){
-            if (environmentType.name.equals(name)) {
+            if (Objects.equals(environmentType.name, name)) {
                 return environmentType;
             }
         }
@@ -138,11 +138,11 @@ public class EnvironmentType implements Cloneable<EnvironmentType>, PersistentCo
 
     @Override
     public void readConfiguration(Element element) {
-        id = EnvironmentTypeId.get(element.getAttributeValue("id"));
-        name = element.getAttributeValue("name");
-        description = element.getAttributeValue("description");
+        id = EnvironmentTypeId.get(stringAttribute(element, "id"));
+        name = stringAttribute(element, "name");
+        description = stringAttribute(element, "description");
 
-        String value = element.getAttributeValue("color");
+        String value = stringAttribute(element, "color");
         if (StringUtil.isNotEmpty(value)) {
             int index = value.indexOf('/');
             if (index > -1) {
@@ -158,8 +158,8 @@ public class EnvironmentType implements Cloneable<EnvironmentType>, PersistentCo
             id = defaultEnvironmentType.id;
         }
         if (id == null) id = EnvironmentTypeId.get(name.toLowerCase());
-        readonlyCode = getBooleanAttribute(element, "readonly-code", readonlyCode);
-        readonlyData = getBooleanAttribute(element, "readonly-data", readonlyData);
+        readonlyCode = booleanAttribute(element, "readonly-code", readonlyCode);
+        readonlyData = booleanAttribute(element, "readonly-data", readonlyData);
 
     }
 

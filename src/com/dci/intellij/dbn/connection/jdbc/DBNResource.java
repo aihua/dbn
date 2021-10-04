@@ -8,7 +8,9 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.sql.SQLException;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Getter
 @Slf4j
@@ -16,12 +18,13 @@ public abstract class DBNResource<T> extends ResourceStatusHolder implements Res
     private final long initTimestamp = System.currentTimeMillis();
     private final ResourceType resourceType;
     private final String resourceId = UUID.randomUUID().toString().replaceAll("-", "").toUpperCase();
-    protected T inner;
+    protected final T inner;
 
     private ResourceStatusAdapter<CloseableResource> closed;
     private ResourceStatusAdapter<CancellableResource> cancelled;
 
     protected Traceable traceable = new Traceable();
+    private final Map<String, Long> errorLogs = new ConcurrentHashMap<>();
 
     DBNResource(T inner, ResourceType type) {
         if (inner instanceof DBNResource) {
@@ -42,6 +45,7 @@ public abstract class DBNResource<T> extends ResourceStatusHolder implements Res
                     Boolean.TRUE) {
                 @Override
                 protected void changeInner(boolean value) throws SQLException {
+                    closeable.set(ResourceStatus.VALID, false);
                     closeable.closeInner();
                 }
 
@@ -75,7 +79,7 @@ public abstract class DBNResource<T> extends ResourceStatusHolder implements Res
             };
         }
 
-        if (Environment.DATABASE_DEBUG_MODE) log.info("[DBN] Created " + this);
+        if (Environment.DATABASE_RESOURCE_DEBUG_MODE) log.info("[DBN] Created " + this);
     }
 
     @Override
@@ -105,7 +109,10 @@ public abstract class DBNResource<T> extends ResourceStatusHolder implements Res
         cancelled.set(true);
     }
 
-    public T getInner() {
-        return inner;
+    public boolean shouldNotify(String error) {
+        long timestamp = System.currentTimeMillis();
+        long lastTimestamp = errorLogs.computeIfAbsent(error, key -> 0L);
+        errorLogs.put(error, timestamp);
+        return TimeUtil.isOlderThan(lastTimestamp, TimeUtil.Millis.THIRTY_SECONDS);
     }
 }

@@ -26,7 +26,10 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
 
 public class TokenElementType extends LeafElementType implements LookupItemBuilderProvider {
     public static final String SEPARATOR = "SEPARATOR";
@@ -39,13 +42,13 @@ public class TokenElementType extends LeafElementType implements LookupItemBuild
 
     public TokenElementType(ElementTypeBundle bundle, ElementTypeBase parent, String id, Element def) throws ElementTypeDefinitionException {
         super(bundle, parent, id, def);
-        String typeId = def.getAttributeValue("type-id");
-        text = def.getAttributeValue("text");
+        String typeId = stringAttribute(def, "type-id");
+        text = stringAttribute(def, "text");
         TokenType tokenType = bundle.getTokenTypeBundle().getTokenType(typeId);
         setTokenType(tokenType);
         setDefaultFormatting(tokenType.getFormatting());
 
-        String flavorName = def.getAttributeValue("flavor");
+        String flavorName = stringAttribute(def, "flavor");
         if (StringUtil.isNotEmpty(flavorName)) {
             flavor = TokenTypeCategory.getCategory(flavorName);
         }
@@ -81,7 +84,7 @@ public class TokenElementType extends LeafElementType implements LookupItemBuild
     @NotNull
     @Override
     public String getName() {
-        return "token (" + getId() + " - " + tokenType.getId() + ")";
+        return "token (" + getId() + " - " + getTokenType().getId() + ")";
     }
 
     @Override
@@ -112,7 +115,7 @@ public class TokenElementType extends LeafElementType implements LookupItemBuild
         if (isIterationSeparator()) {
             if (getParent() instanceof IterationElementType) {
                 IterationElementType iterationElementType = (IterationElementType) getParent();
-                return iterationElementType.iteratedElementType.getLookupCache().getFirstRequiredLeafs();
+                return iterationElementType.getIteratedElementType().getLookupCache().getFirstRequiredLeafs();
             } else if (getParent() instanceof QualifiedIdentifierElementType){
                 return super.getNextRequiredLeafs(pathNode, context);
             }
@@ -121,7 +124,7 @@ public class TokenElementType extends LeafElementType implements LookupItemBuild
     }
 
     public boolean isIterationSeparator() {
-        return getId().equals(SEPARATOR);
+        return Objects.equals(getId(), SEPARATOR);
     }
 
     @Override
@@ -138,7 +141,7 @@ public class TokenElementType extends LeafElementType implements LookupItemBuild
     public boolean isSameAs(LeafElementType elementType) {
         if (elementType instanceof TokenElementType) {
             TokenElementType token = (TokenElementType) elementType;
-            return token.tokenType == tokenType;
+            return token.getTokenType() == getTokenType();
         }
         return false;
     }
@@ -150,11 +153,11 @@ public class TokenElementType extends LeafElementType implements LookupItemBuild
     }
 
     public String toString() {
-        return tokenType.getId() + " (" + getId() + ")";
+        return getTokenType().getId() + " (" + getId() + ")";
     }
 
     public boolean isCharacter() {
-        return tokenType.isCharacter();
+        return getTokenType().isCharacter();
     }
 
     @Override
@@ -167,7 +170,7 @@ public class TokenElementType extends LeafElementType implements LookupItemBuild
     }
 
     public TokenTypeCategory getTokenTypeCategory() {
-        return flavor == null ? tokenType.getCategory() : flavor;
+        return flavor == null ? getTokenType().getCategory() : flavor;
     }
 
     public List<TokenElementTypeChain> getPossibleTokenChains() {
@@ -186,7 +189,7 @@ public class TokenElementType extends LeafElementType implements LookupItemBuild
             for (LeafElementType nextPossibleLeaf : nextPossibleLeafs) {
                 if (nextPossibleLeaf instanceof TokenElementType) {
                     TokenElementType nextTokenElementType = (TokenElementType) nextPossibleLeaf;
-                    if (nextTokenElementType.tokenType.isKeyword()) {
+                    if (nextTokenElementType.getTokenType().isKeyword()) {
                         TokenElementTypeChain tokenElementTypeChain = chain.createVariant(nextTokenElementType);
                         if (possibleTokenChains == null) possibleTokenChains = new ArrayList<>();
                         possibleTokenChains.add(tokenElementTypeChain);

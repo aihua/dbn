@@ -4,10 +4,10 @@ import com.dci.intellij.dbn.code.common.lookup.LookupItemBuilder;
 import com.dci.intellij.dbn.code.common.lookup.ObjectLookupItemBuilder;
 import com.dci.intellij.dbn.common.content.DynamicContentStatus;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.latent.MapLatent;
 import com.dci.intellij.dbn.common.property.BasicProperty;
 import com.dci.intellij.dbn.common.thread.Read;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
+import com.dci.intellij.dbn.common.util.StringUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionManager;
@@ -41,7 +41,6 @@ import com.intellij.openapi.editor.EditorFactory;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.TextRange;
-import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
@@ -55,6 +54,8 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class DBVirtualObject extends DBObjectImpl implements PsiReference {
     private static final PsiLookupAdapter CHR_STAR_LOOKUP_ADAPTER = new PsiLookupAdapter() {
@@ -62,7 +63,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
         public boolean matches(BasePsiElement element) {
             if (element instanceof TokenPsiElement) {
                 TokenPsiElement tokenPsiElement = (TokenPsiElement) element;
-                return tokenPsiElement.getTokenType() == tokenPsiElement.elementType.getLanguage().getSharedTokenTypes().getChrStar();
+                return tokenPsiElement.getTokenType() == tokenPsiElement.getElementType().getLanguage().getSharedTokenTypes().getChrStar();
             }
             return false;
         }
@@ -77,8 +78,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
     private boolean loadingChildren;
     private WeakRef<BasePsiElement> relevantPsiElement;
     private final DBObjectPsiFacade psiFacade;
-    private final MapLatent<DBLanguage, ObjectLookupItemBuilder> lookupItemBuilder =
-            MapLatent.create(key -> new ObjectLookupItemBuilder(getRef(), key));
+    private final Map<String, ObjectLookupItemBuilder> lookupItemBuilder = new ConcurrentHashMap<>();
 
     private final BasicProperty<Boolean> valid = new BasicProperty<Boolean>(true) {
         @Override
@@ -170,7 +170,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
 
     @NotNull
     public LookupItemBuilder getLookupItemBuilder(DBLanguage language) {
-        return lookupItemBuilder.get(language);
+        return lookupItemBuilder.computeIfAbsent(language.getID(), key -> new ObjectLookupItemBuilder(getRef(), language));
     }
 
     @Override

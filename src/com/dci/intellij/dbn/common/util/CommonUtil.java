@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.common.util;
 
 import com.dci.intellij.dbn.common.routine.ThrowableCallable;
+import lombok.extern.slf4j.Slf4j;
 import org.jdom.Document;
 import org.jdom.adapters.XML4JDOMAdapter;
 import org.jdom.input.DOMBuilder;
@@ -13,8 +14,10 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.util.Objects;
 import java.util.function.Supplier;
 
+@Slf4j
 public final class CommonUtil {
     private CommonUtil() {}
 
@@ -33,7 +36,7 @@ public final class CommonUtil {
             for (int i = 3; i < stackTraceElements.length; i++) {
                 StackTraceElement stackTraceElement = stackTraceElements[i];
                 String className = stackTraceElement.getClassName();
-                if (clazz.getName().equals(className) /*|| clazz.isAssignableFrom(Class.forName(className))*/) {
+                if (Objects.equals(clazz.getName(), className) /*|| clazz.isAssignableFrom(Class.forName(className))*/) {
                     return true;
                 }
             }
@@ -49,9 +52,9 @@ public final class CommonUtil {
             for (int i = 3; i < stackTraceElements.length; i++) {
                 StackTraceElement stackTraceElement = stackTraceElements[i];
                 String className = stackTraceElement.getClassName();
-                if (clazz.getName().equals(className) /*|| clazz.isAssignableFrom(Class.forName(className))*/) {
+                if (Objects.equals(clazz.getName(), className) /*|| clazz.isAssignableFrom(Class.forName(className))*/) {
                     String methName = stackTraceElement.getMethodName();
-                    if (methodName.equals(methName)) {
+                    if (Objects.equals(methodName, methName)) {
                         return true;
                     }
                 }
@@ -116,7 +119,7 @@ public final class CommonUtil {
         try {
             return new DOMBuilder().build(new XML4JDOMAdapter().getDocument(inputStream, false));
         } catch (Exception e) {
-            //log.warn(e);
+            log.error("Failed to read xml document", e);
         }
         return null;
     }

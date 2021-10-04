@@ -29,6 +29,7 @@ import java.sql.SQLTimeoutException;
 import java.sql.SQLTransientConnectionException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Slf4j
@@ -59,7 +60,7 @@ public abstract class DynamicContentResultSetLoader<
     }
 
     private DebugInfo preLoadContent(DynamicContent<T> dynamicContent) {
-        if (Environment.DATABASE_DEBUG_MODE) {
+        if (Environment.DATABASE_ACCESS_DEBUG_MODE) {
             DebugInfo debugInfo = new DebugInfo();
             log.info(
                     "[DBN] Loading " + dynamicContent.getContentDescription() +
@@ -168,11 +169,11 @@ public abstract class DynamicContentResultSetLoader<
                 });
     }
 
-    public class LoaderCache {
+    public static class LoaderCache {
         private String name;
         private DBObject object;
         public DBObject getObject(String name) {
-            if (name.equals(this.name)) {
+            if (Objects.equals(name, this.name)) {
                 return object;
             }
             return null;

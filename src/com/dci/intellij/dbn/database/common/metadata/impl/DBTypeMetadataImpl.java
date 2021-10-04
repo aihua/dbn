@@ -5,9 +5,10 @@ import com.dci.intellij.dbn.database.common.metadata.def.DBTypeMetadata;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Objects;
 
 public class DBTypeMetadataImpl extends DBProgramMetadataImpl implements DBTypeMetadata {
-    private DBDataTypeMetadata dataType;
+    private final DBDataTypeMetadata dataType;
 
     public DBTypeMetadataImpl(ResultSet resultSet) {
         super(resultSet);
@@ -15,29 +16,29 @@ public class DBTypeMetadataImpl extends DBProgramMetadataImpl implements DBTypeM
     }
 
     public String getTypeName() throws SQLException {
-        return resultSet.getString("TYPE_NAME");
+        return getString("TYPE_NAME");
     }
 
     public String getTypeCode() throws SQLException {
-        return resultSet.getString("TYPECODE");
+        return getString("TYPECODE");
     }
 
     public String getSupertypeOwner() throws SQLException {
-        return resultSet.getString("SUPERTYPE_OWNER");
+        return getString("SUPERTYPE_OWNER");
     }
 
     public String getSupertypeName() throws SQLException {
-        return resultSet.getString("SUPERTYPE_NAME");
+        return getString("SUPERTYPE_NAME");
     }
 
     public boolean isCollection() throws SQLException {
         String typeCode = getTypeCode();
-        return "COLLECTION".equals(typeCode);
+        return Objects.equals(typeCode, "COLLECTION");
     }
 
     @Override
     public String getPackageName() throws SQLException {
-        return resultSet.getString("PACKAGE_NAME");
+        return getString("PACKAGE_NAME");
     }
 
     @Override

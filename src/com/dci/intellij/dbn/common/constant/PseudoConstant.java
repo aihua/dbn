@@ -10,6 +10,7 @@ import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -17,13 +18,13 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public abstract class PseudoConstant<T extends PseudoConstant<T>> implements Constant<T>, Serializable {
     private static final Map<Class<? extends PseudoConstant<?>>, Map<String, PseudoConstant<?>>> REGISTRY = new ConcurrentHashMap<>();
-    private static final ThreadLocalFlag INTERNAL_OPERATION = new ThreadLocalFlag(false);
+    private static final ThreadLocalFlag INTERNAL = new ThreadLocalFlag(false);
 
     private final String id;
 
     public PseudoConstant(String id) {
         this.id = id.intern();
-        if (!INTERNAL_OPERATION.get()) {
+        if (!INTERNAL.get()) {
             // register the pseudo constant if initialised over constructor
             Class<T> clazz = (Class<T>) getClass();
             Map<String, T> registry = getRegistry(clazz);
@@ -45,7 +46,7 @@ public abstract class PseudoConstant<T extends PseudoConstant<T>> implements Con
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         PseudoConstant that = (PseudoConstant) o;
-        return id.equals(that.id);
+        return Objects.equals(id, that.id);
 
     }
 
@@ -66,13 +67,14 @@ public abstract class PseudoConstant<T extends PseudoConstant<T>> implements Con
 
     @SneakyThrows
     private static <T extends PseudoConstant<T>> T createConstant(Class<T> clazz, String id) {
+        boolean internal = INTERNAL.get();
         try {
-            INTERNAL_OPERATION.set(true);
+            INTERNAL.set(true);
             Constructor<T> constructor = clazz.getDeclaredConstructor(String.class);
             constructor.setAccessible(true);
             return constructor.newInstance(id);
         } finally {
-            INTERNAL_OPERATION.set(false);
+            INTERNAL.set(internal);
         }
     }
 

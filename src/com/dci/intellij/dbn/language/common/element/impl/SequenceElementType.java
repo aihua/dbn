@@ -20,6 +20,8 @@ import org.jetbrains.annotations.NotNull;
 import java.util.List;
 import java.util.Set;
 
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
+
 public class SequenceElementType extends ElementTypeBase {
     protected ElementTypeRef[] children;
     private int exitIndex;
@@ -65,13 +67,13 @@ public class SequenceElementType extends ElementTypeBase {
             String type = child.getName();
             ElementTypeBase elementType = getElementBundle().resolveElementDefinition(child, type, this);
             boolean optional = getBooleanAttribute(child, "optional");
-            double version = Double.parseDouble(CommonUtil.nvl(child.getAttributeValue("version"), "0"));
+            double version = Double.parseDouble(CommonUtil.nvl(stringAttribute(child, "version"), "0"));
 
-            Set<BranchCheck> branchChecks = parseBranchChecks(child.getAttributeValue("branch-check"));
+            Set<BranchCheck> branchChecks = parseBranchChecks(stringAttribute(child, "branch-check"));
             this.children[i] = new ElementTypeRef(previous, this, elementType, optional, version, branchChecks);
             previous = this.children[i];
 
-            if (child.getAttributeValue("exit") != null) exitIndex = i;
+            if (stringAttribute(child, "exit") != null) exitIndex = i;
         }
     }
 
@@ -146,7 +148,7 @@ public class SequenceElementType extends ElementTypeBase {
         WrappingDefinition wrapping = getWrapping();
         if (wrapping != null && leafElementType instanceof TokenElementType) {
             TokenElementType tokenElementType = (TokenElementType) leafElementType;
-            if (wrapping.getEndElementType().tokenType == tokenElementType.tokenType) {
+            if (wrapping.getEndElementType().getTokenType() == tokenElementType.getTokenType()) {
                 return children.length-1;
             }
         }
@@ -166,7 +168,7 @@ public class SequenceElementType extends ElementTypeBase {
         WrappingDefinition wrapping = getWrapping();
         if (wrapping != null && elementType instanceof TokenElementType) {
             TokenElementType tokenElementType = (TokenElementType) elementType;
-            if (wrapping.getEndElementType().tokenType == tokenElementType.tokenType) {
+            if (wrapping.getEndElementType().getTokenType() == tokenElementType.getTokenType()) {
                 return children.length-1;
             }
         }

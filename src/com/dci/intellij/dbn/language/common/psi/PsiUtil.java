@@ -170,7 +170,7 @@ public class PsiUtil {
         while (element != null && !(element instanceof PsiFile)) {
             if (element instanceof BasePsiElement) {
                 BasePsiElement basePsiElement = (BasePsiElement) element;
-                if (basePsiElement.elementType.is(typeAttribute)) {
+                if (basePsiElement.getElementType().is(typeAttribute)) {
                     return basePsiElement;
                 }
             }
@@ -179,8 +179,8 @@ public class PsiUtil {
         return null;
     }
 
-    @Nullable
-    public static LeafPsiElement lookupLeafBeforeOffset(PsiFile file, int originalOffset) {
+/*    @Nullable
+    public static LeafPsiElement lookupLeafBeforeOffset0(PsiFile file, int originalOffset) {
         int offset = originalOffset;
         if (offset > 0 && offset == file.getTextLength()) {
             offset--;
@@ -203,7 +203,7 @@ public class PsiUtil {
             element = file.findElementAt(offset);
         }
         return null;
-    }
+    }*/
 
     private static boolean ignore(PsiElement element) {
         return element instanceof PsiWhiteSpace || element instanceof PsiComment;
@@ -211,23 +211,26 @@ public class PsiUtil {
 
 
     @Nullable
-    public static LeafPsiElement lookupLeafAtOffset(@NotNull PsiFile file, int originalOffset) {
-        int offset = originalOffset;
+    public static LeafPsiElement lookupLeafAtOffset(@NotNull PsiFile file, int offset) {
         PsiElement element = file.findElementAt(offset);
-        while (element != null && offset >= 0) {
-            int elementEndOffset = element.getTextOffset() + element.getTextLength();
-            if (element.getParent() instanceof LeafPsiElement) {
-                LeafPsiElement leafPsiElement = (LeafPsiElement) element.getParent();
-                if (leafPsiElement instanceof IdentifierPsiElement) {
-                    if (elementEndOffset < originalOffset) {
-                        return leafPsiElement;
-                    }
-                } else {
+        if (element != null && element.getParent() instanceof LeafPsiElement) {
+            return (LeafPsiElement) element.getParent();
+        }
+        return null;
+    }
+
+    @Nullable
+    public static LeafPsiElement lookupLeafBeforeOffset(@NotNull PsiFile file, int offset) {
+        if (offset > 0) {
+            offset--;
+            PsiElement element = file.findElementAt(offset);
+            while (element != null && offset >= 0) {
+                if (element.getParent() instanceof LeafPsiElement) {
                     return (LeafPsiElement) element.getParent();
                 }
+                offset = element.getTextOffset() - 1;
+                element = file.findElementAt(offset);
             }
-            offset = element.getTextOffset() - 1;
-            element = file.findElementAt(offset);
         }
         return null;
     }
@@ -342,7 +345,7 @@ public class PsiUtil {
     public static ElementType getElementType(PsiElement psiElement) {
         if (psiElement instanceof BasePsiElement) {
             BasePsiElement basePsiElement = (BasePsiElement) psiElement;
-            return basePsiElement.elementType;
+            return basePsiElement.getElementType();
         }
         return null;
     }

@@ -1,34 +1,28 @@
 package com.dci.intellij.dbn.connection;
 
-import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.notification.NotificationGroup;
 import com.dci.intellij.dbn.common.notification.NotificationSupport;
-import com.dci.intellij.dbn.common.thread.Timeout;
-import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
-import com.dci.intellij.dbn.connection.config.ConnectionPropertiesSettings;
-import com.dci.intellij.dbn.connection.config.ConnectionSettings;
-import com.dci.intellij.dbn.connection.info.ConnectionInfo;
+import com.dci.intellij.dbn.common.routine.ThrowableRunnable;
+import com.dci.intellij.dbn.common.util.Unsafe;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
+import com.dci.intellij.dbn.connection.jdbc.DBNResource;
 import com.dci.intellij.dbn.connection.jdbc.DBNStatement;
+import com.dci.intellij.dbn.connection.jdbc.ResourceStatus;
 import com.dci.intellij.dbn.database.DatabaseFeature;
-import com.dci.intellij.dbn.database.DatabaseInterface;
-import com.dci.intellij.dbn.database.DatabaseMessageParserInterface;
-import com.dci.intellij.dbn.driver.DatabaseDriverManager;
-import com.dci.intellij.dbn.driver.DriverSource;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
-import java.sql.DatabaseMetaData;
-import java.sql.Driver;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLRecoverableException;
 import java.sql.Savepoint;
 import java.util.Collection;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
-import static com.dci.intellij.dbn.environment.Environment.DATABASE_DEBUG_MODE;
+import static com.dci.intellij.dbn.common.util.CommonUtil.nvl;
+import static com.dci.intellij.dbn.environment.Environment.DATABASE_RESOURCE_DEBUG_MODE;
 
 @Slf4j
 public final class ResourceUtil {
@@ -45,30 +39,47 @@ public final class ResourceUtil {
     public static void cancel(DBNStatement statement) {
         if (statement != null) {
             try {
-                long start = System.currentTimeMillis();
-                if (DATABASE_DEBUG_MODE) log.info("[DBN] Cancelling " + statement);
-                statement.cancel();
-                if (DATABASE_DEBUG_MODE) log.info("[DBN] Done cancelling " + statement + " - " + (System.currentTimeMillis() - start) + "ms");
-            } catch (SQLRecoverableException ignore) {
-            } catch (Throwable e) {
-                log.warn("Failed to cancel statement (" + statement + "): " + e.getMessage());
+                invokeResourceAction(
+                        statement,
+                        ResourceStatus.CANCELLING,
+                        () -> statement.cancel(),
+                        () -> "[DBN] Cancelling " + statement,
+                        () -> "[DBN] Done cancelling " + statement,
+                        () -> "[DBN] Failed to cancel " + statement);
+            } catch (Throwable ignore) {
             } finally {
-                close(statement);
+                close((DBNResource) statement);
             }
         }
     }
 
     public static <T extends AutoCloseable> void close(T resource) {
         if (resource != null) {
-            try {
-                long start = System.currentTimeMillis();
-                if (DATABASE_DEBUG_MODE) log.info("[DBN] Closing " + resource);
-                resource.close();
-                if (DATABASE_DEBUG_MODE) log.info("[DBN] Done closing " + resource + " - " + (System.currentTimeMillis() - start) + "ms");
-            } catch (SQLRecoverableException ignore) {
-            } catch (Throwable e) {
-                log.warn("Failed to close " + resource, e);
+            if (resource instanceof DBNResource) {
+                close((DBNResource) resource);
+            } else {
+                try {
+                    invokeResourceAction(
+                            () -> resource.close(),
+                            () -> "[DBN] Closing " + resource,
+                            () -> "[DBN] Done closing " + resource,
+                            () -> "[DBN] Failed to close " + resource);
+                } catch (Throwable ignore) {}
             }
+        }
+    }
+
+    private static <T extends DBNResource> void close(T resource) {
+        if (resource != null) {
+            try {
+                invokeResourceAction(
+                        resource,
+                        ResourceStatus.CLOSING,
+                        () -> resource.close(),
+                        () -> "[DBN] Closing " + resource,
+                        () -> "[DBN] Done closing " + resource,
+                        () -> "[DBN] Failed to close " + resource);
+            } catch (Throwable ignore) {}
         }
     }
 
@@ -78,144 +89,21 @@ public final class ResourceUtil {
         }
     }
 
-    public static DBNConnection connect(ConnectionHandler connectionHandler, SessionId sessionId) throws SQLException {
-        ConnectionHandlerStatusHolder connectionStatus = connectionHandler.getConnectionStatus();
-        ConnectionSettings connectionSettings = connectionHandler.getSettings();
-        ConnectionPropertiesSettings propertiesSettings = connectionSettings.getPropertiesSettings();
-
-        // do not retry connection on authentication error unless
-        // credentials changed (account can be locked on several invalid trials)
-        AuthenticationError authenticationError = connectionStatus.getAuthenticationError();
-        AuthenticationInfo authenticationInfo = ensureAuthenticationInfo(connectionHandler);
-
-        if (authenticationError != null && authenticationError.getAuthenticationInfo().isSame(authenticationInfo) && !authenticationError.isExpired()) {
-            throw authenticationError.getException();
-        }
-
-        return DatabaseInterface.call(
-                connectionHandler,
-                (interfaceProvider) -> {
-                    try {
-                        DatabaseAttachmentHandler attachmentHandler = interfaceProvider.getCompatibilityInterface().getDatabaseAttachmentHandler();
-                        DBNConnection connection = connect(
-                                connectionSettings,
-                                connectionStatus,
-                                connectionHandler.getTemporaryAuthenticationInfo(),
-                                sessionId,
-                                propertiesSettings.isEnableAutoCommit(),
-                                attachmentHandler);
-                        ConnectionInfo connectionInfo = new ConnectionInfo(connection.getMetaData());
-                        connectionHandler.setConnectionInfo(connectionInfo);
-                        connectionStatus.setAuthenticationError(null);
-                        connectionHandler.getCompatibility().read(connection.getMetaData());
-                        return connection;
-                    } catch (SQLException e) {
-                        DatabaseMessageParserInterface messageParserInterface = interfaceProvider.getMessageParserInterface();
-                        if (messageParserInterface.isAuthenticationException(e)){
-                            authenticationInfo.setPassword(null);
-                            connectionStatus.setAuthenticationError(new AuthenticationError(authenticationInfo, e));
-                        }
-                        throw e;
-                    }
-                });
-    }
-
-    @NotNull
-    private static AuthenticationInfo ensureAuthenticationInfo(ConnectionHandler connectionHandler) {
-        ConnectionSettings connectionSettings = connectionHandler.getSettings();
-        ConnectionDatabaseSettings databaseSettings = connectionSettings.getDatabaseSettings();
-        AuthenticationInfo authenticationInfo = databaseSettings.getAuthenticationInfo();
-        if (!authenticationInfo.isProvided()) {
-            authenticationInfo = connectionHandler.getTemporaryAuthenticationInfo();
-        }
-        return authenticationInfo;
-    }
-
-    @NotNull
-    public static DBNConnection connect(
-            ConnectionSettings connectionSettings,
-            @Nullable ConnectionHandlerStatusHolder connectionStatus,
-            @Nullable AuthenticationInfo temporaryAuthenticationInfo,
-            @NotNull SessionId sessionId,
-            boolean autoCommit,
-            @Nullable DatabaseAttachmentHandler attachmentHandler) throws SQLException {
-        Connector connector = new Connector(
-                sessionId,
-                temporaryAuthenticationInfo,
-                connectionSettings,
-                connectionStatus,
-                attachmentHandler,
-                autoCommit);
-
-        int connectTimeout = connectionSettings.getDetailSettings().getConnectivityTimeout();
-        DBNConnection connection = Timeout.call(connectTimeout, null, true, () -> connector.connect());
-
-        SQLException exception = connector.getException();
-        if (exception != null) {
-            throw exception;
-        }
-
-        if (connection == null) {
-            throw new SQLException("Could not connect to database. Communication timeout");
-        }
-
-        return connection;
-    }
-
-    @Nullable
-    static Driver resolveDriver(ConnectionDatabaseSettings databaseSettings) throws Exception {
-        Driver driver = null;
-        DatabaseDriverManager driverManager = DatabaseDriverManager.getInstance();
-        DriverSource driverSource = databaseSettings.getDriverSource();
-        String driverClassName = databaseSettings.getDriver();
-        if (driverSource == DriverSource.EXTERNAL) {
-            driver = driverManager.getDriver(
-                    new File(databaseSettings.getDriverLibrary()),
-                    driverClassName);
-        } else if (driverSource == DriverSource.BUILTIN) {
-            DatabaseType databaseType = databaseSettings.getDatabaseType();
-            boolean internal = databaseType == DatabaseType.ORACLE;
-            driver = driverManager.getDriver(driverClassName, internal);
-
-            if (driver == null) {
-                File driverLibrary = driverManager.getInternalDriverLibrary(databaseType);
-                if (driverLibrary != null) {
-                    return driverManager.getDriver(driverLibrary, driverClassName);
-                }
-            }
-        }
-
-        return driver;
-    }
-
-    protected static DatabaseType getDatabaseType(String driver) {
-        return DatabaseType.resolve(driver);
-
-    }
-
-    public static double getDatabaseVersion(DatabaseMetaData databaseMetaData) throws SQLException {
-        int majorVersion = databaseMetaData.getDatabaseMajorVersion();
-        int minorVersion = databaseMetaData.getDatabaseMinorVersion();
-        return new Double(majorVersion + "." + minorVersion);
-    }
-
-    public static DatabaseType getDatabaseType(DatabaseMetaData databaseMetaData) throws SQLException {
-        String productName = databaseMetaData.getDatabaseProductName();
-        return DatabaseType.resolve(productName);
-    }
-
     public static void commitSilently(DBNConnection connection) {
-        try {
-            commit(connection);
-        } catch (SQLRecoverableException ignore) {
-        } catch (SQLException e) {
-            log.warn("Commit failed", e);
-        }
+        Unsafe.silent(() -> commit(connection));
     }
 
     public static void commit(DBNConnection connection) throws SQLException {
         try {
-            if (connection != null) connection.commit();
+            if (connection != null) {
+                invokeResourceAction(
+                        connection,
+                        ResourceStatus.COMMITTING,
+                        () -> connection.commit(),
+                        () -> "[DBN] Committing " + connection,
+                        () -> "[DBN] Done committing " + connection,
+                        () -> "[DBN] Failed to commit " + connection);
+            }
         } catch (SQLRecoverableException ignore) {
         } catch (SQLException e) {
             sentWarningNotification(
@@ -228,17 +116,20 @@ public final class ResourceUtil {
     }
 
     public static void rollbackSilently(DBNConnection connection) {
-        try {
-            rollback(connection);
-        } catch (SQLRecoverableException ignore) {
-        } catch (SQLException e) {
-            log.warn("Rollback failed", e);
-        }
-
+        Unsafe.silent(() -> rollback(connection));
     }
+
     public static void rollback(DBNConnection connection) throws SQLException {
         try {
-            if (connection != null && !connection.isClosed() && !connection.getAutoCommit()) connection.rollback();
+            if (connection != null && !connection.isClosed() && !connection.getAutoCommit()) {
+                invokeResourceAction(
+                        connection,
+                        ResourceStatus.ROLLING_BACK,
+                        () -> connection.rollback(),
+                        () -> "[DBN] Rolling-back " + connection,
+                        () -> "[DBN] Done rolling-back " + connection,
+                        () -> "[DBN] Failed to roll-back " + connection);
+            }
         } catch (SQLRecoverableException ignore) {
         } catch (SQLException e) {
             sentWarningNotification(
@@ -251,17 +142,21 @@ public final class ResourceUtil {
     }
 
     public static void rollbackSilently(DBNConnection connection, @Nullable Savepoint savepoint) {
-        try {
-            rollback(connection, savepoint);
-        } catch (SQLRecoverableException ignore) {
-        } catch (SQLException e) {
-            log.warn("Savepoint rollback failed", e);
-        }
+        Unsafe.silent(() -> rollback(connection, savepoint));
     }
 
     public static void rollback(DBNConnection connection, @Nullable Savepoint savepoint) throws SQLException {
         try {
-            if (connection != null && savepoint != null && !connection.isClosed() && !connection.getAutoCommit()) connection.rollback(savepoint);
+            if (connection != null && savepoint != null && !connection.isClosed() && !connection.getAutoCommit()) {
+                String savepointId = getSavepointIdentifier(savepoint);
+                invokeResourceAction(
+                        connection,
+                        ResourceStatus.ROLLING_BACK_SAVEPOINT,
+                        () -> connection.rollback(savepoint),
+                        () -> "[DBN] Rolling-back savepoint '" + savepointId + "' on " + connection,
+                        () -> "[DBN] Done rolling-back savepoint '" + savepointId + "' on " + connection,
+                        () -> "[DBN] Failed to roll-back savepoint '" + savepointId + "' on " + connection);
+            }
         } catch (SQLRecoverableException ignore) {
         } catch (SQLException e) {
             sentWarningNotification(
@@ -276,7 +171,15 @@ public final class ResourceUtil {
     public static @Nullable Savepoint createSavepoint(DBNConnection connection) {
         try {
             if (connection != null && !connection.isClosed() && !connection.getAutoCommit()) {
-                return connection.setSavepoint();
+                AtomicReference<Savepoint> savepoint = new AtomicReference<>();
+                invokeResourceAction(
+                        connection,
+                        ResourceStatus.CREATING_SAVEPOINT,
+                        () -> savepoint.set(connection.setSavepoint()),
+                        () -> "[DBN] Creating savepoint on " + connection,
+                        () -> "[DBN] Done creating savepoint on " + connection,
+                        () -> "[DBN] Failed to create savepoint on " + connection);
+                return savepoint.get();
             }
         } catch (SQLRecoverableException ignore) {
         } catch (SQLException e) {
@@ -292,7 +195,14 @@ public final class ResourceUtil {
     public static void releaseSavepoint(DBNConnection connection, @Nullable Savepoint savepoint) {
         try {
             if (connection != null && savepoint != null && !connection.isClosed() && !connection.getAutoCommit()) {
-                connection.releaseSavepoint(savepoint);
+                String savepointId = getSavepointIdentifier(savepoint);
+                invokeResourceAction(
+                        connection,
+                        ResourceStatus.RELEASING_SAVEPOINT,
+                        () -> connection.releaseSavepoint(savepoint),
+                        () -> "[DBN] Releasing savepoint '" + savepointId + "' on " + connection,
+                        () -> "[DBN] Done releasing savepoint '" + savepointId + "' on " + connection,
+                        () -> "[DBN] Failed to release savepoint '" + savepointId + "' on " + connection);
             }
         } catch (SQLRecoverableException ignore) {
         } catch (SQLException e) {
@@ -308,13 +218,20 @@ public final class ResourceUtil {
         boolean readonlySupported = DatabaseFeature.READONLY_CONNECTIVITY.isSupported(connectionHandler);
         if (readonlySupported) {
             try {
-                connection.setReadOnly(readonly);
+                invokeResourceAction(
+                        connection,
+                        ResourceStatus.CHANGING_READONLY_STATUS,
+                        () -> connection.setReadOnly(readonly),
+                        () -> "[DBN] Applying status READ_ONLY=" + readonly + " on " + connection,
+                        () -> "[DBN] Done applying status READ_ONLY=" + readonly + " on " + connection,
+                        () -> "[DBN] Failed to apply status READ_ONLY=" + readonly + " on " + connection);
+            } catch (SQLRecoverableException ignore) {
             } catch (SQLException e) {
-            sentWarningNotification(
-                    NotificationGroup.CONNECTION,
-                    "Failed to initialize readonly status for",
-                    connection,
-                    e);
+                sentWarningNotification(
+                        NotificationGroup.CONNECTION,
+                        "Failed to initialize readonly status for",
+                        connection,
+                        e);
             }
         }
     }
@@ -322,11 +239,17 @@ public final class ResourceUtil {
     public static void setAutoCommit(DBNConnection connection, boolean autoCommit) {
         try {
             if (connection != null && !connection.isClosed()) {
+                invokeResourceAction(
+                        connection,
+                        ResourceStatus.CHANGING_AUTOCOMMIT_STATUS, () -> connection.setReadOnly(autoCommit),
+                        () -> "[DBN] Applying status AUTO_COMMIT=" + autoCommit + " on " + connection,
+                        () -> "[DBN] Done applying status AUTO_COMMIT=" + autoCommit + " on " + connection,
+                        () -> "[DBN] Failed to apply status AUTO_COMMIT=" + autoCommit + " on " + connection);
+
                 connection.setAutoCommit(autoCommit);
             }
         } catch (SQLRecoverableException ignore) {
         } catch (Exception e) {
-            log.warn("Unable to set auto-commit to " + autoCommit +". Maybe your database does not support transactions...", e);
             sentWarningNotification(
                     NotificationGroup.CONNECTION,
                     "Failed to change auto-commit status for",
@@ -336,15 +259,62 @@ public final class ResourceUtil {
     }
 
     private static void sentWarningNotification(NotificationGroup title, String message, DBNConnection connection, Exception e) {
-        String name = connection.getName();
-        SessionId sessionId = connection.getSessionId();
-        String errorMessage = e.getMessage();
-        String notificationMessage = message + " connection \"" + name + " (" + sessionId + ")\": " + errorMessage;
+        String error = nvl(e.getMessage(), e.getClass().getName());
+        if (connection.shouldNotify(error)) {
+            String name = connection.getName();
+            SessionId sessionId = connection.getSessionId();
+            String errorMessage = e.getMessage();
+            String notificationMessage = message + " connection \"" + name + " (" + sessionId + ")\": " + errorMessage;
 
-        NotificationSupport.sendWarningNotification(
-                connection.getProject(),
-                title,
-                notificationMessage);
+            NotificationSupport.sendWarningNotification(
+                    connection.getProject(),
+                    title,
+                    notificationMessage);
+        }
+    }
 
+    private static <E extends Throwable> void invokeResourceAction(
+            @NotNull DBNResource<?> targetResource,
+            @NotNull ResourceStatus transientStatus,
+            @NotNull ThrowableRunnable<E> action,
+            @NotNull Supplier<String> startMessage,
+            @NotNull Supplier<String> successMessage,
+            @NotNull Supplier<String> errorMessage) throws E{
+
+        try {
+            targetResource.set(transientStatus, true);
+            invokeResourceAction(action, startMessage, successMessage, errorMessage);
+        } finally {
+            targetResource.set(transientStatus, false);
+        }
+    }
+
+    private static <E extends Throwable> void invokeResourceAction(
+            @NotNull ThrowableRunnable<E> action,
+            @NotNull Supplier<String> startMessage,
+            @NotNull Supplier<String> successMessage,
+            @NotNull Supplier<String> errorMessage) throws E{
+
+        long start = System.currentTimeMillis();
+        if (DATABASE_RESOURCE_DEBUG_MODE) log.info(startMessage.get() + "...");
+        try {
+            action.run();
+            if (DATABASE_RESOURCE_DEBUG_MODE) log.info(successMessage.get() + " - " + (System.currentTimeMillis() - start) + "ms");
+        } catch (Throwable t) {
+            log.warn(errorMessage.get() + " Cause: " + t.getMessage());
+            throw t;
+        }
+    }
+
+    public static String getSavepointIdentifier(Savepoint savepoint) {
+        try {
+            return savepoint.getSavepointName();
+        } catch (SQLException e) {
+            try {
+                return Integer.toString(savepoint.getSavepointId());
+            } catch (SQLException ex) {
+                return "UNKNOWN";
+            }
+        }
     }
 }

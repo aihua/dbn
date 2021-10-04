@@ -3,7 +3,8 @@ package com.dci.intellij.dbn.database.common.statement;
 import com.dci.intellij.dbn.common.thread.ThreadPool;
 import com.dci.intellij.dbn.connection.ResourceUtil;
 import com.dci.intellij.dbn.diagnostics.data.DiagnosticBundle;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.sql.SQLException;
 import java.sql.SQLTimeoutException;
@@ -16,6 +17,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 public final class StatementExecutor {
+    private StatementExecutor() {}
+
     public static <T> T execute(Context context, Callable<T> callable) throws SQLException {
         long start = System.currentTimeMillis();
         String identifier = context.getIdentifier();
@@ -59,7 +62,8 @@ public final class StatementExecutor {
         return new Context(diagnostics, identifier, timeout);
     }
 
-    @Data
+    @Getter
+    @Setter
     public static final class Context {
         private Statement statement;
         private final DiagnosticBundle diagnostics;

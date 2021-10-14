@@ -7,11 +7,7 @@ import com.dci.intellij.dbn.language.common.element.impl.ElementTypeRef;
 import com.dci.intellij.dbn.language.common.element.impl.IdentifierElementType;
 import com.dci.intellij.dbn.language.common.element.impl.IterationElementType;
 import com.dci.intellij.dbn.language.common.element.impl.SequenceElementType;
-import com.dci.intellij.dbn.language.common.element.parser.ElementTypeParser;
-import com.dci.intellij.dbn.language.common.element.parser.ParseResult;
-import com.dci.intellij.dbn.language.common.element.parser.ParseResultType;
-import com.dci.intellij.dbn.language.common.element.parser.ParserBuilder;
-import com.dci.intellij.dbn.language.common.element.parser.ParserContext;
+import com.dci.intellij.dbn.language.common.element.parser.*;
 import com.dci.intellij.dbn.language.common.element.path.BasicPathNode;
 import com.dci.intellij.dbn.language.common.element.path.ParsePathNode;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
@@ -48,6 +44,7 @@ public class SequenceElementTypeParser<ET extends SequenceElementType> extends E
                     ParseResultType resultType =
                             child.optional && (child.isLast() || child.isOptionalFromHere()) ? ParseResultType.FULL_MATCH :
                             !child.isFirst() && elementType.isExitIndex(index) ? ParseResultType.NO_MATCH : ParseResultType.PARTIAL_MATCH;
+
                     return stepOut(node, context, depth, resultType, matchedTokens);
                 }
 
@@ -132,12 +129,12 @@ public class SequenceElementTypeParser<ET extends SequenceElementType> extends E
                 tokenType = builder.getTokenType();
             } else {
                 //builder.markerDone(marker, getElementBundle().getUnknownElementType());
-                marker.error("Unrecognized statement");
+                marker.error("Invalid or incomplete statement. Expected: ");
                 return newIndex;
             }
         }
         //builder.markerDone(marker, getElementBundle().getUnknownElementType());
-        marker.error("Unrecognized statement 1");
+        marker.error("Invalid or incomplete statement. Expected: ");
         return 0;
     }
 

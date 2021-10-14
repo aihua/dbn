@@ -12,7 +12,7 @@ import com.dci.intellij.dbn.language.common.TokenType;
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.ElementTypeBundle;
 import com.dci.intellij.dbn.language.common.element.TokenPairTemplate;
-import com.dci.intellij.dbn.language.common.element.lookup.ElementTypeLookupCache;
+import com.dci.intellij.dbn.language.common.element.cache.ElementTypeLookupCache;
 import com.dci.intellij.dbn.language.common.element.parser.Branch;
 import com.dci.intellij.dbn.language.common.element.parser.BranchCheck;
 import com.dci.intellij.dbn.language.common.element.parser.ElementTypeParser;
@@ -34,6 +34,7 @@ import javax.swing.Icon;
 import java.util.Objects;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
 
@@ -41,6 +42,7 @@ import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.string
 @Getter
 @Setter
 public abstract class ElementTypeBase extends IElementType implements ElementType {
+    private static final AtomicInteger INDEXER = new AtomicInteger();
     private static final FormattingDefinition STATEMENT_FORMATTING = new FormattingDefinition(null, IndentDefinition.NORMAL, SpacingDefinition.MIN_LINE_BREAK, null);
 
     private final int idx;
@@ -66,9 +68,9 @@ public abstract class ElementTypeBase extends IElementType implements ElementTyp
 
     ElementTypeBase(@NotNull ElementTypeBundle bundle, ElementTypeBase parent, String id, @Nullable String description) {
         super(id, bundle.getLanguageDialect(), false);
-        idx = TokenType.INDEXER.incrementAndGet();
+        this.idx = INDEXER.incrementAndGet();
         this.id = id.intern();
-        this.hashCode = id.hashCode();
+        this.hashCode = System.identityHashCode(this);
         this.description = description;
         this.bundle = bundle;
         this.parent = parent;
@@ -76,9 +78,9 @@ public abstract class ElementTypeBase extends IElementType implements ElementTyp
 
     ElementTypeBase(@NotNull ElementTypeBundle bundle, ElementTypeBase parent, String id, @NotNull Element def) throws ElementTypeDefinitionException {
         super(id, bundle.getLanguageDialect(), false);
-        idx = TokenType.INDEXER.incrementAndGet();
+        this.idx = INDEXER.incrementAndGet();
         String defId = stringAttribute(def, "id");
-        this.hashCode = id.hashCode();
+        this.hashCode = System.identityHashCode(this);
         if (!Objects.equals(id, defId)) {
             defId = id;
             def.setAttribute("id", defId);
@@ -91,6 +93,11 @@ public abstract class ElementTypeBase extends IElementType implements ElementTyp
             log.warn('[' + getLanguageDialect().getID() + "] Invalid element attribute 'exit'. (id=" + this.id + "). Attribute is only allowed for direct child of sequence element");
         }
         loadDefinition(def);
+    }
+
+    @Override
+    public int index() {
+        return idx;
     }
 
     Set<BranchCheck> parseBranchChecks(String definitions) {

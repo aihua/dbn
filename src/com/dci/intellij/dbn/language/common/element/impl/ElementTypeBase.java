@@ -41,7 +41,7 @@ import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.string
 @Slf4j
 @Getter
 @Setter
-public abstract class ElementTypeBase extends IElementType implements ElementType {
+public abstract class ElementTypeBase<T extends ElementTypeBase<T>> extends IElementType implements ElementType {
     private static final AtomicInteger INDEXER = new AtomicInteger();
     private static final FormattingDefinition STATEMENT_FORMATTING = new FormattingDefinition(null, IndentDefinition.NORMAL, SpacingDefinition.MIN_LINE_BREAK, null);
 
@@ -54,7 +54,7 @@ public abstract class ElementTypeBase extends IElementType implements ElementTyp
     private Branch branch;
     private FormattingDefinition formatting;
 
-    private final ElementTypeLookupCache lookupCache = createLookupCache();
+    private final ElementTypeLookupCache<?> lookupCache = createLookupCache();
     private final ElementTypeParser parser = createParser();
     private final ElementTypeBundle bundle;
     private final ElementTypeBase parent;
@@ -131,7 +131,7 @@ public abstract class ElementTypeBase extends IElementType implements ElementTyp
         return wrapping != null && wrapping.getEndElementType().getTokenType() == tokenType;
     }
 
-    protected abstract ElementTypeLookupCache createLookupCache();
+    protected abstract ElementTypeLookupCache<?> createLookupCache();
 
     @NotNull
     protected abstract ElementTypeParser createParser();

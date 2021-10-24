@@ -12,4 +12,8 @@ public class IndexRegistry<T extends Indexable> {
     public T get(int index) {
         return INDEX.get(index);
     }
+
+    public int size() {
+        return INDEX.size();
+    }
 }

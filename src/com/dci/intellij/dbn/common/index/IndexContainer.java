@@ -1,20 +1,20 @@
 package com.dci.intellij.dbn.common.index;
 
 import com.dci.intellij.dbn.common.util.Compactable;
-import gnu.trove.THashSet;
 import gnu.trove.TIntHashSet;
 import gnu.trove.TIntIterator;
 
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.function.Function;
 
 public class IndexContainer<T extends Indexable> implements Compactable {
     private final TIntHashSet INDEX = new TIntHashSet();
 
-    public void add(T indexable) {
-        int index = indexable.index();
-        INDEX.add(index);
+    public void add(T element) {
+        INDEX.add(element.index());
     }
 
     public boolean isEmpty() {
@@ -29,7 +29,7 @@ public class IndexContainer<T extends Indexable> implements Compactable {
         if (INDEX.isEmpty()) {
             return Collections.emptySet();
         } else {
-            Set<T> elements = new THashSet<>(INDEX.size());
+            Set<T> elements = new HashSet<>(INDEX.size());
             TIntIterator iterator = INDEX.iterator();
             while (iterator.hasNext()) {
                 int next = iterator.next();
@@ -44,7 +44,7 @@ public class IndexContainer<T extends Indexable> implements Compactable {
         INDEX.trimToSize();
     }
 
-    public void addAll(Set<T> elements) {
-        elements.forEach(element -> add(element));
+    public void addAll(Collection<T> elements) {
+        elements.forEach(element -> INDEX.add(element.index()));
     }
 }

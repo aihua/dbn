@@ -6,12 +6,12 @@ import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.action.ProjectAction;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
+import com.dci.intellij.dbn.common.file.util.VirtualFileUtil;
 import com.dci.intellij.dbn.common.list.FilteredList;
 import com.dci.intellij.dbn.common.project.ProjectRef;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
-import com.dci.intellij.dbn.common.util.VirtualFileUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionBundle;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -61,6 +61,11 @@ import com.intellij.openapi.vfs.VirtualFileListener;
 import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.openapi.vfs.VirtualFileMoveEvent;
 import com.intellij.openapi.vfs.VirtualFilePropertyEvent;
+import com.intellij.openapi.vfs.newvfs.BulkFileListener;
+import com.intellij.openapi.vfs.newvfs.events.VFileDeleteEvent;
+import com.intellij.openapi.vfs.newvfs.events.VFileEvent;
+import com.intellij.openapi.vfs.newvfs.events.VFileMoveEvent;
+import com.intellij.openapi.vfs.newvfs.events.VFilePropertyChangeEvent;
 import com.intellij.testFramework.LightVirtualFile;
 import com.intellij.util.IncorrectOperationException;
 import org.jdom.Element;
@@ -89,7 +94,8 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
 
     private FileConnectionMappingManager(@NotNull Project project) {
         super(project);
-        VirtualFileManager.getInstance().addVirtualFileListener(virtualFileListener);
+        //VirtualFileManager.getInstance().addVirtualFileListener(virtualFileListener);
+        ProjectEvents.subscribe(project, this, VirtualFileManager.VFS_CHANGES, bulkFileListener);
         ProjectEvents.subscribe(project, this, SessionManagerListener.TOPIC, sessionManagerListener);
     }
 
@@ -784,6 +790,7 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
     /***************************************
      *         VirtualFileListener         *
      ***************************************/
+    @Deprecated // TODO cleanup
     private final VirtualFileListener virtualFileListener = new VirtualFileAdapter() {
         @Override
         public void fileDeleted(@NotNull VirtualFileEvent event) {
@@ -808,6 +815,39 @@ public class FileConnectionMappingManager extends AbstractProjectComponent imple
                 FileConnectionMapping fileConnectionMapping = mappings.get(oldFileUrl);
                 if (fileConnectionMapping != null) {
                     fileConnectionMapping.setFileUrl(file.getUrl());
+                }
+            }
+        }
+    };
+
+    private final BulkFileListener bulkFileListener = new BulkFileListener() {
+        @Override
+        public void after(@NotNull List<? extends VFileEvent> events) {
+            for (VFileEvent event : events) {
+                VirtualFile file = event.getFile();
+                if (file != null) {
+                    if (event instanceof VFileDeleteEvent) {
+                        removeMapping(file);
+
+                    } else if (event instanceof VFileMoveEvent) {
+                        VFileMoveEvent moveEvent = (VFileMoveEvent) event;
+                        String oldFileUrl = moveEvent.getOldParent().getUrl() + "/" + file.getName();
+                        FileConnectionMapping fileConnectionMapping = mappings.get(oldFileUrl);
+                        if (fileConnectionMapping != null) {
+                            fileConnectionMapping.setFileUrl(event.getFile().getUrl());
+                        }
+
+                    } else if (event instanceof VFilePropertyChangeEvent) {
+                        VFilePropertyChangeEvent propChangeEvent = (VFilePropertyChangeEvent) event;
+                        VirtualFile parent = file.getParent();
+                        if (file.isInLocalFileSystem() && parent != null) {
+                            String oldFileUrl = parent.getUrl() + "/" + propChangeEvent.getOldValue();
+                            FileConnectionMapping fileConnectionMapping = mappings.get(oldFileUrl);
+                            if (fileConnectionMapping != null) {
+                                fileConnectionMapping.setFileUrl(file.getUrl());
+                            }
+                        }
+                    }
                 }
             }
         }

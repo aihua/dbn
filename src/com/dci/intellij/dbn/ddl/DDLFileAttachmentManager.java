@@ -4,11 +4,11 @@ import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
+import com.dci.intellij.dbn.common.file.util.VirtualFileUtil;
 import com.dci.intellij.dbn.common.thread.Write;
 import com.dci.intellij.dbn.common.ui.ListUtil;
 import com.dci.intellij.dbn.common.util.DocumentUtil;
 import com.dci.intellij.dbn.common.util.MessageUtil;
-import com.dci.intellij.dbn.common.util.VirtualFileUtil;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionManager;
@@ -44,15 +44,23 @@ import com.intellij.openapi.vfs.VirtualFileAdapter;
 import com.intellij.openapi.vfs.VirtualFileEvent;
 import com.intellij.openapi.vfs.VirtualFileListener;
 import com.intellij.openapi.vfs.VirtualFileManager;
+import com.intellij.openapi.vfs.newvfs.BulkFileListener;
+import com.intellij.openapi.vfs.newvfs.events.VFileDeleteEvent;
+import com.intellij.openapi.vfs.newvfs.events.VFileEvent;
 import org.jdom.Element;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
+import javax.swing.JList;
+import javax.swing.ListSelectionModel;
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
@@ -70,7 +78,8 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
     private DDLFileAttachmentManager(@NotNull Project project) {
         super(project);
 
-        VirtualFileManager.getInstance().addVirtualFileListener(virtualFileListener);
+        //VirtualFileManager.getInstance().addVirtualFileListener(virtualFileListener);
+        ProjectEvents.subscribe(project, this, VirtualFileManager.VFS_CHANGES, bulkFileListener);
         ProjectEvents.subscribe(project, this, SourceCodeManagerListener.TOPIC, sourceCodeManagerListener);
     }
 
@@ -440,18 +449,36 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
     /************************************************
      *               VirtualFileListener            *
      ************************************************/
-
+    @Deprecated // TODO cleanup
     private final VirtualFileListener virtualFileListener = new VirtualFileAdapter() {
         @Override
         public void fileDeleted(@NotNull VirtualFileEvent event) {
-            DBObjectRef<DBSchemaObject> objectRef = mappings.get(event.getFile().getUrl());
-            DBSchemaObject object = DBObjectRef.get(objectRef);
-            if (object != null) {
-                detachDDLFile(event.getFile());
-                DatabaseFileSystem.getInstance().reopenEditor(object);
+            processFileDeletedEvent(event.getFile());
+        }
+    };
+
+    private final BulkFileListener bulkFileListener = new BulkFileListener() {
+        @Override
+        public void after(@NotNull List<? extends VFileEvent> events) {
+            for (VFileEvent event : events) {
+                VirtualFile file = event.getFile();
+                if (file != null) {
+                    if (event instanceof VFileDeleteEvent) {
+                        processFileDeletedEvent(file);
+                    }
+                }
             }
         }
     };
+
+    private void processFileDeletedEvent(@NotNull VirtualFile file) {
+        DBObjectRef<DBSchemaObject> objectRef = mappings.get(file.getUrl());
+        DBSchemaObject object = DBObjectRef.get(objectRef);
+        if (object != null) {
+            detachDDLFile(file);
+            DatabaseFileSystem.getInstance().reopenEditor(object);
+        }
+    }
 
     /*********************************************
      *            PersistentStateComponent       *

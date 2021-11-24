@@ -50,9 +50,11 @@ import com.intellij.psi.FileViewProvider;
 import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiElementVisitor;
+import com.intellij.psi.PsiErrorElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiFileFactory;
 import com.intellij.psi.PsiManager;
+import com.intellij.psi.PsiRecursiveElementVisitor;
 import com.intellij.psi.SingleRootFileViewProvider;
 import com.intellij.psi.impl.source.PsiFileImpl;
 import com.intellij.psi.tree.IFileElementType;
@@ -64,6 +66,7 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.swing.Icon;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 
 public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConnectionMappingProvider, PresentableConnectionProvider, StatefulDisposable {
@@ -432,5 +435,24 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
     public EnvironmentType getEnvironmentType() {
         ConnectionHandler connectionHandler = getConnectionHandler();
         return connectionHandler == null ? EnvironmentType.DEFAULT :  connectionHandler.getEnvironmentType();
+    }
+
+    public int countErrors() {
+        List<PsiErrorElement> errors = new ArrayList<>();
+        PsiElementVisitor visitor = new PsiRecursiveElementVisitor() {
+            @Override
+            public void visitElement(@NotNull PsiElement element) {
+                if (element instanceof PsiErrorElement) {
+                    if (errors.stream().noneMatch(error -> error.getTextOffset() == element.getTextOffset())) {
+                        errors.add((PsiErrorElement) element);
+                    }
+
+                }
+                super.visitElement(element);
+
+            }
+        };;
+        visitor.visitFile(this);
+        return errors.size();
     }
 }

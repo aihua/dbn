@@ -6,6 +6,7 @@ import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.project.ProjectRef;
 import com.dci.intellij.dbn.common.ui.DBNForm;
 import com.dci.intellij.dbn.common.ui.component.DBNComponent;
+import com.dci.intellij.dbn.diagnostics.Diagnostics;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
@@ -15,18 +16,34 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.Action;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
+import java.awt.Dimension;
 
 public abstract class DBNDialog<F extends DBNForm> extends DialogWrapper implements DBNComponent {
     private F form;
     private final ProjectRef project;
     private boolean rememberSelection;
     private boolean disposed;
+    private Dimension defaultSize;
 
     protected DBNDialog(Project project, String title, boolean canBeParent) {
         super(project, canBeParent);
         this.project = ProjectRef.of(project);
         setTitle(Constants.DBN_TITLE_DIALOG_SUFFIX + title);
         getHelpAction().setEnabled(false);
+    }
+
+    @Override
+    protected void init() {
+        if (defaultSize != null) {
+            setSize(
+                (int) defaultSize.getWidth(),
+                (int) defaultSize.getHeight());
+        }
+        super.init();
+    }
+
+    public void setDefaultSize(int width, int height) {
+        this.defaultSize = new Dimension(width, height);
     }
 
     @NotNull
@@ -64,7 +81,7 @@ public abstract class DBNDialog<F extends DBNForm> extends DialogWrapper impleme
 
     @Override
     protected String getDimensionServiceKey() {
-        return "DBNavigator." + getClass().getSimpleName();
+        return Diagnostics.isDialogSizingReset() ? null : "DBNavigator." + getClass().getSimpleName();
     }
 
     @Override

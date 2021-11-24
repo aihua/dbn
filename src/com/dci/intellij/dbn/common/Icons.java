@@ -50,6 +50,7 @@ public class Icons {
     public static final Icon ACTION_EXPAND_ALL = load("/img/action/ExpandAll.png");
     public static final Icon ACTION_GROUP = load("/img/action/Group.png");
     public static final Icon ACTION_DELETE = load("/img/action/Delete.png");
+    public static final Icon ACTION_EXECUTE = load("/img/action/Execute.png");
     public static final Icon ACTION_CLOSE = load("/img/action/Close.png");
     public static final Icon ACTION_UP_DOWN = load("/img/action/UpDown.png");
     public static final Icon ACTION_REFRESH = load("/img/action/Synchronize.png");
@@ -79,6 +80,7 @@ public class Icons {
 
     public static final Icon WINDOW_DATABASE_BROWSER = load("/img/window/DatabaseBrowser.png");
     public static final Icon WINDOW_EXECUTION_CONSOLE = load("/img/window/ExecutionConsole.png");
+    public static final Icon WINDOW_DATABASE_DIAGNOSTICS = load("/img/window/DatabaseDiagnostics.png");
 
     public static final Icon FILE_SQL_CONSOLE = load("/img/file/SQLConsole.png");
     public static final Icon FILE_SQL_DEBUG_CONSOLE = load("/img/file/SQLDebugConsole.png");

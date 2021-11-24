@@ -408,7 +408,6 @@
                     <token id="000000181" type-id="KW_IS" />
                     <token id="000000182" type-id="KW_AS" />
                 </one-of>
-                <element ref-id="pragma_statement" />
                 <iteration id="000000183" optional="true">
                     <one-of id="000000184">
                         <element ref-id="type_declaration" />
@@ -3981,7 +3980,7 @@
             <element ref-id="sql_cursor_expression" />
             <element ref-id="case_expression" />
             <element ref-id="interval_expression" />
-            <element ref-id="array_element_expression" />
+            <!--<element ref-id="array_element_expression" />-->
             <element ref-id="function_expression" />
             <element ref-id="simple_expression" />
             <element ref-id="collection_method_call" />
@@ -4227,7 +4226,7 @@
 
                 <one-of id="000002081" optional="true">
                     <sequence id="000002082">
-                        <token exit="true" id="000002083" type-id="CHR_PERCENT" />
+                        <token id="000002083" type-id="CHR_PERCENT" />
                         <one-of id="000002084">
                             <token id="000002085" type-id="KW_FOUND" />
                             <token id="000002086" type-id="KW_ISOPEN" />
@@ -6366,7 +6365,6 @@
             </variant>
             <variant>
                 <variable-ref id="000003279" type="CURSOR" />
-                <!--TODO this is a compromise-->
             </variant>
         </qualified-identifier>
         <iteration exit="true" id="000003280">

@@ -12,13 +12,9 @@ import com.intellij.ui.DocumentAdapter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JPasswordField;
-import javax.swing.JTextField;
+import javax.swing.*;
 import javax.swing.event.DocumentEvent;
-import java.awt.BorderLayout;
+import java.awt.*;
 
 import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.initComboBox;
 import static com.dci.intellij.dbn.common.ui.ComboBoxUtil.setSelection;

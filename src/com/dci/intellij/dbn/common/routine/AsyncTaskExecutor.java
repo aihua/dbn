@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 
 public final class AsyncTaskExecutor {
     private final ExecutorService executor;
-    private final Set<Future> tasks = ContainerUtil.newConcurrentSet();
+    private final Set<Future<?>> tasks = ContainerUtil.newConcurrentSet();
     private @Getter boolean finished;
 
     private final long timeout;
@@ -33,7 +33,7 @@ public final class AsyncTaskExecutor {
 
     public void awaitCompletion() {
         Unsafe.warned(() -> {
-            Set<Future> tasks = new HashSet<>(this.tasks);
+            Set<Future<?>> tasks = new HashSet<>(this.tasks);
             this.tasks.clear();
             List<Future<Object>> futures = executor.invokeAll(
                     tasks.stream().
@@ -44,9 +44,11 @@ public final class AsyncTaskExecutor {
                     timeUnit);
 
 
-            futures.stream().
-                    filter(future -> !future.isDone()).
-                    forEach(future -> future.cancel(true));
+            for (Future<Object> future : futures) {
+                if (!future.isDone()) {
+                    future.cancel(true);
+                }
+            }
         });
         finished = true;
     }

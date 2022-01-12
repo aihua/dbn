@@ -4,7 +4,8 @@ import com.dci.intellij.dbn.common.Reference;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.state.PersistentStateElement;
 import com.dci.intellij.dbn.common.thread.Timeout;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Lists;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionCache;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -21,12 +22,15 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.jdom.Element;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.connectionIdAttribute;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
@@ -35,7 +39,8 @@ import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.PS;
 @Slf4j
 @Getter
 @Setter
-public class DBObjectRef<T extends DBObject> implements Comparable, Reference<T>, PersistentStateElement, ConnectionProvider {
+public class DBObjectRef<T extends DBObject> implements Comparable<DBObjectRef<?>>, Reference<T>, PersistentStateElement, ConnectionProvider {
+    public static final String QUOTE = "'";
     private short overload;
     private DBObjectRef<?> parent;
     private DBObjectType objectType;
@@ -44,6 +49,7 @@ public class DBObjectRef<T extends DBObject> implements Comparable, Reference<T>
 
     private WeakRef<T> reference;
     private int hashCode = -1;
+    private static final Pattern PATH_TOKENIZER = Pattern.compile("[^/']+|'([^']*)'");
 
     public DBObjectRef(ConnectionId connectionId, String identifier) {
         deserialize(connectionId, identifier);
@@ -100,7 +106,7 @@ public class DBObjectRef<T extends DBObject> implements Comparable, Reference<T>
 
     public static <T extends DBObject> DBObjectRef<T> from(Element element) {
         String objectIdentifier = stringAttribute(element, "object-ref");
-        if (StringUtil.isNotEmpty(objectIdentifier)) {
+        if (Strings.isNotEmpty(objectIdentifier)) {
             try {
                 DBObjectRef<T> objectRef = new DBObjectRef<>();
                 objectRef.readState(element);
@@ -121,23 +127,33 @@ public class DBObjectRef<T extends DBObject> implements Comparable, Reference<T>
         }
     }
 
-    public void deserialize(ConnectionId connectionId, String objectIdentifier) {
+
+    @Override
+    public void writeState(Element element) {
+        String value = serialize();
+
+        element.setAttribute("connection-id", getConnectionId().id());
+        element.setAttribute("object-ref", value);
+    }
+
+    private void deserialize(ConnectionId connectionId, String objectIdentifier) {
         try {
-            String[] tokens = objectIdentifier.split(PS);
+            List<String> tokens = tokenizePath(objectIdentifier);
 
             DBObjectRef<?> objectRef = null;
             DBObjectType objectType = null;
-            for (int i=0; i<tokens.length; i++) {
-                String token = tokens[i];
+            int tokenCount = tokens.size();
+            for (int i = 0; i< tokenCount; i++) {
+                String token = tokens.get(i);
                 if (objectType == null) {
-                    if (i == tokens.length -1) {
+                    if (i == tokenCount -1) {
                         // last optional "overload" numeric token
                         this.overload = Short.parseShort(token);
                     } else {
                         objectType = DBObjectType.forListName(token, objectRef == null ? null : objectRef.objectType);
                     }
                 } else {
-                    if (i < tokens.length - 2) {
+                    if (i < tokenCount - 2) {
                         objectRef = objectRef == null ?
                                 new DBObjectRef<>(connectionId, objectType, token) :
                                 new DBObjectRef<>(objectRef, objectType, token);
@@ -150,17 +166,29 @@ public class DBObjectRef<T extends DBObject> implements Comparable, Reference<T>
                 }
             }
         } catch (Exception e) {
-            log.error("Failed to deserialize object {}" + objectIdentifier, e);
+            log.error("Failed to deserialize object {}", objectIdentifier, e);
             throw e;
         }
     }
 
-    @Override
-    public void writeState(Element element) {
-        String value = serialize();
+    private static List<String> tokenizePath(String objectIdentifier) {
+        List<String> tokens = new ArrayList<>();
+        Matcher matcher = PATH_TOKENIZER.matcher(objectIdentifier);
+        while (matcher.find()) {
+            String token = matcher.group(0);
+            if (token.startsWith(QUOTE)) {
+                token = token.substring(1, token.length() - 1);
+            }
+            tokens.add(token);
+        }
+        return tokens;
+    }
 
-        element.setAttribute("connection-id", getConnectionId().id());
-        element.setAttribute("object-ref", value);
+    private static String quotePathElement(String pathElement) {
+        if (pathElement.contains(PS)) {
+            return QUOTE + pathElement + QUOTE;
+        }
+        return pathElement;
     }
 
     @NotNull
@@ -168,12 +196,12 @@ public class DBObjectRef<T extends DBObject> implements Comparable, Reference<T>
         StringBuilder builder = new StringBuilder();
         builder.append(objectType.getListName());
         builder.append(PS);
-        builder.append(objectName);
+        builder.append(quotePathElement(objectName));
 
         DBObjectRef<?> parent = this.parent;
         while (parent != null) {
             builder.insert(0, PS);
-            builder.insert(0, parent.objectName);
+            builder.insert(0, quotePathElement(parent.objectName));
             builder.insert(0, PS);
             builder.insert(0, parent.objectType.getListName());
             parent = parent.parent;
@@ -252,9 +280,9 @@ public class DBObjectRef<T extends DBObject> implements Comparable, Reference<T>
         return Objects.equals(object.getRef(), this);
     }
 
-    @Nullable
-    public static <T extends DBObject> DBObjectRef<T> of(T object) {
-        return object == null ? null : object.getRef();
+    @Contract("null -> null;!null -> !null;")
+    public static <T extends DBObject> DBObjectRef<T> of(@Nullable T object) {
+        return object == null ? null : (DBObjectRef<T>) object.getRef();
     }
 
     @Nullable
@@ -268,28 +296,19 @@ public class DBObjectRef<T extends DBObject> implements Comparable, Reference<T>
         return Failsafe.nn(object);
     }
 
-    public static List<DBObject> get(List<DBObjectRef> objectRefs) {
-        List<DBObject> objects = new ArrayList<>(objectRefs.size());
-        for (DBObjectRef<?> objectRef : objectRefs) {
-            objects.add(get(objectRef));
-        }
-        return objects;
+    @NotNull
+    public static <T extends DBObject> List<T> get(@NotNull List<DBObjectRef<T>> objectRefs) {
+        return Lists.convert(objectRefs, ref -> get(ref));
     }
 
-    public static List<DBObject> ensure(List<DBObjectRef> objectRefs) {
-        List<DBObject> objects = new ArrayList<>(objectRefs.size());
-        for (DBObjectRef objectRef : objectRefs) {
-            objects.add(ensure(objectRef));
-        }
-        return objects;
+    @NotNull
+    public static <T extends DBObject> List<T> ensure(@NotNull List<DBObjectRef<T>> objectRefs) {
+        return Lists.convert(objectRefs, ref -> ensure(ref));
     }
 
-    public static List<DBObjectRef> from(List<DBObject> objects) {
-        List<DBObjectRef> objectRefs = new ArrayList<>(objects.size());
-        for (DBObject object : objects) {
-            objectRefs.add(of(object));
-        }
-        return objectRefs;
+    @NotNull
+    public static <T extends DBObject> List<DBObjectRef<T>> from(@NotNull List<T> objects) {
+        return Lists.convert(objects, obj -> of(obj));
     }
 
     @Override
@@ -465,32 +484,29 @@ public class DBObjectRef<T extends DBObject> implements Comparable, Reference<T>
     }
 
     @Override
-    public int compareTo(@NotNull Object o) {
-        if (o instanceof DBObjectRef) {
-            DBObjectRef<?> that = (DBObjectRef<?>) o;
-            int result = this.getConnectionId().id().compareTo(that.getConnectionId().id());
-            if (result != 0) return result;
+    public int compareTo(@NotNull DBObjectRef<?> that) {
+        int result = this.getConnectionId().id().compareTo(that.getConnectionId().id());
+        if (result != 0) return result;
 
-            if (this.parent != null && that.parent != null) {
-                if (Objects.equals(this.parent, that.parent)) {
-                    result = this.objectType.compareTo(that.objectType);
-                    if (result != 0) return result;
-
-                    int nameCompare = this.objectName.compareTo(that.objectName);
-                    return nameCompare == 0 ? this.overload - that.overload : nameCompare;
-                } else {
-                    return this.parent.compareTo(that.parent);
-                }
-            } else if(this.parent == null && that.parent == null) {
+        if (this.parent != null && that.parent != null) {
+            if (Objects.equals(this.parent, that.parent)) {
                 result = this.objectType.compareTo(that.objectType);
                 if (result != 0) return result;
 
-                return this.objectName.compareTo(that.objectName);
-            } else if (this.parent == null) {
-                return -1;
-            } else if (that.parent == null) {
-                return 1;
+                int nameCompare = this.objectName.compareTo(that.objectName);
+                return nameCompare == 0 ? this.overload - that.overload : nameCompare;
+            } else {
+                return this.parent.compareTo(that.parent);
             }
+        } else if(this.parent == null && that.parent == null) {
+            result = this.objectType.compareTo(that.objectType);
+            if (result != 0) return result;
+
+            return this.objectName.compareTo(that.objectName);
+        } else if (this.parent == null) {
+            return -1;
+        } else if (that.parent == null) {
+            return 1;
         }
         return 0;
     }

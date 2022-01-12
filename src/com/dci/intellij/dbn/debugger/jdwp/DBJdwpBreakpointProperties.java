@@ -16,11 +16,10 @@ public class DBJdwpBreakpointProperties extends JavaBreakpointProperties<DBJdwpB
     private ConnectionHandlerRef connectionHandlerRef;
 
     public DBJdwpBreakpointProperties() {
-        System.out.println();
     }
 
     public DBJdwpBreakpointProperties(ConnectionHandler connectionHandler) {
-        this.connectionHandlerRef = ConnectionHandlerRef.from(connectionHandler);
+        this.connectionHandlerRef = ConnectionHandlerRef.of(connectionHandler);
         if (connectionHandler != null) {
             connectionId = connectionHandler.getConnectionId();
         }

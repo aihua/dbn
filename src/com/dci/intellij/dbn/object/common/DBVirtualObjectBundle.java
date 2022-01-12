@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.object.common;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNodeBase;
 import com.dci.intellij.dbn.code.common.lookup.LookupItemBuilder;
+import com.dci.intellij.dbn.common.util.Consumer;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.GenericDatabaseElement;
@@ -19,6 +20,7 @@ import com.dci.intellij.dbn.object.DBRole;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.DBSystemPrivilege;
 import com.dci.intellij.dbn.object.DBUser;
+import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.object.type.DBObjectType;
@@ -26,7 +28,6 @@ import com.dci.intellij.dbn.vfs.file.DBObjectVirtualFile;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiFile;
-import com.intellij.util.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -165,12 +166,12 @@ public class DBVirtualObjectBundle extends BrowserTreeNodeBase implements DBObje
     }
 
     @Override
-    public void lookupObjectsOfType(Consumer consumer, DBObjectType objectType) {
+    public void lookupObjectsOfType(Consumer<? super DBObject> consumer, DBObjectType objectType) {
 
     }
 
     @Override
-    public void lookupChildObjectsOfType(Consumer consumer, DBObject parentObject, DBObjectType objectType, ObjectTypeFilter filter, DBSchema currentSchema) {
+    public void lookupChildObjectsOfType(Consumer<? super DBObject> consumer, DBObject parentObject, DBObjectType objectType, ObjectTypeFilter filter, DBSchema currentSchema) {
 
     }
 
@@ -181,6 +182,11 @@ public class DBVirtualObjectBundle extends BrowserTreeNodeBase implements DBObje
 
     @Override
     public DBObjectListContainer getObjectListContainer() {
+        return null;
+    }
+
+    @Override
+    public <T extends DBObject> DBObjectList<T> getObjectList(DBObjectType objectType) {
         return null;
     }
 

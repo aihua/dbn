@@ -3,7 +3,7 @@ package com.dci.intellij.dbn.vfs;
 import com.dci.intellij.dbn.common.property.Property;
 import com.dci.intellij.dbn.common.property.PropertyGroup;
 
-public enum VirtualFileStatus implements Property{
+public enum VirtualFileStatus implements Property.IntBase {
     LATEST(Group.CODE, true),
     MERGED(Group.CODE, false),
     OUTDATED(Group.CODE, false),
@@ -14,7 +14,7 @@ public enum VirtualFileStatus implements Property{
     SAVING,
     REFRESHING;
 
-    private final Computed computed = new Computed(this);
+    private final Masks masks = new Masks(this);
     private final boolean implicit;
     private final PropertyGroup group;
 
@@ -28,8 +28,8 @@ public enum VirtualFileStatus implements Property{
     }
 
     @Override
-    public Computed computedOrdinal() {
-        return computed;
+    public Masks masks() {
+        return masks;
     }
 
     @Override

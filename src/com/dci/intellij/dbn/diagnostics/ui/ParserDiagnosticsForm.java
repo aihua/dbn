@@ -5,7 +5,7 @@ import com.dci.intellij.dbn.common.ui.Borders;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.common.ui.table.DBNTable;
-import com.dci.intellij.dbn.common.util.ActionUtil;
+import com.dci.intellij.dbn.common.util.Actions;
 import com.dci.intellij.dbn.diagnostics.ParserDiagnosticsManager;
 import com.dci.intellij.dbn.diagnostics.action.ParserDiagnosticsFileTypeFilterAction;
 import com.dci.intellij.dbn.diagnostics.action.ParserDiagnosticsStateFilterAction;
@@ -24,8 +24,12 @@ import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.DefaultListModel;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JPanel;
+import java.awt.BorderLayout;
+import java.awt.Font;
 import java.util.List;
 
 public class ParserDiagnosticsForm extends DBNFormImpl {
@@ -45,7 +49,7 @@ public class ParserDiagnosticsForm extends DBNFormImpl {
 
     public ParserDiagnosticsForm(Project project) {
         super(null, project);
-        manager = ParserDiagnosticsManager.getInstance(ensureProject());
+        manager = ParserDiagnosticsManager.get(ensureProject());
         GuiUtils.replaceJSplitPaneWithIDEASplitter(mainPanel);
         GUIUtil.updateSplitterProportion(mainPanel, (float) 0.2);
 
@@ -59,10 +63,10 @@ public class ParserDiagnosticsForm extends DBNFormImpl {
         detailsLabel.setText("No result selected");
         stateTransitionLabel.setText("");
 
-        ActionToolbar actionToolbar = ActionUtil.createActionToolbar(actionsPanel,"", false, "DBNavigator.ActionGroup.ParserDiagnostics");
+        ActionToolbar actionToolbar = Actions.createActionToolbar(actionsPanel,"", false, "DBNavigator.ActionGroup.ParserDiagnostics");
         actionsPanel.add(actionToolbar.getComponent());
 
-        ActionToolbar filterActionToolbar = ActionUtil.createActionToolbar(filtersPanel,"", true,
+        ActionToolbar filterActionToolbar = Actions.createActionToolbar(filtersPanel,"", true,
                 new ParserDiagnosticsStateFilterAction(this),
                 new ParserDiagnosticsFileTypeFilterAction(this));
         filtersPanel.add(filterActionToolbar.getComponent(), BorderLayout.WEST);
@@ -130,10 +134,24 @@ public class ParserDiagnosticsForm extends DBNFormImpl {
         resultsList.setSelectedValue(result, true);
     }
 
-    private static class ResultListCellRenderer extends ColoredListCellRenderer<ParserDiagnosticsResult> {
+    private class ResultListCellRenderer extends ColoredListCellRenderer<ParserDiagnosticsResult> {
         @Override
         protected void customizeCellRenderer(@NotNull JList list, ParserDiagnosticsResult value, int index, boolean selected, boolean hasFocus) {
-            append(value.getName(), SimpleTextAttributes.REGULAR_ATTRIBUTES);
+            append(value.getName() + " - ", SimpleTextAttributes.REGULAR_ATTRIBUTES);
+            ParserDiagnosticsResult previous = manager.getPreviousResult(value);
+            if (previous == null) {
+                append("INITIAL", SimpleTextAttributes.GRAY_ATTRIBUTES);
+            } else {
+                int previousCount = previous.getIssues().issueCount();
+                int currentCount = value.getIssues().issueCount();
+                if (previousCount < currentCount) {
+                    append("DEGRADED", StateTransition.DEGRADED.getCategory().getTextAttributes());
+                } else if (previousCount > currentCount) {
+                    append("IMPROVED", StateTransition.IMPROVED.getCategory().getTextAttributes());
+                } else {
+                    append("UNCHANGED", SimpleTextAttributes.GRAY_ATTRIBUTES);
+                }
+            }
         }
     }
 

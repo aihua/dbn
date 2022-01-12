@@ -5,7 +5,8 @@ import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.options.BasicProjectConfiguration;
 import com.dci.intellij.dbn.common.options.ProjectConfiguration;
 import com.dci.intellij.dbn.common.ui.ListUtil;
-import com.dci.intellij.dbn.common.util.NamingUtil;
+import com.dci.intellij.dbn.common.util.Lists;
+import com.dci.intellij.dbn.common.util.Naming;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionManager;
@@ -41,9 +42,7 @@ public class DatasetFilterGroup extends BasicProjectConfiguration<ProjectConfigu
     private transient DatasetFilter activeFilter;
     private transient final List<DatasetFilter> filters = new ArrayList<>();
 
-    @lombok.experimental.Delegate
     private transient final State state = new State();
-
 
     @Getter
     @Setter
@@ -101,13 +100,13 @@ public class DatasetFilterGroup extends BasicProjectConfiguration<ProjectConfigu
 
     public String createFilterName(String baseName) {
         while (lookupFilter(baseName) != null) {
-            baseName = NamingUtil.getNextNumberedName(baseName, true);
+            baseName = Naming.getNextNumberedName(baseName, true);
         }
         return baseName;
     }
 
     private Object lookupFilter(String name) {
-        return getFilters().stream().filter(filter -> Objects.equals(filter.getName(), name)).findFirst().orElse(null);
+        return Lists.first(getFilters(), filter -> Objects.equals(filter.getName(), name));
     }
 
     public DatasetCustomFilter createCustomFilter(boolean interactive) {

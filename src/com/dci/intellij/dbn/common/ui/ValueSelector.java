@@ -2,10 +2,10 @@ package com.dci.intellij.dbn.common.ui;
 
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.property.PropertyHolder;
-import com.dci.intellij.dbn.common.util.ActionUtil;
-import com.dci.intellij.dbn.common.util.CommonUtil;
+import com.dci.intellij.dbn.common.util.Actions;
+import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.common.util.Context;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.project.DumbAwareAction;
@@ -20,10 +20,16 @@ import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
+import javax.swing.Icon;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
 import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.Graphics;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
@@ -35,7 +41,7 @@ import java.util.Set;
 
 public abstract class ValueSelector<T extends Presentable> extends JPanel{
     private final Set<ValueSelectorListener<T>> listeners = new HashSet<>();
-    private final PropertyHolder<ValueSelectorOption> options = PropertyHolder.create(ValueSelectorOption.class);
+    private final PropertyHolder<ValueSelectorOption> options = PropertyHolder.integerBase(ValueSelectorOption.class);
 
     private final JLabel label;
     private final JPanel innerPanel;
@@ -62,7 +68,7 @@ public abstract class ValueSelector<T extends Presentable> extends JPanel{
         setOptions(options);
         this.values = values;
 
-        label = new JLabel(CommonUtil.nvl(text, ""), cropIcon(icon), SwingConstants.LEFT);
+        label = new JLabel(Commons.nvl(text, ""), cropIcon(icon), SwingConstants.LEFT);
         label.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         label.addMouseListener(mouseListener);
 
@@ -172,7 +178,7 @@ public abstract class ValueSelector<T extends Presentable> extends JPanel{
             actionGroup.add(new SelectValueAction(value));
         }
         if (valueFactory != null) {
-            actionGroup.add(ActionUtil.SEPARATOR);
+            actionGroup.add(Actions.SEPARATOR);
             actionGroup.add(new AddValueAction());
         }
         popup = JBPopupFactory.getInstance().createActionGroupPopup(
@@ -216,7 +222,7 @@ public abstract class ValueSelector<T extends Presentable> extends JPanel{
     }
 
     public class SelectValueAction extends DumbAwareAction {
-        private T value;
+        private final T value;
 
         SelectValueAction(T value) {
             super(getOptionDisplayName(value), null, options.is(ValueSelectorOption.HIDE_ICON) ? null : value.getIcon());
@@ -262,7 +268,7 @@ public abstract class ValueSelector<T extends Presentable> extends JPanel{
         if (value != null) {
             String description = value.getDescription();
             String name = value.getName();
-            return options.is(ValueSelectorOption.HIDE_DESCRIPTION) || StringUtil.isEmpty(description) ? name : name + " (" + description + ")";
+            return options.is(ValueSelectorOption.HIDE_DESCRIPTION) || Strings.isEmpty(description) ? name : name + " (" + description + ")";
         } else {
             return "";
         }

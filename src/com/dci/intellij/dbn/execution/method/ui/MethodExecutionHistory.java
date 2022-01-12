@@ -71,7 +71,7 @@ public class MethodExecutionHistory implements PersistentStateElement, Disposabl
 
     @Nullable
     public List<DBMethod> getRecentlyExecutedMethods(@NotNull DBProgram program) {
-        List<DBMethod> recentObjects = new ArrayList<DBMethod>();
+        List<DBMethod> recentObjects = new ArrayList<>();
         List<DBProcedure> procedures = program.getProcedures();
         List<DBFunction> functions = program.getFunctions();
         for (DBProcedure procedure : procedures) {
@@ -201,7 +201,7 @@ public class MethodExecutionHistory implements PersistentStateElement, Disposabl
 
     @Override
     public void dispose() {
-        SafeDisposer.dispose(executionInputs, false, false);
+        SafeDisposer.dispose(executionInputs, true, false);
     }
 
 

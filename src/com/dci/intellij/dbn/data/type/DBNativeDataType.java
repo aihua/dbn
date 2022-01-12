@@ -3,7 +3,7 @@ package com.dci.intellij.dbn.data.type;
 import com.dci.intellij.dbn.common.content.DynamicContentElement;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.jdbc.DBNCallableStatement;
 import com.dci.intellij.dbn.data.value.ValueAdapter;
 import com.dci.intellij.dbn.database.common.util.DataTypeParseAdapter;
@@ -107,12 +107,15 @@ public class DBNativeDataType extends StatefulDisposable.Base implements Dynamic
             try {
                 Object object = resultSet.getObject(columnIndex);
                 String objectClass = object == null ? "" : object.getClass().getName();
-                if (object instanceof String && StringUtil.isEmpty((String) object)) {
+                // TODO odd values resolvers
+                if (object instanceof String && Strings.isEmpty((String) object)) {
                     return null;
-                }
-                else if (object instanceof Long && java.util.Date.class.isAssignableFrom(clazz)) {
+                } else if (object instanceof Long && Integer.class.isAssignableFrom(clazz)) {
+                    // odd jdbc implementations allowing long for data type int java.sql.Types.INTEGER
+                    return object;
+                } else if (object instanceof Long && java.util.Date.class.isAssignableFrom(clazz)) {
                     // fallback for dates stored as milliseconds (sqlite?)
-                    Long longValue = (Long) object;
+                    long longValue = (long) object;
                     return
                         clazz == Date.class ? new Date(longValue) :
                         clazz == Time.class ? new Time(longValue) :

@@ -3,7 +3,7 @@ package com.dci.intellij.dbn.menu.action;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.action.DumbAwareProjectAction;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.util.MessageUtil;
+import com.dci.intellij.dbn.common.util.Messages;
 import com.dci.intellij.dbn.connection.ConnectionBundle;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
@@ -29,7 +29,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
+import static com.dci.intellij.dbn.common.message.MessageCallback.when;
 
 public class SQLConsoleOpenAction extends DumbAwareProjectAction {
     public SQLConsoleOpenAction() {
@@ -78,14 +78,13 @@ public class SQLConsoleOpenAction extends DumbAwareProjectAction {
             if (singleConnectionHandler != null) {
                 openSQLConsole(singleConnectionHandler);
             } else {
-                MessageUtil.showInfoDialog(
+                Messages.showInfoDialog(
                         project, "No connections available.", "No database connections found. Please setup a connection first",
                         new String[]{"Setup Connection", "Cancel"}, 0,
-                        (option) -> conditional(option == 0,
-                                () -> {
-                                    ProjectSettingsManager settingsManager = ProjectSettingsManager.getInstance(project);
-                                    settingsManager.openProjectSettings(ConfigId.CONNECTIONS);
-                                }));
+                        option -> when(option == 0, () -> {
+                            ProjectSettingsManager settingsManager = ProjectSettingsManager.getInstance(project);
+                            settingsManager.openProjectSettings(ConfigId.CONNECTIONS);
+                        }));
             }
 
         }
@@ -97,7 +96,7 @@ public class SQLConsoleOpenAction extends DumbAwareProjectAction {
 
         private SelectConnectionAction(ConnectionHandler connectionHandler) {
             super(connectionHandler.getName(), null, connectionHandler.getIcon());
-            this.connectionHandlerRef = ConnectionHandlerRef.from(connectionHandler);
+            this.connectionHandlerRef = ConnectionHandlerRef.of(connectionHandler);
             setPopup(true);
         }
 /*
@@ -134,7 +133,7 @@ public class SQLConsoleOpenAction extends DumbAwareProjectAction {
 
         SelectConsoleAction(ConnectionHandler connectionHandler, DBConsoleType consoleType) {
             super("New " + consoleType.getName() + "...");
-            this.connectionHandlerRef = ConnectionHandlerRef.from(connectionHandler);
+            this.connectionHandlerRef = ConnectionHandlerRef.of(connectionHandler);
             this.consoleType = consoleType;
         }
 

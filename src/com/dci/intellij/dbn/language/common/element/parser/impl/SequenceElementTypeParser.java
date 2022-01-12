@@ -7,15 +7,20 @@ import com.dci.intellij.dbn.language.common.element.impl.ElementTypeRef;
 import com.dci.intellij.dbn.language.common.element.impl.IdentifierElementType;
 import com.dci.intellij.dbn.language.common.element.impl.IterationElementType;
 import com.dci.intellij.dbn.language.common.element.impl.SequenceElementType;
-import com.dci.intellij.dbn.language.common.element.parser.*;
+import com.dci.intellij.dbn.language.common.element.parser.ElementTypeParser;
+import com.dci.intellij.dbn.language.common.element.parser.ParseResult;
+import com.dci.intellij.dbn.language.common.element.parser.ParseResultType;
+import com.dci.intellij.dbn.language.common.element.parser.ParserBuilder;
+import com.dci.intellij.dbn.language.common.element.parser.ParserContext;
 import com.dci.intellij.dbn.language.common.element.path.BasicPathNode;
 import com.dci.intellij.dbn.language.common.element.path.ParsePathNode;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.dci.intellij.dbn.language.common.element.util.ParseBuilderErrorHandler;
 import com.intellij.lang.PsiBuilder;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Set;
+
+import static com.dci.intellij.dbn.language.common.element.parser.ParseResultType.*;
 
 public class SequenceElementTypeParser<ET extends SequenceElementType> extends ElementTypeParser<ET> {
     public SequenceElementTypeParser(ET elementType) {
@@ -23,65 +28,69 @@ public class SequenceElementTypeParser<ET extends SequenceElementType> extends E
     }
 
     @Override
-    public ParseResult parse(@NotNull ParsePathNode parentNode, boolean optional, int depth, ParserContext context) throws ParseException {
-        ParserBuilder builder = context.builder;
-        logBegin(builder, optional, depth);
+    public ParseResult parse(ParsePathNode parentNode, ParserContext context) throws ParseException {
+        if (context.isAlternative()) return parseNew(parentNode, context);
+
+        ParserBuilder builder = context.getBuilder();
         ParsePathNode node = stepIn(parentNode, context);
 
         int matches = 0;
         int matchedTokens = 0;
 
-        TokenType tokenType = builder.getTokenType();
+        TokenType token = builder.getToken();
 
-        if (tokenType != null && !tokenType.isChameleon() && shouldParseElement(elementType, node, context)) {
-            ElementTypeRef[] children = elementType.getChildren();
-            while (node.getCursorPosition() < children.length) {
+        if (token != null && !token.isChameleon() && shouldParseElement(elementType, node, context)) {
+            ElementTypeRef[] elements = elementType.getChildren();
+            while (node.getCursorPosition() < elements.length) {
                 int index = node.getCursorPosition();
-                ElementTypeRef child = children[index];
+                ElementTypeRef element = elements[index];
 
-                // is end of document
-                if (tokenType == null || tokenType.isChameleon()) {
-                    ParseResultType resultType =
-                            child.optional && (child.isLast() || child.isOptionalFromHere()) ? ParseResultType.FULL_MATCH :
-                            !child.isFirst() && elementType.isExitIndex(index) ? ParseResultType.NO_MATCH : ParseResultType.PARTIAL_MATCH;
+                // end of document / language switch
+                if (token == null || token.isChameleon()) {
 
-                    return stepOut(node, context, depth, resultType, matchedTokens);
+                    if (element.isFirst() || elementType.isExitIndex(index)) {
+                        return stepOut(node, context, NO_MATCH, matchedTokens);
+                    }
+
+                    if (element.isOptional() && element.isOptionalFromHere()) {
+                        return stepOut(node, context, FULL_MATCH, matchedTokens);
+                    }
+
+                    return stepOut(node, context, PARTIAL_MATCH, matchedTokens);
                 }
 
-                if (context.check(child)) {
-                    ParseResult result = ParseResult.createNoMatchResult();
-                    // current token can still be part of the iterated element.
-                    //if (elementTypes[i].containsToken(tokenType)) {
-                    if (shouldParseElement(child.elementType, node, context)) {
+                if (context.check(element)) {
+                    ParseResult result = ParseResult.noMatch();
+                    if (shouldParseElement(element.getElementType(), node, context)) {
 
                         //node = node.createVariant(builder.getCurrentOffset(), i);
-                        result = child.getParser().parse(node, child.optional, depth + 1, context);
+                        result = element.getParser().parse(node, context);
 
                         if (result.isMatch()) {
-                            matchedTokens = matchedTokens + result.matchedTokens;
-                            tokenType = builder.getTokenType();
+                            matchedTokens = matchedTokens + result.getMatchedTokens();
+                            token = builder.getToken();
                             matches++;
                         }
                     }
 
                     // not matched and not optional
-                    if (result.isNoMatch() && !child.optional) {
+                    if (result.isNoMatch() && !element.isOptional()) {
                         boolean isWeakMatch = matches < 2 && matchedTokens < 3 && index > 1 && ignoreFirstMatch();
 
-                        if (child.isFirst() || elementType.isExitIndex(index) || isWeakMatch || matches == 0) {
+                        if (element.isFirst() || elementType.isExitIndex(index) || isWeakMatch || matches == 0) {
                             //if (isFirst(i) || isExitIndex(i)) {
-                            return stepOut(node, context, depth, ParseResultType.NO_MATCH, matchedTokens);
+                            return stepOut(node, context, NO_MATCH, matchedTokens);
                         }
 
                         index = advanceLexerToNextLandmark(node, context);
 
                         if (index <= 0) {
                             // no landmarks found or landmark in parent found
-                            return stepOut(node, context, depth, ParseResultType.PARTIAL_MATCH, matchedTokens);
+                            return stepOut(node, context, PARTIAL_MATCH, matchedTokens);
                         } else {
                             // local landmarks found
 
-                            tokenType = builder.getTokenType();
+                            token = builder.getToken();
                             node.setCursorPosition(index);
                             continue;
                         }
@@ -90,22 +99,39 @@ public class SequenceElementTypeParser<ET extends SequenceElementType> extends E
 
 
                 // if is last element
-                if (child.isLast()) {
+                if (element.isLast()) {
                     //matches == 0 reaches this stage only if all sequence elements are optional
-                    ParseResultType resultType = matches == 0 ? ParseResultType.NO_MATCH : ParseResultType.FULL_MATCH;
-                    return stepOut(node, context, depth, resultType, matchedTokens);
+                    ParseResultType resultType = matches == 0 ? NO_MATCH : FULL_MATCH;
+                    return stepOut(node, context, resultType, matchedTokens);
                 }
-                node.incrementIndex(builder.getCurrentOffset());
+                node.incrementIndex(builder.getOffset());
             }
         }
 
-        return stepOut(node, context, depth, ParseResultType.NO_MATCH, matchedTokens);
+        return stepOut(node, context, NO_MATCH, matchedTokens);
     }
 
+    ParseResult parseNew(ParsePathNode parentNode, ParserContext context) throws ParseException {
+        ParserBuilder builder = context.getBuilder();
+        ParsePathNode node = stepIn(parentNode, context);
+
+        ElementTypeRef element = elementType.getFirstChild();
+        while (element != null) {
+
+
+            element = element.getNext();
+        }
+
+
+        return ParseResult.noMatch(); // TODO
+    }
+
+    @Deprecated // ambiguous
     private boolean ignoreFirstMatch() {
         ElementTypeRef firstChild = elementType.getChild(0);
-        if (firstChild.elementType instanceof IdentifierElementType) {
-            IdentifierElementType identifierElementType = (IdentifierElementType) firstChild.elementType;
+        ElementType elementType = firstChild.getElementType();
+        if (elementType instanceof IdentifierElementType) {
+            IdentifierElementType identifierElementType = (IdentifierElementType) elementType;
             return !identifierElementType.isDefinition();
         }
         return false;
@@ -113,20 +139,20 @@ public class SequenceElementTypeParser<ET extends SequenceElementType> extends E
 
     private int advanceLexerToNextLandmark(ParsePathNode node, ParserContext context) {
         int siblingPosition = node.getCursorPosition();
-        ParserBuilder builder = context.builder;
-        PsiBuilder.Marker marker = builder.mark(null);
+        ParserBuilder builder = context.getBuilder();
+        PsiBuilder.Marker marker = builder.mark();
         Set<TokenType> possibleTokens = elementType.getFirstPossibleTokensFromIndex(context, siblingPosition);
         ParseBuilderErrorHandler.updateBuilderError(possibleTokens, context);
 
-        TokenType tokenType = builder.getTokenType();
+        TokenType tokenType = builder.getToken();
         siblingPosition++;
         while (tokenType != null) {
             int newIndex = getLandmarkIndex(tokenType, siblingPosition, node);
 
             // no landmark hit -> spool the builder
             if (newIndex == 0) {
-                builder.advanceLexer(node);
-                tokenType = builder.getTokenType();
+                builder.advance();
+                tokenType = builder.getToken();
             } else {
                 //builder.markerDone(marker, getElementBundle().getUnknownElementType());
                 marker.error("Invalid or incomplete statement. Expected: ");
@@ -141,7 +167,7 @@ public class SequenceElementTypeParser<ET extends SequenceElementType> extends E
     private int getLandmarkIndex(TokenType tokenType, int index, ParsePathNode node) {
         if (tokenType.isParserLandmark()) {
             BasicPathNode statementPathNode = node.getPathNode(ElementTypeAttribute.STATEMENT);
-            if (statementPathNode != null && statementPathNode.elementType.getLookupCache().couldStartWithToken(tokenType)) {
+            if (statementPathNode != null && statementPathNode.getElementType().getLookupCache().couldStartWithToken(tokenType)) {
                 return -1;
             }
             ElementTypeRef[] children = elementType.getChildren();
@@ -154,7 +180,7 @@ public class SequenceElementTypeParser<ET extends SequenceElementType> extends E
 
             ParsePathNode parseNode = node;
             while (parseNode != null) {
-                ElementType elementType = parseNode.elementType;
+                ElementType elementType = parseNode.getElementType();
                 if (elementType instanceof SequenceElementType) {
                     SequenceElementType sequenceElementType = (SequenceElementType) elementType;
                     if ( sequenceElementType.containsLandmarkTokenFromIndex(tokenType, parseNode.getCursorPosition() + 1)) {
@@ -166,49 +192,9 @@ public class SequenceElementTypeParser<ET extends SequenceElementType> extends E
                         return -1;
                     }
                 }
-                parseNode = parseNode.parent;
+                parseNode = parseNode.getParent();
             }
         }
         return 0;
     }
-
-
-    private ParsePathNode advanceToLandmark_New(ParserBuilder builder, ParsePathNode node) {
-        TokenType tokenType = builder.getTokenType();
-        while (tokenType != null && !tokenType.isParserLandmark()) {
-            builder.advanceLexer(node);
-            tokenType = builder.getTokenType();
-        }
-
-        // scan current sequence
-        ElementTypeRef[] children = elementType.getChildren();
-        int siblingIndex = node.getCursorPosition();
-        while (siblingIndex < children.length) {
-            int builderOffset = builder.getCurrentOffset();
-            siblingIndex = node.incrementIndex(builderOffset);
-            // check children landmarks
-            if (children[siblingIndex].getLookupCache().couldStartWithToken(tokenType)) {
-                return node;
-            }
-        }
-
-        ParsePathNode parentNode = node.parent;
-        while (parentNode != null) {
-            ElementType elementType = parentNode.elementType;
-            if (elementType instanceof SequenceElementType) {
-                parentNode = advanceToLandmark_New(builder, node);
-
-            } else if (elementType instanceof IterationElementType) {
-                IterationElementType iterationElementType = (IterationElementType) elementType;
-                if (iterationElementType.isSeparator(tokenType)) {
-                    return parentNode;
-                }
-            }
-            parentNode = parentNode == null ? null : parentNode.parent;
-        }
-
-        return null;
-    }
-
-
 }

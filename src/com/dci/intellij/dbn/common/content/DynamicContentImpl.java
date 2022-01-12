@@ -5,6 +5,7 @@ import com.dci.intellij.dbn.common.content.dependency.VoidContentDependencyAdapt
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoader;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.SafeDisposer;
+import com.dci.intellij.dbn.common.filter.FilterDelegate;
 import com.dci.intellij.dbn.common.list.FilteredList;
 import com.dci.intellij.dbn.common.notification.NotificationGroup;
 import com.dci.intellij.dbn.common.notification.NotificationSupport;
@@ -12,9 +13,10 @@ import com.dci.intellij.dbn.common.property.DisposablePropertyHolder;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.thread.ThreadMonitor;
 import com.dci.intellij.dbn.common.thread.ThreadProperty;
-import com.dci.intellij.dbn.common.util.CollectionUtil;
+import com.dci.intellij.dbn.common.util.Compactables;
+import com.dci.intellij.dbn.common.util.Lists;
 import com.dci.intellij.dbn.common.util.Numbers;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.GenericDatabaseElement;
@@ -29,6 +31,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static com.dci.intellij.dbn.common.content.DynamicContentStatus.*;
+import static com.dci.intellij.dbn.common.util.Unsafe.cast;
 
 @Slf4j
 public abstract class DynamicContentImpl<T extends DynamicContentElement>
@@ -36,16 +39,16 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
         implements DynamicContent<T>,
                    NotificationSupport {
 
-    protected static final List EMPTY_CONTENT = Collections.unmodifiableList(Collections.emptyList());
-    protected static final List EMPTY_DISPOSED_CONTENT = Collections.unmodifiableList(Collections.emptyList());
-    protected static final List EMPTY_UNTOUCHED_CONTENT = Collections.unmodifiableList(Collections.emptyList());
+    protected static final List<?> EMPTY_CONTENT = Collections.unmodifiableList(Collections.emptyList());
+    protected static final List<?> EMPTY_DISPOSED_CONTENT = Collections.unmodifiableList(Collections.emptyList());
+    protected static final List<?> EMPTY_UNTOUCHED_CONTENT = Collections.unmodifiableList(Collections.emptyList());
 
     private short changeSignature = 0;
 
     private GenericDatabaseElement parent;
     private ContentDependencyAdapter dependencyAdapter;
 
-    protected List<T> elements = EMPTY_UNTOUCHED_CONTENT;
+    protected List<T> elements = cast(EMPTY_UNTOUCHED_CONTENT);
 
     protected DynamicContentImpl(
             @NotNull GenericDatabaseElement parent,
@@ -59,13 +62,6 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
                 set(status, true);
             }
         }
-    }
-
-    @Override
-    public void compact() {
-         if (elements != EMPTY_CONTENT && elements != EMPTY_UNTOUCHED_CONTENT) {
-             elements = CollectionUtil.compact(elements);
-         }
     }
 
     @Override
@@ -211,10 +207,10 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
                 updateChangeSignature();
             }
 
-            elements.forEach(element -> {
+            for (T element : elements) {
                 checkDisposed();
                 element.refresh();
-            });
+            }
         }
     }
 
@@ -237,10 +233,10 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
                 markDirty();
                 dependencyAdapter.refreshSources();
                 if (!is(INTERNAL)){
-                    elements.forEach(e -> {
+                    for (T e : elements) {
                         checkDisposed();
                         e.refresh();
-                    });
+                    }
                 }
             } finally {
                 set(REFRESHING, false);
@@ -282,14 +278,18 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
             set(LOADED, true);
 
             // refresh inner elements
-            if (force) elements.forEach(element -> element.refresh());
+            if (force) {
+                for (T element : elements) {
+                    element.refresh();
+                }
+            }
 
         } catch (ProcessCanceledException e) {
             throw e;
 
         } catch (SQLFeatureNotSupportedException e) {
             // unsupported feature: log in notification area
-            elements = EMPTY_CONTENT;
+            elements = cast(EMPTY_CONTENT);
             set(LOADED, true);
             set(ERROR, true);
             sendWarningNotification(
@@ -299,13 +299,13 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
 
         } catch (SQLException e) {
             // connectivity / timeout exceptions: mark content dirty (no logging)
-            elements = EMPTY_CONTENT;
+            elements = cast(EMPTY_CONTENT);
             set(DIRTY, true);
 
         } catch (Throwable e) {
             // any other exception: log error
             log.error("Failed to load content", e);
-            elements = EMPTY_CONTENT;
+            elements = cast(EMPTY_CONTENT);
             set(DIRTY, true);
         }
 
@@ -330,14 +330,14 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
     }
 
     private void replaceElements(List<T> elements) {
-        List<T> oldElements = this.elements;
         if (isDisposed() || elements == null || elements.size() == 0) {
-            elements = EMPTY_CONTENT;
+            elements = cast(EMPTY_CONTENT);
         } else {
             sortElements(elements);
+            Compactables.compact(elements);
         }
-        this.elements = FilteredList.stateless(getFilter(), elements);
-        compact();
+        List<T> oldElements = this.elements;
+        this.elements = FilteredList.stateful((FilterDelegate<T>) () -> getFilter(), elements);
         if (oldElements.size() != 0 || elements.size() != 0 ){
             notifyChangeListeners();
         }
@@ -366,7 +366,7 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
         return elements;
     }
 
-    public List getElementsNoLoad() {
+    public List<T> getElementsNoLoad() {
         return elements;
     }
 
@@ -393,21 +393,20 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
     public T getElement(String name, short overload) {
         if (name != null) {
             List<T> elements = getAllElements();
-            return CollectionUtil.first(elements,
-                    (element) -> matchElement(element, name, overload));
+            return Lists.first(elements, element -> matchElement(element, name, overload));
         }
         return null;
     }
 
     private boolean matchElement(T element, String name, short overload) {
         return (overload == 0 || overload == element.getOverload()) &&
-                StringUtil.equalsIgnoreCase(element.getName(), name);
+                Strings.equalsIgnoreCase(element.getName(), name);
     }
 
     @Override
     @Nullable
     public List<T> getElements(String name) {
-        return CollectionUtil.filter(getAllElements(), false, false, (element) -> StringUtil.equalsIgnoreCase(element.getName(), name));
+        return Lists.filter(getAllElements(), element -> Strings.equalsIgnoreCase(element.getName(), name));
     }
 
     @Override
@@ -424,9 +423,9 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
     public void disposeInner() {
         if (elements != EMPTY_CONTENT && elements != EMPTY_UNTOUCHED_CONTENT) {
             if (!dependencyAdapter.isSubContent()) {
-                SafeDisposer.dispose(elements, false, false);
+                SafeDisposer.dispose(elements, true, false);
             }
-            elements = EMPTY_DISPOSED_CONTENT;
+            elements = cast(EMPTY_DISPOSED_CONTENT);
         }
         dependencyAdapter.dispose();
         dependencyAdapter = VoidContentDependencyAdapter.INSTANCE;

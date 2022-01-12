@@ -2,7 +2,7 @@ package com.dci.intellij.dbn.debugger.common.process;
 
 import com.dci.intellij.dbn.common.property.Property;
 
-public enum DBDebugProcessStatus implements Property{
+public enum DBDebugProcessStatus implements Property.IntBase {
     BREAKPOINT_SETTING_ALLOWED,
     TARGET_EXECUTION_STARTED,
     TARGET_EXECUTION_TERMINATED,
@@ -13,10 +13,10 @@ public enum DBDebugProcessStatus implements Property{
     PROCESS_STOPPED_NORMALLY,
     DEBUGGER_STOPPING;
 
-    private final Computed computed = new Computed(this);
+    private final Masks masks = new Masks(this);
 
     @Override
-    public Computed computedOrdinal() {
-        return computed;
+    public Masks masks() {
+        return masks;
     }
 }

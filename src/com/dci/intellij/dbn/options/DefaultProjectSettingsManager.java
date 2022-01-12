@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.options;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.component.ApplicationComponent;
 import com.dci.intellij.dbn.common.latent.Latent;
+import com.dci.intellij.dbn.common.util.InternalApi;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;

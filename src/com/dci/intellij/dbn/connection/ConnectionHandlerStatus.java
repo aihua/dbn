@@ -2,7 +2,7 @@ package com.dci.intellij.dbn.connection;
 
 import com.dci.intellij.dbn.common.property.Property;
 
-public enum ConnectionHandlerStatus implements Property {
+public enum ConnectionHandlerStatus implements Property.IntBase {
     CONNECTED,
     CLEANING,
     LOADING,
@@ -10,10 +10,10 @@ public enum ConnectionHandlerStatus implements Property {
     VALID,
     BUSY;
 
-    private final Computed computed = new Computed(this);
+    private final Masks masks = new Masks(this);
 
     @Override
-    public Computed computedOrdinal() {
-        return computed;
+    public Masks masks() {
+        return masks;
     }
 }

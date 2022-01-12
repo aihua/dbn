@@ -2,19 +2,17 @@ package com.dci.intellij.dbn.language.common.element.impl;
 
 import com.dci.intellij.dbn.code.common.lookup.LookupItemBuilderProvider;
 import com.dci.intellij.dbn.code.common.lookup.TokenLookupItemBuilder;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.TokenType;
 import com.dci.intellij.dbn.language.common.TokenTypeCategory;
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.ElementTypeBundle;
-import com.dci.intellij.dbn.language.common.element.TokenElementTypeChain;
 import com.dci.intellij.dbn.language.common.element.cache.ElementLookupContext;
 import com.dci.intellij.dbn.language.common.element.cache.ElementTypeLookupCache;
 import com.dci.intellij.dbn.language.common.element.cache.TokenElementTypeLookupCache;
 import com.dci.intellij.dbn.language.common.element.parser.ParserContext;
 import com.dci.intellij.dbn.language.common.element.parser.impl.TokenElementTypeParser;
-import com.dci.intellij.dbn.language.common.element.path.BasicPathNode;
 import com.dci.intellij.dbn.language.common.element.path.PathNode;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeDefinitionException;
 import com.dci.intellij.dbn.language.common.psi.TokenPsiElement;
@@ -24,8 +22,6 @@ import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -34,10 +30,8 @@ import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.string
 public final class TokenElementType extends LeafElementType implements LookupItemBuilderProvider {
     public static final String SEPARATOR = "SEPARATOR";
 
-
     private final TokenLookupItemBuilder lookupItemBuilder = new TokenLookupItemBuilder(this);
     private TokenTypeCategory flavor;
-    private List<TokenElementTypeChain> possibleTokenChains;
     private String text;
 
     public TokenElementType(ElementTypeBundle bundle, ElementTypeBase parent, String id, Element def) throws ElementTypeDefinitionException {
@@ -49,7 +43,7 @@ public final class TokenElementType extends LeafElementType implements LookupIte
         setDefaultFormatting(tokenType.getFormatting());
 
         String flavorName = stringAttribute(def, "flavor");
-        if (StringUtil.isNotEmpty(flavorName)) {
+        if (Strings.isNotEmpty(flavorName)) {
             flavor = TokenTypeCategory.getCategory(flavorName);
         }
 
@@ -171,34 +165,5 @@ public final class TokenElementType extends LeafElementType implements LookupIte
 
     public TokenTypeCategory getTokenTypeCategory() {
         return flavor == null ? getTokenType().getCategory() : flavor;
-    }
-
-    public List<TokenElementTypeChain> getPossibleTokenChains() {
-        if (possibleTokenChains == null) {
-            possibleTokenChains = new ArrayList<TokenElementTypeChain>();
-            TokenElementTypeChain stump = new TokenElementTypeChain(this);
-            buildPossibleChains(this, stump);
-        }
-        return possibleTokenChains;
-    }
-
-    private void buildPossibleChains(TokenElementType tokenElementType, TokenElementTypeChain chain) {
-        PathNode pathNode = BasicPathNode.buildPathUp(tokenElementType);
-        Set<LeafElementType> nextPossibleLeafs = getNextPossibleLeafs(pathNode, new ElementLookupContext());
-        if (nextPossibleLeafs != null) {
-            for (LeafElementType nextPossibleLeaf : nextPossibleLeafs) {
-                if (nextPossibleLeaf instanceof TokenElementType) {
-                    TokenElementType nextTokenElementType = (TokenElementType) nextPossibleLeaf;
-                    if (nextTokenElementType.getTokenType().isKeyword()) {
-                        TokenElementTypeChain tokenElementTypeChain = chain.createVariant(nextTokenElementType);
-                        if (possibleTokenChains == null) possibleTokenChains = new ArrayList<>();
-                        possibleTokenChains.add(tokenElementTypeChain);
-                        if (tokenElementTypeChain.getElementTypes().size()<3) {
-                            buildPossibleChains(nextTokenElementType, tokenElementTypeChain);
-                        }
-                    }
-                }
-            }
-        }
     }
 }

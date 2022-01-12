@@ -7,13 +7,13 @@ import com.dci.intellij.dbn.language.common.element.impl.TokenElementType;
 import com.dci.intellij.dbn.language.common.element.impl.WrapperElementType;
 import com.dci.intellij.dbn.language.common.element.impl.WrappingDefinition;
 import com.dci.intellij.dbn.language.common.element.parser.ElementTypeParser;
+import com.dci.intellij.dbn.language.common.element.parser.OldTokenPairMonitor;
 import com.dci.intellij.dbn.language.common.element.parser.ParseResult;
 import com.dci.intellij.dbn.language.common.element.parser.ParseResultType;
 import com.dci.intellij.dbn.language.common.element.parser.ParserBuilder;
 import com.dci.intellij.dbn.language.common.element.parser.ParserContext;
 import com.dci.intellij.dbn.language.common.element.path.ParsePathNode;
 import com.dci.intellij.dbn.language.common.element.util.ParseBuilderErrorHandler;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Set;
 
@@ -23,9 +23,8 @@ public class WrapperElementTypeParser extends ElementTypeParser<WrapperElementTy
     }
 
     @Override
-    public ParseResult parse(@NotNull ParsePathNode parentNode, boolean optional, int depth, ParserContext context) throws ParseException {
-        ParserBuilder builder = context.builder;
-        logBegin(builder, optional, depth);
+    public ParseResult parse(ParsePathNode parentNode, ParserContext context) throws ParseException {
+        ParserBuilder builder = context.getBuilder();
         ParsePathNode node = stepIn(parentNode, context);
 
         ElementTypeBase wrappedElement = elementType.getWrappedElement();
@@ -35,26 +34,27 @@ public class WrapperElementTypeParser extends ElementTypeParser<WrapperElementTy
         int matchedTokens = 0;
 
         // parse begin token
-        ParseResult beginTokenResult = beginTokenElement.getParser().parse(node, optional, depth + 1, context);
+        ParseResult beginTokenResult = beginTokenElement.getParser().parse(node, context);
 
         TokenType beginTokenType = beginTokenElement.getTokenType();
         TokenType endTokenType = endTokenElement.getTokenType();
         boolean isStrong = elementType.isStrong();
 
-        boolean beginMatched = beginTokenResult.isMatch() || (builder.lookBack(1) == beginTokenType && !builder.isExplicitRange(beginTokenType));
+        OldTokenPairMonitor tokenPairMonitor = builder.getTokenPairMonitor();
+        boolean beginMatched = beginTokenResult.isMatch() || (builder.getPreviousToken() == beginTokenType && !tokenPairMonitor.isExplicitRange(beginTokenType));
         if (beginMatched) {
             matchedTokens++;
-            boolean initialExplicitRange = builder.isExplicitRange(beginTokenType);
-            builder.setExplicitRange(beginTokenType, true);
+            boolean initialExplicitRange = tokenPairMonitor.isExplicitRange(beginTokenType);
+            tokenPairMonitor.setExplicitRange(beginTokenType, true);
 
-            ParseResult wrappedResult = wrappedElement.getParser().parse(node, false, depth -1, context);
-            matchedTokens = matchedTokens + wrappedResult.matchedTokens;
+            ParseResult wrappedResult = wrappedElement.getParser().parse(node, context);
+            matchedTokens = matchedTokens + wrappedResult.getMatchedTokens();
 
-            ParseResultType wrappedResultType = wrappedResult.type;
+            ParseResultType wrappedResultType = wrappedResult.getType();
             if (wrappedResultType == ParseResultType.NO_MATCH  && !elementType.wrappedElementOptional) {
-                if (!isStrong && builder.getTokenType() != endTokenType) {
-                    builder.setExplicitRange(beginTokenType, initialExplicitRange);
-                    return stepOut(node, context, depth, ParseResultType.NO_MATCH, matchedTokens);
+                if (!isStrong && builder.getToken() != endTokenType) {
+                    tokenPairMonitor.setExplicitRange(beginTokenType, initialExplicitRange);
+                    return stepOut(node, context, ParseResultType.NO_MATCH, matchedTokens);
                 } else {
                     Set<TokenType> possibleTokens = wrappedElement.getLookupCache().getFirstPossibleTokens();
                     ParseBuilderErrorHandler.updateBuilderError(possibleTokens, context);
@@ -63,27 +63,27 @@ public class WrapperElementTypeParser extends ElementTypeParser<WrapperElementTy
             }
 
             // check the end element => exit with partial match if not available
-            ParseResult endTokenResult = endTokenElement.getParser().parse(node, false, depth - 1, context);
+            ParseResult endTokenResult = endTokenElement.getParser().parse(node, context);
             if (endTokenResult.isMatch()) {
                 matchedTokens++;
-                return stepOut(node, context, depth, ParseResultType.FULL_MATCH, matchedTokens);
+                return stepOut(node, context, ParseResultType.FULL_MATCH, matchedTokens);
             } else {
-                builder.setExplicitRange(beginTokenType, initialExplicitRange);
-                return stepOut(node, context, depth, ParseResultType.PARTIAL_MATCH, matchedTokens);
+                tokenPairMonitor.setExplicitRange(beginTokenType, initialExplicitRange);
+                return stepOut(node, context, ParseResultType.PARTIAL_MATCH, matchedTokens);
             }
         }
 
-        return stepOut(node, context, depth, ParseResultType.NO_MATCH, matchedTokens);
+        return stepOut(node, context, ParseResultType.NO_MATCH, matchedTokens);
     }
 
     private static boolean isParentWrapping(ParsePathNode node, TokenType tokenType) {
-        ParsePathNode parent = node.parent;
+        ParsePathNode parent = node.getParent();
         while (parent != null && parent.getCursorPosition() == 0) {
-            WrappingDefinition parentWrapping = parent.elementType.getWrapping();
+            WrappingDefinition parentWrapping = parent.getElementType().getWrapping();
             if (parentWrapping != null && parentWrapping.getBeginElementType().getTokenType() == tokenType) {
                 return true;
             }
-            parent = parent.parent;
+            parent = parent.getParent();
         }
         return false;
     }

@@ -3,30 +3,44 @@ package com.dci.intellij.dbn.diagnostics;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.file.util.FileSearchRequest;
 import com.dci.intellij.dbn.common.file.util.VirtualFileUtil;
+import com.dci.intellij.dbn.common.notification.NotificationGroup;
+import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.thread.Read;
-import com.dci.intellij.dbn.common.util.CommonUtil;
+import com.dci.intellij.dbn.common.util.Commons;
+import com.dci.intellij.dbn.common.util.Lists;
 import com.dci.intellij.dbn.diagnostics.data.DiagnosticCategory;
 import com.dci.intellij.dbn.diagnostics.data.ParserDiagnosticsFilter;
 import com.dci.intellij.dbn.diagnostics.data.ParserDiagnosticsResult;
 import com.dci.intellij.dbn.diagnostics.ui.ParserDiagnosticsForm;
+import com.dci.intellij.dbn.language.common.DBLanguageFileType;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.psi.PsiUtil;
+import com.dci.intellij.dbn.language.common.psi.scrambler.DBLLanguageFileScrambler;
+import com.dci.intellij.dbn.language.psql.PSQLFileType;
+import com.dci.intellij.dbn.language.sql.SQLFileType;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
+import com.intellij.openapi.fileTypes.ExtensionFileNameMatcher;
+import com.intellij.openapi.fileTypes.FileNameMatcher;
+import com.intellij.openapi.fileTypes.FileTypeManager;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
 import org.jdom.Element;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -47,7 +61,7 @@ public class ParserDiagnosticsManager extends AbstractProjectComponent implement
         super(project);
     }
 
-    public static ParserDiagnosticsManager getInstance(@NotNull Project project) {
+    public static ParserDiagnosticsManager get(@NotNull Project project) {
         return Failsafe.getComponent(project, ParserDiagnosticsManager.class);
     }
 
@@ -55,7 +69,9 @@ public class ParserDiagnosticsManager extends AbstractProjectComponent implement
     public ParserDiagnosticsResult runParserDiagnostics(ProgressIndicator progress) {
         try {
             running = true;
-            VirtualFile[] files = VirtualFileUtil.lookupFilesForExtensions(getProject(), "sql", "pkg");
+            String[] extensions = getFileExtensions();
+            FileSearchRequest searchRequest = FileSearchRequest.forExtensions(extensions);
+            VirtualFile[] files = VirtualFileUtil.findFiles(getProject(), searchRequest);
             ParserDiagnosticsResult result = new ParserDiagnosticsResult(getProject());
 
             for (int i = 0, filesLength = files.length; i < filesLength; i++) {
@@ -63,16 +79,17 @@ public class ParserDiagnosticsManager extends AbstractProjectComponent implement
                 Progress.check(progress);
                 String filePath = file.getPath();
                 progress.setText2(filePath);
-                progress.setFraction(CommonUtil.getProgressPercentage(i, files.length));
+                progress.setFraction(Commons.getProgressPercentage(i, files.length));
 
                 DBLanguagePsiFile psiFile = ensureFileParsed(file);
                 Progress.check(progress);
                 if (psiFile == null) {
-                    result.addEntry(filePath, 1);
+                    result.addEntry(filePath, 1, 0);
                 } else {
-                    Integer errorCount = Read.call(() -> psiFile.countErrors());
-                    if (errorCount != null && errorCount > 0) {
-                        result.addEntry(filePath, errorCount);
+                    int errors = Read.call(() -> psiFile.countErrors(), 0);
+                    int warnings = Read.call(() -> psiFile.countWarnings(), 0);
+                    if (errors > 0 || warnings > 0) {
+                        result.addEntry(filePath, errors, warnings);
                     }
                 }
             }
@@ -84,6 +101,57 @@ public class ParserDiagnosticsManager extends AbstractProjectComponent implement
         }
     }
 
+    public void scrambleProjectFiles(ProgressIndicator progress, File rootDir) {
+        String[] extensions = getFileExtensions();
+        FileSearchRequest searchRequest = FileSearchRequest.forExtensions(extensions);
+        VirtualFile[] files = VirtualFileUtil.findFiles(getProject(), searchRequest);
+
+        DBLLanguageFileScrambler scrambler = new DBLLanguageFileScrambler();
+
+        for (int i = 0, filesLength = files.length; i < filesLength; i++) {
+            VirtualFile file = files[i];
+            Progress.check(progress);
+            String filePath = file.getPath();
+            progress.setText2(filePath);
+            progress.setFraction(Commons.getProgressPercentage(i, files.length));
+
+            DBLanguagePsiFile psiFile = ensureFileParsed(file);
+            Progress.check(progress);
+            if (psiFile != null) {
+
+                String scrambled = scrambler.scramble(psiFile);
+                String newFileName = scrambler.scrambleName(file);
+                File scrambledFile = new File(rootDir, newFileName);
+                try {
+                    FileUtils.write(scrambledFile, scrambled, file.getCharset());
+                } catch (IOException e) {
+                    NotificationSupport.sendWarningNotification(
+                            getProject(),
+                            NotificationGroup.DEVELOPER,
+                            "Failed to write file" + scrambledFile.getPath() + ". " + e.getMessage());
+                }
+            }
+        }
+    }
+
+    public String[] getFileExtensions() {
+        List<String> extensions = new ArrayList<>();
+        collectFileExtensions(extensions, SQLFileType.INSTANCE);
+        collectFileExtensions(extensions, PSQLFileType.INSTANCE);
+        return extensions.toArray(new String[0]);
+    }
+
+    private void collectFileExtensions(List<String> bucket, DBLanguageFileType fileType) {
+        FileTypeManager fileTypeManager = FileTypeManager.getInstance();
+        List<FileNameMatcher> associations = fileTypeManager.getAssociations(fileType);
+        for (FileNameMatcher association : associations) {
+            if (association instanceof ExtensionFileNameMatcher) {
+                ExtensionFileNameMatcher matcher = (ExtensionFileNameMatcher) association;
+                bucket.add(matcher.getExtension());
+            }
+        }
+    }
+
     public void openParserDiagnostics(@Nullable ParserDiagnosticsResult result) {
         Project project = getProject();
         DiagnosticsManager diagnosticsManager = DiagnosticsManager.getInstance(project);
@@ -92,7 +160,7 @@ public class ParserDiagnosticsManager extends AbstractProjectComponent implement
                 () -> new ParserDiagnosticsForm(project));
 
         ParserDiagnosticsResult selectedResult = form.getSelectedResult();
-        form.selectResult(CommonUtil.nvln(result, selectedResult));
+        form.selectResult(Commons.nvln(result, selectedResult));
     }
 
 
@@ -118,7 +186,7 @@ public class ParserDiagnosticsManager extends AbstractProjectComponent implement
     }
 
     public boolean hasDraftResults() {
-        return resultHistory.stream().anyMatch(result -> result.isDraft());
+        return Lists.anyMatch(resultHistory, result -> result.isDraft());
     }
 
     public void saveResult(@NotNull ParserDiagnosticsResult result) {

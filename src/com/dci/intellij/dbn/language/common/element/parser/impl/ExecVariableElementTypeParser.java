@@ -8,8 +8,7 @@ import com.dci.intellij.dbn.language.common.element.parser.ParseResultType;
 import com.dci.intellij.dbn.language.common.element.parser.ParserBuilder;
 import com.dci.intellij.dbn.language.common.element.parser.ParserContext;
 import com.dci.intellij.dbn.language.common.element.path.ParsePathNode;
-import com.intellij.lang.PsiBuilder;
-import org.jetbrains.annotations.NotNull;
+import com.intellij.lang.PsiBuilder.Marker;
 
 public class ExecVariableElementTypeParser extends ElementTypeParser<ExecVariableElementType> {
     public ExecVariableElementTypeParser(ExecVariableElementType elementType) {
@@ -17,18 +16,18 @@ public class ExecVariableElementTypeParser extends ElementTypeParser<ExecVariabl
     }
 
     @Override
-    public ParseResult parse(@NotNull ParsePathNode parentNode, boolean optional, int depth, ParserContext context) {
-        ParserBuilder builder = context.builder;
-        logBegin(builder, optional, depth);
-        TokenType tokenType = builder.getTokenType();
-        if (tokenType != null && !tokenType.isChameleon()){
-            if (tokenType.isVariable()) {
-                PsiBuilder.Marker marker = builder.mark(null);
-                builder.advanceLexer(parentNode);
-                return stepOut(marker, null, context, depth, ParseResultType.FULL_MATCH, 1);
+    public ParseResult parse(ParsePathNode parentNode, ParserContext context) {
+        ParserBuilder builder = context.getBuilder();
+        TokenType token = builder.getToken();
+        Marker marker = null;
+
+        if (token != null && !token.isChameleon()){
+            if (token.isVariable()) {
+                marker = builder.markAndAdvance();
+                return stepOut(marker, context, ParseResultType.FULL_MATCH, 1);
             }
         }
-        return stepOut(null, null, context, depth, ParseResultType.NO_MATCH, 0);
+        return stepOut(marker, context, ParseResultType.NO_MATCH, 0);
     }
 
 }

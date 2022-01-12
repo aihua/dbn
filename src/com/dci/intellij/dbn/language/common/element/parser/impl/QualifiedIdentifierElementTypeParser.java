@@ -14,7 +14,6 @@ import com.dci.intellij.dbn.language.common.element.parser.ParserBuilder;
 import com.dci.intellij.dbn.language.common.element.parser.ParserContext;
 import com.dci.intellij.dbn.language.common.element.path.ParsePathNode;
 import com.dci.intellij.dbn.language.common.element.util.ParseBuilderErrorHandler;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -27,9 +26,8 @@ public class QualifiedIdentifierElementTypeParser extends ElementTypeParser<Qual
     }
 
     @Override
-    public ParseResult parse(@NotNull ParsePathNode parentNode, boolean optional, int depth, ParserContext context) throws ParseException {
-        ParserBuilder builder = context.builder;
-        logBegin(builder, optional, depth);
+    public ParseResult parse(ParsePathNode parentNode, ParserContext context) throws ParseException {
+        ParserBuilder builder = context.getBuilder();
         ParsePathNode node = stepIn(parentNode, context);
 
         TokenElementType separatorToken = elementType.getSeparatorToken();
@@ -40,31 +38,31 @@ public class QualifiedIdentifierElementTypeParser extends ElementTypeParser<Qual
             LeafElementType[] elementTypes = variant.getLeafs();
 
             for (LeafElementType elementType : elementTypes) {
-                ParseResult result = elementType.getParser().parse(node, true, depth + 1, context);
-                if (result.isNoMatch()) break;  else matchedTokens = matchedTokens + result.matchedTokens;
+                ParseResult result = elementType.getParser().parse(node, context);
+                if (result.isNoMatch()) break;  else matchedTokens = matchedTokens + result.getMatchedTokens();
 
                 if (elementType != elementTypes[elementTypes.length -1])  {
-                    result = separatorToken.getParser().parse(node, true, depth + 1, context);
-                    if (result.isNoMatch()) break; else matchedTokens = matchedTokens + result.matchedTokens;
+                    result = separatorToken.getParser().parse(node, context);
+                    if (result.isNoMatch()) break; else matchedTokens = matchedTokens + result.getMatchedTokens();
                 }
-                node.incrementIndex(builder.getCurrentOffset());
+                node.incrementIndex(builder.getOffset());
             }
 
             if (matchedTokens > 0) {
                 if (variant.isIncomplete()) {
                     Set<TokenType> expected = Collections.singleton(separatorToken.getTokenType());
                     ParseBuilderErrorHandler.updateBuilderError(expected, context);
-                    return stepOut(node, context, depth, ParseResultType.PARTIAL_MATCH, matchedTokens);
+                    return stepOut(node, context, ParseResultType.PARTIAL_MATCH, matchedTokens);
                 } else {
-                    return stepOut(node, context, depth, ParseResultType.FULL_MATCH, matchedTokens);
+                    return stepOut(node, context, ParseResultType.FULL_MATCH, matchedTokens);
                 }
             }
         }
 
-        return stepOut(node, context, depth, ParseResultType.NO_MATCH, matchedTokens);
+        return stepOut(node, context, ParseResultType.NO_MATCH, matchedTokens);
     }
 
-    private QualifiedIdentifierVariant getMostProbableParseVariant(@NotNull ParserBuilder builder) {
+    private QualifiedIdentifierVariant getMostProbableParseVariant(ParserBuilder builder) {
         TokenType separatorToken = elementType.getSeparatorToken().getTokenType();
         SharedTokenTypeBundle sharedTokenTypes = getSharedTokenTypes();
         TokenType identifier = sharedTokenTypes.getIdentifier();
@@ -114,85 +112,4 @@ public class QualifiedIdentifierElementTypeParser extends ElementTypeParser<Qual
 
         return mostProbableVariant;
     }
-
-    /*    private QualifiedIdentifierVariant getMostProbableParseVariant_(ParserBuilder builder, ParsePathNode node) {
-
-        TokenElementType separatorToken = getElementType().getSeparatorToken();
-
-        QualifiedIdentifierVariant mostProbableVariant = null;
-        int initialCursorPosition = node.getCursorPosition();
-
-        try {
-            for (LeafElementType[] variants : getElementType().getVariants()) {
-                int offset = 0;
-                //PsiBuilder.Marker marker = builder.mark();
-                int matchedTokens = 0;
-                for (int i=0; i< variants.length; i++) {
-                    TokenType tokenType = builder.lookAhead(offset);
-                    // if no mach -> consider as partial if not first element
-
-                    node.setCursorPosition(i);
-                    if (match(variants[i], tokenType, node, true)) {
-                        matchedTokens++;
-                        offset++;
-
-
-                        tokenType = builder.lookAhead(offset);
-                        boolean isSeparator = tokenType == separatorToken.getTokenType();
-                        boolean isFullMatch = matchedTokens == variants.length;
-                        boolean isLastElement = i == variants.length - 1;
-
-                        if (isLastElement) {
-                            QualifiedIdentifierVariant variant = new QualifiedIdentifierVariant(variants, matchedTokens);
-                            if ((isFullMatch && !isSeparator) || variant.containsNonIdentifierTokens()) {
-                                //markerRollbackTo(marker);
-                                return variant;
-                            }
-
-                            if (mostProbableVariant == null || matchedTokens > mostProbableVariant.getMatchedTokens()) {
-                                mostProbableVariant = variant;
-                            }
-                            break;
-                        } else {
-                            if (!isSeparator) {  // is not separator token
-                                QualifiedIdentifierVariant variant = new QualifiedIdentifierVariant(variants, matchedTokens);
-                                if (mostProbableVariant == null || mostProbableVariant.getMatchedTokens() < variant.getMatchedTokens()) {
-                                    mostProbableVariant = variant;
-                                }
-                                break;
-                            }
-                        }
-                        offset++;
-                    } else {
-                        if (matchedTokens > 0)  {
-                            QualifiedIdentifierVariant variant = new QualifiedIdentifierVariant(variants, matchedTokens);
-                            if (variant.containsNonIdentifierTokens()) {
-                                //markerRollbackTo(marker);
-                                return variant;
-                            }
-                            if (mostProbableVariant == null || mostProbableVariant.getMatchedTokens() < variant.getMatchedTokens()) {
-                                mostProbableVariant = variant;
-                            }
-                        }
-                        break;
-                    }
-                }
-            }
-        }
-        finally {
-            node.setCursorPosition(initialCursorPosition);
-        }
-
-        return mostProbableVariant;
-    }
-
-    private boolean match(LeafElementType leafElementType, TokenType tokenType, ParsePathNode node, boolean leniant) {
-        if (leafElementType instanceof IdentifierElementType) {
-            return tokenType != null && (tokenType.isIdentifier() || (leniant && isSuppressibleReservedWord(tokenType, node, context)));
-        } else if (leafElementType instanceof TokenElementType) {
-            TokenElementType tokenElementType = (TokenElementType) leafElementType;
-            return tokenElementType.getTokenType() == tokenType;
-        }
-        return false;
-    }*/
 }

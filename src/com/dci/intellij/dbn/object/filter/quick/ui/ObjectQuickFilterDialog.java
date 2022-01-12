@@ -2,20 +2,22 @@ package com.dci.intellij.dbn.object.filter.quick.ui;
 
 import com.dci.intellij.dbn.common.ui.dialog.DBNDialog;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
+import com.dci.intellij.dbn.object.filter.quick.ObjectQuickFilter;
 import com.dci.intellij.dbn.object.filter.quick.ObjectQuickFilterManager;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.*;
+import javax.swing.AbstractAction;
+import javax.swing.Action;
 import java.awt.event.ActionEvent;
 
 public class ObjectQuickFilterDialog extends DBNDialog<ObjectQuickFilterForm> {
-    private DBObjectList objectList;
-    public ObjectQuickFilterDialog(Project project, DBObjectList objectList) {
+    private final DBObjectList<?> objectList;
+    public ObjectQuickFilterDialog(Project project, DBObjectList<?> objectList) {
         super(project, "Quick filter", true);
         this.objectList = objectList;
         setModal(true);
-        setResizable(false);
+        //setResizable(false);
         getOKAction().putValue(Action.NAME, "Apply");
         init();
     }
@@ -51,7 +53,8 @@ public class ObjectQuickFilterDialog extends DBNDialog<ObjectQuickFilterForm> {
     public void doOKAction() {
         try {
             ObjectQuickFilterManager quickFilterManager = ObjectQuickFilterManager.getInstance(getProject());
-            quickFilterManager.applyFilter(getForm().getObjectList(), getForm().getFilter());
+            ObjectQuickFilter<?> filter = getForm().getFilter();
+            quickFilterManager.applyFilter(getForm().getObjectList(), filter.isEmpty() ? null : filter);
         } finally {
             super.doOKAction();
         }

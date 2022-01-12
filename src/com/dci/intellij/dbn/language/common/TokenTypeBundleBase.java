@@ -1,9 +1,10 @@
 package com.dci.intellij.dbn.language.common;
 
 import com.dci.intellij.dbn.common.index.IndexRegistry;
-import com.dci.intellij.dbn.common.util.CollectionUtil;
+import com.dci.intellij.dbn.common.util.Compactables;
+import com.dci.intellij.dbn.common.util.Lists;
 import com.dci.intellij.dbn.common.util.Measured;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.intellij.lang.Language;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.tree.TokenSet;
@@ -13,7 +14,11 @@ import org.jdom.Document;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
@@ -141,15 +146,19 @@ public abstract class TokenTypeBundleBase {
 
     private static SimpleTokenType[] createTokenArray(List<SimpleTokenType> tokenList) {
         SimpleTokenType[] tokenArray = new SimpleTokenType[tokenList.size()];
-        tokenList.forEach(token -> tokenArray[token.getLookupIndex()] = token);
+        for (SimpleTokenType token : tokenList) {
+            tokenArray[token.getLookupIndex()] = token;
+        }
         return tokenArray;
     }
 
     @NotNull
     private static Map<String, SimpleTokenType> createTokenMap(List<SimpleTokenType> tokenList) {
         Map<String, SimpleTokenType> map = new THashMap<>(tokenList.size());
-        tokenList.forEach(token -> map.put(token.getValue(), token));
-        return CollectionUtil.compact(map);
+        for (SimpleTokenType token : tokenList) {
+            map.put(token.getValue(), token);
+        }
+        return Compactables.compact(map);
     }
 
     public SimpleTokenType getKeywordTokenType(int index) {
@@ -191,7 +200,7 @@ public abstract class TokenTypeBundleBase {
             Set<String> tokenIds = new HashSet<>();
 
             for (String tokenId : o.getText().split(",")) {
-                if (StringUtil.isNotEmpty(tokenId)) {
+                if (Strings.isNotEmpty(tokenId)) {
                     tokenIds.add(tokenId.trim());
                 }
             }
@@ -220,7 +229,7 @@ public abstract class TokenTypeBundleBase {
     }
 
     private boolean isRegisteredToken(Map<String, Set<String>> tokenSetIds, String tokenId) {
-        return tokenSetIds.values().stream().anyMatch(tokenIds -> tokenIds.contains(tokenId));
+        return Lists.anyMatch(tokenSetIds.values(), tokenIds -> tokenIds.contains(tokenId));
     }
 
     public SimpleTokenType getTokenType(String id) {

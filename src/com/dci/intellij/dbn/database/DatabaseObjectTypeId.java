@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.database;
 
 
-import com.dci.intellij.dbn.common.util.EnumerationUtil;
+import com.dci.intellij.dbn.common.util.Enumerations;
 
 public enum DatabaseObjectTypeId {
     ATTRIBUTE,
@@ -9,6 +9,8 @@ public enum DatabaseObjectTypeId {
     CATEGORY,
     CHARSET,
     CLUSTER,
+    COLLATION,
+    CONTEXT,
     COLUMN,
     CONSTRAINT,
     DATABASE,
@@ -33,6 +35,7 @@ public enum DatabaseObjectTypeId {
     MATERIALIZED_VIEW,
     METHOD,
     MODEL,
+    MINING_MODEL,
     NESTED_TABLE,
     NESTED_TABLE_COLUMN,
     OPERATOR,
@@ -48,6 +51,7 @@ public enum DatabaseObjectTypeId {
     OBJECT_PRIVILEGE,
     PROCEDURE,
     PROFILE,
+    POLICY,
     PROGRAM,
     ROLLBACK_SEGMENT,
     ROLE,
@@ -95,6 +99,6 @@ public enum DatabaseObjectTypeId {
     OUTGOING_DEPENDENCY;
 
     public boolean isOneOf(DatabaseObjectTypeId ... objectTypeIds){
-        return EnumerationUtil.isOneOf(this, objectTypeIds);
+        return Enumerations.isOneOf(this, objectTypeIds);
     }
 }

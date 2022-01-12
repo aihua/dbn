@@ -3,7 +3,7 @@ package com.dci.intellij.dbn.code.common.intention;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.thread.Read;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
 import com.dci.intellij.dbn.database.DatabaseFeature;
@@ -18,7 +18,7 @@ import com.intellij.psi.PsiFile;
 import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.*;
+import javax.swing.Icon;
 
 public class ToggleDatabaseLoggingIntentionAction extends GenericIntentionAction implements LowPriorityAction {
     private PsiFileRef<?> lastChecked;
@@ -31,7 +31,7 @@ public class ToggleDatabaseLoggingIntentionAction extends GenericIntentionAction
             DatabaseCompatibilityInterface compatibilityInterface = connectionHandler.getInterfaceProvider().getCompatibilityInterface();
             String databaseLogName = compatibilityInterface.getDatabaseLogName();
             boolean loggingEnabled = connectionHandler.isLoggingEnabled();
-            if (StringUtil.isEmpty(databaseLogName)) {
+            if (Strings.isEmpty(databaseLogName)) {
                 return loggingEnabled ? "Disable database logging" : "Enable database logging";
             } else {
                 return (loggingEnabled ? "Disable logging (" : "Enable logging (") + databaseLogName + ')';
@@ -52,7 +52,7 @@ public class ToggleDatabaseLoggingIntentionAction extends GenericIntentionAction
 
 
     ConnectionHandler getLastCheckedConnection() {
-        PsiFile psiFile = Read.call(() -> PsiFileRef.from(lastChecked));
+        PsiFile psiFile = Read.conditional(() -> PsiFileRef.from(lastChecked));
         if (psiFile != null) {
             ConnectionHandler connectionHandler = getConnectionHandler(psiFile);
             if (supportsLogging(connectionHandler)) {

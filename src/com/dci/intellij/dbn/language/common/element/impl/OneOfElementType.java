@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.language.common.element.impl;
 
-import com.dci.intellij.dbn.common.util.CommonUtil;
+import com.dci.intellij.dbn.common.util.Commons;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.language.common.element.ElementTypeBundle;
 import com.dci.intellij.dbn.language.common.element.cache.OneOfElementTypeLookupCache;
 import com.dci.intellij.dbn.language.common.element.parser.BranchCheck;
@@ -18,31 +19,62 @@ import java.util.List;
 import java.util.Set;
 
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
+import static com.dci.intellij.dbn.common.util.Unsafe.cast;
 
 public final class OneOfElementType extends ElementTypeBase {
-    private final ElementTypeRef[] children;
-    private final boolean sortable;
+    private ElementTypeRef[] children;
+    private boolean sortable;
     private boolean sorted;
+    private boolean basic;
 
     public OneOfElementType(ElementTypeBundle bundle, ElementTypeBase parent, String id, Element def) throws ElementTypeDefinitionException {
         super(bundle, parent, id, def);
-        List<Element> children = def.getChildren();
+    }
 
-        this.children = new ElementTypeRef[children.size()];
+    @Override
+    protected void loadDefinition(Element def) throws ElementTypeDefinitionException {
+        super.loadDefinition(def);
+        ElementTypeBundle bundle = getBundle();
+        String tokenIds = stringAttribute(def, "tokens");
+        if (Strings.isNotEmptyOrSpaces(tokenIds)) {
+            basic = true;
+            String id = getId();
 
-        ElementTypeRef previous = null;
-        for (int i=0; i<children.size(); i++) {
-            Element child = children.get(i);
-            String type = child.getName();
-            ElementTypeBase elementType = bundle.resolveElementDefinition(child, type, this);
-            double version = Double.parseDouble(CommonUtil.nvl(stringAttribute(child, "version"), "0"));
-            Set<BranchCheck> branchChecks = parseBranchChecks(stringAttribute(child, "branch-check"));
+            String[] tokens = tokenIds.split(",");
+            this.children = new ElementTypeRef[tokens.length];
 
-            this.children[i] = new ElementTypeRef(previous, this, elementType, false, version, branchChecks);
-            previous = this.children[i];
+            ElementTypeRef previous = null;
+            for (int i=0; i<tokens.length; i++) {
+                String tokenTypeId = tokens[i].trim();
 
+                TokenElementType tokenElementType = new TokenElementType(bundle, this, tokenTypeId, id);
+                children[i] = new ElementTypeRef(previous, this, tokenElementType, false, 0, null);
+                previous = this.children[i];
+            }
+            sortable = false;
+        } else {
+            List<Element> children = def.getChildren();
+            this.children = new ElementTypeRef[children.size()];
+
+            ElementTypeRef previous = null;
+            for (int i=0; i<children.size(); i++) {
+                Element child = children.get(i);
+                String type = child.getName();
+                ElementTypeBase elementType = bundle.resolveElementDefinition(child, type, this);
+                double version = Double.parseDouble(Commons.nvl(stringAttribute(child, "version"), "0"));
+                Set<BranchCheck> branchChecks = parseBranchChecks(stringAttribute(child, "branch-check"));
+
+                this.children[i] = new ElementTypeRef(previous, this, elementType, false, version, branchChecks);
+                previous = this.children[i];
+
+            }
+            sortable = getBooleanAttribute(def, "sortable");
         }
-        sortable = getBooleanAttribute(def, "sortable");
+
+        if (children == null || children.length == 0) {
+            // TODO assert at least 2 children
+            throw new ElementTypeDefinitionException("[" + getLanguageDialect().getID() + "] Invalid one-of definition (id=" + getId() + "). Element should contain at least 2 elements.");
+        }
     }
 
     @Override
@@ -69,13 +101,26 @@ public final class OneOfElementType extends ElementTypeBase {
 
     @Override
     public PsiElement createPsiElement(ASTNode astNode) {
-        return new SequencePsiElement(astNode, this);
+        return new SequencePsiElement<>(astNode, this);
     }
 
     public void sort() {
         if (sortable && !sorted) {
             sorted = true;
             Arrays.sort(children, ONE_OF_COMPARATOR);
+            relink();
+        }
+    }
+
+    private void relink() {
+        ElementTypeRef previous = null;
+        for (ElementTypeRef child : children) {
+            child.setPrevious(previous);
+            child.setNext(null);
+            if (previous != null) {
+                previous.setNext(child);
+            }
+            previous = child;
         }
     }
 
@@ -91,5 +136,15 @@ public final class OneOfElementType extends ElementTypeBase {
 
     public ElementTypeRef getFirstChild() {
         return children[0];
+    }
+
+    @Override
+    public void collectLeafElements(Set<LeafElementType> bucket) {
+        super.collectLeafElements(bucket);
+        if (basic) {
+            for (ElementTypeRef child : children) {
+                bucket.add(cast(child.getElementType()));
+            }
+        }
     }
 }

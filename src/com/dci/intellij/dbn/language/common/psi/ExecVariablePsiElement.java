@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.language.common.psi;
 
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.language.common.element.impl.ExecVariableElementType;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.dci.intellij.dbn.language.common.psi.lookup.PsiLookupAdapter;
@@ -8,11 +8,11 @@ import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.lang.ASTNode;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
 import com.intellij.psi.PsiElement;
-import com.intellij.util.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.Icon;
+import java.util.function.Consumer;
 
 public class ExecVariablePsiElement extends LeafPsiElement<ExecVariableElementType> {
     public ExecVariablePsiElement(ASTNode astNode, ExecVariableElementType elementType) {
@@ -28,7 +28,7 @@ public class ExecVariablePsiElement extends LeafPsiElement<ExecVariableElementTy
 
 
     @Override
-    public void collectExecVariablePsiElements(@NotNull Consumer<ExecVariablePsiElement> consumer) { consumer.consume(this);}
+    public void collectExecVariablePsiElements(@NotNull Consumer<ExecVariablePsiElement> consumer) { consumer.accept(this);}
 
     @Override
     public void collectSubjectPsiElements(@NotNull Consumer<IdentifierPsiElement> consumer) {}
@@ -88,7 +88,7 @@ public class ExecVariablePsiElement extends LeafPsiElement<ExecVariableElementTy
     public boolean matches(BasePsiElement basePsiElement, MatchType matchType) {
         if (basePsiElement instanceof ExecVariablePsiElement) {
             ExecVariablePsiElement execVariablePsiElement = (ExecVariablePsiElement) basePsiElement;
-            return matchType == MatchType.SOFT || StringUtil.equalsIgnoreCase(execVariablePsiElement.getChars(), getChars());
+            return matchType == MatchType.SOFT || Strings.equalsIgnoreCase(execVariablePsiElement.getChars(), getChars());
         }
         return false;
     }

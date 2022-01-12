@@ -5,7 +5,7 @@ import com.dci.intellij.dbn.common.notification.NotificationGroup;
 import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.util.Context;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionManager;
 import com.dci.intellij.dbn.connection.info.ConnectionInfo;
 import com.intellij.diagnostic.AbstractMessage;
@@ -21,7 +21,6 @@ import com.intellij.openapi.diagnostic.ErrorReportSubmitter;
 import com.intellij.openapi.diagnostic.IdeaLoggingEvent;
 import com.intellij.openapi.diagnostic.SubmittedReportInfo;
 import com.intellij.openapi.project.Project;
-import com.intellij.util.Consumer;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
@@ -35,8 +34,9 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
-import static com.dci.intellij.dbn.common.util.CommonUtil.nvl;
+import static com.dci.intellij.dbn.common.util.Commons.nvl;
 import static com.intellij.openapi.diagnostic.SubmittedReportInfo.SubmissionStatus.FAILED;
 import static com.intellij.openapi.diagnostic.SubmittedReportInfo.SubmissionStatus.NEW_ISSUE;
 
@@ -75,7 +75,7 @@ abstract class IssueReportSubmitter extends ErrorReportSubmitter {
     public boolean submit(@NotNull IdeaLoggingEvent[] events,
                           @Nullable String additionalInfo,
                           @NotNull Component parentComponent,
-                          @NotNull Consumer consumer){
+                          @NotNull Consumer<SubmittedReportInfo> consumer){
 
         DataContext dataContext = Context.getDataContext(parentComponent);
         Project project = PlatformDataKeys.PROJECT.getData(dataContext);
@@ -103,14 +103,14 @@ abstract class IssueReportSubmitter extends ErrorReportSubmitter {
         addEnvInfo(description, "Driver Version", driverString == null ? "NA" : driverString);
         addEnvInfo(description, "Last Action Id", nvl(IdeaLogger.ourLastActionId, "NA"));
 
-        if (StringUtil.isNotEmpty(additionalInfo)) {
+        if (Strings.isNotEmpty(additionalInfo)) {
             description.append(getMarkupElement(MarkupElement.PANEL, "User Message"));
             description.append(additionalInfo);
             description.append(getMarkupElement(MarkupElement.PANEL));
         }
 
         String exceptionMessage = event.getMessage();
-        if (StringUtil.isNotEmpty(exceptionMessage) && !"null".equals(exceptionMessage)) {
+        if (Strings.isNotEmpty(exceptionMessage) && !"null".equals(exceptionMessage)) {
             description.append("\n\n");
             exceptionMessage = exceptionMessage.replace("{", "\\{").replace("}", "\\}").replace("[", "\\[").replace("]", "\\]");
             description.append(exceptionMessage);
@@ -160,12 +160,12 @@ abstract class IssueReportSubmitter extends ErrorReportSubmitter {
                                 NotificationGroup.REPORTING,
                                 "<html>Failed to send error report: {0}</html>", e);
 
-                        consumer.consume(new SubmittedReportInfo(null, null, FAILED));
+                        consumer.accept(new SubmittedReportInfo(null, null, FAILED));
                         return;
                     }
 
                     String errorMessage = result.getErrorMessage();
-                    if (StringUtil.isEmpty(errorMessage)) {
+                    if (Strings.isEmpty(errorMessage)) {
                         log.info("Error report submitted, response: " + result);
 
                         String ticketId = result.getTicketId();
@@ -175,13 +175,13 @@ abstract class IssueReportSubmitter extends ErrorReportSubmitter {
                                 NotificationGroup.REPORTING,
                                 "<html>Error report successfully sent. Ticket <a href='" + ticketUrl + "'>" + ticketId + "</a> created.</html>");
 
-                        consumer.consume(new SubmittedReportInfo(ticketUrl, ticketId, NEW_ISSUE));
+                        consumer.accept(new SubmittedReportInfo(ticketUrl, ticketId, NEW_ISSUE));
                     } else {
                         NotificationSupport.sendErrorNotification(
                                 project,
                                 NotificationGroup.REPORTING,
                                 "<html>Failed to send error report: " + errorMessage + "</html>");
-                        consumer.consume(new SubmittedReportInfo(null, null, FAILED));
+                        consumer.accept(new SubmittedReportInfo(null, null, FAILED));
                     }
                 });
 

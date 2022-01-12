@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.language.common;
 
-import com.dci.intellij.dbn.common.util.CommonUtil;
+import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.language.common.element.ElementTypeBundle;
 import com.dci.intellij.dbn.language.common.element.impl.NamedElementType;
 import com.dci.intellij.dbn.language.common.element.parser.ParserBuilder;
@@ -14,8 +14,6 @@ import lombok.Getter;
 import org.jdom.Document;
 import org.jetbrains.annotations.NotNull;
 
-import static com.dci.intellij.dbn.diagnostics.Diagnostics.isLanguageParserDebug;
-
 @Getter
 public abstract class DBLanguageParser implements PsiParser {
     private final DBLanguageDialect languageDialect;
@@ -25,8 +23,8 @@ public abstract class DBLanguageParser implements PsiParser {
 
     public DBLanguageParser(DBLanguageDialect languageDialect, String tokenTypesFile, String elementTypesFile, String defaultParseRootId) {
         this.languageDialect = languageDialect;
-        this.tokenTypes = new TokenTypeBundle(languageDialect, CommonUtil.loadXmlFile(getResourceLookupClass(), tokenTypesFile));
-        Document document = CommonUtil.loadXmlFile(getResourceLookupClass(), elementTypesFile);
+        this.tokenTypes = new TokenTypeBundle(languageDialect, Commons.loadXmlFile(getResourceLookupClass(), tokenTypesFile));
+        Document document = Commons.loadXmlFile(getResourceLookupClass(), elementTypesFile);
         this.elementTypes = new ElementTypeBundle(languageDialect, tokenTypes, document);
         this.defaultParseRootId = defaultParseRootId;
     }
@@ -44,55 +42,54 @@ public abstract class DBLanguageParser implements PsiParser {
     @NotNull
     public ASTNode parse(IElementType rootElementType, PsiBuilder psiBuilder, String parseRootId, double databaseVersion) {
         ParserContext context = new ParserContext(psiBuilder, languageDialect, databaseVersion);
-        ParserBuilder builder = context.builder;
+        ParserBuilder builder = context.getBuilder();
         if (parseRootId == null ) parseRootId = defaultParseRootId;
-        builder.setDebugMode(isLanguageParserDebug());
-        PsiBuilder.Marker marker = builder.mark(null);
+        PsiBuilder.Marker marker = builder.mark();
         NamedElementType root =  elementTypes.getNamedElementType(parseRootId);
         if (root == null) {
             root = elementTypes.getRootElementType();
         }
 
-        boolean advancedLexer = false;
+        boolean advanced = false;
         ParsePathNode rootParseNode = new ParsePathNode(root, null, 0, 0);
 
         try {
             while (!builder.eof()) {
-                int currentOffset =  builder.getCurrentOffset();
-                root.getParser().parse(rootParseNode, true, 0, context);
-                if (currentOffset == builder.getCurrentOffset()) {
-                    TokenType tokenType = builder.getTokenType();
+                int currentOffset =  builder.getOffset();
+                root.getParser().parse(rootParseNode, context);
+                if (currentOffset == builder.getOffset()) {
+                    TokenType token = builder.getToken();
                     /*if (tokenType.isChameleon()) {
                         PsiBuilder.Marker injectedLanguageMarker = builder.mark();
                         builder.advanceLexer();
                         injectedLanguageMarker.done((IElementType) tokenType);
                     }
-                    else*/ if (tokenType instanceof ChameleonTokenType) {
-                        PsiBuilder.Marker injectedLanguageMarker = builder.mark(null);
-                        builder.advanceLexer(rootParseNode);
-                        injectedLanguageMarker.done((IElementType) tokenType);
+                    else*/ if (token instanceof ChameleonTokenType) {
+                        PsiBuilder.Marker injectedLanguageMarker = builder.mark();
+                        builder.advance();
+                        injectedLanguageMarker.done((IElementType) token);
                     } else {
-                        builder.advanceLexer(rootParseNode);
+                        builder.advance();
                     }
-                    advancedLexer = true;
+                    advanced = true;
                 }
             }
         } catch (ParseException e) {
             while (!builder.eof()) {
-                builder.advanceLexer(rootParseNode);
-                advancedLexer = true;
+                builder.advance();
+                advanced = true;
             }
         } catch (StackOverflowError e) {
-            marker.rollbackTo();
-            marker = builder.mark(null);
+            builder.markerRollbackTo(marker);
+            marker = builder.mark();
             while (!builder.eof()) {
-                builder.advanceLexer(rootParseNode);
-                advancedLexer = true;
+                builder.advance();
+                advanced = true;
             }
 
         }
 
-        if (!advancedLexer) builder.advanceLexer(rootParseNode);
+        if (!advanced) builder.advance();
         marker.done(rootElementType);
         return builder.getTreeBuilt();
     }

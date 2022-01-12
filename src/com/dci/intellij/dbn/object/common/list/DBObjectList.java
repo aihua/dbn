@@ -8,11 +8,11 @@ import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.filter.quick.ObjectQuickFilter;
 import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.psi.PsiDirectory;
-import com.intellij.util.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
+import java.util.function.Consumer;
 
 public interface DBObjectList<T extends DBObject> extends BrowserTreeNode, DynamicContent<T>, Comparable<DBObjectList>, ConnectionProvider {
     @Override
@@ -24,17 +24,15 @@ public interface DBObjectList<T extends DBObject> extends BrowserTreeNode, Dynam
 
     void addObject(T object);
 
-    boolean isFiltered();
-
     boolean isInternal();
 
     @Nullable
     Filter<T> getConfigFilter();
 
     @Nullable
-    ObjectQuickFilter getQuickFilter();
+    ObjectQuickFilter<T> getQuickFilter();
 
-    void setQuickFilter(@Nullable ObjectQuickFilter quickFilter);
+    void setQuickFilter(@Nullable ObjectQuickFilter<T> quickFilter);
 
     List<T> getObjects();
 

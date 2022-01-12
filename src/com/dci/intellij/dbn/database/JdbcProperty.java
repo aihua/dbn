@@ -7,7 +7,7 @@ import com.dci.intellij.dbn.connection.ConnectionProvider;
 import com.dci.intellij.dbn.object.common.DBObject;
 import org.jetbrains.annotations.Nullable;
 
-public enum JdbcProperty implements Property {
+public enum JdbcProperty implements Property.IntBase {
     MD_CATALOGS("Catalogs", true),
     MD_SCHEMAS("Schemas", true),
     MD_TABLES("Tables", true),
@@ -28,7 +28,7 @@ public enum JdbcProperty implements Property {
 
     private final String description;
     private final boolean feature;
-    private final Computed computed = new Computed(this);
+    private final Masks masks = new Masks(this);
 
     JdbcProperty(String description, boolean feature) {
         this.description = description;
@@ -36,8 +36,8 @@ public enum JdbcProperty implements Property {
     }
 
     @Override
-    public Computed computedOrdinal() {
-        return computed;
+    public Masks masks() {
+        return masks;
     }
 
     public String getDescription() {

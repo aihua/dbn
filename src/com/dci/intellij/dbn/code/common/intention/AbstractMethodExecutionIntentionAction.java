@@ -16,7 +16,7 @@ import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static com.dci.intellij.dbn.common.util.CommonUtil.nvln;
+import static com.dci.intellij.dbn.common.util.Commons.nvln;
 
 public abstract class AbstractMethodExecutionIntentionAction extends GenericIntentionAction implements HighPriorityAction {
     private DBObjectRef<DBMethod> lastChecked;
@@ -46,7 +46,7 @@ public abstract class AbstractMethodExecutionIntentionAction extends GenericInte
             if (underlyingObject != null) {
                 if (underlyingObject instanceof DBMethod) {
                     DBMethod method = (DBMethod) underlyingObject;
-                    lastChecked = (DBObjectRef<DBMethod>) method.getRef();
+                    lastChecked = DBObjectRef.of(method);
                     return method;
                 }
 
@@ -68,7 +68,7 @@ public abstract class AbstractMethodExecutionIntentionAction extends GenericInte
                             DBObject object = identifierPsiElement.getUnderlyingObject();
                             if (object instanceof DBMethod) {
                                 DBMethod method = (DBMethod) object;
-                                lastChecked = method.getRef();
+                                lastChecked = DBObjectRef.of(method);
                                 return method;
                             }
 

@@ -25,8 +25,6 @@ import java.awt.Component;
 import java.awt.Container;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -95,26 +93,27 @@ public final class SafeDisposer {
         }
     }
 
-    public static void dispose(@Nullable Collection<?> collection, boolean registered, boolean background) {
+    public static void dispose(@Nullable Collection<?> collection, boolean clear, boolean background) {
         if (collection != null) {
-            if (background && !ThreadMonitor.isBackgroundProcess()) {
-                Background.run(() -> dispose(collection, registered, false));
+            if (background) {
+                Background.run(() -> dispose(collection, true, false));
             } else {
                 Collection<?> disposeCollection;
                 if (collection instanceof FilteredList) {
                     FilteredList<?> filteredList = (FilteredList<?>) collection;
-                    disposeCollection = new ArrayList<>(filteredList.getBase());
+                    disposeCollection = filteredList.getBase();
                 } else {
-                    disposeCollection = new ArrayList<>(collection);
+                    disposeCollection = collection;
                 }
-                if (disposeCollection.size()> 0) {
-                    clearCollection(collection);
-
+                if (!disposeCollection.isEmpty()) {
                     for (Object object : disposeCollection) {
                         if (object instanceof Disposable) {
                             Disposable disposable = (Disposable) object;
-                            dispose(disposable, registered);
+                            dispose(disposable, false);
                         }
+                    }
+                    if (clear) {
+                        clearCollection(collection);
                     }
                 }
             }
@@ -138,10 +137,9 @@ public final class SafeDisposer {
         }
     }
 
-    public static void dispose(@Nullable Map<?, ?> map, boolean registered, boolean background) {
+    public static void dispose(@Nullable Map<?, ?> map, boolean background) {
         if (map != null && !map.isEmpty()) {
-            Collection<?> collection = new ArrayList<>(map.values());
-            dispose(collection, registered, background);
+            dispose(map.values(), true, background);
             clearMap(map);
         }
     }
@@ -163,7 +161,9 @@ public final class SafeDisposer {
                     Container container = (Container) component;
                     Component[] components = container.getComponents();
                     if (components.length > 0) {
-                        Arrays.stream(components).forEach(child -> dispose(child));
+                        for (Component child : components) {
+                            dispose(child);
+                        }
                         Unsafe.silent(() -> container.removeAll());
                     }
                 }

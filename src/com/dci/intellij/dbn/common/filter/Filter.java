@@ -1,30 +1,15 @@
 package com.dci.intellij.dbn.common.filter;
 
 import com.dci.intellij.dbn.common.sign.Signed;
+import lombok.SneakyThrows;
 
 import java.util.Collection;
 
 public interface Filter<T> extends Signed {
-    Filter NO_FILTER = new Filter() {
-        @Override
-        public int getSignature() {
-            return 0;
-        }
-
-        @Override
-        public boolean accepts(Object object) {
-            return true;
-        }
-
-        @Override
-        public boolean acceptsAll(Collection objects) {
-            return true;
-        }
-    };
-
     boolean accepts(T object);
 
     @Override
+    @SneakyThrows
     default int getSignature() {
         return hashCode();
     }
@@ -34,5 +19,9 @@ public interface Filter<T> extends Signed {
             if (!accepts(object)) return false;
         }
         return true;
+    }
+
+    default boolean isEmpty() {
+        return false;
     }
 }

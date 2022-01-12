@@ -5,7 +5,7 @@ import com.dci.intellij.dbn.code.common.style.formatting.FormattingDefinitionFac
 import com.dci.intellij.dbn.code.common.style.formatting.IndentDefinition;
 import com.dci.intellij.dbn.code.common.style.formatting.SpacingDefinition;
 import com.dci.intellij.dbn.common.Icons;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
 import com.dci.intellij.dbn.language.common.TokenType;
@@ -30,7 +30,7 @@ import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
+import javax.swing.Icon;
 import java.util.Objects;
 import java.util.Set;
 import java.util.StringTokenizer;
@@ -40,7 +40,7 @@ import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.string
 @Slf4j
 @Getter
 @Setter
-public abstract class ElementTypeBase<T extends ElementTypeBase<T>> extends IElementType implements ElementType {
+public abstract class ElementTypeBase extends IElementType implements ElementType {
     private static final FormattingDefinition STATEMENT_FORMATTING = new FormattingDefinition(null, IndentDefinition.NORMAL, SpacingDefinition.MIN_LINE_BREAK, null);
 
     private final String id;
@@ -83,7 +83,7 @@ public abstract class ElementTypeBase<T extends ElementTypeBase<T>> extends IEle
         this.id = defId.intern();
         this.bundle = bundle;
         this.parent = parent;
-        if (StringUtil.isNotEmpty(stringAttribute(def,"exit")) && !(parent instanceof SequenceElementType)) {
+        if (Strings.isNotEmpty(stringAttribute(def,"exit")) && !(parent instanceof SequenceElementType)) {
             log.warn('[' + getLanguageDialect().getID() + "] Invalid element attribute 'exit'. (id=" + this.id + "). Attribute is only allowed for direct child of sequence element");
         }
         loadDefinition(def);
@@ -132,7 +132,7 @@ public abstract class ElementTypeBase<T extends ElementTypeBase<T>> extends IEle
 
     protected void loadDefinition(Element def) throws ElementTypeDefinitionException {
         String attributesString = stringAttribute(def, "attributes");
-        if (StringUtil.isNotEmptyOrSpaces(attributesString)) {
+        if (Strings.isNotEmptyOrSpaces(attributesString)) {
             attributes =  new ElementTypeAttributeHolder(attributesString);
         }
 
@@ -157,19 +157,19 @@ public abstract class ElementTypeBase<T extends ElementTypeBase<T>> extends IEle
     }
 
     private void loadWrappingAttributes(Element def) {
-        String templateId = stringAttribute(def, "wrapping-template");
+        String optionalWrapping = stringAttribute(def, "optional-wrapping");
         TokenElementType beginTokenElement = null;
         TokenElementType endTokenElement = null;
-        if (StringUtil.isEmpty(templateId)) {
+        if (Strings.isEmpty(optionalWrapping)) {
             String beginTokenId = stringAttribute(def, "wrapping-begin-token");
             String endTokenId = stringAttribute(def, "wrapping-end-token");
 
-            if (StringUtil.isNotEmpty(beginTokenId) && StringUtil.isNotEmpty(endTokenId)) {
+            if (Strings.isNotEmpty(beginTokenId) && Strings.isNotEmpty(endTokenId)) {
                 beginTokenElement = new TokenElementType(bundle, this, beginTokenId, id);
                 endTokenElement = new TokenElementType(bundle, this, endTokenId, id);
             }
         } else {
-            TokenPairTemplate template = TokenPairTemplate.valueOf(templateId);
+            TokenPairTemplate template = TokenPairTemplate.valueOf(optionalWrapping);
             String beginTokenId = template.getBeginToken();
             String endTokenId = template.getEndToken();
             beginTokenElement = new TokenElementType(bundle, this, beginTokenId, id);
@@ -232,9 +232,9 @@ public abstract class ElementTypeBase<T extends ElementTypeBase<T>> extends IEle
 
     @Override
     public int getIndexInParent(BasicPathNode pathNode) {
-        BasicPathNode parentNode = pathNode.parent;
-        if (parentNode != null && parentNode.elementType instanceof SequenceElementType) {
-            SequenceElementType sequenceElementType = (SequenceElementType) parentNode.elementType;
+        BasicPathNode parentNode = pathNode.getParent();
+        if (parentNode != null && parentNode.getElementType() instanceof SequenceElementType) {
+            SequenceElementType sequenceElementType = (SequenceElementType) parentNode.getElementType();
             return sequenceElementType.indexOf(this);
         }
         return 0;
@@ -255,7 +255,7 @@ public abstract class ElementTypeBase<T extends ElementTypeBase<T>> extends IEle
 
     protected boolean getBooleanAttribute(Element element, String attributeName) {
         String attributeValue = stringAttribute(element, attributeName);
-        if (StringUtil.isNotEmpty(attributeValue)) {
+        if (Strings.isNotEmpty(attributeValue)) {
             if (Objects.equals(attributeValue, "true")) return true;
             if (Objects.equals(attributeValue, "false")) return false;
             log.warn('[' + getLanguageDialect().getID() + "] Invalid element boolean attribute '" + attributeName + "' (id=" + this.id + "). Expected 'true' or 'false'");
@@ -266,5 +266,12 @@ public abstract class ElementTypeBase<T extends ElementTypeBase<T>> extends IEle
     @Override
     public TokenType getTokenType() {
         return null;
+    }
+
+    public void collectLeafElements(Set<LeafElementType> bucket) {
+        if (wrapping != null) {
+            bucket.add(wrapping.getBeginElementType());
+            bucket.add(wrapping.getEndElementType());
+        }
     }
 }

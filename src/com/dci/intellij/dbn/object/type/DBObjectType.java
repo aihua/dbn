@@ -2,7 +2,7 @@ package com.dci.intellij.dbn.object.type;
 
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.database.DatabaseObjectTypeId;
 import com.dci.intellij.dbn.ddl.DDLFileTypeId;
 import com.dci.intellij.dbn.editor.DBContentType;
@@ -28,6 +28,8 @@ public enum DBObjectType implements DynamicContentType<DBObjectType> {
     CATEGORY(DatabaseObjectTypeId.CATEGORY, "category", "categories", null, null, null, false),
     CHARSET(DatabaseObjectTypeId.CHARSET, "charset", "charsets", null, null, null, false),
     CLUSTER(DatabaseObjectTypeId.CLUSTER, "cluster", "clusters", Icons.DBO_CLUSTER, null, Icons.DBO_CLUSTERS, false),
+    COLLATION(DatabaseObjectTypeId.COLLATION, "collation", "collations", null, null, Icons.DBO_CLUSTERS, false),
+    CONTEXT(DatabaseObjectTypeId.CONTEXT, "context", "contexts", null, null, null, false),
     COLUMN(DatabaseObjectTypeId.COLUMN, "column", "columns", Icons.DBO_COLUMN, null, Icons.DBO_COLUMNS, false),
     CONSTRAINT(DatabaseObjectTypeId.CONSTRAINT, "constraint", "constraints", Icons.DBO_CONSTRAINT, Icons.DBO_CONSTRAINT_DISABLED, Icons.DBO_CONSTRAINTS, false),
     DATABASE(DatabaseObjectTypeId.DATABASE, "database", "databases", null, null, null, false),
@@ -52,6 +54,7 @@ public enum DBObjectType implements DynamicContentType<DBObjectType> {
     MATERIALIZED_VIEW(DatabaseObjectTypeId.MATERIALIZED_VIEW, "materialized view", "materialized views", Icons.DBO_MATERIALIZED_VIEW, null, Icons.DBO_MATERIALIZED_VIEWS, false),
     METHOD(DatabaseObjectTypeId.METHOD, "method", "methods", null, null, null, true),
     MODEL(DatabaseObjectTypeId.MODEL, "model", "models", null, null, null, false),
+    MINING_MODEL(DatabaseObjectTypeId.MINING_MODEL, "mining model", "mining models", null, null, null, false),
     NESTED_TABLE(DatabaseObjectTypeId.NESTED_TABLE, "nested table", "nested tables", Icons.DBO_NESTED_TABLE, null, Icons.DBO_NESTED_TABLES, false),
     NESTED_TABLE_COLUMN(DatabaseObjectTypeId.NESTED_TABLE_COLUMN, "nested table column", "nested table columns", null, null, null, false),
     OPERATOR(DatabaseObjectTypeId.OPERATOR, "operator", "operators", null, null, null, false),
@@ -68,6 +71,7 @@ public enum DBObjectType implements DynamicContentType<DBObjectType> {
     PROCEDURE(DatabaseObjectTypeId.PROCEDURE, "procedure", "procedures", Icons.DBO_PROCEDURE, null, Icons.DBO_PROCEDURES, false),
     PROGRAM(DatabaseObjectTypeId.PROGRAM, "program", "programs", null, null, null, true),
     PROFILE(DatabaseObjectTypeId.PROFILE, "profile", "profiles", null, null, null, false),
+    POLICY(DatabaseObjectTypeId.POLICY, "policy", "policies", null, null, null, false),
     ROLLBACK_SEGMENT(DatabaseObjectTypeId.ROLLBACK_SEGMENT, "rollback segment", "rollback segments", null, null, null, false),
     ROLE(DatabaseObjectTypeId.ROLE, "role", "roles", Icons.DBO_ROLE, null, Icons.DBO_ROLES, false),
     SCHEMA(DatabaseObjectTypeId.SCHEMA, "schema", "schemas", Icons.DBO_SCHEMA, null, Icons.DBO_SCHEMAS, false),
@@ -406,7 +410,7 @@ public enum DBObjectType implements DynamicContentType<DBObjectType> {
     }
 
     public static DBObjectType get(String typeName) {
-        if (StringUtil.isEmpty(typeName)) {
+        if (Strings.isEmpty(typeName)) {
             return null;
         }
 
@@ -415,7 +419,7 @@ public enum DBObjectType implements DynamicContentType<DBObjectType> {
         } catch (IllegalArgumentException e) {
             typeName = typeName.replace('_', ' ');
             for (DBObjectType objectType: values()) {
-                if (StringUtil.equalsIgnoreCase(objectType.name, typeName)) {
+                if (Strings.equalsIgnoreCase(objectType.name, typeName)) {
                     return objectType;
                 }
             }

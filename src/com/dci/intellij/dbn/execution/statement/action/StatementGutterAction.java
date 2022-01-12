@@ -3,8 +3,8 @@ package com.dci.intellij.dbn.execution.statement.action;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.thread.Read;
-import com.dci.intellij.dbn.common.util.DocumentUtil;
-import com.dci.intellij.dbn.common.util.EditorUtil;
+import com.dci.intellij.dbn.common.util.Documents;
+import com.dci.intellij.dbn.common.util.Editors;
 import com.dci.intellij.dbn.execution.ExecutionContext;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionManager;
 import com.dci.intellij.dbn.execution.statement.processor.StatementExecutionCursorProcessor;
@@ -28,7 +28,7 @@ import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
+import javax.swing.Icon;
 
 import static com.dci.intellij.dbn.execution.ExecutionStatus.EXECUTING;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.QUEUED;
@@ -56,7 +56,7 @@ public class StatementGutterAction extends AnAction {
 
     @Nullable
     private ExecutablePsiElement getExecutablePsiElement() {
-        return Read.call(() -> {
+        return Read.conditional(() -> {
             DBLanguagePsiFile psiFile = getPsiFile();
             if (psiFile != null) {
                 PsiElement elementAtOffset = psiFile.findElementAt(elementOffset);
@@ -147,11 +147,11 @@ public class StatementGutterAction extends AnAction {
         ExecutablePsiElement executablePsiElement = getExecutablePsiElement();
         if (psiFile != null && executablePsiElement != null) {
             Project project = psiFile.getProject();
-            Document document = DocumentUtil.getDocument(psiFile);
+            Document document = Documents.getDocument(psiFile);
             FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
             FileEditor[] selectedEditors = fileEditorManager.getSelectedEditors();
             for (FileEditor fileEditor : selectedEditors) {
-                Editor editor = EditorUtil.getEditor(fileEditor);
+                Editor editor = Editors.getEditor(fileEditor);
                 if (editor != null) {
                     if (editor.getDocument() == document) {
                         StatementExecutionManager executionManager = StatementExecutionManager.getInstance(project);

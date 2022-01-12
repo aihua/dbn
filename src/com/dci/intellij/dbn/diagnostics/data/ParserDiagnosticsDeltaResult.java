@@ -22,15 +22,18 @@ public class ParserDiagnosticsDeltaResult {
     public ParserDiagnosticsDeltaResult(@Nullable ParserDiagnosticsResult previous, @NotNull ParserDiagnosticsResult current) {
         this.previous = previous;
         this.current = current;
-        current.getEntries().keySet().forEach(file -> {
-            int newErrorCount = current.getErrorCount(file);
-            int oldErrorCount = previous == null ? newErrorCount : previous.getErrorCount(file);
-            addEntry(file, oldErrorCount, newErrorCount);
-        });
+        for (String s : current.getEntries().keySet()) {
+            IssueCounter newIssues = current.getIssues(s);
+            IssueCounter oldIssues = previous == null ? newIssues : previous.getIssues(s);
+            addEntry(s, oldIssues, newIssues);
+        }
 
         if (previous != null) {
-            previous.getFiles().stream().filter(file -> !current.isPresent(file)).forEach(file ->
-                    addEntry(file, previous.getErrorCount(file), 0));
+            for (String file : previous.getFiles()) {
+                if (!current.isPresent(file)) {
+                    addEntry(file, previous.getIssues(file), null);
+                }
+            }
         }
     }
 
@@ -38,8 +41,8 @@ public class ParserDiagnosticsDeltaResult {
         this.filter = filter;
     }
 
-    private void addEntry(String file, int oldErrorCount, int newErrorCount) {
-        ParserDiagnosticsEntry diagnosticsCapture = new ParserDiagnosticsEntry(file, oldErrorCount, newErrorCount);
+    private void addEntry(String file, IssueCounter oldIssues, IssueCounter newIssues) {
+        ParserDiagnosticsEntry diagnosticsCapture = new ParserDiagnosticsEntry(file, oldIssues, newIssues);
         entries.add(diagnosticsCapture);
     }
 
@@ -52,9 +55,9 @@ public class ParserDiagnosticsDeltaResult {
     }
 
     public StateTransition getFilter() {
-        int oldErrorCount = previous == null ? current.getErrorCount() : previous.getErrorCount();
-        int newErrorCount = current.getErrorCount();
+        IssueCounter oldIssues = previous == null ? current.getIssues() : previous.getIssues();
+        IssueCounter newIssues = current.getIssues();
 
-        return computeStateTransition(oldErrorCount, newErrorCount);
+        return computeStateTransition(oldIssues, newIssues);
     }
 }

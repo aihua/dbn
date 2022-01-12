@@ -1,8 +1,8 @@
 package com.dci.intellij.dbn.language.common.psi;
 
-import com.dci.intellij.dbn.common.property.PropertyHolderImpl;
+import com.dci.intellij.dbn.common.property.PropertyHolderBase;
 import com.dci.intellij.dbn.common.util.Safe;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.language.common.PsiElementRef;
@@ -20,7 +20,7 @@ import java.util.Objects;
 
 import static com.dci.intellij.dbn.language.common.psi.PsiResolveStatus.*;
 
-public class PsiResolveResult extends PropertyHolderImpl<PsiResolveStatus>{
+public class PsiResolveResult extends PropertyHolderBase.IntStore<PsiResolveStatus> {
     private ConnectionHandlerRef connectionHandler;
     private DBObjectRef<DBSchema> databaseSchema;
     private PsiElementRef<IdentifierPsiElement> element;
@@ -33,7 +33,7 @@ public class PsiResolveResult extends PropertyHolderImpl<PsiResolveStatus>{
     private int resolveAttempts = 0;
 
     PsiResolveResult(IdentifierPsiElement element) {
-        this.connectionHandler = ConnectionHandlerRef.from(element.getConnectionHandler());
+        this.connectionHandler = ConnectionHandlerRef.of(element.getConnectionHandler());
         this.element = PsiElementRef.from(element);
         set(PsiResolveStatus.NEW, true);
     }
@@ -55,11 +55,11 @@ public class PsiResolveResult extends PropertyHolderImpl<PsiResolveStatus>{
         set(CONNECTION_ACTIVE, connectionHandler != null && !connectionHandler.isVirtual() && connectionHandler.canConnect());
         this.referencedElement = null;
         this.parent = null;
-        this.connectionHandler = ConnectionHandlerRef.from(connectionHandler);
+        this.connectionHandler = ConnectionHandlerRef.of(connectionHandler);
         this.databaseSchema = DBObjectRef.of(psiElement.getDatabaseSchema());
         BasePsiElement enclosingScopePsiElement = psiElement.getEnclosingScopePsiElement();
         this.scopeTextLength = enclosingScopePsiElement == null ? 0 : enclosingScopePsiElement.getTextLength();
-        if (StringUtil.isEmpty(text)) {
+        if (Strings.isEmpty(text)) {
             text = "";
         }
     }

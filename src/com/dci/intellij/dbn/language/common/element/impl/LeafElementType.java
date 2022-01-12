@@ -13,8 +13,6 @@ import com.dci.intellij.dbn.language.common.element.path.ParsePathNode;
 import com.dci.intellij.dbn.language.common.element.path.PathNode;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeDefinitionException;
-import com.intellij.lang.ASTNode;
-import com.intellij.psi.PsiWhiteSpace;
 import gnu.trove.THashSet;
 import lombok.Getter;
 import lombok.Setter;
@@ -27,7 +25,7 @@ import java.util.Set;
 
 @Getter
 @Setter
-public abstract class LeafElementType extends ElementTypeBase<LeafElementType> implements Indexable {
+public abstract class LeafElementType extends ElementTypeBase implements Indexable {
     private TokenType tokenType;
     private boolean optional;
     private int idx;
@@ -65,15 +63,15 @@ public abstract class LeafElementType extends ElementTypeBase<LeafElementType> i
     public static ElementType getPreviousElement(BasicPathNode pathNode) {
         int position = 0;
         while (pathNode != null) {
-            ElementType elementType = pathNode.elementType;
+            ElementType elementType = pathNode.getElementType();
             if (elementType instanceof SequenceElementType) {
                 SequenceElementType sequenceElementType = (SequenceElementType) elementType;
                 if (position > 0 ) {
-                    return sequenceElementType.getChild(position-1).elementType;
+                    return sequenceElementType.getChild(position-1).getElementType();
                 }
             }
             position = pathNode.getIndexInParent();
-            pathNode = pathNode.parent;
+            pathNode = pathNode.getParent();
         }
         return null;
     }
@@ -90,16 +88,16 @@ public abstract class LeafElementType extends ElementTypeBase<LeafElementType> i
                 int elementsCount = sequenceElementType.getChildCount();
 
                 if (position < elementsCount) {
-                    ElementTypeRef child = sequenceElementType.getChild(position);
-                    while (child != null) {
-                        if (context.check(child)) {
-                            child.getLookupCache().captureFirstPossibleLeafs(context.reset(), possibleLeafs);
-                            if (!child.optional) {
+                    ElementTypeRef element = sequenceElementType.getChild(position);
+                    while (element != null) {
+                        if (context.check(element)) {
+                            element.getLookupCache().captureFirstPossibleLeafs(context.reset(), possibleLeafs);
+                            if (!element.isOptional()) {
                                 pathNode = null;
                                 break;
                             }
                         }
-                        child = child.getNext();
+                        element = element.getNext();
                     }
                 } else if (elementType instanceof NamedElementType){
                     context.removeBranchMarkers((NamedElementType) elementType);
@@ -165,11 +163,11 @@ public abstract class LeafElementType extends ElementTypeBase<LeafElementType> i
                 }
 */
                 if (position < elementsCount) {
-                    ElementTypeRef child = sequenceElementType.getChild(position);
-                    while (child != null) {
-                        ElementTypeLookupCache lookupCache = child.getLookupCache();
+                    ElementTypeRef element = sequenceElementType.getChild(position);
+                    while (element != null) {
+                        ElementTypeLookupCache lookupCache = element.getLookupCache();
                         if (required) {
-                            if (lookupCache.isFirstRequiredToken(tokenType) && !child.optional) {
+                            if (lookupCache.isFirstRequiredToken(tokenType) && !element.isOptional()) {
                                 return true;
                             }
                         } else {
@@ -178,10 +176,10 @@ public abstract class LeafElementType extends ElementTypeBase<LeafElementType> i
                             }
                         }
 
-                        if (!child.optional && !child.isOptionalFromHere()) {
+                        if (!element.isOptional()/* && !child.isOptionalFromHere()*/) {
                             return false;
                         }
-                        child = child.getNext();
+                        element = element.getNext();
                     }
                 }
             } else if (elementType instanceof IterationElementType) {
@@ -206,7 +204,7 @@ public abstract class LeafElementType extends ElementTypeBase<LeafElementType> i
             }
 
             position = pathNode.getIndexInParent() + 1;
-            pathNode = pathNode.parent;
+            pathNode = pathNode.getParent();
         }
         return false;
     }
@@ -220,15 +218,15 @@ public abstract class LeafElementType extends ElementTypeBase<LeafElementType> i
             if (elementType instanceof SequenceElementType) {
                 SequenceElementType sequenceElementType = (SequenceElementType) elementType;
 
-                ElementTypeRef child = sequenceElementType.getChild(position + 1);
-                while (child != null) {
-                    if (!child.optional) {
-                        ElementTypeLookupCache<?> lookupCache = child.getLookupCache();
+                ElementTypeRef element = sequenceElementType.getChild(position + 1);
+                while (element != null) {
+                    if (!element.isOptional()) {
+                        ElementTypeLookupCache<?> lookupCache = element.getLookupCache();
                         requiredLeafs.addAll(lookupCache.getFirstRequiredLeafs());
                         pathNode = null;
                         break;
                     }
-                    child = child.getNext();
+                    element = element.getNext();
                 }
             } else if (elementType instanceof IterationElementType) {
                 IterationElementType iteration = (IterationElementType) elementType;
@@ -243,30 +241,9 @@ public abstract class LeafElementType extends ElementTypeBase<LeafElementType> i
         return requiredLeafs;
     }
 
-
-    /**
-     * Returns the index of the corresponding ElementType in it's parent
-     * Only applicable if the given astNode is corresponding to an ElementType within a SequenceElementType
-     * For all the other cases it returns 0.
-     */
-    private static int getElementTypeIndex(ASTNode astNode){
-        ASTNode parentAstNode = astNode.getTreeParent();
-        if (parentAstNode.getElementType() instanceof SequenceElementType) {
-            SequenceElementType sequenceElementType = (SequenceElementType) parentAstNode.getElementType();
-            int index = 0;
-            ASTNode child = parentAstNode.getFirstChildNode();
-            while (child != null) {
-                if (astNode == child) {
-                    break;
-                }
-                index++;
-                child = child.getTreeNext();
-                if (child instanceof PsiWhiteSpace){
-                    child = child.getTreeNext();
-                }
-            }
-            return sequenceElementType.indexOf((ElementType) astNode.getElementType(), index);
-        }
-        return 0;
+    @Override
+    public void collectLeafElements(Set<LeafElementType> bucket) {
+        super.collectLeafElements(bucket);
+        bucket.add(this);
     }
 }

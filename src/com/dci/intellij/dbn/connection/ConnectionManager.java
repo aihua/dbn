@@ -15,9 +15,10 @@ import com.dci.intellij.dbn.common.routine.ParametricRunnable;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
-import com.dci.intellij.dbn.common.util.EditorUtil;
-import com.dci.intellij.dbn.common.util.InternalApiUtil;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Editors;
+import com.dci.intellij.dbn.common.util.InternalApi;
+import com.dci.intellij.dbn.common.util.Lists;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSettings;
@@ -56,12 +57,11 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
-import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
-import static com.dci.intellij.dbn.common.util.CollectionUtil.isLast;
-import static com.dci.intellij.dbn.common.util.CommonUtil.list;
-import static com.dci.intellij.dbn.common.util.MessageUtil.*;
+import static com.dci.intellij.dbn.common.message.MessageCallback.when;
+import static com.dci.intellij.dbn.common.util.Commons.list;
+import static com.dci.intellij.dbn.common.util.Lists.isLast;
+import static com.dci.intellij.dbn.common.util.Messages.*;
 import static com.dci.intellij.dbn.connection.transaction.TransactionAction.actions;
 
 @State(
@@ -96,8 +96,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     @Override
     public void initComponent() {
         super.initComponent();
-        Project project = getProject();
-        idleConnectionCleaner = new Timer("DBN - Idle Connection Cleaner [" + project.getName() + "]");
+        idleConnectionCleaner = new Timer("DBN - Idle Connection Cleaner");
         idleConnectionCleaner.schedule(new CloseIdleConnectionTask(), TimeUtil.Millis.ONE_MINUTE, TimeUtil.Millis.ONE_MINUTE);
     }
 
@@ -202,11 +201,11 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
                                 showMessageDialog));
             } else {
                 promptDatabaseInitDialog(databaseSettings,
-                        (option) -> conditional(option == 0,
-                                () -> ensureAuthenticationProvided(databaseSettings,
-                                        (authenticationInfo) -> attemptConfigConnection(
+                        option -> when(option == 0, () ->
+                                ensureAuthenticationProvided(databaseSettings,
+                                        authInfo -> attemptConfigConnection(
                                                 connectionSettings,
-                                                authenticationInfo,
+                                                authInfo,
                                                 showMessageDialog))));
             }
 
@@ -287,7 +286,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
         if (databaseInfo.getUrlType() == DatabaseUrlType.FILE) {
             String file = databaseInfo.getFiles().getMainFile().getPath();
             Project project = databaseSettings.getProject();
-            if (StringUtil.isEmpty(file)) {
+            if (Strings.isEmpty(file)) {
                 showErrorDialog(project, "Wrong database configuration", "Database file not specified");
             } else if (!new File(file).exists()) {
                 showWarningDialog(
@@ -393,7 +392,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
      }
 
      public List<ConnectionHandler> getConnectionHandlers(Predicate<ConnectionHandler> predicate) {
-        return getConnectionHandlers().stream().filter(predicate).collect(Collectors.toList());
+        return Lists.filtered(getConnectionHandlers(), predicate);
      }
 
      public List<ConnectionHandler> getConnectionHandlers() {
@@ -402,7 +401,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
 
      public ConnectionHandler getActiveConnection(Project project) {
          ConnectionHandler connectionHandler = null;
-         VirtualFile virtualFile = EditorUtil.getSelectedFile(project);
+         VirtualFile virtualFile = Editors.getSelectedFile(project);
          if (DatabaseBrowserManager.getInstance(project).getBrowserToolWindow().isActive() || virtualFile == null) {
              connectionHandler = DatabaseBrowserManager.getInstance(project).getActiveConnection();
          }
@@ -456,7 +455,9 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
         public void run() {
             try {
                 List<ConnectionHandler> connectionHandlers = getConnectionHandlers();
-                connectionHandlers.forEach(connectionHandler -> resolveIdleStatus(connectionHandler));
+                for (ConnectionHandler connectionHandler : connectionHandlers) {
+                    resolveIdleStatus(connectionHandler);
+                }
             } catch (Exception e){
                 log.error("Failed to release idle connections", e);
             }
@@ -468,26 +469,25 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
 
                 Failsafe.nd(connectionHandler);
                 DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(getProject());
-                List<DBNConnection> activeConnections = connectionHandler.getConnections(ConnectionType.MAIN, ConnectionType.SESSION);
+                List<DBNConnection> connections = connectionHandler.getConnections(ConnectionType.MAIN, ConnectionType.SESSION);
 
-                activeConnections.
-                        stream().
-                        filter(connection -> connection.isIdle() && connection.isNot(ResourceStatus.RESOLVING_TRANSACTION)).
-                        forEach(connection -> {
-                            int idleMinutes = connection.getIdleMinutes();
-                            int idleMinutesToDisconnect = connectionHandler.getSettings().getDetailSettings().getIdleTimeToDisconnect();
-                            if (idleMinutes > idleMinutesToDisconnect) {
-                                if (connection.hasDataChanges()) {
-                                    connection.set(ResourceStatus.RESOLVING_TRANSACTION, true);
-                                    Dispatch.run(() -> {
-                                        IdleConnectionDialog idleConnectionDialog = new IdleConnectionDialog(connectionHandler, connection);
-                                        idleConnectionDialog.show();
-                                    });
-                                } else {
-                                    transactionManager.execute(connectionHandler, connection, actions, false, null);
-                                }
+                for (DBNConnection connection : connections) {
+                    if (connection.isIdle() && connection.isNot(ResourceStatus.RESOLVING_TRANSACTION)) {
+                        int idleMinutes = connection.getIdleMinutes();
+                        int idleMinutesToDisconnect = connectionHandler.getSettings().getDetailSettings().getIdleTimeToDisconnect();
+                        if (idleMinutes > idleMinutesToDisconnect) {
+                            if (connection.hasDataChanges()) {
+                                connection.set(ResourceStatus.RESOLVING_TRANSACTION, true);
+                                Dispatch.run(() -> {
+                                    IdleConnectionDialog idleConnectionDialog = new IdleConnectionDialog(connectionHandler, connection);
+                                    idleConnectionDialog.show();
+                                });
+                            } else {
+                                transactionManager.execute(connectionHandler, connection, actions, false, null);
                             }
-                        });
+                        }
+                    }
+                }
             } catch (ProcessCanceledException ignore) {}
         }
     }
@@ -508,10 +508,10 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
                 methodExecutionManager.cleanupExecutionHistory(connectionIds);
 
                 Background.run(() -> {
-                    connectionHandlers.forEach(connectionHandler -> {
+                    for (ConnectionHandler connectionHandler : connectionHandlers) {
                         connectionHandler.getConnectionPool().closeConnections();
                         Disposer.dispose(connectionHandler);
-                    });
+                    }
                 });
             });
         }
@@ -524,7 +524,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     @Override
     public boolean canCloseProject() {
         if (hasUncommittedChanges()) {
-            boolean exitApp = InternalApiUtil.isApplicationExitInProgress();
+            boolean exitApp = InternalApi.isApplicationExitInProgress();
             Project project = getProject();
             DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(project);
             TransactionManagerSettings transactionManagerSettings = transactionManager.getSettings();

@@ -8,8 +8,8 @@ import com.dci.intellij.dbn.common.editor.BasicTextEditor;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.navigation.NavigationInstructions;
 import com.dci.intellij.dbn.common.thread.Read;
-import com.dci.intellij.dbn.common.util.EditorUtil;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Editors;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
@@ -41,7 +41,6 @@ import com.intellij.extapi.psi.ASTDelegatePsiElement;
 import com.intellij.ide.util.EditSourceUtil;
 import com.intellij.lang.ASTNode;
 import com.intellij.navigation.ItemPresentation;
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.editor.colors.TextAttributesKey;
 import com.intellij.openapi.editor.ex.EditorEx;
@@ -59,12 +58,12 @@ import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.impl.source.tree.SharedImplUtil;
 import com.intellij.psi.search.LocalSearchScope;
 import com.intellij.psi.search.SearchScope;
-import com.intellij.util.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.Icon;
 import java.util.Set;
+import java.util.function.Consumer;
 
 public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDelegatePsiElement implements ItemPresentation, FormattingProviderPsiElement {
     private T elementType;
@@ -130,7 +129,7 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
     }
 
     public boolean containsLineBreaks() {
-        return StringUtil.containsLineBreak(node.getChars());
+        return Strings.containsLineBreak(node.getChars());
     }
 
     @Override
@@ -229,8 +228,8 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
     public String toString() {
         //return elementType.is(ElementTypeAttribute.SCOPE_DEMARCATION);
         return hasErrors() ?
-                "[INVALID] " + elementType.getId() :
-                elementType.getId() +
+                "[INVALID] " + elementType.getName() :
+                elementType.getName() +
                         (elementType.isScopeDemarcation() ? " SCOPE_DEMARCATION" : "") +
                         (elementType.isScopeIsolation() ? " SCOPE_ISOLATION" : "");
     }
@@ -263,10 +262,7 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
 
     @Override
     public String getText() {
-        if (ApplicationManager.getApplication().isReadAccessAllowed()) {
-            return super.getText();
-        }
-        return Read.call(() -> BasePsiElement.super.getText());
+        return Read.conditional(() -> BasePsiElement.super.getText());
     }
 
 
@@ -319,10 +315,10 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
             BasePsiElement basePsiElement = (BasePsiElement) previousElement;
             PsiElement lastChild = basePsiElement.getLastChild();
             while (lastChild != null) {
-                lastChild = lastChild.getLastChild();
                 if (lastChild instanceof LeafPsiElement) {
                     return (LeafPsiElement) lastChild;
                 }
+                lastChild = lastChild.getLastChild();
             }
         }
         return null;
@@ -359,22 +355,22 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
                         if (!editorManager.isFileOpen(databaseFile)) {
                             editorManager.openFile(databaseFile, requestFocus);
                         }
-                        BasicTextEditor textEditor = EditorUtil.getTextEditor((DBSourceCodeVirtualFile) virtualFile);
+                        BasicTextEditor textEditor = Editors.getTextEditor((DBSourceCodeVirtualFile) virtualFile);
                         if (textEditor != null) {
                             Editor editor = textEditor.getEditor();
                             descriptor.navigateIn(editor);
-                            if (requestFocus) EditorUtil.focusEditor(editor);
+                            if (requestFocus) Editors.focusEditor(editor);
                         }
                         return;
                     }
 
                     if (virtualFile instanceof DBConsoleVirtualFile) {
                         DBConsoleVirtualFile consoleVirtualFile = (DBConsoleVirtualFile) virtualFile;
-                        BasicTextEditor textEditor = EditorUtil.getTextEditor(consoleVirtualFile);
+                        BasicTextEditor textEditor = Editors.getTextEditor(consoleVirtualFile);
                         if (textEditor != null) {
                             Editor editor = textEditor.getEditor();
                             descriptor.navigateIn(editor);
-                            if (requestFocus) EditorUtil.focusEditor(editor);
+                            if (requestFocus) Editors.focusEditor(editor);
                         }
                         return;
                     }
@@ -386,7 +382,7 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
                         EditorEx viewer = editorForm.getDetailsForm().getCurrentSqlPanel().getViewer();
                         if (viewer != null) {
                             descriptor.navigateIn(viewer);
-                            if (requestFocus) EditorUtil.focusEditor(viewer);
+                            if (requestFocus) Editors.focusEditor(viewer);
                         }
                         return;
                     }
@@ -398,7 +394,7 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
                             if (textEditor.getVirtualFile().equals(virtualFile)) {
                                 Editor editor = textEditor.getEditor();
                                 descriptor.navigateIn(editor);
-                                if (requestFocus) EditorUtil.focusEditor(editor);
+                                if (requestFocus) Editors.focusEditor(editor);
                                 return;
                             }
 
@@ -414,10 +410,10 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
     public void navigateInEditor(@NotNull FileEditor fileEditor, NavigationInstructions instructions) {
         OpenFileDescriptor descriptor = (OpenFileDescriptor) EditSourceUtil.getDescriptor(this);
         if (descriptor != null) {
-            Editor editor = EditorUtil.getEditor(fileEditor);
+            Editor editor = Editors.getEditor(fileEditor);
             if (editor != null) {
                 if (instructions.isScroll()) descriptor.navigateIn(editor);
-                if (instructions.isFocus()) EditorUtil.focusEditor(editor);
+                if (instructions.isFocus()) Editors.focusEditor(editor);
                 //TODO instruction.isOpen();
             }
         }
@@ -441,7 +437,7 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
                 PsiElement reference = identifierPsiElement.resolve();
                 if (reference instanceof DBObjectPsiElement) {
                     DBObjectPsiElement objectPsiElement = (DBObjectPsiElement) reference;
-                    consumer.consume(objectPsiElement.ensureObject());
+                    consumer.accept(objectPsiElement.ensureObject());
                 }
             }
         });
@@ -460,7 +456,7 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
         if (elementType.isVirtualObject()) {
             DBObjectType virtualObjectType = elementType.getVirtualObjectType();
             if (objectType == virtualObjectType) {
-                consumer.consume(this);
+                consumer.accept(this);
             }
         }
     }
@@ -610,7 +606,7 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
     }
 
     @Nullable
-    public <E extends BasePsiElement<?>> E findEnclosingPsiElement(Class<E> psiClass) {
+    public <E extends BasePsiElement> E findEnclosingPsiElement(Class<E> psiClass) {
         PsiElement element = getParent();
         while (element != null && !(element instanceof PsiFile)) {
             if (element instanceof BasePsiElement) {

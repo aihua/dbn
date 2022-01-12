@@ -6,7 +6,7 @@ import com.dci.intellij.dbn.common.ui.DBNHeaderForm;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.common.ui.ValueSelector;
 import com.dci.intellij.dbn.common.ui.ValueSelectorOption;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.data.sorting.SortDirection;
 import com.dci.intellij.dbn.data.sorting.SortingInstruction;
 import com.dci.intellij.dbn.data.sorting.SortingState;
@@ -45,7 +45,7 @@ public class DatasetEditorSortingForm extends DBNFormImpl{
         BoxLayout sortingInstructionsPanelLayout = new BoxLayout(sortingInstructionsPanel, BoxLayout.Y_AXIS);
         sortingInstructionsPanel.setLayout(sortingInstructionsPanelLayout);
 
-        for (SortingInstruction sortingInstruction : sortingState.getSortingInstructions()) {
+        for (SortingInstruction sortingInstruction : sortingState.getInstructions()) {
             DBColumn column = sortingInstruction.getColumn(dataset);
             if (column != null) {
                 DatasetSortingColumnForm sortingInstructionForm = new DatasetSortingColumnForm(this, sortingInstruction.clone());
@@ -98,7 +98,7 @@ public class DatasetEditorSortingForm extends DBNFormImpl{
         public boolean isVisible(DBColumn value) {
             for (DatasetSortingColumnForm sortingColumnForm : sortingInstructionForms) {
                 String columnName = sortingColumnForm.getSortingInstruction().getColumnName();
-                if (StringUtil.equalsIgnoreCase(columnName, value.getName())) {
+                if (Strings.equalsIgnoreCase(columnName, value.getName())) {
                     return false;
                 }
             }

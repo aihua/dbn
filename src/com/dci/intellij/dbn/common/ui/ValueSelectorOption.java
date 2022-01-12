@@ -2,14 +2,14 @@ package com.dci.intellij.dbn.common.ui;
 
 import com.dci.intellij.dbn.common.property.Property;
 
-public enum ValueSelectorOption implements Property {
+public enum ValueSelectorOption implements Property.IntBase {
     HIDE_ICON,
     HIDE_DESCRIPTION;
 
-    private final Computed computed = new Computed(this);
+    private final Masks masks = new Masks(this);
 
     @Override
-    public Computed computedOrdinal() {
-        return computed;
+    public Masks masks() {
+        return masks;
     }
 }

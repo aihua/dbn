@@ -2,7 +2,7 @@ package com.dci.intellij.dbn.object.common.property;
 
 import com.dci.intellij.dbn.common.property.Property;
 
-public enum DBObjectProperty implements Property {
+public enum DBObjectProperty implements Property.LongBase {
     // generic
     TEMPORARY,
     NAVIGABLE,
@@ -51,10 +51,10 @@ public enum DBObjectProperty implements Property {
     TREE_LOADED // belongs to DBObjectStatus (here for optimization reasons)
     ;
 
-    private final Computed computed = new Computed(this);
+    private final Masks masks = new Masks(this);
 
     @Override
-    public Computed computedOrdinal() {
-        return computed;
+    public Masks masks() {
+        return masks;
     }
 }

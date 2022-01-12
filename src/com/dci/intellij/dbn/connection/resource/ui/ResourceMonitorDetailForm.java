@@ -7,7 +7,7 @@ import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.ui.DBNHeaderForm;
 import com.dci.intellij.dbn.common.ui.component.DBNComponent;
 import com.dci.intellij.dbn.common.ui.table.DBNTable;
-import com.dci.intellij.dbn.common.util.MessageUtil;
+import com.dci.intellij.dbn.common.util.Messages;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ConnectionPool;
@@ -28,11 +28,14 @@ import com.intellij.ui.components.JBScrollPane;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.awt.event.ActionListener;
 
-import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
+import static com.dci.intellij.dbn.common.message.MessageCallback.when;
 import static com.dci.intellij.dbn.connection.transaction.TransactionAction.actions;
 
 
@@ -121,23 +124,22 @@ public class ResourceMonitorDetailForm extends DBNFormImpl {
             DatabaseSession session = getSelectedSession();
             if (session != null) {
                 ConnectionHandler connectionHandler = getConnectionHandler();
-                MessageUtil.showQuestionDialog(getProject(),
+                Messages.showQuestionDialog(getProject(),
                         "Disconnect Session",
                         "Are you sure you want to disconnect the session \"" + session.getName() + "\" for connection\"" + connectionHandler.getName() + "\"" ,
-                        MessageUtil.OPTIONS_YES_NO, 0,
-                        (option) -> conditional(option == 0,
-                                () -> {
-                                    DBNConnection connection = getSelectedConnection();
-                                    if (connection != null) {
-                                        DatabaseTransactionManager transactionManager = getTransactionManager();
-                                        transactionManager.execute(
-                                                connectionHandler,
-                                                connection,
-                                                actions(TransactionAction.DISCONNECT),
-                                                false,
-                                                null);
-                                    }
-                                }));
+                        Messages.OPTIONS_YES_NO, 0,
+                        option -> when(option == 0, () -> {
+                            DBNConnection connection = getSelectedConnection();
+                            if (connection != null) {
+                                DatabaseTransactionManager transactionManager = getTransactionManager();
+                                transactionManager.execute(
+                                        connectionHandler,
+                                        connection,
+                                        actions(TransactionAction.DISCONNECT),
+                                        false,
+                                        null);
+                            }
+                        }));
             }
         }
 
@@ -154,16 +156,15 @@ public class ResourceMonitorDetailForm extends DBNFormImpl {
         public void actionPerformed(@NotNull AnActionEvent e) {
             DatabaseSession session = getSelectedSession();
             if (session != null) {
-                MessageUtil.showQuestionDialog(getProject(),
+                Messages.showQuestionDialog(getProject(),
                         "Delete Session",
                         "Are you sure you want to delete the session \"" + session.getName() + "\" for connection\"" + getConnectionHandler().getName() + "\"" ,
-                        MessageUtil.OPTIONS_YES_NO, 0,
-                        (option) -> conditional(option == 0,
-                                () -> {
-                                    Project project = ensureProject();
-                                    DatabaseSessionManager sessionManager = DatabaseSessionManager.getInstance(project);
-                                    sessionManager.deleteSession(session);
-                                }));
+                        Messages.OPTIONS_YES_NO, 0,
+                        option -> when(option == 0, () -> {
+                            Project project = ensureProject();
+                            DatabaseSessionManager sessionManager = DatabaseSessionManager.getInstance(project);
+                            sessionManager.deleteSession(session);
+                        }));
             }
         }
 

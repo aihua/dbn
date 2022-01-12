@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.diagnostics.action;
 
 import com.dci.intellij.dbn.common.Icons;
-import com.dci.intellij.dbn.common.util.MessageUtil;
+import com.dci.intellij.dbn.common.util.Messages;
 import com.dci.intellij.dbn.diagnostics.ParserDiagnosticsManager;
 import com.dci.intellij.dbn.diagnostics.data.ParserDiagnosticsResult;
 import com.dci.intellij.dbn.diagnostics.ui.ParserDiagnosticsForm;
@@ -10,6 +10,8 @@ import com.intellij.openapi.actionSystem.Presentation;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import static com.dci.intellij.dbn.common.message.MessageCallback.when;
 
 public class ParserDiagnosticsDeleteAction extends AbstractParserDiagnosticsAction {
     public ParserDiagnosticsDeleteAction() {
@@ -20,19 +22,17 @@ public class ParserDiagnosticsDeleteAction extends AbstractParserDiagnosticsActi
     protected void actionPerformed(@NotNull AnActionEvent e, @NotNull Project project, @NotNull ParserDiagnosticsForm form) {
         ParserDiagnosticsResult result = form.getSelectedResult();
         if (result != null) {
-            MessageUtil.showQuestionDialog(project,
+            Messages.showQuestionDialog(project,
                     "Delete diagnostics result",
                     "Are you sure you want to delete the diagnostic result " + result.getName(),
-                    MessageUtil.OPTIONS_YES_NO, 0,
-                    option -> {
-                        if (option == 0) {
-                            ParserDiagnosticsManager manager = getManager(project);
-                            manager.deleteResult(result);
-                            ParserDiagnosticsResult latestResult = manager.getLatestResult();
-                            form.refreshResults();
-                            form.selectResult(latestResult);
-                        }
-                    });
+                    Messages.OPTIONS_YES_NO, 0,
+                    option -> when(option == 0, () -> {
+                        ParserDiagnosticsManager manager = getManager(project);
+                        manager.deleteResult(result);
+                        ParserDiagnosticsResult latestResult = manager.getLatestResult();
+                        form.refreshResults();
+                        form.selectResult(latestResult);
+                    }));
         }
 
 

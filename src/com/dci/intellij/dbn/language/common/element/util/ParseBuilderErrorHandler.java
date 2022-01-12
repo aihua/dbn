@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.language.common.element.util;
 
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.language.common.TokenType;
 import com.dci.intellij.dbn.language.common.TokenTypeCategory;
 import com.dci.intellij.dbn.language.common.element.parser.ParserBuilder;
@@ -14,8 +14,8 @@ import java.util.stream.Collectors;
 public class ParseBuilderErrorHandler {
     public static void updateBuilderError(Set<TokenType> expectedTokens, ParserContext context) {
         if (expectedTokens != null) {
-            int offset = context.builder.getCurrentOffset();
-            if (ParseBuilderErrorWatcher.show(offset, context.timestamp)) {
+            ParserBuilder builder = context.getBuilder();
+            if (!builder.isErrorAtOffset()) {
                 //expectedTokenError(1, context.builder, TokenTypeCategory.CHARACTER, expectedTokens);
                 //expectedTokenError(2, context.builder, TokenTypeCategory.OPERATOR, expectedTokens);
                 //expectedTokenError(3, context.builder, TokenTypeCategory.KEYWORD, expectedTokens);
@@ -32,7 +32,7 @@ public class ParseBuilderErrorHandler {
                     String value = tokenType.getValue();
                     String description =
                             tokenType.isIdentifier() ? "identifier" :
-                                    StringUtil.isNotEmptyOrSpaces(value) ? value.toUpperCase() : tokenType.getTypeName();
+                                    Strings.isNotEmptyOrSpaces(value) ? value.toUpperCase() : tokenType.getTypeName();
 
                     tokenDescriptions.add(description);
                 }
@@ -50,9 +50,8 @@ public class ParseBuilderErrorHandler {
                     }
                 }
                 //buffer.append("\n");
-                context.builder.markError("Invalid or incomplete statement");
-
-                context.builder.error(buffer.toString());
+                builder.markError("Invalid or incomplete statement");
+                builder.error(buffer.toString());
             }
         }
     }

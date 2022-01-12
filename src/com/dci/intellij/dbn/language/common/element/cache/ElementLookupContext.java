@@ -9,7 +9,6 @@ import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.tree.IElementType;
 import gnu.trove.THashSet;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.HashMap;
@@ -46,7 +45,7 @@ public class ElementLookupContext {
         return elementTypeRef.check(branches, databaseVersion);
     }
 
-    public void addBranchMarker(ASTNode astNode, @NotNull Branch branch) {
+    public void addBranchMarker(ASTNode astNode, Branch branch) {
         NamedElementType namedElementType = getNamedElement(astNode);
         if (namedElementType != null) {
             branchMarkers.put(branch, namedElementType);
@@ -54,7 +53,7 @@ public class ElementLookupContext {
         }
     }
 
-    public void addBranchMarker(ParsePathNode pathNode, @NotNull Branch branch) {
+    public void addBranchMarker(ParsePathNode pathNode, Branch branch) {
         NamedElementType namedElementType = getNamedElement(pathNode);
         if (namedElementType != null) {
             branchMarkers.put(branch, namedElementType);
@@ -63,7 +62,7 @@ public class ElementLookupContext {
     }
 
     @Nullable
-    private static NamedElementType getNamedElement(@NotNull ASTNode astNode) {
+    private static NamedElementType getNamedElement(ASTNode astNode) {
         astNode = astNode.getTreeParent();
         while (astNode != null) {
             IElementType elementType = astNode.getElementType();
@@ -76,20 +75,20 @@ public class ElementLookupContext {
     }
 
     @Nullable
-    private static NamedElementType getNamedElement(@NotNull ParsePathNode pathNode) {
-        pathNode = pathNode.parent;
+    private static NamedElementType getNamedElement(ParsePathNode pathNode) {
+        pathNode = pathNode.getParent();
         while (pathNode != null) {
-            ElementType elementType = pathNode.elementType;
+            ElementType elementType = pathNode.getElementType();
             if (elementType instanceof NamedElementType) {
                 return (NamedElementType) elementType;
             }
-            pathNode = pathNode.parent;
+            pathNode = pathNode.getParent();
         }
         return null;
     }
 
-    public void removeBranchMarkers(@NotNull ParsePathNode pathNode) {
-        ElementType elementType = pathNode.elementType;
+    public void removeBranchMarkers(ParsePathNode pathNode) {
+        ElementType elementType = pathNode.getElementType();
         if (elementType instanceof NamedElementType) {
             removeBranchMarkers((NamedElementType) elementType);
         }

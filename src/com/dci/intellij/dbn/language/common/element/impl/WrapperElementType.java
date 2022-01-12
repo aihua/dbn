@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.language.common.element.impl;
 
 import com.dci.intellij.dbn.code.common.style.formatting.FormattingDefinition;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.language.common.element.ElementTypeBundle;
 import com.dci.intellij.dbn.language.common.element.TokenPairTemplate;
 import com.dci.intellij.dbn.language.common.element.cache.WrapperElementTypeLookupCache;
@@ -14,6 +14,7 @@ import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.Set;
 
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
 
@@ -34,7 +35,7 @@ public final class WrapperElementType extends ElementTypeBase {
 
         TokenElementType beginTokenElement;
         TokenElementType endTokenElement;
-        if (StringUtil.isEmpty(templateId)) {
+        if (Strings.isEmpty(templateId)) {
             String startTokenId = stringAttribute(def, "begin-token");
             String endTokenId = stringAttribute(def, "end-token");
 
@@ -102,7 +103,7 @@ public final class WrapperElementType extends ElementTypeBase {
             int index = sequenceElementType.indexOf(this);
 
             ElementTypeRef child = sequenceElementType.getChild(index);
-            if (child.optional) {
+            if (child.isOptional()) {
                 return false;
             }
 
@@ -118,14 +119,16 @@ public final class WrapperElementType extends ElementTypeBase {
     }
     @Override
     public PsiElement createPsiElement(ASTNode astNode) {
-        return new SequencePsiElement(astNode, this);
+        return new SequencePsiElement<>(astNode, this);
     }
 
     public ElementTypeBase getWrappedElement() {
         return wrappedElement;
     }
 
-    public void setWrappedElement(ElementTypeBase wrappedElement) {
-        this.wrappedElement = wrappedElement;
+    @Override
+    public void collectLeafElements(Set<LeafElementType> bucket) {
+        bucket.add(getBeginTokenElement());
+        bucket.add(getEndTokenElement());
     }
 }

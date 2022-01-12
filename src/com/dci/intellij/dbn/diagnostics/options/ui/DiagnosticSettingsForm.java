@@ -20,7 +20,6 @@ import static com.dci.intellij.dbn.common.options.ui.ConfigurationEditorUtil.val
 public class DiagnosticSettingsForm extends DBNFormImpl {
     private JPanel mainPanel;
     private JCheckBox developerModeCheckBox;
-    private JCheckBox languageParserCheckBox;
     private JCheckBox databaseResourcesCheckBox;
     private JCheckBox databaseAccessCheckBox;
 
@@ -32,6 +31,7 @@ public class DiagnosticSettingsForm extends DBNFormImpl {
     private JCheckBox bulkActionsCheckbox;
     private JPanel hintPanel;
     private JLabel acknowledgementLabel;
+    private JCheckBox alternativeParserCheckbox;
 
     private final DBNHintForm disclaimerForm;
 
@@ -47,7 +47,6 @@ public class DiagnosticSettingsForm extends DBNFormImpl {
         hintPanel.add(disclaimerForm.getComponent());
 
         Diagnostics.DebugLogging debugLogging = Diagnostics.getDebugLogging();
-        languageParserCheckBox.setSelected(debugLogging.isLanguageParser());
         databaseAccessCheckBox.setSelected(debugLogging.isDatabaseAccess());
         databaseResourcesCheckBox.setSelected(debugLogging.isDatabaseResource());
 
@@ -60,6 +59,7 @@ public class DiagnosticSettingsForm extends DBNFormImpl {
         Diagnostics.Miscellaneous miscellaneous = Diagnostics.getMiscellaneous();
         dialogSizingCheckbox.setSelected(miscellaneous.isDialogSizingReset());
         bulkActionsCheckbox.setSelected(miscellaneous.isBulkActionsEnabled());
+        alternativeParserCheckbox.setSelected(miscellaneous.isAlternativeParserEnabled());
 
         updateFields(null);
 
@@ -69,12 +69,12 @@ public class DiagnosticSettingsForm extends DBNFormImpl {
 
     private void updateFields(ActionEvent e) {
         boolean developerMode = developerModeCheckBox.isSelected();
-        languageParserCheckBox.setEnabled(developerMode);
         databaseAccessCheckBox.setEnabled(developerMode);
         databaseResourcesCheckBox.setEnabled(developerMode);
         databaseLaggingCheckBox.setEnabled(developerMode);
         dialogSizingCheckbox.setEnabled(developerMode);
         bulkActionsCheckbox.setEnabled(developerMode);
+        alternativeParserCheckbox.setEnabled(developerMode);
 
         boolean databaseLaggingEnabled = developerMode && databaseLaggingCheckBox.isSelected();
         connectivityLagTextField.setEnabled(databaseLaggingEnabled);
@@ -91,7 +91,6 @@ public class DiagnosticSettingsForm extends DBNFormImpl {
     public void applyFormChanges() throws ConfigurationException {
         Diagnostics.setDeveloperMode(developerModeCheckBox.isSelected());
         Diagnostics.DebugLogging debugLogging = Diagnostics.getDebugLogging();
-        debugLogging.setLanguageParser(languageParserCheckBox.isSelected());
         debugLogging.setDatabaseAccess(databaseAccessCheckBox.isSelected());
         debugLogging.setDatabaseResource(databaseResourcesCheckBox.isSelected());
 
@@ -104,6 +103,7 @@ public class DiagnosticSettingsForm extends DBNFormImpl {
         Diagnostics.Miscellaneous miscellaneous = Diagnostics.getMiscellaneous();
         miscellaneous.setDialogSizingReset(dialogSizingCheckbox.isSelected());
         miscellaneous.setBulkActionsEnabled(bulkActionsCheckbox.isSelected());
+        miscellaneous.setAlternativeParserEnabled(alternativeParserCheckbox.isSelected());
 
     }
 

@@ -2,7 +2,7 @@ package com.dci.intellij.dbn.execution.logging.action;
 
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.component.ComponentBase;
-import com.dci.intellij.dbn.common.util.MessageUtil;
+import com.dci.intellij.dbn.common.util.Messages;
 import com.dci.intellij.dbn.execution.logging.DatabaseLoggingResult;
 import com.dci.intellij.dbn.execution.logging.LogOutputContext;
 import com.intellij.openapi.actionSystem.AnActionEvent;
@@ -11,7 +11,7 @@ import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
+import static com.dci.intellij.dbn.common.message.MessageCallback.when;
 
 public class DatabaseLogOutputKillAction extends AbstractDatabaseLoggingAction implements ComponentBase {
     public DatabaseLogOutputKillAction() {
@@ -22,13 +22,12 @@ public class DatabaseLogOutputKillAction extends AbstractDatabaseLoggingAction i
     protected void actionPerformed(@NotNull AnActionEvent e, @NotNull Project project, @NotNull DatabaseLoggingResult loggingResult) {
         LogOutputContext context = loggingResult.getContext();
         if (context.isActive()) {
-            MessageUtil.showQuestionDialog(
+            Messages.showQuestionDialog(
                     project,
                     "Kill process",
                     "This will interrupt the script execution process. \nAre you sure you want to continue?",
-                    MessageUtil.OPTIONS_YES_NO, 0,
-                    (option) -> conditional(option == 0,
-                            () -> context.stop()));
+                    Messages.OPTIONS_YES_NO, 0,
+                    option -> when(option == 0, () -> context.stop()));
 
         } else {
             context.stop();

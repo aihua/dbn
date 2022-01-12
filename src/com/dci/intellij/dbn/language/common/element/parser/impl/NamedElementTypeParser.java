@@ -6,7 +6,6 @@ import com.dci.intellij.dbn.language.common.element.parser.ParseResult;
 import com.dci.intellij.dbn.language.common.element.parser.ParserBuilder;
 import com.dci.intellij.dbn.language.common.element.parser.ParserContext;
 import com.dci.intellij.dbn.language.common.element.path.ParsePathNode;
-import org.jetbrains.annotations.NotNull;
 
 public class NamedElementTypeParser extends SequenceElementTypeParser<NamedElementType>{
     public NamedElementTypeParser(NamedElementType elementType) {
@@ -14,24 +13,28 @@ public class NamedElementTypeParser extends SequenceElementTypeParser<NamedEleme
     }
 
     @Override
-    public ParseResult parse(@NotNull ParsePathNode parentNode, boolean optional, int depth, ParserContext context) throws ParseException {
-        ParserBuilder builder = context.builder;
-        if (isRecursive(parentNode, builder.getCurrentOffset(), 2)) {
-            return ParseResult.createNoMatchResult();
+    public ParseResult parse(ParsePathNode parentNode, ParserContext context) throws ParseException {
+        ParserBuilder builder = context.getBuilder();
+        if (isRecursive(parentNode, builder.getOffset())) {
+            return ParseResult.noMatch();
         }
-        return super.parse(parentNode, optional, depth, context);
+        return super.parse(parentNode, context);
     }
 
-    protected boolean isRecursive(ParsePathNode parseNode, int builderOffset, int iterations){
-        while (parseNode != null &&  iterations > 0) {
-            if (parseNode.elementType == elementType &&
+    protected boolean isRecursive(ParsePathNode parseNode, int builderOffset){
+        // allow 2 levels of recursivity
+        boolean recursive = false;
+        while (parseNode != null) {
+            if (parseNode.getElementType() == elementType &&
                     parseNode.getStartOffset() == builderOffset) {
-                //return true;
-                iterations--;
+                if (recursive) {
+                    return true;
+                } else {
+                    recursive = true;
+                }
             }
-            parseNode = parseNode.parent;
+            parseNode = parseNode.getParent();
         }
-        return iterations == 0;
-        //return false;
+        return false;
     }
 }

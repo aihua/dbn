@@ -14,25 +14,15 @@ import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.TokenTypeCategory;
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
-import com.dci.intellij.dbn.language.common.navigation.NavigateToDefinitionAction;
-import com.dci.intellij.dbn.language.common.navigation.NavigateToObjectAction;
-import com.dci.intellij.dbn.language.common.navigation.NavigateToSpecificationAction;
-import com.dci.intellij.dbn.language.common.navigation.NavigationAction;
-import com.dci.intellij.dbn.language.common.navigation.NavigationGutterRenderer;
-import com.dci.intellij.dbn.language.common.psi.BasePsiElement;
-import com.dci.intellij.dbn.language.common.psi.ChameleonPsiElement;
-import com.dci.intellij.dbn.language.common.psi.ExecutablePsiElement;
-import com.dci.intellij.dbn.language.common.psi.IdentifierPsiElement;
-import com.dci.intellij.dbn.language.common.psi.NamedPsiElement;
-import com.dci.intellij.dbn.language.common.psi.TokenPsiElement;
+import com.dci.intellij.dbn.language.common.navigation.*;
+import com.dci.intellij.dbn.language.common.psi.*;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.options.ProjectSettings;
 import com.dci.intellij.dbn.options.ProjectSettingsManager;
-import com.intellij.lang.annotation.AnnotationBuilder;
+import com.intellij.lang.annotation.Annotation;
 import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.Annotator;
-import com.intellij.lang.annotation.HighlightSeverity;
 import com.intellij.openapi.editor.markup.GutterIconRenderer;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
@@ -66,11 +56,7 @@ public class PSQLLanguageAnnotator implements Annotator {
                         } else if (basePsiElement instanceof NamedPsiElement) {
                             NamedPsiElement namedPsiElement = (NamedPsiElement) basePsiElement;
                             if (namedPsiElement.hasErrors()) {
-                                String message = "Invalid " + namedPsiElement.getElementType().getDescription();
-                                holder.newAnnotation(HighlightSeverity.ERROR, message)
-                                        .range(basePsiElement)
-                                        .needsUpdateOnTyping(true)
-                                        .create();
+                                holder.createErrorAnnotation(namedPsiElement, "Invalid " + namedPsiElement.getElementType().getDescription());
                             }
                         }
 
@@ -79,10 +65,8 @@ public class PSQLLanguageAnnotator implements Annotator {
                             annotateExecutable(executablePsiElement, holder);
                         }
                     } else if (psiElement instanceof ChameleonPsiElement) {
-                        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                                .textAttributes(SQLTextAttributesKeys.CHAMELEON)
-                                .range(psiElement)
-                                .create();
+                        Annotation annotation = holder.createInfoAnnotation(psiElement, null);
+                        annotation.setTextAttributes(SQLTextAttributesKeys.CHAMELEON);
                     }
                 });
     }
@@ -90,14 +74,13 @@ public class PSQLLanguageAnnotator implements Annotator {
     private static void annotateToken(@NotNull TokenPsiElement tokenPsiElement, AnnotationHolder holder) {
         TokenTypeCategory flavor = tokenPsiElement.getElementType().getFlavor();
         if (flavor != null) {
-            AnnotationBuilder builder = holder.newSilentAnnotation(HighlightSeverity.INFORMATION);
+            Annotation annotation = holder.createInfoAnnotation(tokenPsiElement, null);
             switch (flavor) {
-                case DATATYPE:   builder = builder.textAttributes(SQLTextAttributesKeys.DATA_TYPE); break;
-                case FUNCTION:   builder = builder.textAttributes(SQLTextAttributesKeys.FUNCTION); break;
-                case KEYWORD:    builder = builder.textAttributes(SQLTextAttributesKeys.KEYWORD); break;
-                case IDENTIFIER: builder = builder.textAttributes(SQLTextAttributesKeys.IDENTIFIER); break;
+                case DATATYPE: annotation.setTextAttributes(SQLTextAttributesKeys.DATA_TYPE); break;
+                case FUNCTION: annotation.setTextAttributes(SQLTextAttributesKeys.FUNCTION); break;
+                case KEYWORD: annotation.setTextAttributes(SQLTextAttributesKeys.KEYWORD); break;
+                case IDENTIFIER: annotation.setTextAttributes(SQLTextAttributesKeys.IDENTIFIER); break;
             }
-            builder.range(tokenPsiElement).create();
         }
     }
 
@@ -131,9 +114,8 @@ public class PSQLLanguageAnnotator implements Annotator {
             annotation.setTextAttributes(PSQLTextAttributesKeys.ALIAS);
         }*/
 
-        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                .textAttributes(PSQLTextAttributesKeys.ALIAS)
-                .create();
+        Annotation annotation = holder.createInfoAnnotation(aliasReference, null);
+        annotation.setTextAttributes(PSQLTextAttributesKeys.ALIAS);
     }
 
     private static void annotateAliasDef(IdentifierPsiElement aliasDefinition, @NotNull AnnotationHolder holder) {
@@ -143,10 +125,8 @@ public class PSQLLanguageAnnotator implements Annotator {
         if (aliasDefinitions.size() > 1) {
             holder.createWarningAnnotation(aliasDefinition, "Duplicate alias definition: " + aliasDefinition.getUnquotedText());
         }*/
-
-        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                .textAttributes(SQLTextAttributesKeys.ALIAS)
-                .create();
+        Annotation annotation = holder.createInfoAnnotation(aliasDefinition, null);
+        annotation.setTextAttributes(SQLTextAttributesKeys.ALIAS);
     }
 
     private static void annotateObject(@NotNull IdentifierPsiElement objectReference, AnnotationHolder holder) {
@@ -200,11 +180,9 @@ public class PSQLLanguageAnnotator implements Annotator {
                                     NavigationAction navigationAction = targetContentType == DBContentType.CODE_BODY ?
                                             new NavigateToDefinitionAction(null, targetElement, objectType) :
                                             new NavigateToSpecificationAction(null, targetElement, objectType);
+                                    Annotation annotation = holder.createInfoAnnotation(basePsiElement, null);
                                     NavigationGutterRenderer gutterIconRenderer = new NavigationGutterRenderer(navigationAction, GutterIconRenderer.Alignment.RIGHT);
-
-                                    holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                                            .gutterIconRenderer(gutterIconRenderer)
-                                            .create();
+                                    annotation.setGutterIconRenderer(gutterIconRenderer);
                                 }
                             }
                         } else if (object.getContentType() == DBContentType.CODE_SPEC_AND_BODY) {
@@ -216,18 +194,16 @@ public class PSQLLanguageAnnotator implements Annotator {
                                 NavigationAction navigationAction = targetContentType == DBContentType.CODE_BODY ?
                                         new NavigateToDefinitionAction(object, targetElement, objectType) :
                                         new NavigateToSpecificationAction(object, targetElement, objectType);
-                                holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                                        .gutterIconRenderer(new NavigationGutterRenderer(navigationAction, GutterIconRenderer.Alignment.RIGHT))
-                                        .create();
+                                Annotation annotation = holder.createInfoAnnotation(basePsiElement, null);
+                                annotation.setGutterIconRenderer(new NavigationGutterRenderer(navigationAction, GutterIconRenderer.Alignment.RIGHT));
                             }
                         }
                     }
 
                     if (codeEditorGeneralSettings.isShowObjectsNavigationGutter()) {
                         NavigateToObjectAction navigateToObjectAction = new NavigateToObjectAction(identifierPsiElement.getUnderlyingObject(), objectType);
-                        holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                                .gutterIconRenderer(new NavigationGutterRenderer(navigateToObjectAction, GutterIconRenderer.Alignment.LEFT))
-                                .create();
+                        Annotation annotation = holder.createInfoAnnotation(basePsiElement, null);
+                        annotation.setGutterIconRenderer(new NavigationGutterRenderer(navigateToObjectAction, GutterIconRenderer.Alignment.LEFT));
                     }
                 }
             }
@@ -241,9 +217,8 @@ public class PSQLLanguageAnnotator implements Annotator {
             DBLanguagePsiFile psiFile = executablePsiElement.getFile();
             VirtualFile virtualFile = psiFile.getVirtualFile();
             if (!DatabaseDebuggerManager.isDebugConsole(virtualFile)) {
-                holder.newSilentAnnotation(HighlightSeverity.INFORMATION)
-                        .gutterIconRenderer(new StatementGutterRenderer(executablePsiElement))
-                        .create();
+                Annotation annotation = holder.createInfoAnnotation(executablePsiElement, null);
+                annotation.setGutterIconRenderer(new StatementGutterRenderer(executablePsiElement));
             }
         }
     }

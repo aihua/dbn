@@ -58,7 +58,7 @@ public class RegionalSettings extends BasicProjectConfiguration<GeneralProjectSe
         } catch (ConfigurationException e) {
             throw e;
         } catch (Exception e) {
-            throw new ConfigurationException(e.getMessage(), e, "Invalid configuration");
+            throw new ConfigurationException(e.getMessage(), "Invalid configuration");
         }
     }
 

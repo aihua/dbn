@@ -1,8 +1,8 @@
 package com.dci.intellij.dbn.navigation.action;
 
-import com.dci.intellij.dbn.common.util.ClipboardUtil;
-import com.dci.intellij.dbn.common.util.EditorUtil;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Clipboard;
+import com.dci.intellij.dbn.common.util.Editors;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionBundle;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
@@ -137,7 +137,7 @@ public class GoToDatabaseObjectAction extends GotoActionBase implements DumbAwar
 
         private SelectConnectionAction(ConnectionHandler connectionHandler) {
             super();
-            this.connectionHandler = ConnectionHandlerRef.from(connectionHandler);
+            this.connectionHandler = ConnectionHandlerRef.of(connectionHandler);
             Presentation presentation = getTemplatePresentation();
             presentation.setText(connectionHandler.getName(), false);
             presentation.setIcon(connectionHandler.getIcon());
@@ -207,7 +207,7 @@ public class GoToDatabaseObjectAction extends GotoActionBase implements DumbAwar
         String predefinedText = null;
         FileEditor[] selectedEditors = FileEditorManager.getInstance(project).getSelectedEditors();
         for (FileEditor fileEditor : selectedEditors) {
-            Editor editor = EditorUtil.getEditor(fileEditor);
+            Editor editor = Editors.getEditor(fileEditor);
             if (editor != null) {
                 predefinedText = editor.getSelectionModel().getSelectedText();
             }
@@ -218,10 +218,10 @@ public class GoToDatabaseObjectAction extends GotoActionBase implements DumbAwar
             }
         }
 
-        String clipboardText = StringUtil.trim(ClipboardUtil.getStringContent());
+        String clipboardText = Strings.trim(Clipboard.getStringContent());
         if (predefinedText == null) {
             if (isValidPredefinedText(clipboardText)) {
-                if (StringUtil.isNotEmpty(latestUsedText) &&
+                if (Strings.isNotEmpty(latestUsedText) &&
                         Objects.equals(clipboardText, latestClipboardText) &&
                         !Objects.equals(latestUsedText, clipboardText)) {
 
@@ -236,7 +236,7 @@ public class GoToDatabaseObjectAction extends GotoActionBase implements DumbAwar
         }
 
         latestClipboardText = clipboardText;
-        latestPredefinedText = StringUtil.trim(predefinedText);
+        latestPredefinedText = Strings.trim(predefinedText);
         return latestPredefinedText;
     }
 

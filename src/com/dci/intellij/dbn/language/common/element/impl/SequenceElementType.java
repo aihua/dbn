@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.language.common.element.impl;
 
-import com.dci.intellij.dbn.common.util.CommonUtil;
+import com.dci.intellij.dbn.common.util.Commons;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.language.common.TokenType;
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.ElementTypeBundle;
@@ -21,10 +22,12 @@ import java.util.List;
 import java.util.Set;
 
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
+import static com.dci.intellij.dbn.common.util.Unsafe.cast;
 
 public class SequenceElementType extends ElementTypeBase {
     protected ElementTypeRef[] children;
     private int exitIndex;
+    private boolean basic;
 
     public ElementTypeRef[] getChildren() {
         return children;
@@ -58,22 +61,41 @@ public class SequenceElementType extends ElementTypeBase {
     @Override
     protected void loadDefinition(Element def) throws ElementTypeDefinitionException {
         super.loadDefinition(def);
-        List<Element> children = def.getChildren();
-        this.children = new ElementTypeRef[children.size()];
+        String tokenIds = stringAttribute(def, "tokens");
+        if (Strings.isNotEmptyOrSpaces(tokenIds)) {
+            basic = true;
+            String id = getId();
+            String[] tokens = tokenIds.split(",");
+            children = new ElementTypeRef[tokens.length];
+            for (int i=0; i<tokens.length; i++) {
+                String tokenTypeId = tokens[i].trim();
+                ElementTypeRef previous = i == 0 ? null : children[i-1];
 
-        ElementTypeRef previous = null;
-        for (int i = 0; i < children.size(); i++) {
-            Element child = children.get(i);
-            String type = child.getName();
-            ElementTypeBase elementType = getElementBundle().resolveElementDefinition(child, type, this);
-            boolean optional = getBooleanAttribute(child, "optional");
-            double version = Double.parseDouble(CommonUtil.nvl(stringAttribute(child, "version"), "0"));
+                TokenElementType tokenElementType = new TokenElementType(getBundle(), this, tokenTypeId, id);
+                children[i] = new ElementTypeRef(previous, this, tokenElementType, false, 0, null);
+            }
+        } else {
+            List<Element> children = def.getChildren();
+            this.children = new ElementTypeRef[children.size()];
 
-            Set<BranchCheck> branchChecks = parseBranchChecks(stringAttribute(child, "branch-check"));
-            this.children[i] = new ElementTypeRef(previous, this, elementType, optional, version, branchChecks);
-            previous = this.children[i];
+            ElementTypeRef previous = null;
+            for (int i = 0; i < children.size(); i++) {
+                Element child = children.get(i);
+                String type = child.getName();
+                ElementTypeBase elementType = getElementBundle().resolveElementDefinition(child, type, this);
+                boolean optional = getBooleanAttribute(child, "optional");
+                double version = Double.parseDouble(Commons.nvl(stringAttribute(child, "version"), "0"));
 
-            if (stringAttribute(child, "exit") != null) exitIndex = i;
+                Set<BranchCheck> branchChecks = parseBranchChecks(stringAttribute(child, "branch-check"));
+                this.children[i] = new ElementTypeRef(previous, this, elementType, optional, version, branchChecks);
+                previous = this.children[i];
+
+                if (stringAttribute(child, "exit") != null) exitIndex = i;
+            }
+        }
+
+        if (children.length == 1 && !(this instanceof NamedElementType) && !(this instanceof BlockElementType)) {
+            // TODO log and / or cleanup
         }
     }
 
@@ -116,12 +138,12 @@ public class SequenceElementType extends ElementTypeBase {
     }
 
     public Set<TokenType> getFirstPossibleTokensFromIndex(ElementLookupContext context, int index) {
-        if (children[index].optional) {
+        if (children[index].isOptional()) {
             Set<TokenType> tokenTypes = new THashSet<>();
             for (int i=index; i< children.length; i++) {
                 ElementTypeLookupCache lookupCache = children[i].getLookupCache();
                 lookupCache.captureFirstPossibleTokens(context.reset(), tokenTypes);
-                if (!children[i].optional) break;
+                if (!children[i].isOptional()) break;
             }
             return tokenTypes;
         } else {
@@ -136,7 +158,7 @@ public class SequenceElementType extends ElementTypeBase {
                 if (children[i].getLookupCache().couldStartWithToken(tokenType)){
                     return true;
                 }
-                if (!children[i].optional) {
+                if (!children[i].isOptional()) {
                     return false;
                 }
             }
@@ -154,8 +176,7 @@ public class SequenceElementType extends ElementTypeBase {
         }
         ElementTypeRef child = children[0];
         while (child != null) {
-            ElementTypeBase childElementType = child.elementType;
-            if (childElementType == leafElementType || childElementType.getLookupCache().containsLeaf(leafElementType)) {
+            if (child.getElementType() == leafElementType || child.getLookupCache().containsLeaf(leafElementType)) {
                 return child.getIndex();
             }
             child = child.getNext();
@@ -176,7 +197,7 @@ public class SequenceElementType extends ElementTypeBase {
         if (fromIndex < children.length) {
             ElementTypeRef child = children[fromIndex];
             while (child != null) {
-                if (child.elementType == elementType) {
+                if (child.getElementType() == elementType) {
                     return child.getIndex();
                 }
                 child = child.getNext();
@@ -187,5 +208,15 @@ public class SequenceElementType extends ElementTypeBase {
 
     public int indexOf(ElementType elementType) {
         return indexOf(elementType, 0);
+    }
+
+    @Override
+    public void collectLeafElements(Set<LeafElementType> bucket) {
+        super.collectLeafElements(bucket);
+        if (basic) {
+            for (ElementTypeRef child : children) {
+                bucket.add(cast(child.getElementType()));
+            }
+        }
     }
 }

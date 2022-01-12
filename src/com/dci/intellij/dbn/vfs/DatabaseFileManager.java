@@ -7,6 +7,7 @@ import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
+import com.dci.intellij.dbn.common.util.Lists;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -38,10 +39,14 @@ import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
-import static com.dci.intellij.dbn.common.util.CommonUtil.list;
+import static com.dci.intellij.dbn.common.util.Commons.list;
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
 
 @State(
@@ -51,7 +56,7 @@ import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
 public class DatabaseFileManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
     public static final String COMPONENT_NAME = "DBNavigator.Project.DatabaseFileManager";
 
-    private final Set<DBObjectVirtualFile> openFiles = ContainerUtil.newConcurrentSet();
+    private final Set<DBObjectVirtualFile<?>> openFiles = ContainerUtil.newConcurrentSet();
     private Map<ConnectionId, List<DBObjectRef<DBSchemaObject>>> pendingOpenFiles = new HashMap<>();
     private boolean projectInitialized = false;
     private final String sessionId;
@@ -96,7 +101,7 @@ public class DatabaseFileManager extends AbstractProjectComponent implements Per
     }
 
     public boolean isFileOpened(@NotNull DBObject object) {
-        return openFiles.stream().anyMatch(file -> file.getObjectRef().is(object));
+        return Lists.anyMatch(openFiles, file -> file.getObjectRef().is(object));
     }
 
     /***************************************
@@ -116,8 +121,11 @@ public class DatabaseFileManager extends AbstractProjectComponent implements Per
     };
 
     private void closeFiles(ConnectionId connectionId) {
-        List<DBObjectVirtualFile> filesToClose = openFiles.stream().filter(file -> file.getConnectionId() == connectionId).collect(Collectors.toList());
-        filesToClose.forEach(file -> closeFile(file));
+        for (DBObjectVirtualFile file : openFiles) {
+            if (file.getConnectionId() == connectionId) {
+                closeFile(file);
+            }
+        }
     }
 
     public void closeFile(DBSchemaObject object) {

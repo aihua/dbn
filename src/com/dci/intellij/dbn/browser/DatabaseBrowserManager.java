@@ -18,7 +18,11 @@ import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.options.setting.BooleanSetting;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
-import com.dci.intellij.dbn.connection.*;
+import com.dci.intellij.dbn.connection.ConnectionBundle;
+import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.ConnectionId;
+import com.dci.intellij.dbn.connection.ConnectionManager;
+import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.connection.config.ConnectionDetailSettings;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObject;
@@ -362,7 +366,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
 
                 boolean addConnectionElement = false;
                 DBObjectBundle objectBundle = connectionHandler.getObjectBundle();
-                DBObjectList schemas = objectBundle.getObjectListContainer().getObjectList(DBObjectType.SCHEMA);
+                DBObjectList<?> schemas = objectBundle.getObjectList(DBObjectType.SCHEMA);
                 if (schemas != null && schemas.isLoaded()) {
                     for (DBSchema schema : objectBundle.getSchemas()) {
                         List<DBObjectType> objectTypes = new ArrayList<>();
@@ -403,7 +407,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
             List<Element> connectionElements = nodesElement.getChildren();
             ConnectionManager connectionManager = ConnectionManager.getInstance(project);
 
-            connectionElements.forEach(connectionElement -> {
+            for (Element connectionElement : connectionElements) {
                 ConnectionId connectionId = connectionIdAttribute(connectionElement, "connection-id");
                 ConnectionHandler connectionHandler = connectionManager.getConnectionHandler(connectionId);
                 if (connectionHandler != null) {
@@ -412,7 +416,7 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
                         DBObjectBundle objectBundle = connectionHandler.getObjectBundle();
                         List<Element> schemaElements = connectionElement.getChildren();
 
-                        schemaElements.forEach(schemaElement -> {
+                        for (Element schemaElement : schemaElements) {
                             String schemaName = stringAttribute(schemaElement, "name");
                             DBSchema schema = objectBundle.getSchema(schemaName);
                             if (schema != null) {
@@ -422,20 +426,20 @@ public class DatabaseBrowserManager extends AbstractProjectComponent implements 
                                             String objectTypesAttr = stringAttribute(schemaElement, "object-types");
                                             List<DBObjectType> objectTypes = DBObjectType.fromCsv(objectTypesAttr);
 
-                                            objectTypes.forEach(objectType -> {
+                                            for (DBObjectType objectType : objectTypes) {
                                                 DBObjectListContainer childObjects = schema.getChildObjects();
                                                 if (childObjects != null) {
                                                     Progress.check(progress);
                                                     childObjects.loadObjectList(objectType);
                                                 }
-                                            });
+                                            }
                                         });
                             }
-                        });
+                        }
                     }
                 }
 
-            });
+            }
         }
     }
 

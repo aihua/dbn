@@ -34,6 +34,7 @@ import java.io.InputStream;
 public abstract class DBContentVirtualFile extends DBVirtualFileImpl implements PropertyHolder<VirtualFileStatus>  {
     private final WeakRef<DBEditableObjectVirtualFile> mainDatabaseFile;
     private final FileType fileType;
+
     private final VirtualFileStatusHolder status = new VirtualFileStatusHolder();
 
     protected DBContentType contentType;
@@ -61,7 +62,6 @@ public abstract class DBContentVirtualFile extends DBVirtualFileImpl implements 
     public boolean is(VirtualFileStatus status) {
         return this.status.is(status);
     }
-
     @Override
     @Nullable
     public SchemaId getSchemaId() {

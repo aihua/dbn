@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.connection.console;
 
 import com.dci.intellij.dbn.common.dispose.DisposableContainer;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.thread.Synchronized;
@@ -63,6 +64,12 @@ public class DatabaseConsoleBundle extends StatefulDisposable.Base {
         return null;
     }
 
+    @NotNull
+    public DBConsole ensureConsole(String name) {
+        DBConsole console = getConsole(name);
+        return Failsafe.nd(console);
+    }
+
     public DBConsole getConsole(String name, DBConsoleType type, boolean create) {
         DBConsole console = getConsole(name);
         if (console == null && create) {
@@ -86,8 +93,12 @@ public class DatabaseConsoleBundle extends StatefulDisposable.Base {
 
     void removeConsole(String name) {
         DBConsole console = getConsole(name);
-        consoles.remove(console);
+        removeConsole(console);
         SafeDisposer.dispose(console, false);
+    }
+
+    void removeConsole(DBConsole console) {
+        consoles.remove(console);
     }
 
     @Override
@@ -95,8 +106,8 @@ public class DatabaseConsoleBundle extends StatefulDisposable.Base {
     }
 
     void renameConsole(String oldName, String newName) {
-        DBConsole console = getConsole(oldName);
-        if (console != null) {
+        if (!Objects.equals(oldName, newName)) {
+            DBConsole console = ensureConsole(oldName);
             console.setName(newName);
         }
     }

@@ -1,8 +1,10 @@
 package com.dci.intellij.dbn.language.common.element.util;
 
 import com.dci.intellij.dbn.common.property.Property;
+import lombok.Getter;
 
-public enum ElementTypeAttribute implements Property{
+@Getter
+public enum ElementTypeAttribute implements Property.LongBase {
     
     ROOT("ROOT", "Executable statement"),
     EXECUTABLE("EXECUTABLE", "Executable statement"),
@@ -38,7 +40,7 @@ public enum ElementTypeAttribute implements Property{
     SCHEMA_CHANGE("SCHEMA_CHANGE", "Schema change clause"),
     ;
 
-    private final Computed computed = new Computed(this);
+    private final Masks masks = new Masks(this);
     private final String name;
     private final String description;
     private final boolean specific;
@@ -54,16 +56,8 @@ public enum ElementTypeAttribute implements Property{
     }
 
     @Override
-    public Computed computedOrdinal() {
-        return computed;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public String getDescription() {
-        return description;
+    public Masks masks() {
+        return masks;
     }
 
     @Override
@@ -71,7 +65,4 @@ public enum ElementTypeAttribute implements Property{
         return name;
     }
 
-    public boolean isSpecific() {
-        return specific;
-    }
 }

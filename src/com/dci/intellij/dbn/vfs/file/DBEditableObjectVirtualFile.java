@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.vfs.file;
 
 import com.dci.intellij.dbn.common.latent.Latent;
-import com.dci.intellij.dbn.common.util.DocumentUtil;
+import com.dci.intellij.dbn.common.util.Documents;
 import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.connection.session.DatabaseSessionBundle;
@@ -174,7 +174,7 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
                 if (isCode) {
                     DBContentVirtualFile mainContentFile = getMainContentFile();
                     if (mainContentFile != null) {
-                        Document document = DocumentUtil.getDocument(mainContentFile);
+                        Document document = Documents.getDocument(mainContentFile);
                         return (T) document;
                     }
                 }
@@ -206,7 +206,9 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
     public void invalidate() {
         List<DBContentVirtualFile> contentVirtualFiles = contentFiles.value();
         if (contentVirtualFiles != null) {
-            contentVirtualFiles.forEach(virtualFile -> virtualFile.invalidate());
+            for (DBContentVirtualFile virtualFile : contentVirtualFiles) {
+                virtualFile.invalidate();
+            }
         }
 
         contentFiles.set(EMPTY_CONTENT_FILES);

@@ -4,7 +4,7 @@ import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.thread.Read;
-import com.dci.intellij.dbn.common.util.CommonUtil;
+import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -42,7 +42,7 @@ public class StatementExecutionInput extends LocalExecutionInput {
         ConnectionHandler connectionHandler = getConnectionHandler();
         SchemaId currentSchema = getTargetSchemaId();
         if (connectionHandler != null) {
-            return Read.call(() -> {
+            return Read.conditional(() -> {
                 DBLanguagePsiFile psiFile = Failsafe.nn(executionProcessor.getPsiFile());
                 DBLanguageDialect languageDialect = psiFile.getLanguageDialect();
                 DBLanguagePsiFile previewFile = DBLanguagePsiFile.createFromText(
@@ -75,7 +75,7 @@ public class StatementExecutionInput extends LocalExecutionInput {
         SchemaId currentSchema = executionProcessor.getTargetSchema();
         DatabaseSession targetSession = executionProcessor.getTargetSession();
 
-        this.targetConnectionRef = ConnectionHandlerRef.from(connectionHandler);
+        this.targetConnectionRef = ConnectionHandlerRef.of(connectionHandler);
         this.targetSchemaId = currentSchema;
         this.setTargetSession(targetSession);
         this.originalStatementText = originalStatementText;
@@ -94,7 +94,7 @@ public class StatementExecutionInput extends LocalExecutionInput {
             @Override
             public String getTargetName() {
                 ExecutablePsiElement executablePsiElement = getExecutablePsiElement();
-                return CommonUtil.nvl(executablePsiElement == null ? null : executablePsiElement.getPresentableText(), "Statement");
+                return Commons.nvl(executablePsiElement == null ? null : executablePsiElement.getPresentableText(), "Statement");
             }
 
             @Nullable
@@ -187,7 +187,7 @@ public class StatementExecutionInput extends LocalExecutionInput {
     }
 
     public void setConnectionHandler(ConnectionHandler connectionHandler) {
-        this.targetConnectionRef = ConnectionHandlerRef.from(connectionHandler);
+        this.targetConnectionRef = ConnectionHandlerRef.of(connectionHandler);
         if (DatabaseFeature.DATABASE_LOGGING.isSupported(connectionHandler)) {
             getOptions().set(ExecutionOption.ENABLE_LOGGING, connectionHandler.isLoggingEnabled());
         }

@@ -1,77 +1,100 @@
 package com.dci.intellij.dbn.language.common.element.parser;
 
+import com.dci.intellij.dbn.code.common.completion.CodeCompletionContributor;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
 import com.dci.intellij.dbn.language.common.TokenType;
 import com.dci.intellij.dbn.language.common.TokenTypeCategory;
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.TokenPairTemplate;
-import com.dci.intellij.dbn.language.common.element.impl.TokenElementType;
-import com.dci.intellij.dbn.language.common.element.impl.WrappingDefinition;
 import com.dci.intellij.dbn.language.common.element.path.ParsePathNode;
 import com.intellij.lang.ASTNode;
 import com.intellij.lang.PsiBuilder;
 import com.intellij.lang.PsiBuilder.Marker;
 import com.intellij.psi.tree.IElementType;
-import org.jetbrains.annotations.NotNull;
+import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Map;
-
-public class ParserBuilder {
+public final class ParserBuilder {
     private final PsiBuilder builder;
-    private final Map<TokenPairTemplate, TokenPairRangeMonitor> tokenPairRangeMonitors;
-    private String cachedTokenText;
+    private final TokenPairMonitor tokenPairMonitor;
+    private final ParseErrorMonitor errorMonitor;
+    private final Cache cache = new Cache();
+
+    @Deprecated
+    private final OldTokenPairMonitor tokenPairMonitorOld;
 
 
     public ParserBuilder(PsiBuilder builder, DBLanguageDialect languageDialect) {
         this.builder = builder;
-        builder.setDebugMode(true);
-        tokenPairRangeMonitors = languageDialect.createTokenPairRangeMonitors(builder);
+        this.builder.setDebugMode(false);
+        this.tokenPairMonitor = new TokenPairMonitor(this, languageDialect);
+        this.errorMonitor = new ParseErrorMonitor(this);
+
+        this.tokenPairMonitorOld = new OldTokenPairMonitor(this, languageDialect);
     }
 
-    public void advanceLexer(@NotNull ParsePathNode node) {
-        advanceLexer(node, true);
+    public ASTNode getTreeBuilt() {
+        tokenPairMonitorOld.cleanup();
+        return builder.getTreeBuilt();
     }
 
-    private void advanceLexer(@NotNull ParsePathNode node, boolean explicit) {
-        TokenType tokenType = getTokenType();
-        TokenPairRangeMonitor tokenPairRangeMonitor = getTokenPairRangeMonitor(tokenType);
-        if (tokenPairRangeMonitor != null) {
-            tokenPairRangeMonitor.compute(node, explicit);
-        }
+    @Deprecated
+    public OldTokenPairMonitor getTokenPairMonitor() {
+        return tokenPairMonitorOld;
+    }
+
+    public Marker markAndAdvance() {
+        Marker marker = mark();
+        advance();
+        return marker;
+    }
+
+    public void advance() {
+        tokenPairMonitorOld.acknowledge(true);
+        advanceInternally();
+    }
+
+    public void advanceInternally() {
         builder.advanceLexer();
-        cachedTokenText = null;
+        cache.reset();
     }
 
     @Nullable
-    private TokenPairRangeMonitor getTokenPairRangeMonitor(TokenType tokenType) {
-        if (tokenType != null) {
-            TokenPairTemplate tokenPairTemplate = tokenType.getTokenPairTemplate();
-            if (tokenPairTemplate != null) {
-                return tokenPairRangeMonitors.get(tokenPairTemplate);
-            }
-        }
-        return null;
-    }
-
-
-    public String getTokenText() {
-        if (cachedTokenText == null) {
-            cachedTokenText = builder.getTokenText();
-        }
-        return cachedTokenText;
-    }
-
-    public TokenType getTokenType() {
+    public TokenType getToken() {
         IElementType tokenType = builder.getTokenType();
         return tokenType instanceof TokenType ? (TokenType) tokenType : null;
+    }
+
+    @Nullable
+    public TokenPairTemplate getTokenPairTemplate() {
+        TokenType token = getToken();
+        return token == null ? null : token.getTokenPairTemplate();
+    }
+
+    /****************************************************
+     *                 Cached  lookups                  *
+     ****************************************************/
+    public TokenType getPreviousToken() {
+        return cache.getPreviousToken();
+    }
+
+    public TokenType getNextToken() {
+        return cache.getNextToken();
+    }
+
+    public String getTokenText() {
+        return cache.getTokenText();
+    }
+
+    public boolean isDummyToken(){
+        return cache.isDummyToken();
     }
 
     public boolean eof() {
         return builder.eof();
     }
 
-    public int getCurrentOffset() {
+    public int getOffset() {
         return builder.getCurrentOffset();
     }
 
@@ -82,7 +105,7 @@ public class ParserBuilder {
     }
 
 
-    public TokenType lookBack(int steps) {
+    private TokenType lookBack(int steps) {
         int cursor = -1;
         int count = 0;
         TokenType tokenType = (TokenType) builder.rawLookup(cursor);
@@ -98,55 +121,42 @@ public class ParserBuilder {
         return null;
     }
 
-    public IElementType rawLookup(int steps) {
-        return builder.rawLookup(steps);
+    /****************************************************
+     *                 Marker utilities                 *
+     ****************************************************/
+    public boolean isErrorAtOffset() {
+        return errorMonitor.isErrorAtOffset();
     }
-
 
     public void error(String messageText) {
         builder.error(messageText);
     }
 
-    public ASTNode getTreeBuilt() {
-        for (TokenPairRangeMonitor tokenPairRangeMonitor : tokenPairRangeMonitors.values()) {
-            tokenPairRangeMonitor.cleanup(true);
-        }
-        return builder.getTreeBuilt();
+    public Marker mark(){
+        return builder.mark();
     }
 
-    public void setDebugMode(boolean debugMode) {
-        builder.setDebugMode(debugMode);
-    }
-
-    public Marker mark(@Nullable ParsePathNode node){
-        Marker marker = builder.mark();
-        if (node != null) {
-            WrappingDefinition wrapping = node.elementType.getWrapping();
-            if (wrapping != null) {
-                TokenElementType beginElementType = wrapping.getBeginElementType();
-                TokenType beginTokenType = beginElementType.getTokenType();
-                while(builder.getTokenType() == beginTokenType) {
-                    Marker beginTokenMarker = builder.mark();
-                    advanceLexer(node, false);
-                    beginTokenMarker.done(beginElementType);
-                }
-            }
-        }
-        return marker;
+    public Marker mark(ParsePathNode node){
+        tokenPairMonitor.consumeBeginTokens(node);
+        tokenPairMonitorOld.consumeBeginTokens(node);
+        return builder.mark();
     }
 
     public void markError(String message) {
-        Marker errorMaker = builder.mark();
-        errorMaker.error(message);
+        if (!errorMonitor.isErrorAtOffset()) {
+            errorMonitor.markError();
+            Marker errorMaker = builder.mark();
+            errorMaker.error(message);
+        }
     }
 
-    public void markerRollbackTo(Marker marker, @Nullable ParsePathNode node) {
+    public void markerRollbackTo(Marker marker) {
         if (marker != null) {
             marker.rollbackTo();
-            for (TokenPairRangeMonitor tokenPairRangeMonitor : tokenPairRangeMonitors.values()) {
-                tokenPairRangeMonitor.rollback();
-            }
-            cachedTokenText = null;
+            errorMonitor.reset();
+            tokenPairMonitor.reset();
+            tokenPairMonitorOld.rollback();
+            cache.reset();
         }
     }
 
@@ -156,19 +166,9 @@ public class ParserBuilder {
 
     public void markerDone(Marker marker, ElementType elementType, @Nullable ParsePathNode node) {
         if (marker != null) {
-            if (node != null) {
-                WrappingDefinition wrapping = node.elementType.getWrapping();
-                if (wrapping != null) {
-                    TokenElementType endElementType = wrapping.getEndElementType();
-                    TokenType endTokenType = endElementType.getTokenType();
-                    while (builder.getTokenType() == endTokenType && !isExplicitRange(endTokenType)) {
-                        Marker endTokenMarker = builder.mark();
-                        advanceLexer(node, false);
-                        endTokenMarker.done(endElementType);
-                    }
-                }
-            }
+            tokenPairMonitorOld.consumeEndTokens(node);
             marker.done((IElementType) elementType);
+            tokenPairMonitor.consumeEndTokens(node);
         }
     }
 
@@ -178,13 +178,50 @@ public class ParserBuilder {
         }
     }
 
-    public boolean isExplicitRange(TokenType tokenType) {
-        TokenPairRangeMonitor tokenPairRangeMonitor = getTokenPairRangeMonitor(tokenType);
-        return tokenPairRangeMonitor != null && tokenPairRangeMonitor.isExplicitRange();
-    }
+    @Getter
+    private class Cache {
+        private String tokenText;
+        private Boolean dummyToken;
+        private TokenType previousToken;
+        private TokenType nextToken;
 
-    public void setExplicitRange(TokenType tokenType, boolean value) {
-        TokenPairRangeMonitor tokenPairRangeMonitor = getTokenPairRangeMonitor(tokenType);
-        if (tokenPairRangeMonitor != null) tokenPairRangeMonitor.setExplicitRange(value);
+        public void reset() {
+            tokenText = null;
+            dummyToken = null;
+            previousToken = null;
+            nextToken = null;
+        }
+
+        public TokenType getPreviousToken() {
+            if (previousToken == null) {
+                previousToken = lookBack(1);
+            }
+            return previousToken;
+        }
+
+        public TokenType getNextToken() {
+            if (nextToken == null) {
+                nextToken = lookAhead(1);
+            }
+            return nextToken;
+        }
+
+        public String getTokenText() {
+            if (tokenText == null) {
+                tokenText = builder.getTokenText();
+            }
+            return tokenText;
+        }
+
+        public Boolean isDummyToken() {
+            if (dummyToken == null) {
+                String tokenText = getTokenText();
+                dummyToken = tokenText != null && tokenText.contains(CodeCompletionContributor.DUMMY_TOKEN);
+
+            }
+            return dummyToken;
+        }
+
+
     }
 }

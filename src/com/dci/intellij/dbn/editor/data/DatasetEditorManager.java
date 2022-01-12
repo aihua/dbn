@@ -6,7 +6,7 @@ import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.options.setting.SettingsSupport;
 import com.dci.intellij.dbn.common.util.Context;
-import com.dci.intellij.dbn.common.util.MessageUtil;
+import com.dci.intellij.dbn.common.util.Messages;
 import com.dci.intellij.dbn.data.record.ColumnSortingType;
 import com.dci.intellij.dbn.data.record.DatasetRecord;
 import com.dci.intellij.dbn.data.record.navigation.RecordNavigationTarget;
@@ -40,7 +40,7 @@ import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.awt.*;
+import java.awt.Component;
 import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.sql.SQLException;
@@ -98,7 +98,7 @@ public class DatasetEditorManager extends AbstractProjectComponent implements Pe
             RecordViewerDialog dialog = new RecordViewerDialog(getProject(), record);
             dialog.show();
         } catch (SQLException e) {
-            MessageUtil.showErrorDialog(getProject(), "Could not load record details", e);
+            Messages.showErrorDialog(getProject(), "Could not load record details", e);
         }
     }
 

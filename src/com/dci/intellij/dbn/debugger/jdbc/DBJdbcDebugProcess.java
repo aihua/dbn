@@ -7,8 +7,8 @@ import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.thread.Synchronized;
 import com.dci.intellij.dbn.common.thread.Write;
-import com.dci.intellij.dbn.common.util.MessageUtil;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Messages;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ResourceUtil;
@@ -68,18 +68,18 @@ import static com.dci.intellij.dbn.execution.ExecutionStatus.CANCELLED;
 public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebugProcess implements DBDebugProcess, NotificationSupport {
     protected DBNConnection targetConnection;
     private DBNConnection debugConnection;
-    private ConnectionHandlerRef connectionHandlerRef;
-    private DBBreakpointHandler[] breakpointHandlers;
-    private DBDebugProcessStatusHolder status = new DBDebugProcessStatusHolder();
+    private final DBDebugProcessStatusHolder status = new DBDebugProcessStatusHolder();
+    private final ConnectionHandlerRef connectionHandler;
+    private final DBBreakpointHandler[] breakpointHandlers;
+    private final DBDebugConsoleLogger console;
 
     private transient DebuggerRuntimeInfo runtimeInfo;
     private transient ExecutionBacktraceInfo backtraceInfo;
-    private DBDebugConsoleLogger console;
 
     public DBJdbcDebugProcess(@NotNull XDebugSession session, ConnectionHandler connectionHandler) {
         super(session);
-        console = new DBDebugConsoleLogger(session);
-        this.connectionHandlerRef = ConnectionHandlerRef.from(connectionHandler);
+        this.console = new DBDebugConsoleLogger(session);
+        this.connectionHandler = ConnectionHandlerRef.of(connectionHandler);
         Project project = session.getProject();
         DatabaseDebuggerManager.getInstance(project).registerDebugSession(connectionHandler);
 
@@ -96,7 +96,6 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
     public boolean is(DBDebugProcessStatus status) {
         return this.status.is(status);
     }
-
     public DBNConnection getTargetConnection() {
         return targetConnection;
     }
@@ -107,7 +106,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
 
     @Override
     public ConnectionHandler getConnectionHandler() {
-        return connectionHandlerRef.ensure();
+        return connectionHandler.ensure();
     }
 
     @Override
@@ -204,7 +203,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
                                             } catch (SQLException e) {
                                                 set(SESSION_INITIALIZATION_THREW_EXCEPTION, true);
                                                 console.system("Error synchronizing debug session: " + e.getMessage());
-                                                MessageUtil.showErrorDialog(getProject(),
+                                                Messages.showErrorDialog(getProject(),
                                                         "Could not initialize debug environment on connection \"" +
                                                                 getConnectionHandler().getName() + "\". ", e);
                                                 getSession().stop();
@@ -237,7 +236,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
                         //DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
                         //debuggerInterface.disableDebugging(targetConnection);
 
-                        MessageUtil.showErrorDialog(getProject(), "Error executing " + executionInput.getExecutionContext().getTargetName(), e);
+                        Messages.showErrorDialog(getProject(), "Error executing " + executionInput.getExecutionContext().getTargetName(), e);
                     } finally {
                         set(TARGET_EXECUTION_TERMINATED, true);
                         getSession().stop();
@@ -312,12 +311,14 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
                         rollOutDebugger();
 
                         DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
-                        if (isNot(TARGET_EXECUTION_TERMINATED)) {
-                            runtimeInfo = debuggerInterface.stopExecution(debugConnection);
+                        if (debugConnection != null) {
+                            if (isNot(TARGET_EXECUTION_TERMINATED)) {
+                                runtimeInfo = debuggerInterface.stopExecution(debugConnection);
+                            }
+                            debuggerInterface.detachSession(debugConnection);
                         }
-                        debuggerInterface.detachSession(debugConnection);
                         console.system("Debugger session detached");
-                    } catch (final SQLException e) {
+                    } catch (SQLException e) {
                         console.error("Error detaching debugger session: " + e.getMessage());
                     } finally {
                         set(PROCESS_TERMINATED, true);
@@ -411,7 +412,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
     }
 
     private void showErrorDialog(SQLException e) {
-        MessageUtil.showErrorDialog(getProject(), "Could not perform operation.", e);
+        Messages.showErrorDialog(getProject(), "Could not perform operation.", e);
     }
 
     private void suspendSession() {
@@ -490,7 +491,7 @@ public abstract class DBJdbcDebugProcess<T extends ExecutionInput> extends XDebu
         String ownerName = runtimeInfo.getOwnerName();
         String programName = runtimeInfo.getProgramName();
 
-        if (StringUtil.isNotEmpty(ownerName) && StringUtil.isNotEmpty(programName)) {
+        if (Strings.isNotEmpty(ownerName) && Strings.isNotEmpty(programName)) {
             ConnectionHandler connectionHandler = getConnectionHandler();
             DBObjectBundle objectBundle = connectionHandler.getObjectBundle();
             DBSchema schema = Failsafe.nn(objectBundle.getSchema(ownerName));

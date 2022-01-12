@@ -2,17 +2,17 @@ package com.dci.intellij.dbn.common.navigation;
 
 import com.dci.intellij.dbn.common.property.Property;
 
-public enum NavigationInstruction implements Property{
+public enum NavigationInstruction implements Property.IntBase {
     OPEN,
     FOCUS,
     SCROLL,
     SELECT,
     RESET;
 
-    private final Computed computed = new Computed(this);
+    private final Masks masks = new Masks(this);
 
     @Override
-    public Computed computedOrdinal() {
-        return computed;
+    public Masks masks() {
+        return masks;
     }
 }

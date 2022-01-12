@@ -11,9 +11,9 @@ import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.common.util.Context;
-import com.dci.intellij.dbn.common.util.DocumentUtil;
-import com.dci.intellij.dbn.common.util.EditorUtil;
-import com.dci.intellij.dbn.common.util.MessageUtil;
+import com.dci.intellij.dbn.common.util.Documents;
+import com.dci.intellij.dbn.common.util.Editors;
+import com.dci.intellij.dbn.common.util.Messages;
 import com.dci.intellij.dbn.common.util.UserDataUtil;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -126,7 +126,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
                 Project project = file.getProject();
                 VirtualFile virtualFile = file.getVirtualFile();
                 if (virtualFile.isInLocalFileSystem()) {
-                    List<FileEditor> scriptFileEditors = EditorUtil.getScriptFileEditors(project, virtualFile);
+                    List<FileEditor> scriptFileEditors = Editors.getScriptFileEditors(project, virtualFile);
                     for (FileEditor scriptFileEditor : scriptFileEditors) {
                         refreshEditorExecutionProcessors(scriptFileEditor);
                     }
@@ -184,8 +184,8 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
     }
 
     private void bindExecutionProcessors(FileEditor fileEditor, MatchType matchType) {
-        Editor editor = EditorUtil.getEditor(fileEditor);
-        PsiFile psiFile = DocumentUtil.getFile(editor);
+        Editor editor = Editors.getEditor(fileEditor);
+        PsiFile psiFile = Documents.getFile(editor);
         if (psiFile != null) {
             PsiElement child = psiFile.getFirstChild();
             while (child != null) {
@@ -232,7 +232,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
             executionProcessor.execute(connection, true);
         } finally {
             DBLanguagePsiFile file = executionProcessor.getPsiFile();
-            DocumentUtil.refreshEditorAnnotations(file);
+            Documents.refreshEditorAnnotations(file);
         }
     }
 
@@ -307,19 +307,19 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
                     NotificationGroup.EXECUTION,
                     "Error executing {0}: {1}", statementName, e);
         } finally {
-            DocumentUtil.refreshEditorAnnotations(executionProcessor.getPsiFile());
+            Documents.refreshEditorAnnotations(executionProcessor.getPsiFile());
         }
     }
 
     public void executeStatementAtCursor(@NotNull FileEditor fileEditor) {
-        Editor editor = EditorUtil.getEditor(fileEditor);
+        Editor editor = Editors.getEditor(fileEditor);
         if (editor != null) {
             DataContext dataContext = Context.getDataContext(editor);
             StatementExecutionProcessor executionProcessor = getExecutionProcessorAtCursor(fileEditor);
             if (executionProcessor != null) {
                 executeStatement(executionProcessor, dataContext);
             } else {
-                MessageUtil.showQuestionDialog(
+                Messages.showQuestionDialog(
                         getProject(),
                         "Multiple statement execution",
                         "No statement found under the caret. \nExecute all statements in the file or just the ones after the cursor?",
@@ -328,7 +328,7 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
                             if (option == 0 || option == 1) {
                                 int offset = option == 0 ? 0 : editor.getCaretModel().getOffset();
                                 List<StatementExecutionProcessor> executionProcessors = getExecutionProcessorsFromOffset(fileEditor, offset);
-                                VirtualFile virtualFile = DocumentUtil.getVirtualFile(editor);
+                                VirtualFile virtualFile = Documents.getVirtualFile(editor);
                                 executeStatements(virtualFile, executionProcessors, dataContext);
                             }
                         });
@@ -439,9 +439,9 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
 
     @Nullable
     private StatementExecutionProcessor getExecutionProcessorAtCursor(@NotNull FileEditor fileEditor) {
-        Editor editor = EditorUtil.getEditor(fileEditor);
+        Editor editor = Editors.getEditor(fileEditor);
         if (editor != null) {
-            DBLanguagePsiFile file = (DBLanguagePsiFile) DocumentUtil.getFile(editor);
+            DBLanguagePsiFile file = (DBLanguagePsiFile) Documents.getFile(editor);
             String selection = editor.getSelectionModel().getSelectedText();
             if (selection != null && file != null) {
                 return new StatementExecutionCursorProcessor(getProject(), fileEditor, file, selection, RESULT_SEQUENCE.incrementAndGet());
@@ -457,10 +457,10 @@ public class StatementExecutionManager extends AbstractProjectComponent implemen
 
     private List<StatementExecutionProcessor> getExecutionProcessorsFromOffset(@NotNull FileEditor fileEditor, int offset) {
         List<StatementExecutionProcessor> executionProcessors = new ArrayList<>();
-        Editor editor = EditorUtil.getEditor(fileEditor);
+        Editor editor = Editors.getEditor(fileEditor);
 
         if (editor != null) {
-            DBLanguagePsiFile file = (DBLanguagePsiFile) DocumentUtil.getFile(editor);
+            DBLanguagePsiFile file = (DBLanguagePsiFile) Documents.getFile(editor);
             if (file != null) {
                 PsiElement child = file.getFirstChild();
                 while (child != null) {

@@ -26,8 +26,9 @@ import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.thread.Read;
 import com.dci.intellij.dbn.common.ui.tree.TreeEventType;
-import com.dci.intellij.dbn.common.util.CollectionUtil;
-import com.dci.intellij.dbn.common.util.CommonUtil;
+import com.dci.intellij.dbn.common.util.Commons;
+import com.dci.intellij.dbn.common.util.Consumer;
+import com.dci.intellij.dbn.common.util.Lists;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -96,7 +97,6 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiFileFactory;
-import com.intellij.util.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -110,9 +110,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 import static com.dci.intellij.dbn.browser.DatabaseBrowserUtils.treeVisibilityChanged;
+import static com.dci.intellij.dbn.common.util.CollectionUtil.createConcurrentList;
 import static com.dci.intellij.dbn.object.type.DBObjectRelationType.*;
 import static com.dci.intellij.dbn.object.type.DBObjectType.*;
 
@@ -132,7 +132,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     private final DBObjectList<DBCharset> charsets;
 
     private final Latent<List<DBNativeDataType>> nativeDataTypes = Latent.basic(() -> computeNativeDataTypes());
-    private final List<DBDataType> cachedDataTypes = CollectionUtil.createConcurrentList();
+    private final List<DBDataType> cachedDataTypes = createConcurrentList();
 
     private final DBObjectListContainer objectLists;
     private final DBObjectRelationListContainer objectRelationLists;
@@ -146,7 +146,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     private final PsiFile fakeObjectFile;
 
     public DBObjectBundleImpl(ConnectionHandler connectionHandler, BrowserTreeNode treeParent) {
-        this.connectionHandler = ConnectionHandlerRef.from(connectionHandler);
+        this.connectionHandler = ConnectionHandlerRef.of(connectionHandler);
         this.treeParent = treeParent;
         configSignature = connectionHandler.getSettings().getDatabaseSettings().getSignature();
 
@@ -193,8 +193,9 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
         public void dataDefinitionChanged(DBSchema schema, DBObjectType objectType) {
             if (schema.getConnectionHandler() == getConnectionHandler()) {
                 schema.refresh(objectType);
-                objectType.getChildren().forEach(
-                        childObjectType -> schema.refresh(childObjectType));
+                for (DBObjectType childObjectType : objectType.getChildren()) {
+                    schema.refresh(childObjectType);
+                }
             }
         }
 
@@ -280,7 +281,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
     @Override
     public List<SchemaId> getSchemaIds() {
-        return getSchemas().stream().map(schema -> SchemaId.get(schema.getName())).collect(Collectors.toList());
+        return Lists.convert(getSchemas(), schema -> SchemaId.get(schema.getName()));
     }
 
     @Override
@@ -329,15 +330,17 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     @Override
     @Nullable
     public DBNativeDataType getNativeDataType(String name) {
-        String upperCaseName = name.toUpperCase();
-        for (DBNativeDataType dataType : getNativeDataTypes()) {
-            if (Objects.equals(upperCaseName, dataType.getName())) {
-                return dataType;
+        if (name != null) {
+            String upperCaseName = name.toUpperCase();
+            for (DBNativeDataType dataType : getNativeDataTypes()) {
+                if (Objects.equals(upperCaseName, dataType.getName())) {
+                    return dataType;
+                }
             }
-        }
-        for (DBNativeDataType dataType : getNativeDataTypes()) {
-            if (upperCaseName.startsWith(dataType.getName())) {
-                return dataType;
+            for (DBNativeDataType dataType : getNativeDataTypes()) {
+                if (upperCaseName.startsWith(dataType.getName())) {
+                    return dataType;
+                }
             }
         }
         return null;
@@ -445,16 +448,17 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
         ConnectionHandler connectionHandler = getConnectionHandler();
         Filter<BrowserTreeNode> objectTypeFilter = connectionHandler.getObjectTypeFilter();
 
-        List<BrowserTreeNode> treeChildren = CollectionUtil.filter(allPossibleTreeChildren, false, true, objectTypeFilter);
-        treeChildren = CommonUtil.nvl(treeChildren, Collections.emptyList());
+        List<BrowserTreeNode> treeChildren = Lists.filter(allPossibleTreeChildren, objectTypeFilter);
+        treeChildren = Commons.nvl(treeChildren, Collections.emptyList());
 
-        treeChildren.forEach(objectList -> {
+        for (BrowserTreeNode objectList : treeChildren) {
             Progress.background(
                     getProject(),
                     getConnectionHandler().getMetaLoadTitle(),
                     true,
                     progress -> objectList.initTreeElement());
-            checkDisposed();});
+            checkDisposed();
+        }
 
         if (visibleTreeChildren.size() == 1 && visibleTreeChildren.get(0) instanceof LoadInProgressTreeNode) {
             visibleTreeChildren.get(0).dispose();
@@ -473,7 +477,9 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     @Override
     public void refreshTreeChildren(@NotNull DBObjectType... objectTypes) {
         if (visibleTreeChildren != null) {
-            visibleTreeChildren.forEach(treeNode -> treeNode.refreshTreeChildren(objectTypes));
+            for (BrowserTreeNode treeNode : visibleTreeChildren) {
+                treeNode.refreshTreeChildren(objectTypes);
+            }
         }
     }
 
@@ -484,7 +490,9 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             if (treeVisibilityChanged(allPossibleTreeChildren, visibleTreeChildren, filter)) {
                 buildTreeChildren();
             }
-            visibleTreeChildren.forEach(treeNode -> treeNode.rebuildTreeChildren());
+            for (BrowserTreeNode treeNode : visibleTreeChildren) {
+                treeNode.rebuildTreeChildren();
+            }
         }
     }
 
@@ -574,7 +582,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     @NotNull
     @Override
     public String getName() {
-        return CommonUtil.nvl(getPresentableText(), "Object Bundle");
+        return Commons.nvl(getPresentableText(), "Object Bundle");
     }
 
     @Override
@@ -648,18 +656,18 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     }
 
     @Override
-    public void lookupObjectsOfType(Consumer consumer, DBObjectType objectType) {
+    public void lookupObjectsOfType(Consumer<? super DBObject> consumer, DBObjectType objectType) {
         if (getConnectionObjectTypeFilter().accepts(objectType)) {
-            if (objectType == SCHEMA) consumer.consume(getSchemas()); else
-            if (objectType == USER) consumer.consume(getUsers()); else
-            if (objectType == ROLE) consumer.consume(getRoles()); else
-            if (objectType == CHARSET) consumer.consume(getCharsets());
-            if (objectType == SYSTEM_PRIVILEGE) consumer.consume(getSystemPrivileges());
+            if (objectType == SCHEMA) consumer.acceptAll(getSchemas()); else
+            if (objectType == USER) consumer.acceptAll(getUsers()); else
+            if (objectType == ROLE) consumer.acceptAll(getRoles()); else
+            if (objectType == CHARSET) consumer.acceptAll(getCharsets());
+            if (objectType == SYSTEM_PRIVILEGE) consumer.acceptAll(getSystemPrivileges());
         }
     }
 
     @Override
-    public void lookupChildObjectsOfType(Consumer consumer, DBObject parentObject, DBObjectType objectType, ObjectTypeFilter filter, DBSchema currentSchema) {
+    public void lookupChildObjectsOfType(Consumer<? super DBObject> consumer, DBObject parentObject, DBObjectType objectType, ObjectTypeFilter filter, DBSchema currentSchema) {
         if (getConnectionObjectTypeFilter().accepts(objectType)) {
             if (parentObject != null && currentSchema != null) {
                 if (parentObject instanceof DBSchema) {
@@ -668,12 +676,12 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
                         Set<DBObjectType> concreteTypes = objectType.getInheritingTypes();
                         for (DBObjectType concreteType : concreteTypes) {
                             if (filter.acceptsObject(schema, currentSchema, concreteType)) {
-                                consumer.consume(schema.getChildObjects(concreteType));
+                                consumer.acceptAll(schema.getChildObjects(concreteType));
                             }
                         }
                     } else {
                         if (filter.acceptsObject(schema, currentSchema, objectType)) {
-                            consumer.consume(schema.getChildObjects(objectType));
+                            consumer.acceptAll(schema.getChildObjects(objectType));
                         }
                     }
 
@@ -682,7 +690,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
                         for (DBSynonym synonym : schema.getSynonyms()) {
                             DBObject underlyingObject = synonym.getUnderlyingObject();
                             if (underlyingObject != null && underlyingObject.isOfType(objectType)) {
-                                consumer.consume(synonym);
+                                consumer.accept(synonym);
                             }
                         }
                     }
@@ -691,12 +699,12 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
                         Set<DBObjectType> concreteTypes = objectType.getInheritingTypes();
                         for (DBObjectType concreteType : concreteTypes) {
                             if (filter.acceptsRootObject(objectType)) {
-                                consumer.consume(parentObject.getChildObjects(concreteType));
+                                consumer.acceptAll(parentObject.getChildObjects(concreteType));
                             }
                         }
                     } else {
                         if (filter.acceptsRootObject(objectType)) {
-                            consumer.consume(parentObject.getChildObjects(objectType));
+                            consumer.acceptAll(parentObject.getChildObjects(objectType));
                         }
                     }
                 }
@@ -721,7 +729,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
                                 DBSchema schema = schemas.get(i);
                                 if (size > 3) {
                                     progress.setIndeterminate(false);
-                                    progress.setFraction(CommonUtil.getProgressPercentage(i, size));
+                                    progress.setFraction(Commons.getProgressPercentage(i, size));
                                 }
                                 progress.setText("Updating object status in schema " + schema.getName() + "... ");
                                 schema.refreshObjectsStatus();
@@ -738,8 +746,14 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     }
 
     @Override
+    @NotNull
     public DBObjectListContainer getObjectListContainer() {
         return Failsafe.nn(objectLists);
+    }
+
+    @Override
+    public <T extends DBObject> DBObjectList<T> getObjectList(DBObjectType objectType) {
+        return getObjectListContainer().getObjectList(objectType);
     }
 
     @Override
@@ -763,6 +777,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     @Nullable
     public DynamicContent<?> getDynamicContent(DynamicContentType<?> dynamicContentType) {
         if(dynamicContentType instanceof DBObjectType) {
+            DBObjectListContainer objectLists = getObjectListContainer();
             DBObjectType objectType = (DBObjectType) dynamicContentType;
             DynamicContent<?> dynamicContent = objectLists.getObjectList(objectType);
             if (dynamicContent == null) dynamicContent = objectLists.getInternalObjectList(objectType);
@@ -788,6 +803,8 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     /*********************************************************
      *                         Loaders                       *
      *********************************************************/
+
+
     static {
         new DynamicContentLoaderImpl<DBConsole, DBObjectMetadata>(null, CONSOLE, true){
 
@@ -879,7 +896,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
         new DynamicContentResultSetLoader<DBUserRoleRelation, DBGrantedRoleMetadata>(null, USER_ROLE, true, true) {
             @Override
-            public ResultSet createResultSet(DynamicContent dynamicContent, DBNConnection connection) throws SQLException {
+            public ResultSet createResultSet(DynamicContent<DBUserRoleRelation> dynamicContent, DBNConnection connection) throws SQLException {
                 DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
                 return metadataInterface.loadAllUserRoles(connection);
             }
@@ -900,7 +917,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
         new DynamicContentResultSetLoader<DBUserPrivilegeRelation, DBGrantedPrivilegeMetadata>(null, USER_PRIVILEGE, true, true) {
             @Override
-            public ResultSet createResultSet(DynamicContent dynamicContent, DBNConnection connection) throws SQLException {
+            public ResultSet createResultSet(DynamicContent<DBUserPrivilegeRelation> dynamicContent, DBNConnection connection) throws SQLException {
                 DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
                 return metadataInterface.loadAllUserPrivileges(connection);
             }
@@ -921,7 +938,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
         new DynamicContentResultSetLoader<DBRoleRoleRelation, DBGrantedRoleMetadata>(null, ROLE_ROLE, true, true) {
             @Override
-            public ResultSet createResultSet(DynamicContent dynamicContent, DBNConnection connection) throws SQLException {
+            public ResultSet createResultSet(DynamicContent<DBRoleRoleRelation> dynamicContent, DBNConnection connection) throws SQLException {
                 DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
                 return metadataInterface.loadAllRoleRoles(connection);
             }
@@ -942,7 +959,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
         new DynamicContentResultSetLoader<DBRolePrivilegeRelation, DBGrantedPrivilegeMetadata>(null, ROLE_PRIVILEGE, true, true) {
             @Override
-            public ResultSet createResultSet(DynamicContent dynamicContent, DBNConnection connection) throws SQLException {
+            public ResultSet createResultSet(DynamicContent<DBRolePrivilegeRelation> dynamicContent, DBNConnection connection) throws SQLException {
                 DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
                 return metadataInterface.loadAllRolePrivileges(connection);
             }

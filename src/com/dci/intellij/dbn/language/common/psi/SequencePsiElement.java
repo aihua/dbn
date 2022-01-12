@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.language.common.psi;
 
 import com.dci.intellij.dbn.code.common.style.formatting.FormattingAttributes;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.impl.BlockElementType;
 import com.dci.intellij.dbn.language.common.element.impl.ElementTypeBase;
@@ -14,11 +14,11 @@ import com.dci.intellij.dbn.language.common.psi.lookup.PsiLookupAdapter;
 import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.PsiElement;
-import com.intellij.util.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
+import java.util.function.Consumer;
 
 public class SequencePsiElement<T extends ElementTypeBase> extends BasePsiElement<T> {
     public SequencePsiElement(ASTNode astNode, T elementType) {
@@ -79,7 +79,7 @@ public class SequencePsiElement<T extends ElementTypeBase> extends BasePsiElemen
             @NotNull Consumer<BasePsiElement> consumer) {
 
         if (lookupAdapter.matches(this)) {
-            consumer.consume(this);
+            consumer.accept(this);
 
         }
         PsiElement child = getFirstChild();
@@ -129,7 +129,7 @@ public class SequencePsiElement<T extends ElementTypeBase> extends BasePsiElemen
             if (getElementType().isVirtualObject()) {
                 DBObjectType virtualObjectType = getElementType().getVirtualObjectType();
                 if (objectType == virtualObjectType) {
-                    consumer.consume(this);
+                    consumer.accept(this);
                 }
             }
             PsiElement child = getFirstChild();
@@ -226,7 +226,7 @@ public class SequencePsiElement<T extends ElementTypeBase> extends BasePsiElemen
             if (subjectPsiElement instanceof IdentifierPsiElement) {
                 IdentifierPsiElement identifierPsiElement = (IdentifierPsiElement) subjectPsiElement;
                 if (identifierPsiElement.getObjectType() == subjectType &&
-                        StringUtil.equalsIgnoreCase(subjectName, identifierPsiElement.getChars())) {
+                        Strings.equalsIgnoreCase(subjectName, identifierPsiElement.getChars())) {
                     return this;
                 }
             }

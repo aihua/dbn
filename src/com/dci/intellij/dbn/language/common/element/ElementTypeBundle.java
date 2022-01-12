@@ -6,7 +6,20 @@ import com.dci.intellij.dbn.common.util.Measured;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
 import com.dci.intellij.dbn.language.common.TokenTypeBundle;
-import com.dci.intellij.dbn.language.common.element.impl.*;
+import com.dci.intellij.dbn.language.common.element.impl.BasicElementType;
+import com.dci.intellij.dbn.language.common.element.impl.BlockElementType;
+import com.dci.intellij.dbn.language.common.element.impl.ElementTypeBase;
+import com.dci.intellij.dbn.language.common.element.impl.ExecVariableElementType;
+import com.dci.intellij.dbn.language.common.element.impl.IdentifierElementType;
+import com.dci.intellij.dbn.language.common.element.impl.IterationElementType;
+import com.dci.intellij.dbn.language.common.element.impl.LeafElementType;
+import com.dci.intellij.dbn.language.common.element.impl.NamedElementType;
+import com.dci.intellij.dbn.language.common.element.impl.OneOfElementType;
+import com.dci.intellij.dbn.language.common.element.impl.QualifiedIdentifierElementType;
+import com.dci.intellij.dbn.language.common.element.impl.SequenceElementType;
+import com.dci.intellij.dbn.language.common.element.impl.TokenElementType;
+import com.dci.intellij.dbn.language.common.element.impl.UnknownElementType;
+import com.dci.intellij.dbn.language.common.element.impl.WrapperElementType;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeDefinition;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeDefinitionException;
@@ -46,9 +59,6 @@ public class ElementTypeBundle {
 
     private static class Builder {
         private final Set<LeafElementType> leafElementTypes = new THashSet<>();
-        private final Set<WrapperElementType> wrapperElementTypes = new THashSet<>();
-        private final Set<ElementType> wrappedElementTypes = new THashSet<>();
-        //private Set<OneOfElementType> oneOfElementTypes = new THashSet<OneOfElementType>();
         private final Set<ElementType> allElementTypes = new THashSet<>();
         private boolean rewriteIds;
     }
@@ -93,17 +103,6 @@ public class ElementTypeBundle {
                 leafElementType.registerLeaf();
             }
 
-            for (WrapperElementType wrapperElementType : builder.wrapperElementTypes) {
-                wrapperElementType.getBeginTokenElement().registerLeaf();
-                wrapperElementType.getEndTokenElement().registerLeaf();
-            }
-
-            for (ElementType wrappedElementType : builder.wrappedElementTypes) {
-                WrappingDefinition wrapping = wrappedElementType.getWrapping();
-                wrapping.getBeginElementType().registerLeaf();
-                wrapping.getEndElementType().registerLeaf();
-            }
-
             if (builder.rewriteIds) {
                 StringWriter stringWriter = new StringWriter();
                 new XMLOutputter().output(elementTypesDef, stringWriter);
@@ -120,7 +119,11 @@ public class ElementTypeBundle {
             builder = null;
             Background.run(() -> Measured.run(
                     "initialising element-type lookup cache for " + this.languageDialect.getID(),
-                    () -> allElementTypes.forEach(elementType -> elementType.getLookupCache().initialise())));
+                    () -> {
+                        for (ElementType elementType : allElementTypes) {
+                            elementType.getLookupCache().initialise();
+                        }
+                    }));
 
             //warnAmbiguousBranches();
         } catch (Exception e) {
@@ -171,29 +174,21 @@ public class ElementTypeBundle {
         ElementTypeBase result;
         if (ElementTypeDefinition.SEQUENCE.is(type)){
             result = new SequenceElementType(this, parent, createId(), def);
-            log.debug("Created sequence element definition");
 
         } else if (ElementTypeDefinition.BLOCK.is(type)) {
             result = new BlockElementType(this, parent, createId(), def);
-            log.debug("Created iteration element definition");
 
         } else if (ElementTypeDefinition.ITERATION.is(type)) {
             result = new IterationElementType(this, parent, createId(), def);
-            log.debug("Created iteration element definition");
 
         } else if (ElementTypeDefinition.ONE_OF.is(type)) {
             result = new OneOfElementType(this, parent, createId(), def);
-            //builder.oneOfElementTypes.add((OneOfElementType) result);
-            log.debug("Created one-of element definition");
 
         } else if (ElementTypeDefinition.QUALIFIED_IDENTIFIER.is(type)) {
             result =  new QualifiedIdentifierElementType(this, parent, createId(), def);
-            log.debug("Created qualified identifier element definition");
 
         } else if (ElementTypeDefinition.WRAPPER.is(type)) {
             result = new WrapperElementType(this, parent, createId(), def);
-            builder.wrapperElementTypes.add((WrapperElementType) result);
-            log.debug("Created wrapper element definition");
 
         } else if (ElementTypeDefinition.ELEMENT.is(type)) {
             String id = determineMandatoryAttribute(def, "ref-id", "Invalid reference to element.");
@@ -217,16 +212,9 @@ public class ElementTypeBundle {
         }  else {
             throw new ElementTypeDefinitionException("Could not resolve element definition '" + type + '\'');
         }
-        if (result instanceof LeafElementType) {
-            builder.leafElementTypes.add((LeafElementType) result);
-        }
 
+        result.collectLeafElements(builder.leafElementTypes);
         builder.allElementTypes.add(result);
-
-        WrappingDefinition wrapping = result.getWrapping();
-        if (wrapping != null) {
-            builder.wrappedElementTypes.add(result);
-        }
         return result;
     }
 
@@ -284,7 +272,7 @@ public class ElementTypeBundle {
     private String createId() {
         String id = Integer.toString(idCursor.getAndIncrement());
         StringBuilder buffer = new StringBuilder();
-        while (buffer.length() + id.length() < 9) {
+        while (buffer.length() + id.length() < 5) {
             buffer.append('0');
         }
         buffer.append(id);

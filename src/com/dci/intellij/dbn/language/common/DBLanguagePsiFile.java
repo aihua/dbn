@@ -3,9 +3,10 @@ package com.dci.intellij.dbn.language.common;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.thread.Read;
-import com.dci.intellij.dbn.common.util.CommonUtil;
-import com.dci.intellij.dbn.common.util.DocumentUtil;
-import com.dci.intellij.dbn.common.util.EditorUtil;
+import com.dci.intellij.dbn.common.util.Commons;
+import com.dci.intellij.dbn.common.util.Documents;
+import com.dci.intellij.dbn.common.util.Editors;
+import com.dci.intellij.dbn.common.util.Lists;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.PresentableConnectionProvider;
@@ -47,6 +48,7 @@ import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.FileViewProvider;
+import com.intellij.psi.PsiComment;
 import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiElementVisitor;
@@ -55,11 +57,13 @@ import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiFileFactory;
 import com.intellij.psi.PsiManager;
 import com.intellij.psi.PsiRecursiveElementVisitor;
+import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.SingleRootFileViewProvider;
 import com.intellij.psi.impl.source.PsiFileImpl;
+import com.intellij.psi.impl.source.tree.LeafPsiElement;
+import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.tree.IFileElementType;
 import com.intellij.testFramework.LightVirtualFile;
-import com.intellij.util.Consumer;
 import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -68,6 +72,8 @@ import javax.swing.Icon;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConnectionMappingProvider, PresentableConnectionProvider, StatefulDisposable {
     private final Language language;
@@ -220,7 +226,7 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
                 super.getVirtualFile() :
                 originalFile.getVirtualFile();
 */
-        return CommonUtil.nvl(super.getVirtualFile(), getViewProvider().getVirtualFile());
+        return Commons.nvl(super.getVirtualFile(), getViewProvider().getVirtualFile());
     }
 
     public boolean isInjectedContext() {
@@ -299,9 +305,9 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
 
     @Override
     public void navigate(boolean requestFocus) {
-        Editor selectedEditor = EditorUtil.getSelectedEditor(getProject());
+        Editor selectedEditor = Editors.getSelectedEditor(getProject());
         if (selectedEditor != null) {
-            Document document = DocumentUtil.getDocument(getContainingFile());
+            Document document = Documents.getDocument(getContainingFile());
             if (document != null) {
                 Editor[] editors = EditorFactory.getInstance().getEditors(document);
                 for (Editor editor : editors) {
@@ -328,7 +334,7 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
 
     public ElementTypeBundle getElementTypeBundle() {
         DBLanguageDialect languageDialect = getLanguageDialect();
-        languageDialect = CommonUtil.nvl(languageDialect, SQLLanguage.INSTANCE.getMainLanguageDialect());
+        languageDialect = Commons.nvl(languageDialect, SQLLanguage.INSTANCE.getMainLanguageDialect());
         return languageDialect.getParserDefinition().getParser().getElementTypes();
     }
 
@@ -374,7 +380,7 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
     }
 
     @Nullable
-    public static DBLanguagePsiFile createFromText(Project project, String fileName, DBLanguageDialect languageDialect, String text, ConnectionHandler activeConnection, SchemaId currentSchema) {
+    public static DBLanguagePsiFile createFromText(@NotNull Project project, String fileName, @NotNull DBLanguageDialect languageDialect, String text, ConnectionHandler activeConnection, SchemaId currentSchema) {
         PsiFileFactory psiFileFactory = PsiFileFactory.getInstance(project);
         PsiFile rawPsiFile = psiFileFactory.createFileFromText(fileName, languageDialect, text);
         if (rawPsiFile instanceof DBLanguagePsiFile) {
@@ -443,7 +449,7 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
             @Override
             public void visitElement(@NotNull PsiElement element) {
                 if (element instanceof PsiErrorElement) {
-                    if (errors.stream().noneMatch(error -> error.getTextOffset() == element.getTextOffset())) {
+                    if (Lists.noneMatch(errors, error -> error.getTextOffset() == element.getTextOffset())) {
                         errors.add((PsiErrorElement) element);
                     }
 
@@ -454,5 +460,32 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
         };;
         visitor.visitFile(this);
         return errors.size();
+    }
+
+    public int countWarnings() {
+        AtomicInteger count = new AtomicInteger();
+        PsiElementVisitor visitor = new PsiRecursiveElementVisitor() {
+            @Override
+            public void visitElement(@NotNull PsiElement element) {
+                if (element instanceof PsiWhiteSpace || element instanceof PsiComment) {
+                    // ignore
+                } else if (element instanceof LeafPsiElement && element.getParent() instanceof DBLanguagePsiFile) {
+                    LeafPsiElement leafPsiElement = (LeafPsiElement) element;
+                    IElementType elementType = leafPsiElement.getElementType();
+                    if (elementType instanceof TokenType) {
+                        TokenType tokenType = (TokenType) elementType;
+
+                        if (!tokenType.isCharacter() && !tokenType.isChameleon()) {
+                            count.incrementAndGet();
+                        }
+                    }
+
+                } else{
+                    super.visitElement(element);
+                }
+            }
+        };;
+        visitor.visitFile(this);
+        return count.get();
     }
 }

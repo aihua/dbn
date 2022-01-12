@@ -3,7 +3,7 @@ package com.dci.intellij.dbn.editor.data.model;
 
 import com.dci.intellij.dbn.common.property.Property;
 
-public enum RecordStatus implements Property {
+public enum RecordStatus implements Property.IntBase {
     INSERTING,
     UPDATING,
 
@@ -15,10 +15,10 @@ public enum RecordStatus implements Property {
     DISPOSED,
     ;
 
-    private final Computed computed = new Computed(this);
+    private final Masks masks = new Masks(this);
 
     @Override
-    public Computed computedOrdinal() {
-        return computed;
+    public Masks masks() {
+        return masks;
     }
 }

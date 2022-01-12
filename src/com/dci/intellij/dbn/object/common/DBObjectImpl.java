@@ -21,9 +21,10 @@ import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.ui.tree.TreeEventType;
-import com.dci.intellij.dbn.common.util.CommonUtil;
+import com.dci.intellij.dbn.common.util.Commons;
+import com.dci.intellij.dbn.common.util.Consumer;
 import com.dci.intellij.dbn.common.util.Safe;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -64,7 +65,6 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vcs.FileStatus;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiInvalidElementAccessException;
-import com.intellij.util.Consumer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -77,8 +77,8 @@ import java.util.List;
 import java.util.Objects;
 
 import static com.dci.intellij.dbn.browser.DatabaseBrowserUtils.treeVisibilityChanged;
-import static com.dci.intellij.dbn.common.util.CollectionUtil.compact;
-import static com.dci.intellij.dbn.common.util.CollectionUtil.filter;
+import static com.dci.intellij.dbn.common.util.Compactables.compact;
+import static com.dci.intellij.dbn.common.util.Lists.filter;
 
 public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTreeNodeBase implements DBObject, ToolTipProvider {
 
@@ -102,18 +102,18 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
     };
 
     protected DBObjectImpl(@NotNull DBObject parentObject, M metadata) throws SQLException {
-        this.connectionHandler = ConnectionHandlerRef.from(parentObject.getConnectionHandler());
+        this.connectionHandler = ConnectionHandlerRef.of(parentObject.getConnectionHandler());
         this.parentObjectRef = DBObjectRef.of(parentObject);
         init(metadata);
     }
 
     protected DBObjectImpl(@NotNull ConnectionHandler connectionHandler, M metadata) throws SQLException {
-        this.connectionHandler = ConnectionHandlerRef.from(connectionHandler);
+        this.connectionHandler = ConnectionHandlerRef.of(connectionHandler);
         init(metadata);
     }
 
     protected DBObjectImpl(@Nullable ConnectionHandler connectionHandler, DBObjectType objectType, String name) {
-        this.connectionHandler = ConnectionHandlerRef.from(connectionHandler);
+        this.connectionHandler = ConnectionHandlerRef.of(connectionHandler);
         objectRef = new DBObjectRef<>(this, objectType, name);
     }
 
@@ -133,15 +133,6 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
     protected void initProperties() {}
 
     protected void initLists() {}
-
-/*    @Override
-    public PsiElement getParent() {
-        PsiFile containingFile = getContainingFile();
-        if (containingFile != null) {
-            return containingFile.getParent();
-        }
-        return null;
-    }*/
 
     @Override
     public boolean set(DBObjectProperty status, boolean value) {
@@ -253,7 +244,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
                 name.indexOf('.') > 0 ||
                 name.indexOf('#') > 0 ||
                 getLanguageDialect(SQLLanguage.INSTANCE).isReservedWord(name) ||
-                StringUtil.isMixedCase(name);
+                Strings.isMixedCase(name);
     }
 
     @Override
@@ -485,7 +476,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
                     }
                 }
             } else {
-                DBObjectList objectList = childObjects.getObjectList(objectType);
+                DBObjectList<?> objectList = childObjects.getObjectList(objectType);
                 if (objectList == null) {
                     objectList = childObjects.getInternalObjectList(objectType);
                 }
@@ -528,7 +519,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
 
     @Override
     @NotNull
-    public DBObjectVirtualFile getVirtualFile() {
+    public DBObjectVirtualFile<?> getVirtualFile() {
         DBObjectBundle objectBundle = Failsafe.nn(getObjectBundle());
         return objectBundle.getObjectVirtualFile(getRef());
     }
@@ -679,8 +670,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
             }
         } else {
             DBObjectBundle objectBundle = getObjectBundle();
-            DBObjectListContainer objectListContainer = objectBundle.getObjectListContainer();
-            DBObjectList parentObjectList = objectListContainer.getObjectList(objectType);
+            DBObjectList<?> parentObjectList = objectBundle.getObjectList(objectType);
             return Failsafe.nn(parentObjectList);
         }
         throw AlreadyDisposedException.INSTANCE;
@@ -722,13 +712,13 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
         ConnectionHandler connectionHandler = getConnectionHandler();
         Filter<BrowserTreeNode> objectTypeFilter = connectionHandler.getObjectTypeFilter();
 
-        List<BrowserTreeNode> treeChildren = filter(getAllPossibleTreeChildren(), false, true, objectTypeFilter);
-        treeChildren = CommonUtil.nvl(treeChildren, Collections.emptyList());
+        List<BrowserTreeNode> treeChildren = filter(getAllPossibleTreeChildren(), objectTypeFilter);
+        treeChildren = Commons.nvl(treeChildren, Collections.emptyList());
 
-        treeChildren.forEach(objectList -> {
+        for (BrowserTreeNode objectList : treeChildren) {
             Background.run(() -> objectList.initTreeElement());
             checkDisposed();
-        });
+        }
 
         if (visibleTreeChildren.size() == 1 && visibleTreeChildren.get(0) instanceof LoadInProgressTreeNode) {
             visibleTreeChildren.get(0).dispose();
@@ -749,7 +739,9 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
     @Override
     public void refreshTreeChildren(@NotNull DBObjectType... objectTypes) {
         if (visibleTreeChildren != null) {
-            visibleTreeChildren.forEach(treeNode -> treeNode.refreshTreeChildren(objectTypes));
+            for (BrowserTreeNode treeNode : visibleTreeChildren) {
+                treeNode.refreshTreeChildren(objectTypes);
+            }
         }
 
     }
@@ -763,7 +755,9 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
             if (treeVisibilityChanged(getAllPossibleTreeChildren(), visibleTreeChildren, filter)) {
                 buildTreeChildren();
             }
-            visibleTreeChildren.forEach(treeNode -> treeNode.rebuildTreeChildren());
+            for (BrowserTreeNode treeNode : visibleTreeChildren) {
+                treeNode.rebuildTreeChildren();
+            }
         }
 
 

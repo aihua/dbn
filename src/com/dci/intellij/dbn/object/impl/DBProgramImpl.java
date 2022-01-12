@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.object.impl;
 
+import com.dci.intellij.dbn.common.util.Lists;
 import com.dci.intellij.dbn.database.common.metadata.def.DBProgramMetadata;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.object.DBFunction;
@@ -14,6 +15,7 @@ import com.dci.intellij.dbn.object.common.status.DBObjectStatus;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatusHolder;
 
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -72,32 +74,32 @@ public abstract class DBProgramImpl<M extends DBProgramMetadata, P extends DBPro
 
     @Override
     public List<F> getFunctions() {
-        return functions.getObjects();
+        return functions == null ? Collections.emptyList() : functions.getObjects();
     }
 
     @Override
     public List<P> getProcedures() {
-        return procedures.getObjects();
+        return procedures == null ? Collections.emptyList() : procedures.getObjects();
     }
 
     @Override
     public F getFunction(String name, short overload) {
-        return functions
-                .getObjects()
-                .stream()
-                .filter(function -> Objects.equals(function.getName(), name) && function.getOverload() == overload)
-                .findFirst()
-                .orElse(null);
+        if (functions != null) {
+            return Lists.first(functions.getObjects(), function ->
+                    Objects.equals(function.getName(), name) &&
+                            function.getOverload() == overload);
+        }
+        return null;
     }
 
     @Override
     public P getProcedure(String name, short overload) {
-        return procedures
-                .getObjects()
-                .stream()
-                .filter(procedure -> Objects.equals(procedure.getName(), name) && procedure.getOverload() == overload)
-                .findFirst()
-                .orElse(null);
+        if (procedures != null) {
+            return Lists.first(procedures.getObjects(), procedure ->
+                    Objects.equals(procedure.getName(), name) &&
+                            procedure.getOverload() == overload);
+        }
+        return null;
     }
 
     @Override

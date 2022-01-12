@@ -4,7 +4,7 @@ import com.dci.intellij.dbn.common.property.Property;
 import lombok.Getter;
 
 @Getter
-public enum ResourceStatus implements Property {
+public enum ResourceStatus implements Property.IntBase {
     // shared
     CLOSED,
     CLOSED_CHECKING(true),
@@ -44,7 +44,7 @@ public enum ResourceStatus implements Property {
     RESOLVING_TRANSACTION(true);
 
     private final boolean transitory;
-    private final Computed computed = new Computed(this);
+    private final Masks masks = new Masks(this);
 
     ResourceStatus() {
         this(false);
@@ -55,7 +55,7 @@ public enum ResourceStatus implements Property {
     }
 
     @Override
-    public Computed computedOrdinal() {
-        return computed;
+    public Masks masks() {
+        return masks;
     }
 }

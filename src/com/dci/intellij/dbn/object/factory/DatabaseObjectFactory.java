@@ -4,7 +4,7 @@ import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.thread.Progress;
-import com.dci.intellij.dbn.common.util.MessageUtil;
+import com.dci.intellij.dbn.common.util.Messages;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.SchemaId;
@@ -30,7 +30,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.dci.intellij.dbn.common.message.MessageCallback.conditional;
+import static com.dci.intellij.dbn.common.message.MessageCallback.when;
 
 public class DatabaseObjectFactory extends AbstractProjectComponent {
 
@@ -65,7 +65,7 @@ public class DatabaseObjectFactory extends AbstractProjectComponent {
             ObjectFactoryInputDialog dialog = new ObjectFactoryInputDialog(project, schema, objectType);
             dialog.show();
         } else {
-            MessageUtil.showErrorDialog(project, "Operation not supported", "Creation of " + objectType.getListName() + " is not supported yet.");
+            Messages.showErrorDialog(project, "Operation not supported", "Creation of " + objectType.getListName() + " is not supported yet.");
         }
     }
 
@@ -78,7 +78,7 @@ public class DatabaseObjectFactory extends AbstractProjectComponent {
             for (String error : errors) {
                 buffer.append(" - ").append(error).append("\n");
             }
-            MessageUtil.showErrorDialog(project, buffer.toString());
+            Messages.showErrorDialog(project, buffer.toString());
             return false;
         }
         if (factoryInput instanceof MethodFactoryInput) {
@@ -98,7 +98,7 @@ public class DatabaseObjectFactory extends AbstractProjectComponent {
                 databaseFileSystem.connectAndOpenEditor(method, null, false, true);
                 notifyFactoryEvent(new ObjectFactoryEvent(method, ObjectFactoryEvent.EVENT_TYPE_CREATE));
             } catch (SQLException e) {
-                MessageUtil.showErrorDialog(project, "Could not create " + factoryInput.getObjectType().getName() + ".", e);
+                Messages.showErrorDialog(project, "Could not create " + factoryInput.getObjectType().getName() + ".", e);
                 return false;
             }
         }
@@ -107,20 +107,18 @@ public class DatabaseObjectFactory extends AbstractProjectComponent {
     }
 
     public void dropObject(DBSchemaObject object) {
-        MessageUtil.showQuestionDialog(
+        Messages.showQuestionDialog(
                 getProject(),
                 "Drop object",
                 "Are you sure you want to drop the " + object.getQualifiedNameWithType() + "?",
-                MessageUtil.OPTIONS_YES_NO, 0,
-                (option) -> conditional(option == 0,
-                        () -> ConnectionAction.invoke("dropping the object", false, object,
-                                (action) -> {
-                                    Project project = getProject();
-                                    DatabaseFileManager databaseFileManager = DatabaseFileManager.getInstance(project);
-                                    databaseFileManager.closeFile(object);
+                Messages.OPTIONS_YES_NO, 0,
+                option -> when(option == 0, () ->
+                        ConnectionAction.invoke("dropping the object", false, object, action -> {
+                            Project project = getProject();
+                            DatabaseFileManager databaseFileManager = DatabaseFileManager.getInstance(project);
+                            databaseFileManager.closeFile(object);
 
-                                    Progress.prompt(project, "Dropping " + object.getQualifiedNameWithType(), false,
-                                            (progress) -> doDropObject(object));
+                            Progress.prompt(project, "Dropping " + object.getQualifiedNameWithType(), false, progress -> doDropObject(object));
                         })));
 
     }
@@ -156,7 +154,7 @@ public class DatabaseObjectFactory extends AbstractProjectComponent {
         } catch (SQLException e) {
             String message = "Could not drop " + object.getQualifiedNameWithType() + ".";
             Project project = getProject();
-            MessageUtil.showErrorDialog(project, message, e);
+            Messages.showErrorDialog(project, message, e);
         }
     }
 

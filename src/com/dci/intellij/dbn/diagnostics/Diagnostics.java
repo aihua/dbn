@@ -22,8 +22,8 @@ public final class Diagnostics {
         return developerMode && miscellaneous.bulkActionsEnabled;
     }
 
-    public static boolean isLanguageParserDebug() {
-        return developerMode && debugLogging.languageParser;
+    public static boolean isAlternativeParserEnabled() {
+        return developerMode && miscellaneous.alternativeParserEnabled;
     }
 
     public static boolean isDatabaseAccessDebug() {
@@ -99,7 +99,6 @@ public final class Diagnostics {
     @Getter
     @Setter
     public static final class DebugLogging implements PersistentStateElement{
-        private boolean languageParser = false;
         private boolean databaseAccess = false;
         private boolean databaseResource = false;
 
@@ -107,7 +106,6 @@ public final class Diagnostics {
         public void readState(Element element) {
             Element debugMode = element.getChild("debug-logging");
             if (debugMode != null) {
-                languageParser = booleanAttribute(debugMode, "language-parser", languageParser);
                 databaseAccess = booleanAttribute(debugMode, "database-access", databaseAccess);
                 databaseResource = booleanAttribute(debugMode, "database-resource", databaseResource);
             }
@@ -117,7 +115,6 @@ public final class Diagnostics {
         public void writeState(Element element) {
             Element debugMode = new Element("debug-logging");
             element.addContent(debugMode);
-            setBooleanAttribute(debugMode, "language-parser", languageParser);
             setBooleanAttribute(debugMode, "database-access", databaseAccess);
             setBooleanAttribute(debugMode, "database-resource", databaseResource);
         }
@@ -128,6 +125,7 @@ public final class Diagnostics {
     public static final class Miscellaneous implements PersistentStateElement{
         private boolean dialogSizingReset = false;
         private boolean bulkActionsEnabled = false;
+        private boolean alternativeParserEnabled = false;
 
         @Override
         public void readState(Element element) {
@@ -135,6 +133,7 @@ public final class Diagnostics {
             if (miscellaneous != null) {
                 dialogSizingReset = booleanAttribute(miscellaneous, "dialog-sizing-reset", dialogSizingReset);
                 bulkActionsEnabled = booleanAttribute(miscellaneous, "bulk-actions-enabled", bulkActionsEnabled);
+                alternativeParserEnabled = booleanAttribute(miscellaneous, "alternative-parser-enabled", alternativeParserEnabled);
             }
         }
 
@@ -144,6 +143,7 @@ public final class Diagnostics {
             element.addContent(miscellaneous);
             setBooleanAttribute(miscellaneous, "dialog-sizing-reset", dialogSizingReset);
             setBooleanAttribute(miscellaneous, "bulk-actions-enabled", bulkActionsEnabled);
+            setBooleanAttribute(miscellaneous, "alternative-parser-enabled", alternativeParserEnabled);
         }
     }
 

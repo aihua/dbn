@@ -10,8 +10,14 @@ import com.dci.intellij.dbn.common.project.ProjectRef;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
-import com.dci.intellij.dbn.common.util.MessageUtil;
-import com.dci.intellij.dbn.connection.*;
+import com.dci.intellij.dbn.common.util.Messages;
+import com.dci.intellij.dbn.connection.ConnectionAction;
+import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
+import com.dci.intellij.dbn.connection.ConnectionProvider;
+import com.dci.intellij.dbn.connection.ConnectionStatusListener;
+import com.dci.intellij.dbn.connection.SchemaId;
+import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingProvider;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
@@ -44,7 +50,11 @@ import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.actionSystem.DataProvider;
 import com.intellij.openapi.actionSystem.PlatformDataKeys;
 import com.intellij.openapi.editor.Editor;
-import com.intellij.openapi.fileEditor.*;
+import com.intellij.openapi.fileEditor.FileEditor;
+import com.intellij.openapi.fileEditor.FileEditorLocation;
+import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.FileEditorState;
+import com.intellij.openapi.fileEditor.FileEditorStateLevel;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -53,7 +63,7 @@ import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
+import javax.swing.JComponent;
 import java.beans.PropertyChangeListener;
 import java.sql.SQLException;
 import java.util.List;
@@ -93,7 +103,7 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
         this.dataset = DBObjectRef.of(dataset);
         this.settings = DataEditorSettings.getInstance(project);
 
-        connectionHandler = ConnectionHandlerRef.from(dataset.getConnectionHandler());
+        connectionHandler = ConnectionHandlerRef.of(dataset.getConnectionHandler());
         status = new DatasetEditorStatusHolder();
         status.set(CONNECTED, true);
         editorForm = new DatasetEditorForm(this);
@@ -353,7 +363,7 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
                                                 "The operation was timed out. Please check your timeout configuration in Data Editor settings." :
                                                 "Database error message: " + e.getMessage());
 
-                        MessageUtil.showErrorDialog(project, message);
+                        Messages.showErrorDialog(project, message);
                     }
                 } else {
                     String message =
@@ -364,7 +374,7 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
                                                     "Database error message: " + e.getMessage());
                     String[] options = {"Retry", "Edit filter", "Remove filter", "Ignore filter", "Cancel"};
 
-                    MessageUtil.showErrorDialog(project, "Error", message, options, 0,
+                    Messages.showErrorDialog(project, "Error", message, options, 0,
                             (option) -> {
                                 DatasetLoadInstructions instructions = DatasetLoadInstructions.clone(instr);
                                 instructions.setDeliberateAction(true);
@@ -390,7 +400,7 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
                 String message =
                         "Error loading data for " + datasetName + ". Could not connect to database.\n" +
                                 "Database error message: " + e.getMessage();
-                MessageUtil.showErrorDialog(project, message);
+                Messages.showErrorDialog(project, message);
             }
         });
     }
@@ -573,7 +583,7 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
                         try {
                             model.postInsertRecord(true, false, true);
                         } catch (SQLException e1) {
-                            MessageUtil.showErrorDialog(getProject(), "Could not create row in " + getDataset().getQualifiedNameWithType() + '.', e1);
+                            Messages.showErrorDialog(getProject(), "Could not create row in " + getDataset().getQualifiedNameWithType() + '.', e1);
                             model.cancelInsert(true);
                         }
                     }

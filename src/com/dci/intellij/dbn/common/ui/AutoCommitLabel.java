@@ -25,7 +25,7 @@ import javax.swing.JLabel;
 import java.awt.BorderLayout;
 import java.awt.Color;
 
-import static com.dci.intellij.dbn.common.util.CommonUtil.nvl;
+import static com.dci.intellij.dbn.common.util.Commons.nvl;
 
 public class AutoCommitLabel extends DBNPanelImpl implements Disposable {
     private interface Colors {
@@ -60,7 +60,7 @@ public class AutoCommitLabel extends DBNPanelImpl implements Disposable {
 
     public void init(Project project, VirtualFile virtualFile, ConnectionHandler connectionHandler, SessionId sessionId) {
         this.virtualFile = WeakRef.of(virtualFile);
-        this.connectionHandler = ConnectionHandlerRef.from(connectionHandler);
+        this.connectionHandler = ConnectionHandlerRef.of(connectionHandler);
         this.sessionId = nvl(sessionId, SessionId.MAIN);
         if (!subscribed) {
             subscribed = true;
@@ -127,7 +127,7 @@ public class AutoCommitLabel extends DBNPanelImpl implements Disposable {
         public void connectionChanged(VirtualFile virtualFile, ConnectionHandler connectionHandler) {
             VirtualFile localVirtualFile = getVirtualFile();
             if (virtualFile.equals(localVirtualFile)) {
-                AutoCommitLabel.this.connectionHandler = ConnectionHandlerRef.from(connectionHandler);
+                AutoCommitLabel.this.connectionHandler = ConnectionHandlerRef.of(connectionHandler);
                 update();
             }
         }

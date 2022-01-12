@@ -1,5 +1,7 @@
 package com.dci.intellij.dbn.common.file.util;
 
+import com.dci.intellij.dbn.common.event.ApplicationEvents;
+import com.dci.intellij.dbn.common.thread.Write;
 import com.dci.intellij.dbn.vfs.DBVirtualFileImpl;
 import com.dci.intellij.dbn.vfs.DatabaseFileSystem;
 import com.intellij.openapi.project.Project;
@@ -8,6 +10,11 @@ import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.StandardFileSystems;
 import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.openapi.vfs.VirtualFileManager;
+import com.intellij.openapi.vfs.newvfs.BulkFileListener;
+import com.intellij.openapi.vfs.newvfs.events.VFileDeleteEvent;
+import com.intellij.openapi.vfs.newvfs.events.VFileEvent;
+import com.intellij.openapi.vfs.newvfs.events.VFilePropertyChangeEvent;
 import com.intellij.testFramework.LightVirtualFile;
 import com.intellij.util.io.ReadOnlyAttributeUtil;
 import org.jetbrains.annotations.NotNull;
@@ -16,6 +23,8 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.Icon;
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 
 public class VirtualFileUtil {
 
@@ -59,32 +68,14 @@ public class VirtualFileUtil {
         }
     }
 
-    public static VirtualFile[] lookupFilesForName(Project project, String name) {
-        VirtualFile[] contentRoots = getContentRoots(project);
-        return lookupFilesForName(contentRoots, name);
-    }
-
-    public static VirtualFile[] lookupFilesForName(VirtualFile[] roots, String name) {
-        FileCollector collector = new FileCollector(FileCollectorType.NAME, name);
-        return collectFiles(roots, collector);
-    }
-
-    public static VirtualFile[] lookupFilesForExtensions(Project project, String ... extensions) {
-        FileCollector collector = new FileCollector(FileCollectorType.EXTENSION, extensions);
-        return collectFiles(getContentRoots(project), collector);
-    }
-
-    private static VirtualFile[] collectFiles(VirtualFile[] roots, FileCollector collector) {
-        for (VirtualFile root : roots) {
-            VfsUtilCore.visitChildrenRecursively(root, collector);
+    public static VirtualFile[] findFiles(Project project, FileSearchRequest request) {
+        FileCollector collector = FileCollector.create(request);
+        ProjectRootManager projectRootManager = ProjectRootManager.getInstance(project);
+        VirtualFile[] contentRoots = projectRootManager.getContentRoots();
+        for (VirtualFile contentRoot : contentRoots) {
+            VfsUtilCore.visitChildrenRecursively(contentRoot, collector);
         }
         return collector.files();
-    }
-
-    @NotNull
-    private static VirtualFile[] getContentRoots(Project project) {
-        ProjectRootManager rootManager = ProjectRootManager.getInstance(project);
-        return rootManager.getContentRoots();
     }
 
     public static String ensureFilePath(String fileUrlOrPath) {
@@ -108,6 +99,28 @@ public class VirtualFileUtil {
             return lightVirtualFile.getOriginalFile();
         }
         return null;
+    }
+
+    public static VFileEvent createFileRenameEvent(
+            @NotNull VirtualFile virtualFile,
+            @NotNull String oldName,
+            @NotNull String newName) {
+        return new VFilePropertyChangeEvent(null, virtualFile, VirtualFile.PROP_NAME, oldName, newName, false);
+    }
+
+    public static VFileEvent createFileDeleteEvent(@NotNull VirtualFile virtualFile) {
+        return new VFileDeleteEvent(null, virtualFile, false);
+    }
+
+    public static void notifiedFileChange(VFileEvent event, Runnable changeAction) {
+        BulkFileListener publisher = ApplicationEvents.publisher(VirtualFileManager.VFS_CHANGES);
+        List<VFileEvent> events = Collections.singletonList(event);
+        Write.run(() -> {
+            publisher.before(events);
+            changeAction.run();
+            publisher.after(events);
+        });
+
     }
 
 

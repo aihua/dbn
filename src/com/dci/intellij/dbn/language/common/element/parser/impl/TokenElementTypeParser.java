@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.language.common.element.parser.impl;
 
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.language.common.SharedTokenTypeBundle;
 import com.dci.intellij.dbn.language.common.SimpleTokenType;
 import com.dci.intellij.dbn.language.common.TokenType;
@@ -11,8 +11,7 @@ import com.dci.intellij.dbn.language.common.element.parser.ParseResultType;
 import com.dci.intellij.dbn.language.common.element.parser.ParserBuilder;
 import com.dci.intellij.dbn.language.common.element.parser.ParserContext;
 import com.dci.intellij.dbn.language.common.element.path.ParsePathNode;
-import com.intellij.lang.PsiBuilder;
-import org.jetbrains.annotations.NotNull;
+import com.intellij.lang.PsiBuilder.Marker;
 
 public class TokenElementTypeParser extends ElementTypeParser<TokenElementType> {
     public TokenElementTypeParser(TokenElementType elementType) {
@@ -20,42 +19,68 @@ public class TokenElementTypeParser extends ElementTypeParser<TokenElementType> 
     }
 
     @Override
-    public ParseResult parse(@NotNull ParsePathNode parentNode, boolean optional, int depth, ParserContext context) {
-        ParserBuilder builder = context.builder;
-        logBegin(builder, optional, depth);
+    public ParseResult parse(ParsePathNode parentNode, ParserContext context) {
+        if (context.isAlternative()) {
+            return parseNew(parentNode, context);
+        }
+        ParserBuilder builder = context.getBuilder();
+        Marker marker = null;
 
-        TokenType tokenType = builder.getTokenType();
-        if (tokenType == elementType.getTokenType() || isDummyToken(builder.getTokenText())) {
+        TokenType token = builder.getToken();
+        if (token == elementType.getTokenType() || builder.isDummyToken()) {
 
             String text = elementType.getText();
-            if (StringUtil.isNotEmpty(text) && StringUtil.equalsIgnoreCase(builder.getTokenText(), text)) {
-                PsiBuilder.Marker marker = builder.mark(null);
-                builder.advanceLexer(parentNode);
-                return stepOut(marker, null, context, depth, ParseResultType.FULL_MATCH, 1);
+            if (Strings.isNotEmpty(text) && Strings.equalsIgnoreCase(builder.getTokenText(), text)) {
+                marker = builder.markAndAdvance();
+                return stepOut(marker, context, ParseResultType.FULL_MATCH, 1);
             }
 
             SharedTokenTypeBundle sharedTokenTypes = getElementBundle().getTokenTypeBundle().getSharedTokenTypes();
             SimpleTokenType leftParenthesis = sharedTokenTypes.getChrLeftParenthesis();
             SimpleTokenType dot = sharedTokenTypes.getChrDot();
 
-            if (tokenType.isSuppressibleReservedWord()) {
-                TokenType nextTokenType = builder.lookAhead(1);
+            if (token.isSuppressibleReservedWord()) {
+                TokenType nextTokenType = builder.getNextToken();
                 if (nextTokenType == dot && !elementType.isNextPossibleToken(dot, parentNode, context)) {
-                    context.setWavedTokenType(tokenType);
-                    return stepOut(null, null, context, depth, ParseResultType.NO_MATCH, 0);
+                    context.setWavedTokenType(token);
+                    return stepOut(marker, context, ParseResultType.NO_MATCH, 0);
                 }
-                if (tokenType.isFunction() && elementType.getFlavor() == null) {
+                if (token.isFunction() && elementType.getFlavor() == null) {
                     if (nextTokenType != leftParenthesis && elementType.isNextRequiredToken(leftParenthesis, parentNode, context)) {
-                        context.setWavedTokenType(tokenType);
-                        return stepOut(null, null, context, depth, ParseResultType.NO_MATCH, 0);
+                        context.setWavedTokenType(token);
+                        return stepOut(marker, context, ParseResultType.NO_MATCH, 0);
                     }
                 }
             }
 
-            PsiBuilder.Marker marker = builder.mark(null);
-            builder.advanceLexer(parentNode);
-            return stepOut(marker, null, context, depth, ParseResultType.FULL_MATCH, 1);
+            marker = builder.markAndAdvance();
+            return stepOut(marker, context, ParseResultType.FULL_MATCH, 1);
         }
-        return stepOut(null, null, context, depth, ParseResultType.NO_MATCH, 0);
+        return stepOut(marker, context, ParseResultType.NO_MATCH, 0);
+    }
+
+    ParseResult parseNew(ParsePathNode parentNode, ParserContext context) {
+        ParserBuilder builder = context.getBuilder();
+        Marker marker = null;
+
+        TokenType token = builder.getToken();
+        if (token == elementType.getTokenType() || builder.isDummyToken()) {
+
+            String elementText = elementType.getText();
+            if (Strings.isNotEmpty(elementText)) {
+                if (Strings.equalsIgnoreCase(builder.getTokenText(), elementText)) {
+                    // custom elements with text definition
+                    marker = builder.markAndAdvance();
+                    return stepOut(marker, context, ParseResultType.FULL_MATCH, 1);
+                }
+            } else {
+                // regular token match
+                marker = builder.markAndAdvance();
+                return stepOut(marker, context, ParseResultType.FULL_MATCH, 1);
+            }
+        }
+
+        // no match
+        return stepOut(marker, context, ParseResultType.NO_MATCH, 0);
     }
 }

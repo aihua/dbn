@@ -3,7 +3,7 @@ package com.dci.intellij.dbn.vfs.file;
 import com.dci.intellij.dbn.code.common.style.DBLCodeStyleManager;
 import com.dci.intellij.dbn.code.common.style.options.CodeStyleCaseSettings;
 import com.dci.intellij.dbn.common.Icons;
-import com.dci.intellij.dbn.common.util.StringUtil;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.connection.SessionId;
@@ -14,6 +14,7 @@ import com.dci.intellij.dbn.language.common.DBLanguageDialect;
 import com.dci.intellij.dbn.language.psql.PSQLLanguage;
 import com.dci.intellij.dbn.language.sql.SQLFileType;
 import com.dci.intellij.dbn.object.DBConsole;
+import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.vfs.DBConsoleType;
 import com.dci.intellij.dbn.vfs.DBParseableVirtualFile;
 import com.dci.intellij.dbn.vfs.DatabaseFileViewProvider;
@@ -48,7 +49,7 @@ public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> impleme
     private DatabaseSession databaseSession;
 
     public DBConsoleVirtualFile(@NotNull DBConsole console) {
-        super(console.getProject(), console.getRef());
+        super(console.getProject(), DBObjectRef.of(console));
         ConnectionHandler connectionHandler = console.getConnectionHandler();
         databaseSession = connectionHandler.getSessionBundle().getMainSession();
         setDatabaseSchema(connectionHandler.getDefaultSchema());
@@ -60,7 +61,7 @@ public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> impleme
     }
 
     public void setText(String text) {
-        if (getObject().getConsoleType() == DBConsoleType.DEBUG && StringUtil.isEmpty(text)) {
+        if (getObject().getConsoleType() == DBConsoleType.DEBUG && Strings.isEmpty(text)) {
             ConnectionHandler connectionHandler = getConnectionHandler();
             Project project = connectionHandler.getProject();
 
@@ -80,9 +81,9 @@ public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> impleme
 
     public void setName(String name) {
         this.name = name;
-        path = null;
-        url = null;
-    }
+        this.path = null;
+        this.url = null;
+   }
 
     @NotNull
     public DBConsole getConsole() {
@@ -103,7 +104,7 @@ public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> impleme
     }
 
     public void setDatabaseSchemaName(String currentSchemaName) {
-        if (StringUtil.isEmpty(currentSchemaName)) {
+        if (Strings.isEmpty(currentSchemaName)) {
             this.databaseSchema = null;
         } else {
             this.databaseSchema = SchemaId.get(currentSchemaName);

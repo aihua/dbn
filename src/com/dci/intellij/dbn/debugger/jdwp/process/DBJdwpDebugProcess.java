@@ -4,7 +4,7 @@ import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
-import com.dci.intellij.dbn.common.util.CommonUtil;
+import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ResourceUtil;
@@ -70,8 +70,8 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput>
         extends JavaDebugProcess
         implements DBDebugProcess {
 
-    public static final Key<DBJdwpDebugProcess> KEY = new Key<DBJdwpDebugProcess>("DBNavigator.JdwpDebugProcess");
-    private final ConnectionHandlerRef connectionHandlerRef;
+    public static final Key<DBJdwpDebugProcess> KEY = new Key<>("DBNavigator.JdwpDebugProcess");
+    private final ConnectionHandlerRef connectionHandler;
     private final DBDebugProcessStatusHolder status = new DBDebugProcessStatusHolder();
     private final DBBreakpointHandler<DBJdwpDebugProcess>[] breakpointHandlers;
     private final DBDebugConsoleLogger console;
@@ -83,8 +83,9 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput>
 
     protected DBJdwpDebugProcess(@NotNull final XDebugSession session, DebuggerSession debuggerSession, ConnectionHandler connectionHandler, int tcpPort) {
         super(session, debuggerSession);
-        console = new DBDebugConsoleLogger(session);
-        this.connectionHandlerRef = ConnectionHandlerRef.from(connectionHandler);
+        this.console = new DBDebugConsoleLogger(session);
+        this.connectionHandler = ConnectionHandlerRef.of(connectionHandler);
+
         Project project = session.getProject();
         DatabaseDebuggerManager debuggerManager = DatabaseDebuggerManager.getInstance(project);
         debuggerManager.registerDebugSession(connectionHandler);
@@ -128,7 +129,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput>
 
     @Override
     public ConnectionHandler getConnectionHandler() {
-        return connectionHandlerRef.ensure();
+        return connectionHandler.ensure();
     }
 
     @Nullable
@@ -202,7 +203,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput>
 
                     XExecutionStack[] executionStacks = xSuspendContext.getExecutionStacks();
                     for (XExecutionStack executionStack : executionStacks) {
-                        System.out.println();
+                        //System.out.println();
                     }
 
                     //underlyingFrame.getDescriptor().getLocation()
@@ -389,7 +390,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput>
                     }
                 }
             } catch (Exception e) {
-                getConsole().warning("Error evaluating suspend position '" + sourceUrl + "': " + CommonUtil.nvl(e.getMessage(), e.getClass().getSimpleName()));
+                getConsole().warning("Error evaluating suspend position '" + sourceUrl + "': " + Commons.nvl(e.getMessage(), e.getClass().getSimpleName()));
             }
         }
         return null;

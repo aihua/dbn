@@ -7,11 +7,12 @@ import com.dci.intellij.dbn.browser.ui.DatabaseBrowserTree;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
-import com.dci.intellij.dbn.common.filter.Filter;
+import com.dci.intellij.dbn.common.index.IdentifiableMap;
 import com.dci.intellij.dbn.common.list.FilteredList;
 import com.dci.intellij.dbn.common.options.SettingsChangeNotifier;
 import com.dci.intellij.dbn.common.project.ProjectRef;
 import com.dci.intellij.dbn.common.util.Commons;
+import com.dci.intellij.dbn.common.util.Lists;
 import com.dci.intellij.dbn.connection.config.ConnectionBundleSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSettingsListener;
@@ -26,18 +27,13 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.Icon;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Stream;
 
 public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTreeNode, StatefulDisposable {
-
-    @NotNull
-    private static Filter<ConnectionHandler> createActiveConnectionsFilter() {
-        return connectionHandler -> connectionHandler != null && connectionHandler.isEnabled();
-    }
-
-
     private final ProjectRef project;
+    private final IdentifiableMap<ConnectionId, ConnectionHandlerRef> index = new IdentifiableMap<>();
     private final List<ConnectionHandler> virtualConnections = new ArrayList<>();
-    private FilteredList<ConnectionHandler> connectionHandlers = FilteredList.stateful(createActiveConnectionsFilter());
+    private FilteredList<ConnectionHandler> connections = FilteredList.stateful(c -> c.isEnabled());
 
     public ConnectionBundle(Project project) {
         this.project = ProjectRef.of(project);
@@ -75,6 +71,7 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
                 DatabaseType.GENERIC,
                 92,
                 project));
+        rebuildIndex();
     }
 
     public List<ConnectionHandler> getVirtualConnections() {
@@ -82,39 +79,35 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
     }
 
     public ConnectionHandler getVirtualConnection(ConnectionId id) {
-        for (ConnectionHandler virtualConnection : virtualConnections) {
-            if (virtualConnection.getConnectionId() == id) {
-                return virtualConnection;
-            }
-        }
-        return null;
+        ConnectionHandler connection = getConnection(id);
+        // TODO clear assertion
+        assert connection == null || connection.isVirtual();
+        return connection;
     }
 
     public void applySettings(ConnectionBundleSettings configuration) {
-        FilteredList<ConnectionHandler> newConnectionHandlers = FilteredList.stateful(createActiveConnectionsFilter());
-        List<ConnectionHandler> oldConnectionHandlers = new ArrayList<>(this.connectionHandlers.getBase());
+        FilteredList<ConnectionHandler> newConnections = FilteredList.stateful(c -> c.isEnabled());
+        List<ConnectionHandler> oldConnections = new ArrayList<>(this.connections.getBase());
         List<ConnectionSettings> connectionSettings = configuration.getConnections();
         boolean listChanged = false;
         for (ConnectionSettings connectionSetting : connectionSettings) {
             ConnectionId connectionId = connectionSetting.getConnectionId();
-            ConnectionHandler connectionHandler = getConnectionHandler(oldConnectionHandlers, connectionId);
-            if (connectionHandler == null) {
-                connectionHandler = new ConnectionHandlerImpl(this, connectionSetting);
-                newConnectionHandlers.add(connectionHandler);
-                Disposer.register(this, connectionHandler);
+            ConnectionHandler connection = Lists.first(oldConnections, c -> c.getConnectionId() == connectionId);;
+            if (connection == null) {
+                connection = new ConnectionHandlerImpl(this, connectionSetting);
+                newConnections.add(connection);
+                Disposer.register(this, connection);
                 listChanged = true;
             } else {
-                listChanged = listChanged || connectionHandler.isEnabled() != connectionSetting.isActive();
-                connectionHandler.setSettings(connectionSetting);
-                newConnectionHandlers.add(connectionHandler);
-                oldConnectionHandlers.remove(connectionHandler);
+                listChanged = listChanged || connection.isEnabled() != connectionSetting.isActive();
+                connection.setSettings(connectionSetting);
+                newConnections.add(connection);
+                oldConnections.remove(connection);
             }
         }
-        this.connectionHandlers = newConnectionHandlers;
+        this.connections = newConnections;
 
-
-
-        listChanged = listChanged || oldConnectionHandlers.size() > 0;
+        listChanged = listChanged || oldConnections.size() > 0;
         if (listChanged) {
             Project project = configuration.getProject();
             SettingsChangeNotifier.register(() -> {
@@ -123,25 +116,23 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
                         (listener) -> listener.connectionsChanged());
 
                 ConnectionManager connectionManager = ConnectionManager.getInstance(project);
-                connectionManager.disposeConnections(oldConnectionHandlers);
+                connectionManager.disposeConnections(oldConnections);
             });
         }
+
+        rebuildIndex();
     }
 
-    ConnectionHandler getConnectionHandler(List<ConnectionHandler> list, ConnectionId connectionId) {
-        for (ConnectionHandler connectionHandler : list) {
-            if (connectionHandler.getConnectionId() == connectionId) {
-                return connectionHandler;
-            }
-        }
-        return null;
+    private void rebuildIndex() {
+        this.index.rebuild(Stream.of(
+                this.connections.getBase(),
+                this.virtualConnections).flatMap(c -> c.stream()).map(c -> c.getRef()));
     }
 
     @Override
     public Icon getIcon(int flags) {
         return Icons.PROJECT;
     }
-
 
     @Override
     @NotNull
@@ -150,54 +141,16 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
     }
 
     @Nullable
-    @Override
-    public GenericDatabaseElement getParentElement() {
-        return null;
+    public ConnectionHandler getConnection(@Nullable ConnectionId id) {
+        return id == null ? null : ConnectionHandlerRef.get(index.get(id));
     }
 
-    @Override
-    public GenericDatabaseElement getUndisposedElement() {
-        return this;
+    public List<ConnectionHandler> getConnections() {
+        return connections;
     }
 
-    @NotNull
-    @Override
-    public ConnectionId getConnectionId() {
-        throw new UnsupportedOperationException();
-    }
-
-    @NotNull
-    @Override
-    public ConnectionHandler getConnectionHandler() {
-        throw new UnsupportedOperationException();
-    }
-
-    public void addConnection(ConnectionHandler connectionHandler) {
-        connectionHandlers.add(connectionHandler);
-        Disposer.register(this, connectionHandler);
-    }
-
-    public void setConnectionHandlers(List<ConnectionHandler> connectionHandlers) {
-        this.connectionHandlers = FilteredList.stateful(createActiveConnectionsFilter(), connectionHandlers);
-    }
-
-    public boolean containsConnection(ConnectionHandler connectionHandler) {
-        return connectionHandlers.contains(connectionHandler);
-    }
-
-    public ConnectionHandler getConnection(ConnectionId id) {
-        for (ConnectionHandler connectionHandler : connectionHandlers.getBase()){
-            if (connectionHandler.getConnectionId() == id) return connectionHandler;
-        }
-        return null;
-    }
-
-    public FilteredList<ConnectionHandler> getConnectionHandlers() {
-        return connectionHandlers;
-    }
-
-    public List<ConnectionHandler> getAllConnectionHandlers() {
-        return connectionHandlers.getBase();
+    public List<ConnectionHandler> getAllConnections() {
+        return connections.getBase();
     }
 
     /*********************************************************
@@ -271,37 +224,37 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
 
     @Override
     public void refreshTreeChildren(@NotNull DBObjectType... objectTypes) {
-        for (ConnectionHandler connectionHandler : connectionHandlers) {
+        for (ConnectionHandler connectionHandler : connections) {
             connectionHandler.getObjectBundle().refreshTreeChildren(objectTypes);
         }
     }
 
     @Override
     public void rebuildTreeChildren() {
-        for (ConnectionHandler connectionHandler : connectionHandlers) {
+        for (ConnectionHandler connectionHandler : connections) {
             connectionHandler.getObjectBundle().rebuildTreeChildren();
         }
     }
 
     @Override
     public BrowserTreeNode getChildAt(int index) {
-        return connectionHandlers.get(index).getObjectBundle();
+        return connections.get(index).getObjectBundle();
     }
 
     @Override
     public int getChildCount() {
-        return connectionHandlers.size();
+        return connections.size();
     }
 
     @Override
     public boolean isLeaf() {
-        return connectionHandlers.size() == 0;
+        return connections.size() == 0;
     }
 
     @Override
     public int getIndex(BrowserTreeNode child) {
         DBObjectBundle objectBundle = (DBObjectBundle) child;
-        return connectionHandlers.indexOf(objectBundle.getConnectionHandler());
+        return connections.indexOf(objectBundle.getConnectionHandler());
     }
 
     @Override
@@ -316,7 +269,7 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
 
     @Override
     public String getPresentableTextDetails() {
-        int size = connectionHandlers.size();
+        int size = connections.size();
         return size == 0 ? "(no connections)" : "(" + size + ')';
     }
 
@@ -335,12 +288,13 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
 
 
     public boolean isEmpty() {
-        return connectionHandlers.getBase().isEmpty();
+        return connections.getBase().isEmpty();
     }
 
 
     @Override
     protected void disposeInner() {
+        index.clear();
         nullify();
     }
 }

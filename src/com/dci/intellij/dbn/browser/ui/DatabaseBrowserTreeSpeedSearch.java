@@ -12,7 +12,7 @@ import com.intellij.ui.SpeedSearchBase;
 import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.*;
+import javax.swing.JTree;
 import javax.swing.event.TreeModelEvent;
 import javax.swing.event.TreeModelListener;
 import javax.swing.tree.TreePath;
@@ -77,8 +77,8 @@ public class DatabaseBrowserTreeSpeedSearch extends SpeedSearchBase<JTree> imple
         if (browserTreeNode.isTreeStructureLoaded()) {
             if (browserTreeNode instanceof ConnectionBundle) {
                 ConnectionBundle connectionBundle = (ConnectionBundle) browserTreeNode;
-                for (ConnectionHandler connectionHandler : connectionBundle.getConnectionHandlers()){
-                    DBObjectBundle objectBundle = connectionHandler.getObjectBundle();
+                for (ConnectionHandler connection : connectionBundle.getConnections()){
+                    DBObjectBundle objectBundle = connection.getObjectBundle();
                     loadElements(nodes, objectBundle);
                 }
             }

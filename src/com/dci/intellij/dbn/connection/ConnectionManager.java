@@ -128,7 +128,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     private final ConnectionSettingsListener connectionSettingsListener = new ConnectionSettingsListener() {
         @Override
         public void connectionChanged(ConnectionId connectionId) {
-            ConnectionHandler connectionHandler = getConnectionHandler(connectionId);
+            ConnectionHandler connectionHandler = getConnection(connectionId);
             if (connectionHandler != null) {
                 Project project = getProject();
                 Progress.background(
@@ -144,7 +144,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
                                 Progress.check(progress);
                                 transactionManager.execute(connectionHandler, connection, actions, false, null);
                             }
-                            connectionHandler.getObjectBundle().getObjectListContainer().refresh();
+                            connectionHandler.getObjectBundle().getObjectLists().refreshObjects();
 
                         });
             }
@@ -165,7 +165,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
                     ConnectionDatabaseSettings databaseSettings = connectionHandler.getSettings().getDatabaseSettings();
                     String connectionName = connectionHandler.getName();
                     try {
-                        databaseSettings.checkConfiguration();
+                        databaseSettings.validate();
                         connectionHandler.getConnection(sessionId, schemaId);
                         ConnectionHandlerStatusHolder connectionStatus = connectionHandler.getConnectionStatus();
                         connectionStatus.setValid(true);
@@ -191,7 +191,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
         Project project = connectionSettings.getProject();
         ConnectionDatabaseSettings databaseSettings = connectionSettings.getDatabaseSettings();
         try {
-            databaseSettings.checkConfiguration();
+            databaseSettings.validate();
 
             if (databaseSettings.isDatabaseInitialized()) {
                 ensureAuthenticationProvided(databaseSettings, (authenticationInfo) ->
@@ -246,7 +246,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
         Project project = connectionSettings.getProject();
 
         try {
-            databaseSettings.checkConfiguration();
+            databaseSettings.validate();
             ensureAuthenticationProvided(databaseSettings, (authenticationInfo) ->
                     Progress.modal(project, "Connecting to " + connectionName, false, (progress) -> {
                         try {
@@ -382,21 +382,16 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
      *                     Miscellaneous                     *
      *********************************************************/
     @Nullable
-    public ConnectionHandler getConnectionHandler(ConnectionId connectionId) {
-         for (ConnectionHandler connectionHandler : getConnectionBundle().getConnectionHandlers().getBase()) {
-            if (connectionHandler.getConnectionId() == connectionId) {
-                return connectionHandler;
-            }
-         }
-         return null;
+    public ConnectionHandler getConnection(ConnectionId connectionId) {
+        return getConnectionBundle().getConnection(connectionId);
      }
 
-     public List<ConnectionHandler> getConnectionHandlers(Predicate<ConnectionHandler> predicate) {
-        return Lists.filtered(getConnectionHandlers(), predicate);
+     public List<ConnectionHandler> getConnections(Predicate<ConnectionHandler> predicate) {
+        return Lists.filtered(getConnections(), predicate);
      }
 
-     public List<ConnectionHandler> getConnectionHandlers() {
-         return getConnectionBundle().getConnectionHandlers();
+     public List<ConnectionHandler> getConnections() {
+         return getConnectionBundle().getConnections();
      }
 
      public ConnectionHandler getActiveConnection(Project project) {
@@ -414,7 +409,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
      }
 
     public boolean hasUncommittedChanges() {
-        for (ConnectionHandler connectionHandler : getConnectionHandlers()) {
+        for (ConnectionHandler connectionHandler : getConnections()) {
             if (connectionHandler.hasUncommittedChanges()) {
                 return true;
             }
@@ -425,7 +420,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     private void commitAll(@Nullable Runnable callback) {
         DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(getProject());
 
-        List<ConnectionHandler> connectionHandlers = getConnectionHandlers(
+        List<ConnectionHandler> connectionHandlers = getConnections(
                 connectionHandler -> connectionHandler.hasUncommittedChanges());
 
         for (ConnectionHandler connectionHandler : connectionHandlers) {
@@ -437,7 +432,7 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     private void rollbackAll(@Nullable Runnable callback) {
         DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(getProject());
 
-        List<ConnectionHandler> connectionHandlers = getConnectionHandlers(
+        List<ConnectionHandler> connectionHandlers = getConnections(
                 connectionHandler -> connectionHandler.hasUncommittedChanges());
 
         for (ConnectionHandler connectionHandler : connectionHandlers) {
@@ -447,14 +442,14 @@ public class ConnectionManager extends AbstractProjectComponent implements Persi
     }
 
     public boolean isValidConnectionId(ConnectionId connectionId) {
-        return getConnectionHandler(connectionId) != null;
+        return getConnection(connectionId) != null;
     }
 
     private class CloseIdleConnectionTask extends TimerTask {
         @Override
         public void run() {
             try {
-                List<ConnectionHandler> connectionHandlers = getConnectionHandlers();
+                List<ConnectionHandler> connectionHandlers = getConnections();
                 for (ConnectionHandler connectionHandler : connectionHandlers) {
                     resolveIdleStatus(connectionHandler);
                 }

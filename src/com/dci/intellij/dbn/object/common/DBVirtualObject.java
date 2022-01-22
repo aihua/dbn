@@ -244,7 +244,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
 
     private DBObjectList<DBObject> loadChildObjectList(DBObjectType objectType) {
         DBObjectListContainer childObjects = initChildObjects();
-        DBObjectList<DBObject> objectList = childObjects.getObjectList(objectType);
+        DBObjectList<DBObject> objectList = childObjects.getObjects(objectType);
         if (objectList != null) {
             for (DBObject object : objectList.getObjects()) {
                 if (!object.isValid()) {
@@ -336,11 +336,6 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
             return connectionManager.getConnectionBundle().getVirtualConnection(ConnectionId.VIRTUAL_ORACLE_CONNECTION);
         }
         return connectionHandler;
-    }
-
-    @Override
-    public DBObject getParentObject() {
-        return DBObjectRef.get(parentObjectRef);
     }
 
     public void setParentObject(DBVirtualObject virtualObject) {

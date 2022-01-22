@@ -8,7 +8,8 @@ import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.property.Property;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.GenericDatabaseElement;
+import com.dci.intellij.dbn.connection.ConnectionId;
+import com.dci.intellij.dbn.connection.DatabaseEntity;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -17,42 +18,30 @@ import java.util.Collections;
 import java.util.List;
 
 public class VoidDynamicContent extends StatefulDisposable.Base implements DynamicContent{
-    private final List<?> elements = Collections.emptyList();
-
     public static final VoidDynamicContent INSTANCE = new VoidDynamicContent();
 
-    private VoidDynamicContent() {
+    private final List<?> elements = Collections.emptyList();
 
-    }
-
-    @Override
-    public void load() {
-
-    }
+    private VoidDynamicContent() {}
 
     @Override
-    public void ensure() {
-
-    }
+    public void load() {}
 
     @Override
-    public void loadInBackground() {
+    public void ensure() {}
 
-    }
+    @Override
+    public void loadInBackground() {}
 
 
     @Override
-    public void reload() {
-
-    }
+    public void reload() {}
 
     @Override
-    public void refresh() {
-
-    }
+    public void refresh() {}
 
     @Override
-    public short getChangeSignature() {
+    public byte getSignature() {
         return 0;
     }
 
@@ -97,18 +86,17 @@ public class VoidDynamicContent extends StatefulDisposable.Base implements Dynam
     }
 
     @Override
-    public void markDirty() {
-
-    }
+    public void markDirty() {}
 
     @Override
     public DynamicContentType getContentType() {
         return null;
     }
 
+    @NotNull
     @Override
     public Project getProject() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -156,7 +144,7 @@ public class VoidDynamicContent extends StatefulDisposable.Base implements Dynam
 
     @NotNull
     @Override
-    public GenericDatabaseElement getParentElement() {
+    public <E extends DatabaseEntity> E getParentEntity() {
         throw new UnsupportedOperationException();
     }
 
@@ -170,16 +158,16 @@ public class VoidDynamicContent extends StatefulDisposable.Base implements Dynam
         return VoidContentDependencyAdapter.INSTANCE;
     }
 
+    @NotNull
     @Override
     public ConnectionHandler getConnectionHandler() {
-        return null;
+        throw new UnsupportedOperationException();
     }
 
     @Override
-    public void updateChangeSignature() {
+    public void updateSignature() {}
 
-    }
-
+    @NotNull
     @Override
     public String getName() {
         return "Empty Content";
@@ -196,7 +184,5 @@ public class VoidDynamicContent extends StatefulDisposable.Base implements Dynam
     }
 
     @Override
-    protected void disposeInner() {
-
-    }
+    protected void disposeInner() {}
 }

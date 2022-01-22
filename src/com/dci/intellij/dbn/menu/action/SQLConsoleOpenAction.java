@@ -45,12 +45,12 @@ public class SQLConsoleOpenAction extends DumbAwareProjectAction {
 
         ConnectionHandler singleConnectionHandler = null;
         DefaultActionGroup actionGroup = new DefaultActionGroup();
-        if (connectionBundle.getConnectionHandlers().size() > 0) {
+        if (connectionBundle.getConnections().size() > 0) {
             actionGroup.addSeparator();
-            for (ConnectionHandler connectionHandler : connectionBundle.getConnectionHandlers()) {
-                SelectConnectionAction connectionAction = new SelectConnectionAction(connectionHandler);
+            for (ConnectionHandler connection : connectionBundle.getConnections()) {
+                SelectConnectionAction connectionAction = new SelectConnectionAction(connection);
                 actionGroup.add(connectionAction);
-                singleConnectionHandler = connectionHandler;
+                singleConnectionHandler = connection;
             }
         }
 
@@ -60,7 +60,7 @@ public class SQLConsoleOpenAction extends DumbAwareProjectAction {
                     actionGroup,
                     e.getDataContext(),
                     //JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
-                    true,
+                    false,
                     true,
                     true,
                     null,
@@ -150,15 +150,15 @@ public class SQLConsoleOpenAction extends DumbAwareProjectAction {
                 databaseConsoleManager.showCreateConsoleDialog(connectionHandler, consoleType);
             } else {
                 ConnectionHandler connectionHandler = Failsafe.nn(console.getConnectionHandler());
-                FileEditorManager fileEditorManager = FileEditorManager.getInstance(connectionHandler.getProject());
-                fileEditorManager.openFile(console.getVirtualFile(), true);
+                FileEditorManager editorManager = FileEditorManager.getInstance(connectionHandler.getProject());
+                editorManager.openFile(console.getVirtualFile(), true);
             }
         }
     }
 
     private static void openSQLConsole(ConnectionHandler connectionHandler) {
-        FileEditorManager fileEditorManager = FileEditorManager.getInstance(connectionHandler.getProject());
+        FileEditorManager editorManager = FileEditorManager.getInstance(connectionHandler.getProject());
         DBConsole defaultConsole = connectionHandler.getConsoleBundle().getDefaultConsole();
-        fileEditorManager.openFile(defaultConsole.getVirtualFile(), true);
+        editorManager.openFile(defaultConsole.getVirtualFile(), true);
     }
 }

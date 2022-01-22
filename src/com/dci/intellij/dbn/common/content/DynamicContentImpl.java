@@ -15,11 +15,11 @@ import com.dci.intellij.dbn.common.thread.ThreadMonitor;
 import com.dci.intellij.dbn.common.thread.ThreadProperty;
 import com.dci.intellij.dbn.common.util.Compactables;
 import com.dci.intellij.dbn.common.util.Lists;
-import com.dci.intellij.dbn.common.util.Numbers;
 import com.dci.intellij.dbn.common.util.Strings;
+import com.dci.intellij.dbn.common.util.Unsafe;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
-import com.dci.intellij.dbn.connection.GenericDatabaseElement;
+import com.dci.intellij.dbn.connection.DatabaseEntity;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
@@ -27,6 +27,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -39,19 +40,19 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
         implements DynamicContent<T>,
                    NotificationSupport {
 
-    protected static final List<?> EMPTY_CONTENT = Collections.unmodifiableList(Collections.emptyList());
-    protected static final List<?> EMPTY_DISPOSED_CONTENT = Collections.unmodifiableList(Collections.emptyList());
-    protected static final List<?> EMPTY_UNTOUCHED_CONTENT = Collections.unmodifiableList(Collections.emptyList());
+    protected static final List<?> EMPTY_CONTENT = Collections.unmodifiableList(new ArrayList<>(0));
+    protected static final List<?> EMPTY_DISPOSED_CONTENT = Collections.unmodifiableList(new ArrayList<>(0));
+    protected static final List<?> EMPTY_UNTOUCHED_CONTENT = Collections.unmodifiableList(new ArrayList<>(0));
 
-    private short changeSignature = 0;
+    private byte signature = 0;
 
-    private GenericDatabaseElement parent;
+    private DatabaseEntity parent;
     private ContentDependencyAdapter dependencyAdapter;
 
     protected List<T> elements = cast(EMPTY_UNTOUCHED_CONTENT);
 
     protected DynamicContentImpl(
-            @NotNull GenericDatabaseElement parent,
+            @NotNull DatabaseEntity parent,
             ContentDependencyAdapter dependencyAdapter,
             DynamicContentStatus ... statuses) {
 
@@ -71,19 +72,19 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
 
     @Override
     @NotNull
-    public GenericDatabaseElement getParentElement() {
-        return Failsafe.nn(parent);
+    public <E extends DatabaseEntity> E getParentEntity() {
+        return Unsafe.cast(Failsafe.nn(parent));
     }
 
     @NotNull
     public ConnectionId getConnectionId() {
-        return getParentElement().getConnectionId();
+        return getParentEntity().getConnectionId();
     }
 
     @Override
     @NotNull
     public ConnectionHandler getConnectionHandler() {
-        return Failsafe.nn(getParentElement().getConnectionHandler());
+        return Failsafe.nn(getParentEntity().getConnectionHandler());
     }
 
     @Override
@@ -95,8 +96,8 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
     }
 
     @Override
-    public short getChangeSignature() {
-        return changeSignature;
+    public byte getSignature() {
+        return signature;
     }
 
     @Override
@@ -191,7 +192,7 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
                 performLoad(false);
             } finally {
                 set(LOADING, false);
-                updateChangeSignature();
+                updateSignature();
             }
         }
     }
@@ -204,7 +205,7 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
                 performLoad(true);
             } finally {
                 set(LOADING, false);
-                updateChangeSignature();
+                updateSignature();
             }
 
             for (T element : elements) {
@@ -314,8 +315,8 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
     }
 
     @Override
-    public void updateChangeSignature() {
-        changeSignature = Numbers.timeSignature();
+    public void updateSignature() {
+        signature++;
     }
 
 

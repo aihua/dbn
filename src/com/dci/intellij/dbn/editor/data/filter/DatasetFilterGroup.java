@@ -100,7 +100,7 @@ public class DatasetFilterGroup extends BasicProjectConfiguration<ProjectConfigu
 
     public String createFilterName(String baseName) {
         while (lookupFilter(baseName) != null) {
-            baseName = Naming.getNextNumberedName(baseName, true);
+            baseName = Naming.nextNumberedIdentifier(baseName, true);
         }
         return baseName;
     }
@@ -181,7 +181,7 @@ public class DatasetFilterGroup extends BasicProjectConfiguration<ProjectConfigu
     public DBDataset lookupDataset() {
         Project project = getProject();
         ConnectionManager connectionManager = ConnectionManager.getInstance(project);
-        ConnectionHandler connectionHandler = connectionManager.getConnectionHandler(connectionId);
+        ConnectionHandler connectionHandler = connectionManager.getConnection(connectionId);
         if (connectionHandler != null) {
             int index = datasetName.lastIndexOf('.');
             String schemaName = datasetName.substring(0, index);

@@ -9,7 +9,7 @@ import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.project.Project;
 
 public class ConnectionSelectActionGroup extends DefaultActionGroup {
-    private static ConnectionSelectAction NO_CONNECTION = new ConnectionSelectAction(null);
+    private static final ConnectionSelectAction NO_CONNECTION = new ConnectionSelectAction(null);
 
     public ConnectionSelectActionGroup(Project project) {
         add(new ConnectionSettingsAction(), new Constraints(Anchor.FIRST, null));
@@ -24,10 +24,10 @@ public class ConnectionSelectActionGroup extends DefaultActionGroup {
             add(connectionAction);
         }
 
-        if (connectionBundle.getConnectionHandlers().size() > 0) {
+        if (connectionBundle.getConnections().size() > 0) {
             addSeparator();
-            for (ConnectionHandler connectionHandler : connectionBundle.getConnectionHandlers()) {
-                ConnectionSelectAction connectionAction = new ConnectionSelectAction(connectionHandler);
+            for (ConnectionHandler connection : connectionBundle.getConnections()) {
+                ConnectionSelectAction connectionAction = new ConnectionSelectAction(connection);
                 add(connectionAction);
             }
         }

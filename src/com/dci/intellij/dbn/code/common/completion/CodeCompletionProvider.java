@@ -300,7 +300,7 @@ public class CodeCompletionProvider extends CompletionProvider<CompletionParamet
                         boolean isExisting = scope != null && lookupAdapter.findInScope(scope) != null;
                         boolean isKeyword = aliasElement.getLanguageDialect().isReservedWord(aliasNames[i]);
                         if (isKeyword || isExisting) {
-                            aliasNames[i] = Naming.getNextNumberedName(aliasNames[i], false);
+                            aliasNames[i] = Naming.nextNumberedIdentifier(aliasNames[i], false);
                         } else {
                             break;
                         }
@@ -343,7 +343,7 @@ public class CodeCompletionProvider extends CompletionProvider<CompletionParamet
                         DBSchema currentSchema = PsiUtil.getDatabaseSchema(sourceScope);
                         objectBundle.lookupChildObjectsOfType(
                                 consumer,
-                                parentObject.getUndisposedElement(),
+                                parentObject.getUndisposedEntity(),
                                 objectType,
                                 filter,
                                 currentSchema);

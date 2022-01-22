@@ -7,7 +7,7 @@ import com.dci.intellij.dbn.common.content.dependency.ContentDependencyAdapter;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoader;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoaderImpl;
 import com.dci.intellij.dbn.common.filter.Filter;
-import com.dci.intellij.dbn.connection.GenericDatabaseElement;
+import com.dci.intellij.dbn.connection.DatabaseEntity;
 import com.dci.intellij.dbn.database.common.metadata.DBObjectMetadata;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.type.DBObjectRelationType;
@@ -19,12 +19,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-public class DBObjectRelationListImpl<T extends DBObjectRelation> extends DynamicContentImpl<T> implements DBObjectRelationList<T>{
+class DBObjectRelationListImpl<T extends DBObjectRelation> extends DynamicContentImpl<T> implements DBObjectRelationList<T>{
     private final DBObjectRelationType objectRelationType;
 
     public DBObjectRelationListImpl(
             @NotNull DBObjectRelationType type,
-            @NotNull GenericDatabaseElement parent,
+            @NotNull DatabaseEntity parent,
             ContentDependencyAdapter dependencyAdapter,
             DynamicContentStatus... statuses) {
         super(parent, dependencyAdapter, statuses);
@@ -34,7 +34,7 @@ public class DBObjectRelationListImpl<T extends DBObjectRelation> extends Dynami
 
     @Override
     public DynamicContentLoader<T, DBObjectMetadata> getLoader() {
-        DynamicContentType<?> parentContentType = getParentElement().getDynamicContentType();
+        DynamicContentType<?> parentContentType = getParentEntity().getDynamicContentType();
         return DynamicContentLoaderImpl.resolve(parentContentType, objectRelationType);
     }
 
@@ -60,6 +60,7 @@ public class DBObjectRelationListImpl<T extends DBObjectRelation> extends Dynami
         return objectRelationType;
     }
 
+    @NotNull
     @Override
     public String getName() {
         return
@@ -98,15 +99,16 @@ public class DBObjectRelationListImpl<T extends DBObjectRelation> extends Dynami
      *                   DynamicContent                      *
      *********************************************************/
 
+    @NotNull
     @Override
     public Project getProject() {
-        return getParentElement().getProject();
+        return getParentEntity().getProject();
     }
 
    @Override
    public String getContentDescription() {
-        if (getParentElement() instanceof DBObject) {
-            DBObject object = (DBObject) getParentElement();
+        if (getParentEntity() instanceof DBObject) {
+            DBObject object = (DBObject) getParentEntity();
             return getName() + " of " + object.getQualifiedNameWithType();
         }
        return getName() + " from " + getConnectionHandler().getName() ;

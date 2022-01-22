@@ -33,7 +33,6 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionPool;
-import com.dci.intellij.dbn.connection.GenericDatabaseElement;
 import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.data.type.DBDataType;
@@ -74,7 +73,6 @@ import com.dci.intellij.dbn.object.DBUser;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.dci.intellij.dbn.object.common.list.DBObjectListImpl;
-import com.dci.intellij.dbn.object.common.list.DBObjectRelationListContainer;
 import com.dci.intellij.dbn.object.impl.DBCharsetImpl;
 import com.dci.intellij.dbn.object.impl.DBGrantedPrivilegeImpl;
 import com.dci.intellij.dbn.object.impl.DBGrantedRoleImpl;
@@ -128,14 +126,13 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     private final DBObjectList<DBUser> users;
     private final DBObjectList<DBRole> roles;
     private final DBObjectList<DBSystemPrivilege> systemPrivileges;
-    private DBObjectList<DBObjectPrivilege> objectPrivileges;
+    private final DBObjectList<DBObjectPrivilege> objectPrivileges = null; // TODO
     private final DBObjectList<DBCharset> charsets;
 
     private final Latent<List<DBNativeDataType>> nativeDataTypes = Latent.basic(() -> computeNativeDataTypes());
     private final List<DBDataType> cachedDataTypes = createConcurrentList();
 
     private final DBObjectListContainer objectLists;
-    private final DBObjectRelationListContainer objectRelationLists;
     private final long configSignature;
 
     private final Map<DBObjectRef<?>, LookupItemBuilder> sqlLookupItemBuilders = new ConcurrentHashMap<>();
@@ -159,20 +156,19 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
         charsets = objectLists.createObjectList(CHARSET, this);
         allPossibleTreeChildren = DatabaseBrowserUtils.createList(consoles, schemas, users, roles, systemPrivileges, charsets);
 
-        objectRelationLists = new DBObjectRelationListContainer(this);
-        objectRelationLists.createObjectRelationList(
+        objectLists.createObjectRelationList(
                 USER_ROLE, this,
                 users, roles);
 
-        objectRelationLists.createObjectRelationList(
+        objectLists.createObjectRelationList(
                 USER_PRIVILEGE, this,
                 users, systemPrivileges);
 
-        objectRelationLists.createObjectRelationList(
+        objectLists.createObjectRelationList(
                 ROLE_ROLE, this,
-                roles);
+                roles, roles);
 
-        objectRelationLists.createObjectRelationList(
+        objectLists.createObjectRelationList(
                 ROLE_PRIVILEGE, this,
                 roles, systemPrivileges);
 
@@ -747,13 +743,13 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
     @Override
     @NotNull
-    public DBObjectListContainer getObjectListContainer() {
+    public DBObjectListContainer getObjectLists() {
         return Failsafe.nn(objectLists);
     }
 
     @Override
     public <T extends DBObject> DBObjectList<T> getObjectList(DBObjectType objectType) {
-        return getObjectListContainer().getObjectList(objectType);
+        return getObjectLists().getObjects(objectType);
     }
 
     @Override
@@ -762,31 +758,19 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
         return getConnectionHandler().getProject();
     }
 
-    @Nullable
-    @Override
-    public GenericDatabaseElement getParentElement() {
-        return null;
-    }
-
-    @Override
-    public GenericDatabaseElement getUndisposedElement() {
-        return this;
-    }
-
     @Override
     @Nullable
     public DynamicContent<?> getDynamicContent(DynamicContentType<?> dynamicContentType) {
         if(dynamicContentType instanceof DBObjectType) {
-            DBObjectListContainer objectLists = getObjectListContainer();
             DBObjectType objectType = (DBObjectType) dynamicContentType;
-            DynamicContent<?> dynamicContent = objectLists.getObjectList(objectType);
-            if (dynamicContent == null) dynamicContent = objectLists.getInternalObjectList(objectType);
+            DynamicContent<?> dynamicContent = objectLists.getObjects(objectType);
+            if (dynamicContent == null) dynamicContent = objectLists.getInternalObjects(objectType);
             return dynamicContent;
         }
 
         if (dynamicContentType instanceof DBObjectRelationType) {
             DBObjectRelationType objectRelationType = (DBObjectRelationType) dynamicContentType;
-            return objectRelationLists.getObjectRelationList(objectRelationType);
+            return objectLists.getObjectRelations(objectRelationType);
         }
 
         return null;
@@ -905,7 +889,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             public DBUserRoleRelation createElement(DynamicContent<DBUserRoleRelation> content, DBGrantedRoleMetadata metadata, LoaderCache cache) throws SQLException {
                 String userName = metadata.getUserName();
 
-                DBObjectBundle objectBundle = (DBObjectBundle) content.getParentElement();
+                DBObjectBundle objectBundle = content.getParentEntity();
                 DBUser user = objectBundle.getUser(userName);
                 if (user != null) {
                     DBGrantedRole role = new DBGrantedRoleImpl(user, metadata);
@@ -926,7 +910,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             public DBUserPrivilegeRelation createElement(DynamicContent<DBUserPrivilegeRelation> content, DBGrantedPrivilegeMetadata metadata, LoaderCache cache) throws SQLException {
                 String userName = metadata.getUserName();
 
-                DBObjectBundle objectBundle = (DBObjectBundle) content.getParentElement();
+                DBObjectBundle objectBundle = content.getParentEntity();
                 DBUser user = objectBundle.getUser(userName);
                 if (user != null) {
                     DBGrantedPrivilege privilege = new DBGrantedPrivilegeImpl(user, metadata);
@@ -947,7 +931,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             public DBRoleRoleRelation createElement(DynamicContent<DBRoleRoleRelation> content, DBGrantedRoleMetadata metadata, LoaderCache cache) throws SQLException {
                 String roleName = metadata.getRoleName();
 
-                DBObjectBundle objectBundle = (DBObjectBundle) content.getParentElement();
+                DBObjectBundle objectBundle = content.getParentEntity();
                 DBRole role = objectBundle.getRole(roleName);
                 if (role != null) {
                     DBGrantedRole grantedRole = new DBGrantedRoleImpl(role, metadata);
@@ -968,7 +952,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             public DBRolePrivilegeRelation createElement(DynamicContent<DBRolePrivilegeRelation> content, DBGrantedPrivilegeMetadata metadata, LoaderCache cache) throws SQLException {
                 String userName = metadata.getRoleName();
 
-                DBObjectBundle objectBundle = (DBObjectBundle) content.getParentElement();
+                DBObjectBundle objectBundle = content.getParentEntity();
                 DBRole role = objectBundle.getRole(userName);
                 if (role != null) {
                     DBGrantedPrivilege privilege = new DBGrantedPrivilegeImpl(role, metadata);
@@ -983,7 +967,6 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     @Override
     public void disposeInner() {
         SafeDisposer.dispose(objectLists, false, true);
-        SafeDisposer.dispose(objectRelationLists, false, true);
         sqlLookupItemBuilders.clear();
         psqlLookupItemBuilders.clear();
         objectPsiFacades.clear();

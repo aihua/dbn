@@ -3,14 +3,14 @@ package com.dci.intellij.dbn.common.content.dependency;
 import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.GenericDatabaseElement;
+import com.dci.intellij.dbn.connection.DatabaseEntity;
 import com.intellij.openapi.util.Disposer;
 import org.jetbrains.annotations.NotNull;
 
 public class SubcontentDependencyAdapterImpl extends BasicDependencyAdapter implements SubcontentDependencyAdapter {
     private ContentDependency contentDependency;
 
-    public SubcontentDependencyAdapterImpl(@NotNull GenericDatabaseElement sourceContentOwner, @NotNull DynamicContentType sourceContentType) {
+    public SubcontentDependencyAdapterImpl(@NotNull DatabaseEntity sourceContentOwner, @NotNull DynamicContentType sourceContentType) {
         contentDependency = new LinkedContentDependency(sourceContentOwner, sourceContentType);
     }
 
@@ -53,7 +53,7 @@ public class SubcontentDependencyAdapterImpl extends BasicDependencyAdapter impl
 
     @Override
     public void afterLoad() {
-        contentDependency.reset();
+        contentDependency.updateSignature();
     }
 
     @Override

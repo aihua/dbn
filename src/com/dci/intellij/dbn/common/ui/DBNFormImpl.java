@@ -8,16 +8,18 @@ import com.dci.intellij.dbn.options.general.GeneralProjectSettings;
 import com.intellij.ide.DataManager;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
+import com.intellij.ui.GuiUtils;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
+import javax.swing.JComponent;
+import javax.swing.JPanel;
 
 public abstract class DBNFormImpl
         extends DBNComponent.Base
         implements DBNForm, NotificationSupport {
 
-    private boolean registeredDataProvider;
+    private boolean initialised;
 
     public DBNFormImpl(@Nullable Disposable parent) {
         super(parent);
@@ -31,11 +33,23 @@ public abstract class DBNFormImpl
     @Override
     public final JComponent getComponent() {
         JComponent component = getMainComponent();
-        if (!registeredDataProvider) {
-            registeredDataProvider = true;
-            DataManager.registerDataProvider(component, this);
+        if (!initialised) {
+            initialise();
         }
         return component;
+    }
+
+    private void initialise() {
+        initialised = true;
+        JComponent mainComponent = getMainComponent();
+        DataManager.registerDataProvider(mainComponent, this);
+        GUIUtil.visitRecursively(mainComponent, component -> {
+            if (component instanceof JPanel) {
+                JPanel panel = (JPanel) component;
+                GUIUtil.updateTitledBorders(panel);
+            }
+        });
+        GuiUtils.replaceJSplitPaneWithIDEASplitter(mainComponent);
     }
 
     protected abstract JComponent getMainComponent();

@@ -127,9 +127,8 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
 
 
     public boolean hasAttachedDDLFiles(DBObjectRef<DBSchemaObject> objectRef) {
-        for (String filePath : mappings.keySet()) {
-            DBObjectRef<DBSchemaObject> mappedObjectRef = mappings.get(filePath);
-            if (mappedObjectRef.equals(objectRef)) return true;
+        for (Map.Entry<String, DBObjectRef<DBSchemaObject>> entry : mappings.entrySet()) {
+            if (entry.getValue().equals(objectRef)) return true;
         }
         return false;
     }
@@ -415,9 +414,9 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
 
     private List<String> getAttachedFileUrls(DBObjectRef<DBSchemaObject> objectRef) {
         List<String> fileUrls = new ArrayList<>();
-        for (String fileUrl : mappings.keySet()) {
-            DBObjectRef<DBSchemaObject> fileObjectRef = mappings.get(fileUrl);
-            if (fileObjectRef.equals(objectRef)) {
+        for (Map.Entry<String, DBObjectRef<DBSchemaObject>> entry : mappings.entrySet()) {
+            String fileUrl = entry.getKey();
+            if (entry.getValue().equals(objectRef)) {
                 fileUrls.add(fileUrl);
             }
         }

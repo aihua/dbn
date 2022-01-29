@@ -26,7 +26,6 @@ import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.Presentation;
 import com.intellij.openapi.actionSystem.ToggleAction;
 import com.intellij.openapi.project.Project;
-import com.intellij.ui.GuiUtils;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.JPanel;
@@ -58,8 +57,6 @@ public class MethodExecutionHistoryForm extends DBNFormImpl {
                 new ProjectSettingsOpenAction());
         actionsPanel.add(actionToolbar.getComponent());
         mainPanel.setBorder(Borders.BOTTOM_LINE_BORDER);
-        GuiUtils.replaceJSplitPaneWithIDEASplitter(contentPanel);
-        GUIUtil.updateSplitterProportion(mainPanel, (float) 0.32);
 
         MethodExecutionHistory executionHistory = getExecutionHistory();
         if (selectedExecutionInput != null &&
@@ -167,7 +164,7 @@ public class MethodExecutionHistoryForm extends DBNFormImpl {
         @Override
         protected void update(@NotNull AnActionEvent e, @NotNull Project project) {
             Presentation presentation = e.getPresentation();
-            presentation.setIcon(Icons.ACTION_SETTINGS);
+            presentation.setIcon(Icons.ACTION_OPTIONS);
             presentation.setText("Settings");
         }
     }

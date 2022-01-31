@@ -393,7 +393,6 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
     @Override
     public T getElement(String name, short overload) {
         if (name != null) {
-            List<T> elements = getAllElements();
             return Lists.first(elements, element -> matchElement(element, name, overload));
         }
         return null;

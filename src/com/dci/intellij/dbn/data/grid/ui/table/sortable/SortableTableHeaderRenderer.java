@@ -1,6 +1,8 @@
 package com.dci.intellij.dbn.data.grid.ui.table.sortable;
 
+import com.dci.intellij.dbn.common.Colors;
 import com.dci.intellij.dbn.common.Icons;
+import com.dci.intellij.dbn.common.ui.Borders;
 import com.dci.intellij.dbn.common.ui.table.DBNTableHeaderRendererBase;
 import com.dci.intellij.dbn.data.model.sortable.SortableDataModel;
 import com.dci.intellij.dbn.data.sorting.SortDirection;
@@ -8,8 +10,13 @@ import com.dci.intellij.dbn.data.sorting.SortingInstruction;
 import com.dci.intellij.dbn.data.sorting.SortingState;
 import com.intellij.util.ui.UIUtil;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.Icon;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTable;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.FontMetrics;
 
 public class SortableTableHeaderRenderer extends DBNTableHeaderRendererBase {
     private JPanel mainPanel;
@@ -19,6 +26,7 @@ public class SortableTableHeaderRenderer extends DBNTableHeaderRendererBase {
     public SortableTableHeaderRenderer() {
         mainPanel.setOpaque(true);
         mainPanel.setBackground(UIUtil.getPanelBackground());
+        mainPanel.setBorder(Borders.lineBorder(Colors.TABLE_HEADER_GRID_COLOR, 0, 0, 0, 1));
     }
 
     @Override
@@ -49,7 +57,6 @@ public class SortableTableHeaderRenderer extends DBNTableHeaderRendererBase {
         width += fontMetrics.stringWidth(columnName) + 24;
         int height = fontMetrics.getHeight() + 6;
         mainPanel.setPreferredSize(new Dimension(width, height));
-        mainPanel.setBorder(columnIndex == 0 ? BORDER_LBR.get() : BORDER_BR.get());
         return mainPanel;
     }
 

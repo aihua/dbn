@@ -4,7 +4,7 @@
  import com.dci.intellij.dbn.common.thread.Background;
  import com.dci.intellij.dbn.common.thread.Dispatch;
  import com.dci.intellij.dbn.common.ui.Borders;
- import com.dci.intellij.dbn.common.ui.MouseUtil;
+ import com.dci.intellij.dbn.common.ui.Mouse;
  import com.dci.intellij.dbn.data.editor.ui.BasicDataEditorComponent;
  import com.dci.intellij.dbn.data.editor.ui.DataEditorComponent;
  import com.dci.intellij.dbn.data.model.ColumnInfo;
@@ -29,11 +29,7 @@
  import java.awt.Point;
  import java.awt.event.KeyEvent;
  import java.awt.event.KeyListener;
- import java.awt.event.MouseAdapter;
  import java.awt.event.MouseEvent;
- import java.awt.event.MouseListener;
- import java.awt.event.MouseMotionAdapter;
- import java.awt.event.MouseMotionListener;
  import java.util.Objects;
 
  public class DatasetTableCellEditor extends AbstractDatasetTableCellEditor implements KeyListener{
@@ -53,7 +49,7 @@
         JTextField textField = getTextField();
         textField.addKeyListener(this);
         textField.addMouseListener(mouseListener);
-        textField.addMouseMotionListener(mouseMotionListener);
+        textField.addMouseMotionListener(mouseListener);
 
         textField.setFont(table.getFont());
 
@@ -200,56 +196,47 @@
     /********************************************************
      *                    MouseListener                     *
      ********************************************************/
-    private final MouseMotionListener mouseMotionListener = new MouseMotionAdapter() {
-        @Override
-        public void mouseMoved(MouseEvent e) {
-            JTextField textField = getTextField();
-            DatasetEditorModelCell cell = getCell();
-            if (cell != null) {
-                if (e.isControlDown() && cell.isNavigable()) {
-
-                    Background.run(() -> {
-                        DBColumn column = cell.getColumnInfo().getColumn();
-                        DBColumn foreignKeyColumn = column.getForeignKeyColumn();
-                        if (foreignKeyColumn != null && !e.isConsumed()) {
-                            Dispatch.run(() -> {
-                                textField.setToolTipText("<html>Show referenced <b>" + foreignKeyColumn.getDataset().getQualifiedName() + "</b> record<html>");
-                                textField.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-                            });
+    private final Mouse.Listener mouseListener = Mouse.listener().
+            onClick(e -> {
+                if (Mouse.isNavigationEvent(e)) {
+                    DatasetEditorModelCell cell = getCell();
+                    if (cell != null && cell.isNavigable()) {
+                        DatasetEditorTable table = getTable();
+                        DatasetFilterInput filterInput = table.getModel().resolveForeignKeyRecord(cell);
+                        if (filterInput != null) {
+                            DatasetEditorManager datasetEditorManager = DatasetEditorManager.getInstance(table.getProject());
+                            datasetEditorManager.navigateToRecord(filterInput, e);
+                            e.consume();
                         }
-                    });
-
-                } else {
-                    textField.setCursor(Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR));
-                    textField.setToolTipText(null);
-                }
-            }
-        }
-    };
-
-    private final MouseListener mouseListener = new MouseAdapter() {
-        @Override
-        public void mouseReleased(MouseEvent event) {
-            DatasetEditorModelCell cell = getCell();
-            if (cell != null && event.getButton() == MouseEvent.BUTTON3 ) {
-                getTable().showPopupMenu(event, cell, cell.getColumnInfo());
-            }
-        }
-
-        @Override
-        public void mouseClicked(MouseEvent event) {
-            if (MouseUtil.isNavigationEvent(event)) {
-                DatasetEditorModelCell cell = getCell();
-                if (cell != null && cell.isNavigable()) {
-                    DatasetEditorTable table = getTable();
-                    DatasetFilterInput filterInput = table.getModel().resolveForeignKeyRecord(cell);
-                    if (filterInput != null) {
-                        DatasetEditorManager datasetEditorManager = DatasetEditorManager.getInstance(table.getProject());
-                        datasetEditorManager.navigateToRecord(filterInput, event);
-                        event.consume();
                     }
                 }
-            }
-        }
-    };
+            }).
+            onRelease(e -> {
+                DatasetEditorModelCell cell = getCell();
+                if (cell != null && e.getButton() == MouseEvent.BUTTON3 ) {
+                    getTable().showPopupMenu(e, cell, cell.getColumnInfo());
+                }}).
+            onMove(e -> {
+                JTextField textField = getTextField();
+                DatasetEditorModelCell cell = getCell();
+                if (cell != null) {
+                    if (e.isControlDown() && cell.isNavigable()) {
+
+                        Background.run(() -> {
+                            DBColumn column = cell.getColumnInfo().getColumn();
+                            DBColumn foreignKeyColumn = column.getForeignKeyColumn();
+                            if (foreignKeyColumn != null && !e.isConsumed()) {
+                                Dispatch.run(() -> {
+                                    textField.setToolTipText("<html>Show referenced <b>" + foreignKeyColumn.getDataset().getQualifiedName() + "</b> record<html>");
+                                    textField.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                                });
+                            }
+                        });
+
+                    } else {
+                        textField.setCursor(Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR));
+                        textField.setToolTipText(null);
+                    }
+                }
+            });
  }

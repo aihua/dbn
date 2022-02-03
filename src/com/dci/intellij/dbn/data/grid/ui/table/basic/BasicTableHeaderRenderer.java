@@ -1,11 +1,21 @@
 package com.dci.intellij.dbn.data.grid.ui.table.basic;
 
+import com.dci.intellij.dbn.common.Colors;
 import com.dci.intellij.dbn.common.Icons;
+import com.dci.intellij.dbn.common.ui.Borders;
 import com.dci.intellij.dbn.common.ui.table.DBNTableHeaderRendererBase;
 import com.intellij.util.ui.UIUtil;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.Icon;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JTable;
+import javax.swing.RowSorter;
+import javax.swing.SortOrder;
+import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.FontMetrics;
 import java.util.List;
 
 public class BasicTableHeaderRenderer extends DBNTableHeaderRendererBase {
@@ -16,7 +26,9 @@ public class BasicTableHeaderRenderer extends DBNTableHeaderRendererBase {
     public BasicTableHeaderRenderer() {
         mainPanel.setOpaque(true);
         mainPanel.setBackground(UIUtil.getPanelBackground());
+        mainPanel.setBorder(Borders.lineBorder(Colors.TABLE_HEADER_GRID_COLOR, 0, 0, 0, 1));
         sortingLabel.setText("");
+
     }
 
     @Override
@@ -30,7 +42,6 @@ public class BasicTableHeaderRenderer extends DBNTableHeaderRendererBase {
         width += fontMetrics.stringWidth(columnName) + 24;
         int height = fontMetrics.getHeight() + 6;
         mainPanel.setPreferredSize(new Dimension(width, height));
-        mainPanel.setBorder(columnIndex == 0 ? BORDER_LBR.get() : BORDER_BR.get());
 
         Icon icon = null;
         RowSorter rowSorter = table.getRowSorter();

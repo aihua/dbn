@@ -5,7 +5,7 @@ import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.ui.DBNForm;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
-import com.dci.intellij.dbn.common.ui.MouseUtil;
+import com.dci.intellij.dbn.common.ui.Mouse;
 import com.dci.intellij.dbn.common.ui.table.DBNTableGutter;
 import com.dci.intellij.dbn.common.util.Actions;
 import com.dci.intellij.dbn.common.util.Messages;
@@ -335,10 +335,10 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
                 if (editorTableCell.is(MODIFIED) && !(editorTableCell.getUserValue() instanceof ValueAdapter)) {
                     text.append("<br>Original value: <b>");
                     text.append(editorTableCell.getOriginalUserValue());
-                    text.append("</b></html>");
-                } else {
-                    text.append("</html>");
+                    text.append("</b>");
                 }
+
+                text.append("</html>");
 
                 return text.toString();
             }
@@ -349,7 +349,7 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
                 } else  if (editorTableCell.getUserValue() instanceof LargeObjectValue) {
                     return "LOB content has changed";
                 } else {
-                    return "<HTML>Original value: <b>" + editorTableCell.getOriginalUserValue() + "</b></html>";
+                    return "<html>Original value: <b>" + editorTableCell.getOriginalUserValue() + "</b></html>";
                 }
 
             }
@@ -416,7 +416,7 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
     @Override
     protected void processMouseEvent(MouseEvent e) {
         if (e.isControlDown() && isNavigableCellAtMousePosition()) {
-            MouseUtil.processMouseEvent(e, tableMouseListener);
+            Mouse.processMouseEvent(e, tableMouseListener);
         } else {
             super.processMouseEvent(e);
         }

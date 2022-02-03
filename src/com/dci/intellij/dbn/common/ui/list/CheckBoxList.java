@@ -1,19 +1,29 @@
 package com.dci.intellij.dbn.common.ui.list;
 
 import com.dci.intellij.dbn.common.ui.GUIUtil;
+import com.dci.intellij.dbn.common.ui.Mouse;
 import com.intellij.ui.JBColor;
 import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.*;
+import javax.swing.DefaultListModel;
+import javax.swing.JCheckBox;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import javax.swing.JPanel;
+import javax.swing.ListCellRenderer;
+import javax.swing.ListModel;
+import javax.swing.ListSelectionModel;
+import javax.swing.SwingConstants;
 import javax.swing.border.LineBorder;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.util.ArrayList;
@@ -23,7 +33,7 @@ import java.util.List;
 
 public class CheckBoxList<T extends Selectable> extends JList {
     private final boolean mutable;
-    private final MouseAdapter mouseAdapter;
+    private final MouseListener mouseAdapter;
 
     public CheckBoxList(List<T> elements) {
         this(elements, false);
@@ -36,21 +46,18 @@ public class CheckBoxList<T extends Selectable> extends JList {
         setCellRenderer(new CellRenderer());
         setBackground(UIUtil.getTextFieldBackground());
 
-        mouseAdapter = new MouseAdapter() {
-            @Override
-            public void mousePressed(MouseEvent e) {
-                if (isEnabled() && e.getButton() == MouseEvent.BUTTON1) {
-                    int index = locationToIndex(e.getPoint());
+        mouseAdapter = Mouse.listener().onPress(e -> {
+            if (isEnabled() && e.getButton() == MouseEvent.BUTTON1) {
+                int index = locationToIndex(e.getPoint());
 
-                    if (index != -1) {
-                        Entry entry = (Entry) getModel().getElementAt(index);
-                        if (!CheckBoxList.this.mutable || e.getX() < 20 ||e.getClickCount() == 2) {
-                            entry.switchSelection();
-                        }
+                if (index != -1) {
+                    Entry entry = (Entry) getModel().getElementAt(index);
+                    if (!CheckBoxList.this.mutable || e.getX() < 20 ||e.getClickCount() == 2) {
+                        entry.switchSelection();
                     }
                 }
             }
-        };
+        });
 
         DefaultListModel model = new DefaultListModel();
         for (T element : elements) {
@@ -106,8 +113,8 @@ public class CheckBoxList<T extends Selectable> extends JList {
             //entry.errorLabel.setText(error != null && actions.isEnabled() ? " - " + error : "");
 
             if (mutable) {
-                Color foreground = isSelected ? UIUtil.getListSelectionForeground() : entry.isSelected() ? UIUtil.getListForeground() : UIUtil.getMenuItemDisabledForeground();
-                Color background = isSelected ? UIUtil.getListSelectionBackground() : UIUtil.getTextFieldBackground();
+                Color foreground = isSelected ? UIUtil.getListSelectionForeground(true) : entry.isSelected() ? UIUtil.getListForeground() : UIUtil.getMenuItemDisabledForeground();
+                Color background = isSelected ? UIUtil.getListSelectionBackground(true) : UIUtil.getTextFieldBackground();
                 entry.textPanel.setBackground(background);
                 entry.checkBox.setBackground(background);
                 entry.label.setForeground(foreground);

@@ -4,7 +4,10 @@ import com.dci.intellij.dbn.common.Colors;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
+import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.thread.Dispatch;
+import com.dci.intellij.dbn.common.ui.FontMetricsCache;
+import com.dci.intellij.dbn.common.ui.Mouse;
 import com.dci.intellij.dbn.common.ui.component.DBNComponent;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.data.grid.ui.table.basic.BasicTableHeaderRenderer;
@@ -19,29 +22,11 @@ import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.DefaultListSelectionModel;
-import javax.swing.JScrollPane;
-import javax.swing.JTable;
-import javax.swing.JViewport;
+import javax.swing.*;
 import javax.swing.event.EventListenerList;
-import javax.swing.table.DefaultTableColumnModel;
-import javax.swing.table.JTableHeader;
-import javax.swing.table.TableCellEditor;
-import javax.swing.table.TableCellRenderer;
-import javax.swing.table.TableColumn;
-import javax.swing.table.TableColumnModel;
-import javax.swing.table.TableModel;
-import java.awt.Component;
-import java.awt.Cursor;
-import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.MouseInfo;
-import java.awt.Point;
-import java.awt.PointerInfo;
-import java.awt.Rectangle;
-import java.awt.event.MouseAdapter;
+import javax.swing.table.*;
+import java.awt.*;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseMotionAdapter;
 import java.awt.font.FontRenderContext;
 import java.awt.font.LineMetrics;
 import java.util.HashMap;
@@ -53,20 +38,22 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
     private static final int MAX_COLUMN_WIDTH = 300;
     private static final int MIN_COLUMN_WIDTH = 10;
 
-    private final WeakRef<DBNComponent> parentComponentRef;
+    private final WeakRef<DBNComponent> parentComponent;
 
     private DBNTableGutter<?> tableGutter;
-    private JBScrollPane scrollPane;
     private int rowVerticalPadding;
     private double scrollDistance;
-    private Timer scrollTimer;
     private KeyFMap userData = KeyFMap.EMPTY_MAP;
+
+    private Timer scrollTimer;
+    private final Latent<JBScrollPane> scrollPane = Latent.weak(() -> UIUtil.getParentOfType(JBScrollPane.class, DBNTable.this));
+    private final FontMetricsCache metricsCache = new FontMetricsCache(this);
 
     public DBNTable(@NotNull DBNComponent parent, @NotNull T tableModel, boolean showHeader) {
         super(tableModel);
-        this.parentComponentRef = WeakRef.of(parent);
+        this.parentComponent = WeakRef.of(parent);
 
-        setGridColor(Colors.tableGridColor());
+        setGridColor(Colors.TABLE_GRID_COLOR);
         Font font = getFont();//UIUtil.getListFont();
         setFont(font);
         setBackground(UIUtil.getTextFieldBackground());
@@ -80,29 +67,23 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
             tableHeader.setPreferredSize(new Dimension(-1, 0));
         } else {
             tableHeader.setDefaultRenderer(new BasicTableHeaderRenderer());
-            tableHeader.addMouseMotionListener(new MouseMotionAdapter() {
-                @Override
-                public void mouseDragged(MouseEvent e) {
-                    scrollPane = UIUtil.getParentOfType(JBScrollPane.class, DBNTable.this);
-                    if (scrollPane != null) {
-                        calculateScrollDistance();
-                        if (scrollDistance != 0 && scrollTimer == null) {
-                            scrollTimer = new Timer();
-                            scrollTimer.schedule(new ScrollTask(), 100, 100);
-                        }
+            tableHeader.addMouseMotionListener(Mouse.listener().onDrag(e -> {
+                JBScrollPane scrollPane = getScrollPane();
+                if (scrollPane != null) {
+                    calculateScrollDistance();
+                    if (scrollDistance != 0 && scrollTimer == null) {
+                        scrollTimer = new Timer();
+                        scrollTimer.schedule(new ScrollTask(), 100, 100);
                     }
                 }
-            });
+            }));
 
-            tableHeader.addMouseListener(new MouseAdapter() {
-                @Override
-                public void mouseReleased(MouseEvent e) {
-                    if (scrollTimer != null) {
-                        SafeDisposer.dispose(scrollTimer);
-                        scrollTimer = null;
-                    }
+            tableHeader.addMouseListener(Mouse.listener().onRelease(e -> {
+                if (scrollTimer != null) {
+                    SafeDisposer.dispose(scrollTimer);
+                    scrollTimer = null;
                 }
-            });
+            }));
         }
 
         updateComponentColors();
@@ -110,6 +91,15 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
 
         SafeDisposer.register(parent, this);
         SafeDisposer.register(this, tableModel);
+    }
+
+    public JBScrollPane getScrollPane() {
+        return scrollPane.get();
+    }
+
+    @Override
+    public String getToolTipText(@NotNull MouseEvent event) {
+        return null;
     }
 
     @Override
@@ -128,8 +118,6 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
     }
 
     private void updateComponentColors() {
-        setGridColor(Colors.tableGridColor());
-
         setSelectionBackground(Colors.tableSelectionBackgroundColor(true));
         setSelectionForeground(Colors.tableSelectionForegroundColor(true));
     }
@@ -141,7 +129,7 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
 
     protected void adjustRowHeight() {
         Font font = getFont();
-        FontRenderContext fontRenderContext = getFontMetrics(getFont()).getFontRenderContext();
+        FontRenderContext fontRenderContext = getFontMetrics(font).getFontRenderContext();
         LineMetrics lineMetrics = font.getLineMetrics("ABCÄÜÖÂÇĞIİÖŞĀČḎĒËĠḤŌŠṢṬŪŽy", fontRenderContext);
         int fontHeight = Math.round(lineMetrics.getHeight());
         setRowHeight(fontHeight + (rowVerticalPadding * 2));
@@ -154,6 +142,7 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
     }
 
     private void calculateScrollDistance() {
+        JBScrollPane scrollPane = getScrollPane();
         if (scrollPane != null) {
             JViewport viewport = scrollPane.getViewport();
             PointerInfo pointerInfo = MouseInfo.getPointerInfo();
@@ -182,12 +171,12 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
 
     @NotNull
     public final Project getProject() {
-        return parentComponentRef.ensure().ensureProject();
+        return parentComponent.ensure().ensureProject();
     }
 
     @NotNull
     public DBNComponent getParentComponent() {
-        return parentComponentRef.ensure();
+        return parentComponent.ensure();
     }
 
     protected Object getValueAtMouseLocation() {
@@ -255,29 +244,19 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
                 if (preferredWidth > MAX_COLUMN_WIDTH) {
                     break;
                 }
-                TableCellRenderer renderer = getCellRenderer(rowIndex, columnIndex);
 
-                if (renderer != null) {
-                    Object value = model.getValueAt(rowIndex, columnIndex);
-                    if (value != null) {
-                        Component component = renderer.getTableCellRendererComponent(this, value, false, false, rowIndex, columnIndex);
-                        if (component.getPreferredSize().width > preferredWidth) {
-                            preferredWidth = component.getPreferredSize().width;
-                        }
+                Object value = model.getValueAt(rowIndex, column.getModelIndex());
+                if (value != null) {
+                    String displayValue = model.getPresentableValue(value, column.getModelIndex());
+                    if (displayValue != null && displayValue.length() < 100) {
+                        int cellWidth = metricsCache.getTextWidth(displayValue);
+                        preferredWidth = Math.max(preferredWidth, cellWidth);
                     }
                 }
             }
 
-            int maxColumnWidth = getMaxColumnWidth();
-            if (preferredWidth > maxColumnWidth) {
-                preferredWidth = maxColumnWidth;
-            }
-
-            int minColumnWidth = getMinColumnWidth();
-            if (preferredWidth < minColumnWidth) {
-                preferredWidth = minColumnWidth;
-            }
-
+            preferredWidth = Math.min(preferredWidth, getMaxColumnWidth());
+            preferredWidth = Math.max(preferredWidth, getMinColumnWidth());
             preferredWidth = preferredWidth + span;
 
             if (column.getPreferredWidth() != preferredWidth)  {
@@ -325,6 +304,7 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
     private class ScrollTask extends TimerTask {
         @Override
         public void run() {
+            JBScrollPane scrollPane = getScrollPane();
             if (scrollPane != null && scrollDistance != 0) {
                 Dispatch.run(() -> {
                     JViewport viewport = scrollPane.getViewport();

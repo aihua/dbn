@@ -21,12 +21,7 @@ import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.Icon;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JTable;
-import javax.swing.JTextField;
-import javax.swing.ListSelectionModel;
+import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.border.CompoundBorder;
 import javax.swing.border.LineBorder;
@@ -35,22 +30,13 @@ import javax.swing.event.TableModelListener;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableModel;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Cursor;
-import java.awt.Font;
-import java.awt.KeyboardFocusManager;
+import java.awt.*;
 import java.awt.event.FocusEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
 import java.sql.Timestamp;
 import java.text.ParseException;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public class CalendarPopupProviderForm extends TextFieldPopupProviderForm implements TableModelListener {
     private static final Font BOLD = new Font(UIUtil.getMenuFont().getFontName(), Font.BOLD, UIUtil.getMenuFont().getSize());
@@ -564,10 +550,10 @@ public class CalendarPopupProviderForm extends TextFieldPopupProviderForm implem
                     isInputDate ? UIUtil.getTableForeground() :
                             isFromActiveMonth ? UIUtil.getLabelForeground() : INACTIVE_DAY_COLOR;
 
-            setForeground(isSelected ? UIUtil.getTableSelectionForeground(true) : foreground);
+            setForeground(isSelected ? UIUtil.getTableSelectionForeground() : foreground);
             setHorizontalAlignment(RIGHT);
             setBorder(isInputDate && !isSelected ? SELECTION_BORDER : EMPTY_BORDER);
-            setBackground(isSelected ? UIUtil.getListSelectionBackground(true) :  UIUtil.getTableBackground());
+            setBackground(isSelected ? UIUtil.getListSelectionBackground() :  UIUtil.getTableBackground());
             //setBorder(new DottedBorder(Color.BLACK));
             return component;
         }

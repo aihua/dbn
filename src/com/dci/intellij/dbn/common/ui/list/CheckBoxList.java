@@ -7,25 +7,10 @@ import com.intellij.util.ui.JBUI;
 import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.DefaultListModel;
-import javax.swing.JCheckBox;
-import javax.swing.JLabel;
-import javax.swing.JList;
-import javax.swing.JPanel;
-import javax.swing.ListCellRenderer;
-import javax.swing.ListModel;
-import javax.swing.ListSelectionModel;
-import javax.swing.SwingConstants;
+import javax.swing.*;
 import javax.swing.border.LineBorder;
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.KeyAdapter;
-import java.awt.event.KeyEvent;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
+import java.awt.*;
+import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -113,8 +98,8 @@ public class CheckBoxList<T extends Selectable> extends JList {
             //entry.errorLabel.setText(error != null && actions.isEnabled() ? " - " + error : "");
 
             if (mutable) {
-                Color foreground = isSelected ? UIUtil.getListSelectionForeground(true) : entry.isSelected() ? UIUtil.getListForeground() : UIUtil.getMenuItemDisabledForeground();
-                Color background = isSelected ? UIUtil.getListSelectionBackground(true) : UIUtil.getTextFieldBackground();
+                Color foreground = isSelected ? UIUtil.getListSelectionForeground() : entry.isSelected() ? UIUtil.getListForeground() : UIUtil.getMenuItemDisabledForeground();
+                Color background = isSelected ? UIUtil.getListSelectionBackground() : UIUtil.getTextFieldBackground();
                 entry.textPanel.setBackground(background);
                 entry.checkBox.setBackground(background);
                 entry.label.setForeground(foreground);

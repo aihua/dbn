@@ -13,9 +13,8 @@ import com.intellij.ui.tabs.TabInfo;
 import com.intellij.ui.tabs.TabsListener;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.JComponent;
-import javax.swing.JPanel;
-import java.awt.BorderLayout;
+import javax.swing.*;
+import java.awt.*;
 
 public class ConnectionDiagnosticsDetailsForm extends DBNFormImpl {
     private final DBNTable<MetadataDiagnosticsTableModel> metadataTable;
@@ -46,7 +45,7 @@ public class ConnectionDiagnosticsDetailsForm extends DBNFormImpl {
         connectivityTable.getRowSorter().toggleSortOrder(0);
         addTab(connectivityTable, "Database Connectivity");
 
-        diagnosticsTabs.addListener(new TabsListener() {
+        diagnosticsTabs.addListener(new TabsListener.Adapter() {
             @Override
             public void selectionChanged(TabInfo oldSelection, TabInfo newSelection) {
                 int selectedIndex = diagnosticsTabs.getTabs().indexOf(newSelection);

@@ -1,10 +1,10 @@
 package com.dci.intellij.dbn.common.ui;
 
 import com.dci.intellij.dbn.common.latent.Latent;
-import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang.StringUtils;
 
-import javax.swing.JComponent;
-import java.awt.Font;
+import javax.swing.*;
+import java.awt.*;
 import java.awt.font.FontRenderContext;
 import java.util.HashMap;
 import java.util.Map;

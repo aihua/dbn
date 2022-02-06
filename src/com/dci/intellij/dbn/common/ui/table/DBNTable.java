@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.common.ui.table;
 
-import com.dci.intellij.dbn.common.Colors;
+import com.dci.intellij.dbn.common.color.Colors;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
@@ -53,10 +53,10 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
         super(tableModel);
         this.parentComponent = WeakRef.of(parent);
 
-        setGridColor(Colors.TABLE_GRID_COLOR);
+        setGridColor(Colors.getTableGridColor());
         Font font = getFont();//UIUtil.getListFont();
         setFont(font);
-        setBackground(UIUtil.getTextFieldBackground());
+        setBackground(Colors.getTextFieldBackground());
         setTransferHandler(DBNTableTransferHandler.INSTANCE);
 
         adjustRowHeight(1);
@@ -86,8 +86,8 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
             }));
         }
 
-        updateComponentColors();
-        Colors.subscribe(this, () -> updateComponentColors());
+        setSelectionBackground(Colors.getTableSelectionBackground(true));
+        setSelectionForeground(Colors.getTableSelectionForeground(true));
 
         SafeDisposer.register(parent, this);
         SafeDisposer.register(this, tableModel);
@@ -115,11 +115,6 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
         if (tableHeader != null) {
             tableHeader.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         }
-    }
-
-    private void updateComponentColors() {
-        setSelectionBackground(Colors.tableSelectionBackgroundColor(true));
-        setSelectionForeground(Colors.tableSelectionForegroundColor(true));
     }
 
     protected void adjustRowHeight(int padding) {

@@ -99,8 +99,8 @@ public class CheckBoxList<T extends Selectable> extends JList {
             //entry.errorLabel.setText(error != null && actions.isEnabled() ? " - " + error : "");
 
             if (mutable) {
-                Color foreground = isSelected ? Colors.getListSelectionForeground() : entry.isSelected() ? Colors.getListForeground() : UIUtil.getMenuItemDisabledForeground();
-                Color background = isSelected ? Colors.getListSelectionBackground() : Colors.getTextFieldBackground();
+                Color foreground = isSelected ? Colors.getListSelectionForeground(cellHasFocus) : entry.isSelected() ? Colors.getListForeground() : UIUtil.getMenuItemDisabledForeground();
+                Color background = isSelected ? Colors.getListSelectionBackground(cellHasFocus) : Colors.getTextFieldBackground();
                 entry.textPanel.setBackground(background);
                 entry.checkBox.setBackground(background);
                 entry.label.setForeground(foreground);

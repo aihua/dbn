@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.execution.explain.result.ui;
 
-import com.dci.intellij.dbn.common.Colors;
+import com.dci.intellij.dbn.common.color.Colors;
 import com.dci.intellij.dbn.common.ui.tree.TreeUtil;
 import com.dci.intellij.dbn.common.util.Actions;
 import com.dci.intellij.dbn.execution.ExecutionManager;
@@ -35,10 +35,10 @@ public class ExplainPlanResultForm extends ExecutionResultFormBase<ExplainPlanRe
         explainPlanTreeTable = new ExplainPlanTreeTable(this, treeTableModel);
 
         resultScrollPane.setViewportView(explainPlanTreeTable);
-        resultScrollPane.getViewport().setBackground(explainPlanTreeTable.getBackground());
+        resultScrollPane.getViewport().setBackground(Colors.getTableBackground());
 
         JPanel panel = new JPanel();
-        panel.setBorder(new CustomLineBorder(Colors.TABLE_HEADER_GRID_COLOR, 0, 1, 1, 1));
+        panel.setBorder(new CustomLineBorder(Colors.getTableHeaderGridColor(), 0, 1, 1, 1));
     }
 
     public ExplainPlanTreeTable getExplainPlanTreeTable() {

@@ -5,10 +5,12 @@ import com.dci.intellij.dbn.browser.model.BrowserTreeEventAdapter;
 import com.dci.intellij.dbn.browser.model.BrowserTreeEventListener;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.browser.ui.DatabaseBrowserTree;
+import com.dci.intellij.dbn.common.color.Colors;
 import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
+import com.dci.intellij.dbn.common.ui.Borders;
 import com.dci.intellij.dbn.common.ui.DBNForm;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
@@ -21,10 +23,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTable;
+import javax.swing.*;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -45,7 +44,8 @@ public class ObjectPropertiesForm extends DBNFormImpl {
         //closeActionPanel.add(objectPropertiesActionToolbar.getComponent(), BorderLayout.CENTER);
         objectPropertiesTable.setRowSelectionAllowed(false);
         objectPropertiesTable.setCellSelectionEnabled(true);
-        objectPropertiesScrollPane.getViewport().setBackground(objectPropertiesTable.getBackground());
+        objectPropertiesScrollPane.getViewport().setBackground(Colors.getTableBackground());
+        objectPropertiesScrollPane.setBorder(Borders.EMPTY_BORDER);
         objectTypeLabel.setText("Object properties:");
         objectLabel.setText("(no object selected)");
 

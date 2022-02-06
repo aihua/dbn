@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.editor.data.filter.ui;
 
 import com.dci.intellij.dbn.common.Icons;
-import com.dci.intellij.dbn.common.compatibility.CompatibilityUtil;
+import com.dci.intellij.dbn.common.color.Colors;
 import com.dci.intellij.dbn.common.dispose.DisposableContainer;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
 import com.dci.intellij.dbn.common.ui.Borders;
@@ -32,14 +32,8 @@ import com.intellij.util.PlatformIcons;
 import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.BoxLayout;
-import javax.swing.JComboBox;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTextField;
-import javax.swing.border.LineBorder;
-import java.awt.BorderLayout;
+import javax.swing.*;
+import java.awt.*;
 import java.awt.event.ActionListener;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -130,7 +124,7 @@ public class DatasetBasicFilterForm extends ConfigurationEditorForm<DatasetBasic
             @Override
             public void keyPressed(KeyEvent e) {
                 isCustomNamed = true;
-                nameTextField.setForeground(UIUtil.getTextFieldForeground());
+                nameTextField.setForeground(Colors.getTextFieldForeground());
             }
         };
     }
@@ -187,7 +181,7 @@ public class DatasetBasicFilterForm extends ConfigurationEditorForm<DatasetBasic
                 DatabaseFileViewProvider viewProvider = new DatabaseFileViewProvider(project, filterFile, true);
                 PsiFile selectStatementFile = filterFile.initializePsiFile(viewProvider, SQLLanguage.INSTANCE);
 
-                previewDocument = Documents.getDocument(selectStatementFile);
+                previewDocument = Documents.ensureDocument(selectStatementFile);
 
                 this.viewer = (EditorEx) EditorFactory.getInstance().createViewer(previewDocument, project);
                 this.viewer.setEmbeddedIntoDialogWrapper(true);
@@ -199,7 +193,7 @@ public class DatasetBasicFilterForm extends ConfigurationEditorForm<DatasetBasic
                 viewerScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
                 viewerScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
                 //viewerScrollPane.setBorder(null);
-                viewerScrollPane.setViewportBorder(new LineBorder(CompatibilityUtil.getEditorBackgroundColor(this.viewer), 4, false));
+                viewerScrollPane.setViewportBorder(Borders.lineBorder(Colors.getReadonlyEditorBackground(), 4));
 
                 EditorSettings settings = this.viewer.getSettings();
                 settings.setFoldingOutlineShown(false);

@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.common.ui;
 
-import com.dci.intellij.dbn.common.Colors;
+import com.dci.intellij.dbn.common.color.Colors;
 import com.intellij.ui.JBColor;
 import com.intellij.ui.border.CustomLineBorder;
 import com.intellij.util.ui.JBUI;
@@ -35,6 +35,10 @@ public final class Borders {
 
     public static Border lineBorder(Color color, int top, int left, int bottom, int right) {
         return new CustomLineBorder(color, top, left, bottom, right);
+    }
+
+    public static Border lineBorder(Color color, int thickness) {
+        return new LineBorder(color, thickness);
     }
 
     public static Border insetBorder(int insets) {

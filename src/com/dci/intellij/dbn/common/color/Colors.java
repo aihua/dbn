@@ -67,15 +67,15 @@ public final class Colors {
 
     public static Color getListSelectionBackground(boolean focused) {
         return focused ?
-                cached(8, () -> UIUtil.getListSelectionBackground(true)) :
-                cached(9, () -> UIUtil.getListSelectionBackground(false));
+                cached(8, () -> UIUtil.getListSelectionBackground()) :
+                cached(9, () -> UIUtil.getListSelectionBackground());
 
     }
 
     public static Color getListSelectionForeground(boolean focused) {
         return focused ?
-                cached(10, () -> UIUtil.getListSelectionForeground(true)) :
-                cached(11, () -> UIUtil.getListSelectionForeground(false));
+                cached(10, () -> UIUtil.getListSelectionForeground()) :
+                cached(11, () -> UIUtil.getListSelectionForeground());
     }
 
     public static Color getTableCaretRowColor() {
@@ -90,11 +90,11 @@ public final class Colors {
                 cached(13, () -> background(
                         DataGridTextAttributesKeys.SELECTION,
                         EditorColors.SELECTION_BACKGROUND_COLOR,
-                        () -> UIUtil.getTableSelectionBackground(true))) :
+                        () -> UIUtil.getTableSelectionBackground())) :
                 cached(14, () -> background(
                         DataGridTextAttributesKeys.SELECTION,
                         EditorColors.SELECTION_BACKGROUND_COLOR,
-                        () -> UIUtil.getTableSelectionBackground(false)));
+                        () -> UIUtil.getTableSelectionBackground()));
     }
 
     public static Color getTableSelectionForeground(boolean focused) {
@@ -102,11 +102,11 @@ public final class Colors {
                 cached(15, () -> foreground(
                         DataGridTextAttributesKeys.SELECTION,
                         EditorColors.SELECTION_FOREGROUND_COLOR,
-                        () -> UIUtil.getTableSelectionForeground(true))) :
+                        () -> UIUtil.getTableSelectionForeground())) :
                 cached(16, () -> foreground(
                         DataGridTextAttributesKeys.SELECTION,
                         EditorColors.SELECTION_FOREGROUND_COLOR,
-                        () -> UIUtil.getTableSelectionForeground(false)));
+                        () -> UIUtil.getTableSelectionForeground()));
     }
 
     public static Color getTableGridColor() {

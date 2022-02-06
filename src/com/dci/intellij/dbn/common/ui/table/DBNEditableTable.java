@@ -37,8 +37,8 @@ public class DBNEditableTable<T extends DBNEditableTableModel> extends DBNTableW
                 Color foreground = table.getForeground();
                 SimpleTextAttributes attributes = SimpleTextAttributes.SIMPLE_CELL_ATTRIBUTES;
                 if (selected && !table.isEditing()) {
-                    background = Colors.getListSelectionBackground();
-                    foreground = Colors.getListSelectionForeground();
+                    background = Colors.getListSelectionBackground(hasFocus);
+                    foreground = Colors.getListSelectionForeground(hasFocus);
                     attributes = SimpleTextAttributes.SELECTED_SIMPLE_CELL_ATTRIBUTES;
 
                 }

@@ -550,10 +550,10 @@ public class CalendarPopupProviderForm extends TextFieldPopupProviderForm implem
                     isInputDate ? Colors.getTableForeground() :
                     isFromActiveMonth ? Colors.getLabelForeground() : INACTIVE_DAY_COLOR;
 
-            setForeground(isSelected ? Colors.getTableSelectionForeground() : foreground);
+            setForeground(isSelected ? Colors.getTableSelectionForeground(hasFocus) : foreground);
             setHorizontalAlignment(RIGHT);
             setBorder(isInputDate && !isSelected ? SELECTION_BORDER : EMPTY_BORDER);
-            setBackground(isSelected ? Colors.getListSelectionBackground() :  Colors.getTableBackground());
+            setBackground(isSelected ? Colors.getListSelectionBackground(hasFocus) :  Colors.getTableBackground());
             //setBorder(new DottedBorder(Color.BLACK));
             return component;
         }

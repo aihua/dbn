@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.editor.session.ui;
 
-import com.dci.intellij.dbn.common.Colors;
+import com.dci.intellij.dbn.common.color.Colors;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.thread.Dispatch;
@@ -61,7 +61,7 @@ public class SessionBrowserForm extends DBNFormImpl implements SearchableDataCom
         try {
             editorTable = new SessionBrowserTable(this, sessionBrowser);
             editorTableScrollPane.setViewportView(editorTable);
-            editorTableScrollPane.getViewport().setBackground(editorTable.getBackground());
+            editorTableScrollPane.getViewport().setBackground(Colors.getTableBackground());
             editorTable.initTableGutter();
             detailsForm = new SessionBrowserDetailsForm(this, sessionBrowser);
             detailsPanel.add(detailsForm.getComponent(), BorderLayout.CENTER);

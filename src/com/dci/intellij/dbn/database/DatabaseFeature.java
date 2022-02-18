@@ -2,7 +2,7 @@ package com.dci.intellij.dbn.database;
 
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ConnectionProvider;
+import com.dci.intellij.dbn.connection.context.ConnectionProvider;
 import com.dci.intellij.dbn.object.common.DBObject;
 import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
@@ -40,11 +40,11 @@ public enum DatabaseFeature {
     }
 
     public boolean isSupported(@Nullable ConnectionProvider connectionProvider) {
-        return connectionProvider != null && isSupported(connectionProvider.getConnectionHandler());
+        return connectionProvider != null && isSupported(connectionProvider.getConnection());
     }
 
     public boolean isSupported(@Nullable DBObject object) {
-        return Failsafe.check(object) && isSupported(object.getConnectionHandler());
+        return Failsafe.check(object) && isSupported(object.getConnection());
     }
 
     public boolean isSupported(@Nullable ConnectionHandler connectionHandler) {

@@ -7,6 +7,7 @@ import com.dci.intellij.dbn.common.routine.ParametricCallable;
 import com.dci.intellij.dbn.common.routine.ParametricRunnable;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.util.Commons;
+import com.dci.intellij.dbn.connection.context.ConnectionProvider;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
@@ -122,7 +123,7 @@ public abstract class ConnectionAction implements Runnable{
 
     @NotNull
     public ConnectionHandler getConnectionHandler() {
-        ConnectionHandler connectionHandler = connectionProvider.getConnectionHandler();
+        ConnectionHandler connectionHandler = connectionProvider.getConnection();
         return Failsafe.nn(connectionHandler);
     }
 

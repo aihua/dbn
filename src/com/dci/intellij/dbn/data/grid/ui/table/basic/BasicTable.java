@@ -6,6 +6,7 @@ import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.locale.options.RegionalSettings;
 import com.dci.intellij.dbn.common.locale.options.RegionalSettingsListener;
 import com.dci.intellij.dbn.common.thread.Dispatch;
+import com.dci.intellij.dbn.common.ui.Fonts;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.common.ui.Mouse;
 import com.dci.intellij.dbn.common.ui.component.DBNComponent;
@@ -42,12 +43,7 @@ import javax.swing.event.TableModelEvent;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
-import java.awt.Color;
-import java.awt.Component;
-import java.awt.Font;
-import java.awt.MouseInfo;
-import java.awt.Point;
-import java.awt.Rectangle;
+import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.math.BigDecimal;
@@ -62,7 +58,7 @@ public class BasicTable<T extends BasicDataModel<?, ?>> extends DBNTableWithGutt
     private MathResult selectionMath;
     private boolean loading;
 
-    public BasicTable(@NotNull DBNComponent parent, T dataModel) {
+    public BasicTable(DBNComponent parent, T dataModel) {
         super(parent, dataModel, true);
 
         Project project = getProject();
@@ -168,7 +164,7 @@ public class BasicTable<T extends BasicDataModel<?, ?>> extends DBNTableWithGutt
             Point mousePosition = getMousePosition();
             if (mousePosition != null && isCellSelected(mousePosition)) {
                 IdeTooltip tooltip = new IdeTooltip(this, mousePosition, mathPanel.getComponent());
-                tooltip.setFont(UIUtil.getLabelFont().deriveFont((float) 16));
+                tooltip.setFont(Fonts.deriveFont(Fonts.REGULAR,  (float) 16));
                 IdeTooltipManager.getInstance().show(tooltip, true);
             }
         }
@@ -229,6 +225,7 @@ public class BasicTable<T extends BasicDataModel<?, ?>> extends DBNTableWithGutt
 
             if (viewport != null) {
                 viewport.setBackground(background);
+                viewport.getParent().setBackground(background);
                 GUIUtil.repaint(viewport);
             }
         });

@@ -1,10 +1,12 @@
 package com.dci.intellij.dbn.connection.config.ui;
 
 import com.dci.intellij.dbn.common.action.DataKeys;
+import com.dci.intellij.dbn.common.action.DataProviders;
 import com.dci.intellij.dbn.common.color.Colors;
 import com.dci.intellij.dbn.common.database.DatabaseInfo;
-import com.dci.intellij.dbn.common.dispose.DisposableContainer;
+import com.dci.intellij.dbn.common.dispose.DisposableContainers;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
+import com.dci.intellij.dbn.common.ui.Fonts;
 import com.dci.intellij.dbn.common.util.Actions;
 import com.dci.intellij.dbn.common.util.Clipboard;
 import com.dci.intellij.dbn.common.util.Commons;
@@ -21,14 +23,12 @@ import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSettings;
 import com.dci.intellij.dbn.connection.config.tns.TnsName;
 import com.dci.intellij.dbn.driver.DriverSource;
-import com.intellij.ide.DataManager;
 import com.intellij.openapi.actionSystem.ActionToolbar;
 import com.intellij.openapi.ide.CopyPasteManager;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.ui.ListUtil;
 import com.intellij.ui.components.JBList;
 import com.intellij.ui.components.JBScrollPane;
-import com.intellij.util.ui.UIUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.ArrayUtils;
 import org.jdom.Document;
@@ -65,7 +65,7 @@ public class ConnectionBundleSettingsForm extends ConfigurationEditorForm<Connec
     private String currentPanelId;
 
     
-    private final Map<String, ConnectionSettingsForm> cachedForms = DisposableContainer.map(this);
+    private final Map<String, ConnectionSettingsForm> cachedForms = DisposableContainers.map(this);
 
     public JList getList() {
         return connectionsList;
@@ -76,7 +76,7 @@ public class ConnectionBundleSettingsForm extends ConfigurationEditorForm<Connec
         connectionsList = new JBList<>(new ConnectionListModel(configuration));
         connectionsList.addListSelectionListener(this);
         connectionsList.setCellRenderer(new ConnectionConfigListCellRenderer());
-        connectionsList.setFont(UIUtil.getLabelFont());
+        connectionsList.setFont(Fonts.getLabelFont());
         connectionsList.setBackground(Colors.getTextFieldBackground());
 
         ActionToolbar actionToolbar = Actions.createActionToolbar(actionsPanel,"", true, "DBNavigator.ActionGroup.ConnectionSettings");
@@ -86,13 +86,13 @@ public class ConnectionBundleSettingsForm extends ConfigurationEditorForm<Connec
 
         List<ConnectionSettings> connections = configuration.getConnections();
         if (connections.size() > 0) {
-            selectConnection(ConnectionId.get(connections.get(0).getId()));
+            selectConnection(connections.get(0).getConnectionId());
         }
         JPanel emptyPanel = new JPanel();
         connectionSetupPanel.setPreferredSize(new Dimension(500, -1));
         connectionSetupPanel.add(emptyPanel, BLANK_PANEL_ID);
 
-        DataManager.registerDataProvider(mainPanel, this);
+        DataProviders.register(mainPanel, this);
     }
 
     @NotNull

@@ -21,8 +21,8 @@ public class Failsafe {
     }
 
     public static <T> T getComponent(@NotNull Project project, @NotNull Class<T> interfaceClass) {
-        project = nd(project);
-        T component = project.getComponent(interfaceClass);
+        Project prj = nd(project);
+        T component = prj.getComponent(interfaceClass);
         return nn(component);
     }
 
@@ -53,7 +53,7 @@ public class Failsafe {
 
         } else if (object instanceof Project) {
             Project project = (Project) object;
-            return !project.isDisposed();
+            return project != DUMMY_PROJECT && !project.isDisposed();
 
         }
         return true;

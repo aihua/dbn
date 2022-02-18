@@ -18,7 +18,7 @@ import com.dci.intellij.dbn.common.util.InternalApi;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ResourceUtil;
+import com.dci.intellij.dbn.connection.Resources;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseDDLInterface;
 import com.dci.intellij.dbn.database.DatabaseFeature;
@@ -217,7 +217,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
 
         if (sourceCodeFile.isNot(SAVING)) {
             DatabaseDebuggerManager debuggerManager = DatabaseDebuggerManager.getInstance(getProject());
-            if (!debuggerManager.checkForbiddenOperation(sourceCodeFile.getConnectionHandler())) {
+            if (!debuggerManager.checkForbiddenOperation(sourceCodeFile.getConnection())) {
                 return;
             }
 
@@ -280,7 +280,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
 
     public SourceCodeContent loadSourceFromDatabase(@NotNull DBSchemaObject object, DBContentType contentType) throws SQLException {
         ProgressMonitor.setTaskDescription("Loading source code of " + object.getQualifiedNameWithType());
-        ConnectionHandler connectionHandler = object.getConnectionHandler();
+        ConnectionHandler connectionHandler = object.getConnection();
         boolean optionalContent = contentType == DBContentType.CODE_BODY;
 
         String sourceCode = DatabaseInterface.call(true,
@@ -306,7 +306,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
 
                         return Strings.removeCharacter(buffer.toString(), '\r');
                     } finally {
-                        ResourceUtil.close(resultSet);
+                        Resources.close(resultSet);
                     }
                 });
 
@@ -409,7 +409,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
     public ChangeTimestamp loadChangeTimestamp(@NotNull DBSchemaObject object, DBContentType contentType) throws SQLException{
         if (DatabaseFeature.OBJECT_CHANGE_TRACING.isSupported(object)) {
             ProgressMonitor.setTaskDescription("Loading timestamp for " + object.getQualifiedNameWithType());
-            ConnectionHandler connectionHandler = object.getConnectionHandler();
+            ConnectionHandler connectionHandler = object.getConnection();
 
             Timestamp timestamp = DatabaseInterface.call(true,
                     connectionHandler,
@@ -428,7 +428,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
 
                             return resultSet.next() ? resultSet.getTimestamp(1) : null;
                         } finally {
-                            ResourceUtil.close(resultSet);
+                            Resources.close(resultSet);
                         }
                     });
 
@@ -460,7 +460,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
     }
 
     private boolean isValidObjectTypeAndName(@NotNull DBLanguagePsiFile psiFile, @NotNull DBSchemaObject object, DBContentType contentType) {
-        ConnectionHandler connectionHandler = object.getConnectionHandler();
+        ConnectionHandler connectionHandler = object.getConnection();
         DatabaseDDLInterface ddlInterface = connectionHandler.getInterfaceProvider().getDdlInterface();
         if (ddlInterface.includesTypeAndNameInSourceContent(object.getObjectType().getTypeId())) {
             PsiElement psiElement = PsiUtil.getFirstLeaf(psiFile);

@@ -3,7 +3,7 @@ package com.dci.intellij.dbn.vfs.file;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.common.DevNullStreams;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.util.Commons;
+import com.dci.intellij.dbn.common.util.Traces;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.SchemaId;
@@ -28,33 +28,33 @@ import java.io.OutputStream;
 
 public class DBObjectVirtualFile<T extends DBObject> extends DBVirtualFileImpl {
     private static final byte[] EMPTY_BYTE_CONTENT = new byte[0];
-    protected DBObjectRef<T> objectRef;
+    protected DBObjectRef<T> object;
 
-    public DBObjectVirtualFile(@NotNull Project project, @NotNull DBObjectRef<T> objectRef) {
+    public DBObjectVirtualFile(@NotNull Project project, @NotNull DBObjectRef<T> object) {
         super(project);
-        this.objectRef = objectRef;
-        this.name = objectRef.getFileName();
+        this.object = object;
+        this.name = object.getFileName();
     }
 
     public DBObjectRef<T> getObjectRef() {
-        return objectRef;
+        return object;
     }
 
     @NotNull
     public T getObject() {
-        return DBObjectRef.ensure(objectRef);
+        return DBObjectRef.ensure(object);
     }
 
     @NotNull
     @Override
     public final ConnectionId getConnectionId() {
-        return objectRef.getConnectionId();
+        return object.getConnectionId();
     }
 
     @Override
     @NotNull
-    public ConnectionHandler getConnectionHandler() {
-        return Failsafe.nn(objectRef.getConnectionHandler());
+    public ConnectionHandler getConnection() {
+        return Failsafe.nn(object.getConnection());
     }
 
     @Nullable
@@ -64,19 +64,19 @@ public class DBObjectVirtualFile<T extends DBObject> extends DBVirtualFileImpl {
     }
 
     @Override
-    public DatabaseSession getDatabaseSession() {
-        return getConnectionHandler().getSessionBundle().getPoolSession();
+    public DatabaseSession getSession() {
+        return getConnection().getSessionBundle().getPoolSession();
     }
 
     @Override
     public boolean isValid() {
-        return super.isValid() && objectRef.get() != null;
+        return super.isValid() && object.get() != null;
     }
 
     @NotNull
     @Override
     public String getPresentablePath() {
-        return getConnectionHandler().getName() + File.separatorChar +
+        return getConnection().getName() + File.separatorChar +
                 getObjectRef().getObjectType().getListName() + File.separatorChar +
                 getObjectRef().getQualifiedName();
     }
@@ -105,7 +105,7 @@ public class DBObjectVirtualFile<T extends DBObject> extends DBVirtualFileImpl {
     @Override
     @Nullable
     public VirtualFile getParent() {
-        if (Commons.isCalledThrough(NavBarPresentation.class)) {
+        if (Traces.isCalledThrough(NavBarPresentation.class)) {
             T object = getObject();
             BrowserTreeNode treeParent = object.getParent();
             if (treeParent instanceof DBObjectList<?>) {
@@ -120,7 +120,7 @@ public class DBObjectVirtualFile<T extends DBObject> extends DBVirtualFileImpl {
 
     @Override
     public Icon getIcon() {
-        return objectRef.getObjectType().getIcon();
+        return object.getObjectType().getIcon();
     }
 
     @Override

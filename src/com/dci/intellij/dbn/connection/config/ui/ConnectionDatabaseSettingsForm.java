@@ -14,7 +14,6 @@ import com.dci.intellij.dbn.common.ui.ComboBoxUtil;
 import com.dci.intellij.dbn.common.ui.DBNHintForm;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.common.util.Commons;
-import com.dci.intellij.dbn.common.util.Safe;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.AuthenticationType;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -23,10 +22,10 @@ import com.dci.intellij.dbn.connection.DatabaseType;
 import com.dci.intellij.dbn.connection.DatabaseUrlPattern;
 import com.dci.intellij.dbn.connection.DatabaseUrlType;
 import com.dci.intellij.dbn.connection.config.ConnectionBundleSettings;
+import com.dci.intellij.dbn.connection.config.ConnectionConfigListener;
 import com.dci.intellij.dbn.connection.config.ConnectionConfigType;
 import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSettings;
-import com.dci.intellij.dbn.connection.config.ConnectionSettingsListener;
 import com.dci.intellij.dbn.connection.config.file.DatabaseFiles;
 import com.dci.intellij.dbn.connection.config.file.ui.DatabaseFileSettingsForm;
 import com.dci.intellij.dbn.driver.DriverSource;
@@ -352,14 +351,14 @@ public class ConnectionDatabaseSettingsForm extends ConfigurationEditorForm<Conn
         DatabaseUrlType urlType = getSelection(urlTypeComboBox);
         boolean settingsChanged =
                 //!connectionConfig.getProperties().equals(propertiesEditorForm.getProperties()) ||
-                !Safe.equal(configuration.getDatabaseType(), selectedDatabaseType) ||
-                !Safe.equal(configuration.getDriverLibrary(), driverLibraryTextField.getText()) ||
-                !Safe.equal(databaseInfo.getHost(), hostTextField.getText()) ||
-                !Safe.equal(databaseInfo.getPort(), portTextField.getText()) ||
-                !Safe.equal(databaseInfo.getDatabase(), databaseTextField.getText()) ||
-                !Safe.equal(databaseInfo.getUrlType(), urlType) ||
-                !Safe.equal(databaseInfo.getFiles(), urlType == DatabaseUrlType.FILE ? databaseFileSettingsForm.getDatabaseFiles() : null) ||
-                !Safe.equal(configuration.getAuthenticationInfo().getUser(), authenticationSettingsForm.getUserTextField().getText());
+                !Commons.match(configuration.getDatabaseType(), selectedDatabaseType) ||
+                !Commons.match(configuration.getDriverLibrary(), driverLibraryTextField.getText()) ||
+                !Commons.match(databaseInfo.getHost(), hostTextField.getText()) ||
+                !Commons.match(databaseInfo.getPort(), portTextField.getText()) ||
+                !Commons.match(databaseInfo.getDatabase(), databaseTextField.getText()) ||
+                !Commons.match(databaseInfo.getUrlType(), urlType) ||
+                !Commons.match(databaseInfo.getFiles(), urlType == DatabaseUrlType.FILE ? databaseFileSettingsForm.getDatabaseFiles() : null) ||
+                !Commons.match(configuration.getAuthenticationInfo().getUser(), authenticationSettingsForm.getUserTextField().getText());
 
 
         applyFormChanges(configuration);
@@ -369,14 +368,14 @@ public class ConnectionDatabaseSettingsForm extends ConfigurationEditorForm<Conn
             ConnectionId connectionId = configuration.getConnectionId();
             if (nameChanged) {
                 ProjectEvents.notify(project,
-                        ConnectionSettingsListener.TOPIC,
-                        (listener) -> listener.connectionNameChanged(connectionId));
+                        ConnectionConfigListener.TOPIC,
+                        listener -> listener.connectionNameChanged(connectionId));
             }
 
             if (settingsChanged) {
                 ProjectEvents.notify(project,
-                        ConnectionSettingsListener.TOPIC,
-                        (listener) -> listener.connectionChanged(connectionId));
+                        ConnectionConfigListener.TOPIC,
+                        listener -> listener.connectionChanged(connectionId));
             }
         });
     }

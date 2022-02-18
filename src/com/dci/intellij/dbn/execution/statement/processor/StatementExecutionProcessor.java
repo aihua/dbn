@@ -4,8 +4,8 @@ import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.navigation.NavigationInstructions;
 import com.dci.intellij.dbn.common.ui.Presentable;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ConnectionProvider;
 import com.dci.intellij.dbn.connection.SchemaId;
+import com.dci.intellij.dbn.connection.context.ConnectionProvider;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.editor.EditorProviderId;
@@ -29,7 +29,7 @@ public interface StatementExecutionProcessor extends ConnectionProvider, Statefu
 
     @Override
     @Nullable
-    ConnectionHandler getConnectionHandler();
+    ConnectionHandler getConnection();
 
     @NotNull
     ConnectionHandler getTargetConnection();

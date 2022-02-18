@@ -233,7 +233,7 @@ public class ConnectionHandlerImpl extends StatefulDisposable.Base implements Co
     @Override
     @NotNull
     public StatementExecutionQueue getExecutionQueue(SessionId sessionId) {
-        return executionQueues.computeIfAbsent(sessionId, key -> new StatementExecutionQueue(this));
+        return executionQueues.computeIfAbsent(sessionId, id -> new StatementExecutionQueue(this));
     }
 
     @Override
@@ -616,7 +616,7 @@ public class ConnectionHandlerImpl extends StatefulDisposable.Base implements Co
 
     @Nullable
     @Override
-    public ConnectionHandler getConnectionHandler() {
+    public ConnectionHandler getConnection() {
         return this;
     }
 

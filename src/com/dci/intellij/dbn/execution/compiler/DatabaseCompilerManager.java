@@ -5,7 +5,6 @@ import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.routine.ParametricRunnable;
 import com.dci.intellij.dbn.common.thread.Progress;
-import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.operation.options.OperationSettings;
@@ -64,7 +63,7 @@ public class DatabaseCompilerManager extends AbstractProjectComponent {
                     if (compileType == CompileType.DEBUG) {
                         compileObject(object, compileType, compilerAction);
                     }
-                    ConnectionHandler connectionHandler = object.getConnectionHandler();
+                    ConnectionHandler connectionHandler = object.getConnection();
                     ProjectEvents.notify(project,
                             CompileManagerListener.TOPIC,
                             (listener) -> listener.compileFinished(connectionHandler, object));
@@ -103,7 +102,7 @@ public class DatabaseCompilerManager extends AbstractProjectComponent {
         assert compileType != CompileType.KEEP;
         Project project = object.getProject();
         DatabaseDebuggerManager debuggerManager = DatabaseDebuggerManager.getInstance(project);
-        boolean allowed = debuggerManager.checkForbiddenOperation(object.getConnectionHandler());
+        boolean allowed = debuggerManager.checkForbiddenOperation(object.getConnection());
         if (allowed) {
             doCompileObject(object, compileType, compilerAction);
             DBContentType contentType = compilerAction.getContentType();
@@ -142,7 +141,7 @@ public class DatabaseCompilerManager extends AbstractProjectComponent {
                         (selectedCompileType) -> Progress.background(project, "Compiling " + object.getObjectType().getName(), false,
                                 (progress) -> {
                                     doCompileObject(object, selectedCompileType, compilerAction);
-                                    ConnectionHandler connectionHandler = object.getConnectionHandler();
+                                    ConnectionHandler connectionHandler = object.getConnection();
                                     ProjectEvents.notify(project,
                                             CompileManagerListener.TOPIC,
                                             (listener) -> listener.compileFinished(connectionHandler, object));
@@ -163,7 +162,7 @@ public class DatabaseCompilerManager extends AbstractProjectComponent {
         DBObjectStatusHolder objectStatus = object.getStatus();
         if (objectStatus.isNot(contentType, DBObjectStatus.COMPILING)) {
             objectStatus.set(contentType, DBObjectStatus.COMPILING, true);
-            ConnectionHandler connectionHandler = object.getConnectionHandler();
+            ConnectionHandler connectionHandler = object.getConnection();
             try {
                 DatabaseInterface.run(true,
                         connectionHandler,
@@ -218,7 +217,7 @@ public class DatabaseCompilerManager extends AbstractProjectComponent {
     }
 
     public void compileInvalidObjects(@NotNull DBSchema schema, CompileType compileType) {
-        ConnectionHandler connectionHandler = schema.getConnectionHandler();
+        ConnectionHandler connectionHandler = schema.getConnection();
         ConnectionAction.invoke("compiling the invalid objects", false, schema,
                 (action) -> promptCompileTypeSelection(compileType, null,
                         (selectedCompileType) -> {
@@ -268,7 +267,7 @@ public class DatabaseCompilerManager extends AbstractProjectComponent {
                 break;
             } else {
                 DBSchemaObject object = objects.get(i);
-                progressIndicator.setFraction(Commons.getProgressPercentage(i, count));
+                progressIndicator.setFraction(Progress.progressOf(i, count));
                 DBObjectStatusHolder objectStatus = object.getStatus();
                 if (object.getContentType().isBundle()) {
                     for (DBContentType contentType : object.getContentType().getSubContentTypes()) {

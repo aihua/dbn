@@ -67,10 +67,10 @@ public class GoToDatabaseObjectAction extends GotoActionBase implements DumbAwar
                         actionGroup.addSeparator();
                     }
 
-                    for (ConnectionHandler connectionHandler : connectionBundle.getConnections()) {
-                        SelectConnectionAction connectionAction = new SelectConnectionAction(connectionHandler);
+                    for (ConnectionHandler connection : connectionBundle.getConnections()) {
+                        SelectConnectionAction connectionAction = new SelectConnectionAction(connection);
                         actionGroup.add(connectionAction);
-                        singleConnectionHandler = connectionHandler;
+                        singleConnectionHandler = connection;
                     }
                 }
 
@@ -184,7 +184,7 @@ public class GoToDatabaseObjectAction extends GotoActionBase implements DumbAwar
                 @NotNull Project project,
                 @NotNull DBSchema object) {
 
-            showLookupPopup(e, project, object.getConnectionHandler(), object);
+            showLookupPopup(e, project, object.getConnection(), object);
             latestSchemaName = object.getName();
         }
     }

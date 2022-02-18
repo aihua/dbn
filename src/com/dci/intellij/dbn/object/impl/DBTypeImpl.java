@@ -8,7 +8,7 @@ import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoader;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentResultSetLoader;
 import com.dci.intellij.dbn.common.content.loader.DynamicSubcontentLoader;
-import com.dci.intellij.dbn.common.util.Safe;
+import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.data.type.DBDataType;
@@ -88,7 +88,7 @@ public class DBTypeImpl
         boolean collection = metadata.isCollection();
         set(DBObjectProperty.COLLECTION, collection);
 
-        ConnectionHandler connectionHandler = getConnectionHandler();
+        ConnectionHandler connectionHandler = this.getConnection();
         nativeDataType = connectionHandler.getObjectBundle().getNativeDataType(typeCode);
         if (collection) {
             DBDataTypeMetadata collectionMetadata = metadata.getDataType().collection();
@@ -143,7 +143,7 @@ public class DBTypeImpl
 
     @Override
     public DBType getSuperType() {
-        ConnectionHandler connectionHandler = getConnectionHandler();
+        ConnectionHandler connectionHandler = this.getConnection();
         if (superType == null && superTypeOwner != null && superTypeName != null) {
             DBSchema schema = connectionHandler.getObjectBundle().getSchema(superTypeOwner);
             DBType type = schema == null ? null : schema.getType(superTypeName);
@@ -156,7 +156,7 @@ public class DBTypeImpl
 
     @Override
     public DBDataType getCollectionElementType() {
-        ConnectionHandler connection = getConnectionHandler();
+        ConnectionHandler connection = this.getConnection();
         if (collectionElementType == null && collectionElementTypeRef != null) {
             collectionElementType = connection.getObjectBundle().getDataTypes().getDataType(collectionElementTypeRef);
             collectionElementTypeRef = null;
@@ -229,7 +229,7 @@ public class DBTypeImpl
             @Override
             public boolean match(DBTypeAttribute typeAttribute, DynamicContent dynamicContent) {
                 DBType type = (DBType) dynamicContent.getParentEntity();
-                return Safe.equal(typeAttribute.getType(), type);
+                return Commons.match(typeAttribute.getType(), type);
             }
 
             @Override
@@ -258,7 +258,7 @@ public class DBTypeImpl
             @Override
             public boolean match(DBTypeFunction function, DynamicContent dynamicContent) {
                 DBType type = (DBType) dynamicContent.getParentEntity();
-                return Safe.equal(function.getType(), type);
+                return Commons.match(function.getType(), type);
             }
 
             @Override
@@ -286,7 +286,7 @@ public class DBTypeImpl
             @Override
             public boolean match(DBTypeProcedure procedure, DynamicContent dynamicContent) {
                 DBType type = (DBType) dynamicContent.getParentEntity();
-                return Safe.equal(procedure.getType(), type);
+                return Commons.match(procedure.getType(), type);
             }
 
             @Override
@@ -315,7 +315,7 @@ public class DBTypeImpl
             public boolean match(DBType type, DynamicContent dynamicContent) {
                 DBType superType = type.getSuperType();
                 DBType thisType = (DBType) dynamicContent.getParentEntity();
-                return Safe.equal(superType, thisType);
+                return Commons.match(superType, thisType);
             }
 
             @Override

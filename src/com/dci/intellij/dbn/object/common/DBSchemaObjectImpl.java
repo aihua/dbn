@@ -5,7 +5,7 @@ import com.dci.intellij.dbn.common.content.DynamicContentStatus;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentResultSetLoader;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.PooledConnection;
-import com.dci.intellij.dbn.connection.ResourceUtil;
+import com.dci.intellij.dbn.connection.Resources;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseDDLInterface;
 import com.dci.intellij.dbn.database.DatabaseInterface;
@@ -129,7 +129,7 @@ public abstract class DBSchemaObjectImpl<M extends DBObjectMetadata> extends DBO
 
     @Override
     public List<DBSchema> getReferencingSchemas() throws SQLException {
-        ConnectionHandler connectionHandler = getConnectionHandler();
+        ConnectionHandler connectionHandler = this.getConnection();
         return DatabaseInterface.call(
                 true,
                 connectionHandler,
@@ -153,7 +153,7 @@ public abstract class DBSchemaObjectImpl<M extends DBObjectMetadata> extends DBO
                         }
 
                     } finally {
-                        ResourceUtil.close(resultSet);
+                        Resources.close(resultSet);
                     }
                     return schemas;
                 });
@@ -161,8 +161,8 @@ public abstract class DBSchemaObjectImpl<M extends DBObjectMetadata> extends DBO
 
     @Override
     public void executeUpdateDDL(DBContentType contentType, String oldCode, String newCode) throws SQLException {
-        ConnectionHandler connectionHandler = getConnectionHandler();
-        PooledConnection.run(false, connectionHandler, getSchemaIdentifier(), connection -> {
+        ConnectionHandler connectionHandler = this.getConnection();
+        PooledConnection.run(false, connectionHandler, getSchemaId(), connection -> {
             DatabaseDDLInterface ddlInterface = connectionHandler.getInterfaceProvider().getDdlInterface();
             ddlInterface.updateObject(getName(), getObjectType().getName(), oldCode,  newCode, connection);
         });
@@ -193,7 +193,7 @@ public abstract class DBSchemaObjectImpl<M extends DBObjectMetadata> extends DBO
 
                 if (schema == null) {
                     DBSchemaObject schemaObject = (DBSchemaObject) content.getParentEntity();
-                    ConnectionHandler connectionHandler = schemaObject.getConnectionHandler();
+                    ConnectionHandler connectionHandler = schemaObject.getConnection();
                     schema = connectionHandler.getObjectBundle().getSchema(objectOwner);
                     cache.setObject(objectOwner,  schema);
                 }
@@ -222,7 +222,7 @@ public abstract class DBSchemaObjectImpl<M extends DBObjectMetadata> extends DBO
                 DBSchema schema = (DBSchema) cache.getObject(objectOwner);
                 if (schema == null) {
                     DBSchemaObject schemaObject = (DBSchemaObject) content.getParentEntity();
-                    ConnectionHandler connectionHandler = schemaObject.getConnectionHandler();
+                    ConnectionHandler connectionHandler = schemaObject.getConnection();
                     schema = connectionHandler.getObjectBundle().getSchema(objectOwner);
                     cache.setObject(objectOwner,  schema);
                 }

@@ -6,7 +6,7 @@ import com.dci.intellij.dbn.common.util.ChangeTimestamp;
 import com.dci.intellij.dbn.common.util.Documents;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ConnectionProvider;
+import com.dci.intellij.dbn.connection.context.ConnectionProvider;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.editor.DBContentType;
@@ -58,7 +58,7 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
 
     public DBSourceCodeVirtualFile(final DBEditableObjectVirtualFile databaseFile, DBContentType contentType) {
         super(databaseFile, contentType);
-        setCharset(databaseFile.getConnectionHandler().getSettings().getDetailSettings().getCharset());
+        setCharset(databaseFile.getConnection().getSettings().getDetailSettings().getCharset());
     }
 
     @NotNull
@@ -68,7 +68,7 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
 
     @Override
     public PsiFile initializePsiFile(DatabaseFileViewProvider fileViewProvider, Language language) {
-        ConnectionHandler connectionHandler = getConnectionHandler();
+        ConnectionHandler connectionHandler = this.getConnection();
         String parseRootId = getParseRootId();
         if (parseRootId != null) {
             DBLanguageDialect languageDialect = connectionHandler.resolveLanguageDialect(language);
@@ -83,8 +83,8 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
     }
 
     @Override
-    public DatabaseSession getDatabaseSession() {
-        return getConnectionHandler().getSessionBundle().getPoolSession();
+    public DatabaseSession getSession() {
+        return this.getConnection().getSessionBundle().getPoolSession();
     }
 
     public boolean isLoaded() {

@@ -6,7 +6,7 @@ import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.ThreadMonitor;
 import com.dci.intellij.dbn.common.thread.ThreadProperty;
 import com.intellij.ide.AppLifecycleListener;
-import com.intellij.openapi.application.ApplicationListener;
+import com.intellij.openapi.application.ApplicationAdapter;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +33,7 @@ public class BackgroundDisposer {
             }
         });
 
-        ApplicationManager.getApplication().addApplicationListener(new ApplicationListener() {
+        ApplicationManager.getApplication().addApplicationListener(new ApplicationAdapter() {
             @Override
             @Compatibility
             public void applicationExiting() {

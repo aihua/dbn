@@ -3,12 +3,11 @@ package com.dci.intellij.dbn.execution.explain.result;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.action.DataKeys;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.ConnectionId;
-import com.dci.intellij.dbn.connection.ResultSetUtil;
+import com.dci.intellij.dbn.connection.ResultSets;
 import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.execution.ExecutionResultBase;
 import com.dci.intellij.dbn.execution.explain.result.ui.ExplainPlanResultForm;
@@ -20,6 +19,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
 import lombok.Getter;
+import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -31,14 +31,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.dci.intellij.dbn.common.dispose.SafeDisposer.replace;
+
+@Getter
+@Setter
 public class ExplainPlanResult extends ExecutionResultBase<ExplainPlanResultForm> {
     private String planId;
     private Date timestamp;
-    private @Getter ExplainPlanEntry root;
+    private ExplainPlanEntry root;
     private final ConnectionHandlerRef connectionHandler;
-    private final @Getter VirtualFile virtualFile;
-    private final @Getter SchemaId currentSchema;
-    private final @Getter String errorMessage;
+    private final VirtualFile virtualFile;
+    private final SchemaId currentSchema;
+    private final String errorMessage;
     private final String statementText;
     private final String resultName;
 
@@ -47,7 +51,7 @@ public class ExplainPlanResult extends ExecutionResultBase<ExplainPlanResultForm
         // entries must be sorted by PARENT_ID NULLS FIRST, ID
         Map<Integer, ExplainPlanEntry> entries = new HashMap<>();
         ConnectionHandler connectionHandler = getConnectionHandler();
-        List<String> explainColumnNames = ResultSetUtil.getColumnNames(resultSet);
+        List<String> explainColumnNames = ResultSets.getColumnNames(resultSet);
 
         while (resultSet.next()) {
             ExplainPlanEntry entry = new ExplainPlanEntry(connectionHandler, resultSet, explainColumnNames);
@@ -66,7 +70,7 @@ public class ExplainPlanResult extends ExecutionResultBase<ExplainPlanResultForm
 
     public ExplainPlanResult(ExecutablePsiElement executablePsiElement, String errorMessage) {
         DBLanguagePsiFile psiFile = executablePsiElement.getFile();
-        ConnectionHandler connectionHandler = Failsafe.nn(psiFile.getConnectionHandler());
+        ConnectionHandler connectionHandler = Failsafe.nn(psiFile.getConnection());
         this.connectionHandler = connectionHandler.getRef();
         this.currentSchema = psiFile.getSchemaId();
         this.virtualFile = psiFile.getVirtualFile();
@@ -144,7 +148,7 @@ public class ExplainPlanResult extends ExecutionResultBase<ExplainPlanResultForm
      *******************************************************  */
     @Override
     public void disposeInner() {
-        SafeDisposer.dispose(root);
+        root = replace(root, null, false);
         super.disposeInner();
     }
 }

@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.common.pool;
 
 
+import com.dci.intellij.dbn.common.dispose.Disposed;
 import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.lookup.Visitor;
@@ -12,8 +13,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import static com.dci.intellij.dbn.common.dispose.SafeDisposer.replace;
+
 public abstract class ObjectPool<T extends Disposable> extends StatefulDisposable.Base {
-    private final List<T> objects = new CopyOnWriteArrayList<>();
+    private List<T> objects = new CopyOnWriteArrayList<>();
     private final BlockingQueue<T> available = new LinkedBlockingQueue<>();
 
     public final T acquire(long timeout, TimeUnit timeUnit) throws InterruptedException {
@@ -82,7 +85,7 @@ public abstract class ObjectPool<T extends Disposable> extends StatefulDisposabl
 
     @Override
     protected void disposeInner() {
-        SafeDisposer.dispose(objects, true, true);
+        objects = replace(objects, Disposed.list(), true);
         available.clear();
     }
 }

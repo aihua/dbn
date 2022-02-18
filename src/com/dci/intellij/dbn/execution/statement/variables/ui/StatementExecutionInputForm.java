@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.execution.statement.variables.ui;
 
 import com.dci.intellij.dbn.common.color.Colors;
-import com.dci.intellij.dbn.common.dispose.DisposableContainer;
+import com.dci.intellij.dbn.common.dispose.DisposableContainers;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.ui.Borders;
@@ -29,9 +29,17 @@ import com.intellij.ui.DocumentAdapter;
 import com.intellij.ui.JBColor;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.*;
+import javax.swing.BoxLayout;
+import javax.swing.Icon;
+import javax.swing.JCheckBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JSplitPane;
 import javax.swing.event.DocumentEvent;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Dimension;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -50,7 +58,7 @@ public class StatementExecutionInputForm extends DBNFormImpl {
     private JScrollPane variablesScrollPane;
 
     private StatementExecutionProcessor executionProcessor;
-    private final List<StatementExecutionVariableValueForm> variableValueForms = DisposableContainer.list(this);
+    private final List<StatementExecutionVariableValueForm> variableValueForms = DisposableContainers.list(this);
     private final ExecutionOptionsForm executionOptionsForm;
     private final String statementText;
     private Document previewDocument;
@@ -66,7 +74,7 @@ public class StatementExecutionInputForm extends DBNFormImpl {
 
         variablesPanel.setLayout(new BoxLayout(variablesPanel, BoxLayout.Y_AXIS));
 
-        ConnectionHandler connectionHandler = executionProcessor.getConnectionHandler();
+        ConnectionHandler connectionHandler = executionProcessor.getConnection();
         if (debuggerType.isDebug()) {
             debuggerVersionPanel.setVisible(true);
             debuggerVersionPanel.setBorder(Borders.BOTTOM_LINE_BORDER);
@@ -169,7 +177,7 @@ public class StatementExecutionInputForm extends DBNFormImpl {
     }
 
     void updatePreview() {
-        ConnectionHandler connectionHandler = Failsafe.nn(executionProcessor.getConnectionHandler());
+        ConnectionHandler connectionHandler = Failsafe.nn(executionProcessor.getConnection());
         SchemaId currentSchema = executionProcessor.getTargetSchema();
         Project project = connectionHandler.getProject();
         String previewText = this.statementText;

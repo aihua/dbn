@@ -2,13 +2,13 @@ package com.dci.intellij.dbn.data.grid.ui.table.resultSet.record;
 
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.color.Colors;
-import com.dci.intellij.dbn.common.dispose.DisposableContainer;
+import com.dci.intellij.dbn.common.dispose.DisposableContainers;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.ui.DBNHeaderForm;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.common.util.Actions;
-import com.dci.intellij.dbn.common.util.Safe;
+import com.dci.intellij.dbn.common.util.Cancellable;
 import com.dci.intellij.dbn.data.grid.ui.table.resultSet.ResultSetTable;
 import com.dci.intellij.dbn.data.model.ColumnInfo;
 import com.dci.intellij.dbn.data.model.resultSet.ResultSetDataModel;
@@ -42,7 +42,7 @@ public class ResultSetRecordViewerForm extends DBNFormImpl {
     private JScrollPane columnsPanelScrollPane;
     private JPanel headerPanel;
 
-    private final List<ResultSetRecordViewerColumnForm> columnForms = DisposableContainer.list(this);
+    private final List<ResultSetRecordViewerColumnForm> columnForms = DisposableContainers.list(this);
 
     private ResultSetTable<?> table;
     private ResultSetDataModelRow<?, ?> row;
@@ -320,14 +320,14 @@ public class ResultSetRecordViewerForm extends DBNFormImpl {
 
 
     private int getRowIndex() {
-        return Safe.call(-1, () -> {
+        return Cancellable.call(-1, () -> {
             ResultSetDataModelRow<?, ?> row = getRow();
             return row.getIndex();
         });
     }
 
     private int getRowCount() {
-        return Safe.call(0, () -> {
+        return Cancellable.call(0, () -> {
             ResultSetDataModelRow<?, ?> row = getRow();
             return row.getModel().getRowCount();
         });

@@ -13,7 +13,7 @@ import com.dci.intellij.dbn.common.util.Unsafe;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.DatabaseType;
 import com.dci.intellij.dbn.connection.SchemaId;
-import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingManager;
+import com.dci.intellij.dbn.connection.mapping.FileConnectionContextManager;
 import com.dci.intellij.dbn.database.CmdLineExecutionInput;
 import com.dci.intellij.dbn.database.DatabaseExecutionInterface;
 import com.dci.intellij.dbn.execution.ExecutionContext;
@@ -99,10 +99,10 @@ public class ScriptExecutionManager extends AbstractProjectComponent implements 
         if (activeProcesses.containsKey(virtualFile)) {
             Messages.showInfoDialog(project, "Information", "SQL Script \"" + virtualFile.getPath() + "\" is already running. \nWait for the execution to finish before running again.");
         } else {
-            FileConnectionMappingManager connectionMappingManager = FileConnectionMappingManager.getInstance(project);
+            FileConnectionContextManager contextManager = FileConnectionContextManager.getInstance(project);
 
-            ConnectionHandler activeConnection = connectionMappingManager.getConnectionHandler(virtualFile);
-            SchemaId currentSchema = connectionMappingManager.getDatabaseSchema(virtualFile);
+            ConnectionHandler activeConnection = contextManager.getConnection(virtualFile);
+            SchemaId currentSchema = contextManager.getDatabaseSchema(virtualFile);
 
             ScriptExecutionInput executionInput = new ScriptExecutionInput(getProject(), virtualFile, activeConnection, currentSchema, clearOutputOption);
             ScriptExecutionSettings scriptExecutionSettings = ExecutionEngineSettings.getInstance(project).getScriptExecutionSettings();
@@ -113,11 +113,11 @@ public class ScriptExecutionManager extends AbstractProjectComponent implements 
 
             inputDialog.show();
             if (inputDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
-                ConnectionHandler connectionHandler = executionInput.getConnectionHandler();
+                ConnectionHandler connectionHandler = executionInput.getConnection();
                 SchemaId schema = executionInput.getSchema();
                 CmdLineInterface cmdLineExecutable = executionInput.getCmdLineInterface();
-                connectionMappingManager.setConnectionHandler(virtualFile, connectionHandler);
-                connectionMappingManager.setDatabaseSchema(virtualFile, schema);
+                contextManager.setConnection(virtualFile, connectionHandler);
+                contextManager.setDatabaseSchema(virtualFile, schema);
                 if (connectionHandler != null) {
                     recentlyUsedInterfaces.put(connectionHandler.getDatabaseType(), cmdLineExecutable.getId());
                 }
@@ -138,7 +138,7 @@ public class ScriptExecutionManager extends AbstractProjectComponent implements 
     private void doExecuteScript(ScriptExecutionInput input) throws Exception {
         ExecutionContext context = input.getExecutionContext();
         context.set(EXECUTING, true);
-        ConnectionHandler connectionHandler = Failsafe.nn(input.getConnectionHandler());
+        ConnectionHandler connectionHandler = Failsafe.nn(input.getConnection());
         VirtualFile sourceFile = input.getSourceFile();
         activeProcesses.remove(sourceFile, null);
 
@@ -152,7 +152,7 @@ public class ScriptExecutionManager extends AbstractProjectComponent implements 
             new CancellableDatabaseCall<Object>(connectionHandler, null, timeout, TimeUnit.SECONDS) {
                 @Override
                 public Object execute() throws Exception {
-                    ConnectionHandler connectionHandler = Failsafe.nn(input.getConnectionHandler());
+                    ConnectionHandler connectionHandler = Failsafe.nn(input.getConnection());
                     SchemaId schema = input.getSchema();
 
                     String content = new String(sourceFile.contentsToByteArray());

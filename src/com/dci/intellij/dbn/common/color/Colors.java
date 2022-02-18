@@ -2,7 +2,7 @@ package com.dci.intellij.dbn.common.color;
 
 import com.dci.intellij.dbn.common.event.ApplicationEvents;
 import com.dci.intellij.dbn.common.ui.LookAndFeel;
-import com.dci.intellij.dbn.common.util.Safe;
+import com.dci.intellij.dbn.common.util.Cancellable;
 import com.dci.intellij.dbn.data.grid.color.DataGridTextAttributesKeys;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.editor.HighlighterColors;
@@ -14,8 +14,8 @@ import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.UIManager;
+import java.awt.Color;
 import java.util.Objects;
 
 import static com.dci.intellij.dbn.common.color.ColorCache.cached;
@@ -145,12 +145,20 @@ public final class Colors {
         return cached(25, () -> new JBColor(() -> Colors.lafDarker(getReadonlyEditorBackground(), 1)));
     }
 
-    public static Color getLightPanelBackground() {
+    public static Color getLighterPanelBackground() {
         return cached(26, () -> new JBColor(() -> Colors.lafBrighter(UIUtil.getPanelBackground(), 1)));
     }
 
+    public static Color getLightPanelBackground() {
+        return cached(27, () -> new JBColor(() -> Colors.lafBrighter(UIUtil.getPanelBackground(), 2)));
+    }
+
+    public static Color getDarkerPanelBackground() {
+        return cached(28, () -> new JBColor(() -> Colors.lafDarker(UIUtil.getPanelBackground(), 1)));
+    }
+
     public static Color getDarkPanelBackground() {
-        return cached(27, () -> new JBColor(() -> Colors.lafDarker(UIUtil.getPanelBackground(), 1)));
+        return cached(29, () -> new JBColor(() -> Colors.lafDarker(UIUtil.getPanelBackground(), 2)));
     }
 
 
@@ -165,7 +173,7 @@ public final class Colors {
 
         UIManager.addPropertyChangeListener(evt -> {
             if (Objects.equals(evt.getPropertyName(), "lookAndFeel")) {
-                Safe.run(runnable);
+                Cancellable.run(runnable);
             }
         });
     }

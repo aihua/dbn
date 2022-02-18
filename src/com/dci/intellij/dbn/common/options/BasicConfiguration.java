@@ -17,7 +17,7 @@ import javax.swing.JComponent;
 public abstract class BasicConfiguration<P extends Configuration, E extends ConfigurationEditorForm>
         extends AbstractConfiguration<P, E> {
 
-    private E configurationEditorForm;
+    private WeakRef<E> editorForm;
 
     private boolean modified = false;
     private final boolean transitory = ConfigurationHandle.isTransitory();
@@ -59,20 +59,21 @@ public abstract class BasicConfiguration<P extends Configuration, E extends Conf
 
     @Nullable
     public final E getSettingsEditor() {
-        return configurationEditorForm;
+        return WeakRef.get(editorForm);
     }
 
     @NotNull
     public final E ensureSettingsEditor() {
-        return Failsafe.nn(configurationEditorForm);
+        return Failsafe.nd(getSettingsEditor());
     }
 
 
     @Override
     @NotNull
     public JComponent createComponent() {
-        configurationEditorForm = createConfigurationEditor();
-        return configurationEditorForm.getComponent();
+        E editorForm = createConfigurationEditor();
+        this.editorForm = WeakRef.of(editorForm);
+        return editorForm.getComponent();
     }
 
     public void setModified(boolean modified) {
@@ -96,8 +97,9 @@ public abstract class BasicConfiguration<P extends Configuration, E extends Conf
 
     @Override
     public void apply() throws ConfigurationException {
-        if (Failsafe.check(configurationEditorForm)) {
-            configurationEditorForm.applyFormChanges();
+        E editorForm = getSettingsEditor();
+        if (Failsafe.check(editorForm)) {
+            editorForm.applyFormChanges();
         }
         modified = false;
 
@@ -119,8 +121,10 @@ public abstract class BasicConfiguration<P extends Configuration, E extends Conf
     public void reset() {
         try {
             ConfigurationHandle.setResetting(true);
-            if (configurationEditorForm != null)
-            configurationEditorForm.resetFormChanges();
+            E editorForm = getSettingsEditor();
+            if (editorForm != null) {
+                editorForm.resetFormChanges();
+            }
         } finally {
             modified = false;
             ConfigurationHandle.setResetting(false);
@@ -129,8 +133,7 @@ public abstract class BasicConfiguration<P extends Configuration, E extends Conf
 
     @Override
     public void disposeUIResources() {
-        SafeDisposer.dispose(configurationEditorForm);
-        configurationEditorForm = null;
+        editorForm = SafeDisposer.replace(editorForm, null, true);
     }
 
     public String getConfigElementName() {

@@ -5,17 +5,17 @@ import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNodeBase;
 import com.dci.intellij.dbn.browser.ui.DatabaseBrowserTree;
 import com.dci.intellij.dbn.common.Icons;
+import com.dci.intellij.dbn.common.dispose.Disposed;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
-import com.dci.intellij.dbn.common.index.IdentifiableMap;
 import com.dci.intellij.dbn.common.list.FilteredList;
 import com.dci.intellij.dbn.common.options.SettingsChangeNotifier;
 import com.dci.intellij.dbn.common.project.ProjectRef;
 import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.common.util.Lists;
 import com.dci.intellij.dbn.connection.config.ConnectionBundleSettings;
+import com.dci.intellij.dbn.connection.config.ConnectionConfigListener;
 import com.dci.intellij.dbn.connection.config.ConnectionSettings;
-import com.dci.intellij.dbn.connection.config.ConnectionSettingsListener;
 import com.dci.intellij.dbn.object.common.DBObjectBundle;
 import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.navigation.ItemPresentation;
@@ -24,15 +24,20 @@ import com.intellij.openapi.util.Disposer;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
-import java.util.*;
-import java.util.stream.Stream;
+import javax.swing.Icon;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTreeNode, StatefulDisposable {
     private final ProjectRef project;
-    private final IdentifiableMap<ConnectionId, ConnectionHandlerRef> index = new IdentifiableMap<>();
     private final Map<ConnectionId, ConnectionHandler> virtualConnections = new LinkedHashMap<>();
     private FilteredList<ConnectionHandler> connections = FilteredList.stateful(c -> c.isEnabled());
+
+    private Map<ConnectionId, ConnectionHandler> index = new HashMap<>();
 
     public ConnectionBundle(Project project) {
         this.project = ProjectRef.of(project);
@@ -116,11 +121,20 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
             Project project = configuration.getProject();
             SettingsChangeNotifier.register(() -> {
                 ProjectEvents.notify(project,
-                        ConnectionSettingsListener.TOPIC,
-                        (listener) -> listener.connectionsChanged());
+                        ConnectionConfigListener.TOPIC,
+                        listener -> listener.connectionsChanged());
+
+                for (ConnectionHandler connection : oldConnections) {
+                    ConnectionId connectionId = connection.getConnectionId();
+                    ProjectEvents.notify(project,
+                        ConnectionConfigListener.TOPIC,
+                        listener -> listener.connectionRemoved(connectionId));
+                }
 
                 ConnectionManager connectionManager = ConnectionManager.getInstance(project);
                 connectionManager.disposeConnections(oldConnections);
+
+
             });
         }
 
@@ -128,9 +142,11 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
     }
 
     private void rebuildIndex() {
-        this.index.rebuild(Stream.of(
-                this.connections.getBase(),
-                this.virtualConnections.values()).flatMap(c -> c.stream()).map(c -> c.getRef()));
+        Map<ConnectionId, ConnectionHandler> index = new HashMap<>();
+        for (ConnectionHandler connection : connections.getBase()) {
+            index.put(connection.getConnectionId(), connection);
+        }
+        this.index = index;
     }
 
     @Override
@@ -147,8 +163,7 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
     @Nullable
     public ConnectionHandler getConnection(@Nullable ConnectionId id) {
         if (id != null) {
-            ConnectionHandlerRef ref = index.get(id);
-            return ConnectionHandlerRef.get(ref);
+            return index.get(id);
         }
         return null;
     }
@@ -262,7 +277,7 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
     @Override
     public int getIndex(BrowserTreeNode child) {
         DBObjectBundle objectBundle = (DBObjectBundle) child;
-        return connections.indexOf(objectBundle.getConnectionHandler());
+        return connections.indexOf(objectBundle.getConnection());
     }
 
     @Override
@@ -302,7 +317,7 @@ public class ConnectionBundle extends BrowserTreeNodeBase implements BrowserTree
 
     @Override
     protected void disposeInner() {
-        index.clear();
+        index = Disposed.map();
         nullify();
     }
 }

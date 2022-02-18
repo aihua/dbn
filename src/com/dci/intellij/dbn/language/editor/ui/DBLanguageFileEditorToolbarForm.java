@@ -1,10 +1,11 @@
 package com.dci.intellij.dbn.language.editor.ui;
 
 import com.dci.intellij.dbn.common.ui.AutoCommitLabel;
+import com.dci.intellij.dbn.common.ui.Borders;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.util.Actions;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingManager;
+import com.dci.intellij.dbn.connection.mapping.FileConnectionContextManager;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.actionSystem.ActionToolbar;
@@ -25,14 +26,16 @@ public class DBLanguageFileEditorToolbarForm extends DBNFormImpl {
 
     public DBLanguageFileEditorToolbarForm(Disposable parent, Project project, VirtualFile file) {
         super(parent, project);
+        this.mainPanel.setBorder(Borders.insetBorder(2));
+
         ActionToolbar actionToolbar = Actions.createActionToolbar(actionsPanel,"", true, "DBNavigator.ActionGroup.FileEditor");
-        actionsPanel.add(actionToolbar.getComponent(), BorderLayout.CENTER);
+        this.actionsPanel.add(actionToolbar.getComponent(), BorderLayout.CENTER);
 
-        FileConnectionMappingManager mappingManager = FileConnectionMappingManager.getInstance(project);
-        ConnectionHandler connectionHandler = mappingManager.getConnectionHandler(file);
-        DatabaseSession databaseSession = mappingManager.getDatabaseSession(file);
+        FileConnectionContextManager contextManager = FileConnectionContextManager.getInstance(project);
+        ConnectionHandler connectionHandler = contextManager.getConnection(file);
+        DatabaseSession databaseSession = contextManager.getDatabaseSession(file);
 
-        autoCommitLabel.init(project, file, connectionHandler, databaseSession);
+        this.autoCommitLabel.init(project, file, connectionHandler, databaseSession);
         Disposer.register(this, autoCommitLabel);
     }
 

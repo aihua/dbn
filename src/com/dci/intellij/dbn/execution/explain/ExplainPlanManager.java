@@ -6,9 +6,9 @@ import com.dci.intellij.dbn.common.routine.ParametricRunnable;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ResourceUtil;
+import com.dci.intellij.dbn.connection.Resources;
 import com.dci.intellij.dbn.connection.SchemaId;
-import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingManager;
+import com.dci.intellij.dbn.connection.mapping.FileConnectionContextManager;
 import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
 import com.dci.intellij.dbn.database.DatabaseInterface;
 import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
@@ -55,9 +55,9 @@ public class ExplainPlanManager extends AbstractProjectComponent {
         String elementDescription = executable.getSpecificElementType().getDescription();
 
         DBLanguagePsiFile databaseFile = executable.getFile();
-        FileConnectionMappingManager connectionMappingManager = FileConnectionMappingManager.getInstance(project);
-        connectionMappingManager.selectConnectionAndSchema(
-                databaseFile,
+        FileConnectionContextManager contextManager = FileConnectionContextManager.getInstance(project);
+        contextManager.selectConnectionAndSchema(
+                databaseFile.getVirtualFile(),
                 dataContext,
                 ()-> ConnectionAction.invoke("generating the explain plan", false, executable.getFile(),
                         (action) -> Progress.prompt(getProject(), "Extracting explain plan for " + elementDescription, true,
@@ -87,9 +87,9 @@ public class ExplainPlanManager extends AbstractProjectComponent {
                                                         return new ExplainPlanResult(executable, resultSet);
 
                                                     } finally {
-                                                        ResourceUtil.close(resultSet);
-                                                        ResourceUtil.close(statement);
-                                                        ResourceUtil.rollbackSilently(connection);
+                                                        Resources.close(resultSet);
+                                                        Resources.close(statement);
+                                                        Resources.rollbackSilently(connection);
                                                     }
                                                 });
                                     } catch (SQLException e) {

@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.data.model.basic;
 
 
-import com.dci.intellij.dbn.common.dispose.SafeDisposer;
+import com.dci.intellij.dbn.common.dispose.Disposed;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.data.model.ColumnInfo;
@@ -11,8 +11,10 @@ import com.dci.intellij.dbn.data.type.DBDataType;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.dci.intellij.dbn.common.dispose.SafeDisposer.replace;
+
 public class BasicDataModelHeader<T extends ColumnInfo> extends StatefulDisposable.Base implements DataModelHeader<T> {
-    private final List<T> columnInfos = new ArrayList<T>();
+    private List<T> columnInfos = new ArrayList<T>();
 
 
     protected void addColumnInfo(T columnInfo) {
@@ -61,7 +63,7 @@ public class BasicDataModelHeader<T extends ColumnInfo> extends StatefulDisposab
      *******************************************************  */
     @Override
     public void disposeInner() {
-        SafeDisposer.dispose(columnInfos, true, false);
+        columnInfos = replace(columnInfos, Disposed.list(), false);
         nullify();
     }
 }

@@ -46,12 +46,12 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
     }
 
     @Override
-    public DatabaseSession getDatabaseSession() {
+    public DatabaseSession getSession() {
         if (databaseSessionId != null) {
-            DatabaseSessionBundle sessionBundle = getConnectionHandler().getSessionBundle();
+            DatabaseSessionBundle sessionBundle = getConnection().getSessionBundle();
             return sessionBundle.getSession(databaseSessionId);
         }
-        return super.getDatabaseSession();
+        return super.getSession();
     }
 
     public SessionId getDatabaseSessionId() {
@@ -241,7 +241,7 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
 
     @NotNull
     public DBContentType getContentType() {
-        return objectRef.getObjectType().getContentType();
+        return object.getObjectType().getContentType();
     }
 }
 

@@ -48,8 +48,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.function.Consumer;
 
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.INTERNAL;
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.SCANNABLE;
+import static com.dci.intellij.dbn.common.content.DynamicContentStatus.*;
 import static com.dci.intellij.dbn.object.type.DBObjectType.*;
 
 public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> implements DBObjectList<T> {
@@ -131,7 +130,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
     @Override
     @Nullable
     public Filter<T> getConfigFilter() {
-        ConnectionHandler connectionHandler = getConnectionHandler();
+        ConnectionHandler connectionHandler = this.getConnection();
         if (Failsafe.check(connectionHandler) && !connectionHandler.isVirtual()) {
             ConnectionFilterSettings filterSettings = connectionHandler.getSettings().getFilterSettings();
             return filterSettings.getNameFilter(objectType);
@@ -297,7 +296,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
                 DBObject object = (DBObject) getParent();
                 return getName() + " of " + object.getQualifiedNameWithType();
             }
-            ConnectionHandler connectionHandler = getConnectionHandler();
+            ConnectionHandler connectionHandler = this.getConnection();
             return getName() + " from " + connectionHandler.getName();
         }
     }
@@ -363,7 +362,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
                 }
 
                 if (scroll) {
-                    ConnectionHandler connectionHandler = getConnectionHandler();
+                    ConnectionHandler connectionHandler = this.getConnection();
                     DatabaseBrowserManager.scrollToSelectedElement(connectionHandler);
                 }
             }
@@ -488,6 +487,10 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
     }
 
     public String toString() {
+        if (is(DISPOSED)) {
+            return getName() + " - " + super.toString();
+        }
+
         /*if (getTreeParent() instanceof DBObject) {
             DBObject object = (DBObject) getTreeParent();
             return getName() + " of " + object.getQualifiedNameWithType();

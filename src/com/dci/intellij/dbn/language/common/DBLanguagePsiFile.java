@@ -11,8 +11,8 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
 import com.dci.intellij.dbn.connection.PresentableConnectionProvider;
 import com.dci.intellij.dbn.connection.SchemaId;
-import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingManager;
-import com.dci.intellij.dbn.connection.mapping.FileConnectionMappingProvider;
+import com.dci.intellij.dbn.connection.context.ConnectionContextProvider;
+import com.dci.intellij.dbn.connection.mapping.FileConnectionContextManager;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.ddl.DDLFileAttachmentManager;
 import com.dci.intellij.dbn.language.common.element.ElementTypeBundle;
@@ -47,18 +47,7 @@ import com.intellij.openapi.editor.EditorFactory;
 import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.psi.FileViewProvider;
-import com.intellij.psi.PsiComment;
-import com.intellij.psi.PsiDirectory;
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiElementVisitor;
-import com.intellij.psi.PsiErrorElement;
-import com.intellij.psi.PsiFile;
-import com.intellij.psi.PsiFileFactory;
-import com.intellij.psi.PsiManager;
-import com.intellij.psi.PsiRecursiveElementVisitor;
-import com.intellij.psi.PsiWhiteSpace;
-import com.intellij.psi.SingleRootFileViewProvider;
+import com.intellij.psi.*;
 import com.intellij.psi.impl.source.PsiFileImpl;
 import com.intellij.psi.impl.source.tree.LeafPsiElement;
 import com.intellij.psi.tree.IElementType;
@@ -68,14 +57,14 @@ import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.Icon;
+import javax.swing.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConnectionMappingProvider, PresentableConnectionProvider, StatefulDisposable {
+public abstract class DBLanguagePsiFile extends PsiFileImpl implements ConnectionContextProvider, PresentableConnectionProvider, StatefulDisposable {
     private final Language language;
     private final DBLanguageFileType fileType;
     private final ParserDefinition parserDefinition;
@@ -201,7 +190,7 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
         
         if (language instanceof DBLanguage) {
             DBLanguage<?> dbLanguage = (DBLanguage<?>) language;
-            ConnectionHandler connectionHandler = getConnectionHandler();
+            ConnectionHandler connectionHandler = getConnection();
             if (connectionHandler != null) {
 
                 DBLanguageDialect languageDialect = connectionHandler.getLanguageDialect(dbLanguage);
@@ -233,26 +222,26 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
         return getVirtualFile() instanceof VirtualFileWindow;
     }
 
-    private FileConnectionMappingManager getConnectionMappingManager() {
-        return FileConnectionMappingManager.getInstance(getProject());
+    private FileConnectionContextManager getContextManager() {
+        return FileConnectionContextManager.getInstance(getProject());
     }
 
     @Override
     @Nullable
-    public ConnectionHandler getConnectionHandler() {
+    public ConnectionHandler getConnection() {
         VirtualFile file = getVirtualFile();
         if (file != null && !getProject().isDisposed()) {
-            FileConnectionMappingManager connectionMappingManager = getConnectionMappingManager();
-            return connectionMappingManager.getConnectionHandler(file);
+            FileConnectionContextManager contextManager = getContextManager();
+            return contextManager.getConnection(file);
         }
         return null;
     }
 
-    public void setConnectionHandler(ConnectionHandler connectionHandler) {
+    public void setConnection(ConnectionHandler connectionHandler) {
         VirtualFile file = getVirtualFile();
         if (file != null) {
-            FileConnectionMappingManager connectionMappingManager = getConnectionMappingManager();
-            connectionMappingManager.setConnectionHandler(file, connectionHandler);
+            FileConnectionContextManager contextManager = getContextManager();
+            contextManager.setConnection(file, connectionHandler);
         }
     }
 
@@ -261,8 +250,8 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
     public SchemaId getSchemaId() {
         VirtualFile file = getVirtualFile();
         if (file != null) {
-            FileConnectionMappingManager connectionMappingManager = getConnectionMappingManager();
-            return connectionMappingManager.getDatabaseSchema(file);
+            FileConnectionContextManager contextManager = getContextManager();
+            return contextManager.getDatabaseSchema(file);
         }
         return null;
     }
@@ -270,17 +259,17 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
     public void setDatabaseSchema(SchemaId schema) {
         VirtualFile file = getVirtualFile();
         if (file != null) {
-            FileConnectionMappingManager connectionMappingManager = getConnectionMappingManager();
-            connectionMappingManager.setDatabaseSchema(file, schema);
+            FileConnectionContextManager contextManager = getContextManager();
+            contextManager.setDatabaseSchema(file, schema);
         }
     }
 
     @Override
-    public DatabaseSession getDatabaseSession() {
+    public DatabaseSession getSession() {
         VirtualFile file = getVirtualFile();
         if (file != null && !getProject().isDisposed()) {
-            FileConnectionMappingManager connectionMappingManager = getConnectionMappingManager();
-            return connectionMappingManager.getDatabaseSession(file);
+            FileConnectionContextManager contextManager = getContextManager();
+            return contextManager.getDatabaseSession(file);
         }
         return null;
     }
@@ -288,8 +277,8 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
     public void setDatabaseSession(DatabaseSession session) {
         VirtualFile file = getVirtualFile();
         if (file != null) {
-            FileConnectionMappingManager connectionMappingManager = getConnectionMappingManager();
-            connectionMappingManager.setDatabaseSession(file, session);
+            FileConnectionContextManager contextManager = getContextManager();
+            contextManager.setDatabaseSession(file, session);
         }
     }
 
@@ -375,7 +364,7 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
     }
 
     public double getDatabaseVersion() {
-        ConnectionHandler connectionHandler = getConnectionHandler();
+        ConnectionHandler connectionHandler = getConnection();
         return connectionHandler == null ? ElementLookupContext.MAX_DB_VERSION : connectionHandler.getDatabaseVersion();
     }
 
@@ -385,7 +374,7 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
         PsiFile rawPsiFile = psiFileFactory.createFileFromText(fileName, languageDialect, text);
         if (rawPsiFile instanceof DBLanguagePsiFile) {
             DBLanguagePsiFile psiFile = (DBLanguagePsiFile) rawPsiFile;
-            psiFile.setConnectionHandler(activeConnection);
+            psiFile.setConnection(activeConnection);
             psiFile.setDatabaseSchema(currentSchema);
             return psiFile;
         }
@@ -439,7 +428,7 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements FileConne
 
     @NotNull
     public EnvironmentType getEnvironmentType() {
-        ConnectionHandler connectionHandler = getConnectionHandler();
+        ConnectionHandler connectionHandler = getConnection();
         return connectionHandler == null ? EnvironmentType.DEFAULT :  connectionHandler.getEnvironmentType();
     }
 

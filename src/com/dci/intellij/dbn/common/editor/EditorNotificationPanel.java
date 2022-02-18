@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.common.editor;
 
 import com.dci.intellij.dbn.common.Icons;
+import com.dci.intellij.dbn.common.color.Colors;
 import com.dci.intellij.dbn.common.message.MessageType;
 import com.dci.intellij.dbn.common.util.Context;
 import com.intellij.codeInsight.hint.HintUtil;
@@ -13,9 +14,15 @@ import com.intellij.util.ui.PlatformColors;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.Icon;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.event.HyperlinkEvent;
-import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.util.UUID;
 
 public class EditorNotificationPanel extends JPanel{
@@ -24,9 +31,12 @@ public class EditorNotificationPanel extends JPanel{
 
     public EditorNotificationPanel(MessageType messageType) {
         super(new BorderLayout());
-        setBorder(BorderFactory.createEmptyBorder(1, 15, 1, 15));
+        setBorder(BorderFactory.createEmptyBorder(2, 8, 2, 8));
 
-        setPreferredSize(new Dimension(-1, 24));
+        Dimension dimension = getPreferredSize();
+        setPreferredSize(new Dimension((int) dimension.getWidth(), 28));
+
+        //setPreferredSize(new Dimension(-1, 32));
 
         add(label, BorderLayout.CENTER);
         Icon icon = null;
@@ -35,12 +45,12 @@ public class EditorNotificationPanel extends JPanel{
         switch (messageType) {
             case INFO: {
                 icon = Icons.COMMON_INFO;
-                background = HintUtil.getInformationColor();
+                background = Colors.getLightPanelBackground();
                 break;
             }
             case WARNING:{
                 icon = Icons.COMMON_WARNING;
-                background = HintUtil.getInformationColor();
+                background = Colors.getLightPanelBackground();
                 break;
             }
             case ERROR:{
@@ -50,7 +60,7 @@ public class EditorNotificationPanel extends JPanel{
             }
             default:{
                 //icon = AllIcons.General.Information;
-                background = HintUtil.getInformationColor();
+                background = Colors.getLightPanelBackground();
                 break;
             }
         }
@@ -67,7 +77,7 @@ public class EditorNotificationPanel extends JPanel{
         label.setText(text);
     }
 
-    public void setIcon(@NotNull Icon icon) {
+    public void setIcon(Icon icon) {
         label.setIcon(icon);
     }
 

@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.connection.session;
 
+import com.dci.intellij.dbn.common.dispose.Disposed;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.index.IdentifiableMap;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
@@ -21,6 +21,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.dci.intellij.dbn.common.dispose.SafeDisposer.replace;
 import static com.dci.intellij.dbn.common.util.Commons.nvl;
 import static com.dci.intellij.dbn.common.util.Lists.filtered;
 import static com.dci.intellij.dbn.common.util.Lists.first;
@@ -32,7 +33,7 @@ public class DatabaseSessionBundle extends StatefulDisposable.Base implements Di
     private DatabaseSession debuggerSession;
     private DatabaseSession poolSession;
 
-    private final List<DatabaseSession> sessions = CollectionUtil.createConcurrentList();
+    private List<DatabaseSession> sessions = CollectionUtil.createConcurrentList();
     private final IdentifiableMap<SessionId, DatabaseSession> index = new IdentifiableMap<>();
 
     public DatabaseSessionBundle(ConnectionHandler connection) {
@@ -42,16 +43,18 @@ public class DatabaseSessionBundle extends StatefulDisposable.Base implements Di
         mainSession = new DatabaseSession(SessionId.MAIN, "Main", ConnectionType.MAIN, connection);
         sessions.add(mainSession);
 
-        if (DatabaseFeature.DEBUGGING.isSupported(connection)) {
-            debugSession = new DatabaseSession(SessionId.DEBUG, "Debug", ConnectionType.DEBUG, connection);
-            debuggerSession = new DatabaseSession(SessionId.DEBUGGER, "Debugger", ConnectionType.DEBUGGER, connection);
-            sessions.add(debugSession);
-            sessions.add(debuggerSession);
-        }
+        if (!connection.isVirtual()) {
+            if (DatabaseFeature.DEBUGGING.isSupported(connection)) {
+                debugSession = new DatabaseSession(SessionId.DEBUG, "Debug", ConnectionType.DEBUG, connection);
+                debuggerSession = new DatabaseSession(SessionId.DEBUGGER, "Debugger", ConnectionType.DEBUGGER, connection);
+                sessions.add(debugSession);
+                sessions.add(debuggerSession);
+            }
 
-        poolSession = new DatabaseSession(SessionId.POOL, "Pool", ConnectionType.POOL, connection);
-        sessions.add(poolSession);
-        rebuildIndex();
+            poolSession = new DatabaseSession(SessionId.POOL, "Pool", ConnectionType.POOL, connection);
+            sessions.add(poolSession);
+            rebuildIndex();
+        }
     }
 
     private void rebuildIndex() {
@@ -95,6 +98,10 @@ public class DatabaseSessionBundle extends StatefulDisposable.Base implements Di
         return first(sessions, session -> Objects.equals(session.getName(), name));
     }
 
+    public boolean hasSession(SessionId id) {
+        return index.contains(id);
+    }
+
     @NotNull
     public DatabaseSession getSession(SessionId id) {
         DatabaseSession session = index.get(id);
@@ -128,11 +135,8 @@ public class DatabaseSessionBundle extends StatefulDisposable.Base implements Di
 
     @Override
     public void disposeInner() {
-        SafeDisposer.dispose(sessions, true, false);
+        sessions = replace(sessions, Disposed.list(), false);
         index.clear();
-        mainSession = null;
-        debugSession = null;
-        debuggerSession = null;
-        poolSession = null;
+        nullify();
     }
 }

@@ -3,7 +3,11 @@ package com.dci.intellij.dbn.common.ui;
 import com.dci.intellij.dbn.common.color.Colors;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.util.Commons;
-import com.dci.intellij.dbn.connection.*;
+import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.ConnectionHandlerStatusListener;
+import com.dci.intellij.dbn.connection.ConnectionId;
+import com.dci.intellij.dbn.connection.ConnectionManager;
+import com.dci.intellij.dbn.connection.context.ConnectionProvider;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.intellij.openapi.project.Project;
@@ -75,7 +79,7 @@ public class DBNHeaderForm extends DBNFormImpl{
     }
 
     public void update(@NotNull DBObject object) {
-        ConnectionHandler connectionHandler = object.getConnectionHandler();
+        ConnectionHandler connectionHandler = object.getConnection();
 
         String connectionName = connectionHandler.getName();
         objectLabel.setText("[" + connectionName + "] " + object.getQualifiedName());
@@ -101,7 +105,7 @@ public class DBNHeaderForm extends DBNFormImpl{
     }
 
     private void updateBorderAndBackground(ConnectionProvider connectionProvider) {
-        ConnectionHandler connectionHandler = connectionProvider.getConnectionHandler();
+        ConnectionHandler connectionHandler = connectionProvider.getConnection();
         Color background = null;
         if (connectionHandler != null) {
             Project project = connectionHandler.getProject();
@@ -109,7 +113,7 @@ public class DBNHeaderForm extends DBNFormImpl{
                 background = connectionHandler.getEnvironmentType().getColor();
             }
         }
-        mainPanel.setBackground(Commons.nvl(background, Colors.getLightPanelBackground()));
+        mainPanel.setBackground(Commons.nvl(background, Colors.getLighterPanelBackground()));
     }
 
     public void setBackground(Color background) {

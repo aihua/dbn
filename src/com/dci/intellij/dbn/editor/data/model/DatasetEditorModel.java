@@ -6,12 +6,11 @@ import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.environment.EnvironmentManager;
 import com.dci.intellij.dbn.common.thread.CancellableDatabaseCall;
 import com.dci.intellij.dbn.common.thread.Progress;
-import com.dci.intellij.dbn.common.util.Commons;
+import com.dci.intellij.dbn.common.util.Cancellable;
 import com.dci.intellij.dbn.common.util.Messages;
-import com.dci.intellij.dbn.common.util.Safe;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionProperties;
-import com.dci.intellij.dbn.connection.ResourceUtil;
+import com.dci.intellij.dbn.connection.Resources;
 import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.jdbc.DBNResultSet;
@@ -68,7 +67,7 @@ public class DatasetEditorModel
     private final List<DatasetEditorModelRow> changedRows = new ArrayList<>();
 
     public DatasetEditorModel(DatasetEditor datasetEditor) throws SQLException {
-        super(datasetEditor.getConnectionHandler());
+        super(datasetEditor.getConnection());
         Project project = getProject();
         this.datasetEditor = WeakRef.of(datasetEditor);
         DBDataset dataset = datasetEditor.getDataset();
@@ -116,7 +115,7 @@ public class DatasetEditorModel
             @Override
             public void cancel() {
                 DBNStatement statement = statementRef.get();
-                ResourceUtil.cancel(statement);
+                Resources.cancel(statement);
                 loaderCall = null;
                 set(DIRTY, true);
             }
@@ -269,7 +268,7 @@ public class DatasetEditorModel
     @NotNull
     @Override
     public DatasetEditorState getState() {
-        return Safe.call(DatasetEditorState.VOID, () -> getDatasetEditor().getEditorState());
+        return Cancellable.call(DatasetEditorState.VOID, () -> getDatasetEditor().getEditorState());
     }
 
     private boolean hasChanges() {
@@ -361,7 +360,7 @@ public class DatasetEditorModel
                 (progress) -> {
                     progress.setIndeterminate(false);
                     for (int index : rowIndexes) {
-                        progress.setFraction(Commons.getProgressPercentage(index, rowIndexes.length));
+                        progress.setFraction(Progress.progressOf(index, rowIndexes.length));
                         DatasetEditorModelRow row = getRowAtIndex(index);
                         if (progress.isCanceled()) break;
 

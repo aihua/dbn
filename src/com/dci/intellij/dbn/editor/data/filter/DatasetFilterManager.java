@@ -134,13 +134,13 @@ public class DatasetFilterManager extends AbstractProjectComponent implements Pe
         ConnectionId connectionId = filterGroup.getConnectionId();
         String datasetName = filterGroup.getDatasetName();
         Map<String, DatasetFilterGroup> connectionFilters =
-                filters.computeIfAbsent(connectionId, k -> new HashMap<>());
+                filters.computeIfAbsent(connectionId, id -> new HashMap<>());
 
         connectionFilters.put(datasetName, filterGroup);
     }
 
     public DatasetFilterGroup getFilterGroup(@NotNull DBDataset dataset) {
-        ConnectionHandler connectionHandler = Failsafe.nn(dataset.getConnectionHandler());
+        ConnectionHandler connectionHandler = Failsafe.nn(dataset.getConnection());
         ConnectionId connectionId = connectionHandler.getConnectionId();
         String datasetName = dataset.getQualifiedName();
         return getFilterGroup(connectionId, datasetName);
@@ -154,8 +154,8 @@ public class DatasetFilterManager extends AbstractProjectComponent implements Pe
 
     @NotNull
     public DatasetFilterGroup getFilterGroup(ConnectionId connectionId, String datasetName) {
-        Map<String, DatasetFilterGroup> filterGroups = filters.computeIfAbsent(connectionId, k -> new HashMap<>());
-        return filterGroups.computeIfAbsent(datasetName, k -> new DatasetFilterGroup(getProject(), connectionId, k));
+        Map<String, DatasetFilterGroup> filterGroups = filters.computeIfAbsent(connectionId, id -> new HashMap<>());
+        return filterGroups.computeIfAbsent(datasetName, n -> new DatasetFilterGroup(getProject(), connectionId, n));
     }
 
     public static DatasetFilterManager getInstance(@NotNull Project project) {

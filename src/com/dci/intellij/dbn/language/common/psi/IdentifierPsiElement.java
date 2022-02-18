@@ -4,7 +4,6 @@ import com.dci.intellij.dbn.code.common.style.formatting.FormattingAttributes;
 import com.dci.intellij.dbn.common.Capture;
 import com.dci.intellij.dbn.common.consumer.ListCollector;
 import com.dci.intellij.dbn.common.thread.ThreadMonitor;
-import com.dci.intellij.dbn.common.util.RecursivityGate;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.language.common.QuotePair;
@@ -47,7 +46,6 @@ import static com.dci.intellij.dbn.common.util.Commons.nvl;
 
 public abstract class IdentifierPsiElement extends LeafPsiElement<IdentifierElementType> {
     private PsiResolveResult ref;
-    private final RecursivityGate underlyingObjectResolver = new RecursivityGate(4);
     private final Capture<DBObjectRef<?>> underlyingObject = new Capture<>();
 
     public IdentifierPsiElement(ASTNode astNode, IdentifierElementType elementType) {
@@ -229,9 +227,8 @@ public abstract class IdentifierPsiElement extends LeafPsiElement<IdentifierElem
     @Nullable
     public DBObject getUnderlyingObject() {
         DBObject object = DBObjectRef.get(underlyingObject.get());
-        if (object == null || !underlyingObject.valid(getChars())) {
-            object = underlyingObjectResolver.call(() -> loadUnderlyingObject(), null);
-            underlyingObject.capture(DBObjectRef.of(object), getChars());
+        if (object == null || !underlyingObject.isValid(getChars())) {
+            underlyingObject.capture(getChars(), () -> DBObjectRef.of(loadUnderlyingObject()));
         }
         return object;
     }
@@ -354,8 +351,14 @@ public abstract class IdentifierPsiElement extends LeafPsiElement<IdentifierElem
                 } else { // index > 0
                     IdentifierElementType parentElementType = (IdentifierElementType) parseVariant.getLeaf(index - 1);
                     if (parentObject.isOfType(parentElementType.getObjectType())) {
-                        DBObject referencedObject = parentObject.getChildObject(objectType, refText.toString(), false);
-                        if (updateReference(parentObjectElement, elementType, referencedObject)) return;
+                        String objectName = refText.toString();
+                        DBObject childObject = parentObject.getChildObject(objectType, objectName, false);
+
+                        if (childObject == null && objectType.isOverloadable()) {
+                            // TODO support multiple references in PsiResolveResult
+                            childObject = parentObject.getChildObject(objectType, objectName, (short) 1, false);
+                        }
+                        if (updateReference(parentObjectElement, elementType, childObject)) return;
 
                     }
                 }
@@ -380,7 +383,7 @@ public abstract class IdentifierPsiElement extends LeafPsiElement<IdentifierElem
         }
 
         if (elementType.isObject()) {
-            ConnectionHandler activeConnection = ref.getConnectionHandler();
+            ConnectionHandler activeConnection = ref.getConnection();
 
             if (!elementType.isDefinition()){
                 PsiLookupAdapter lookupAdapter = new ObjectDefinitionLookupAdapter(this, objectType, refText);
@@ -393,21 +396,32 @@ public abstract class IdentifierPsiElement extends LeafPsiElement<IdentifierElem
                 Set<DBObject> parentObjects = identifyPotentialParentObjects(objectType, null, this, this);
                 if (parentObjects != null && parentObjects.size() > 0) {
                     for (DBObject parentObject : parentObjects) {
-                        DBObject referencedObject = parentObject.getChildObject(objectType, objectName, false);
-                        if (updateReference(null, elementType, referencedObject)) return;
+                        DBObject childObject = parentObject.getChildObject(objectType, objectName, false);
+
+                        if (childObject == null && objectType.isOverloadable()) {
+                            childObject = parentObject.getChildObject(objectType, objectName, (short) 1, false);
+                        }
+
+                        if (updateReference(null, elementType, childObject)) return;
                     }
                 }
 
                 DBObjectBundle objectBundle = activeConnection.getObjectBundle();
-                DBObject referencedObject = objectBundle.getObject(objectType, objectName, (short) 0);
-                if (updateReference(null, elementType, referencedObject)) {
+                DBObject childObject = objectBundle.getObject(objectType, objectName, (short) 0);
+                if (updateReference(null, elementType, childObject)) {
                     return;
                 }
 
                 DBSchema schema = getDatabaseSchema();
                 if (schema != null && objectType.isSchemaObject()) {
-                    referencedObject = schema.getChildObject(objectType, objectName, false);
-                    if (updateReference(null, elementType, referencedObject)) return;
+                    childObject = schema.getChildObject(objectType, objectName, false);
+
+                    if (childObject == null && objectType.isOverloadable()) {
+                        childObject = schema.getChildObject(objectType, objectName, (short) 1, false);
+                    }
+
+
+                    if (updateReference(null, elementType, childObject)) return;
                 }
             }
 

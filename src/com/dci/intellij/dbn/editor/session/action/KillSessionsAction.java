@@ -30,9 +30,9 @@ public class KillSessionsAction extends AbstractSessionBrowserAction {
         boolean visible = false;
         boolean enabled = false;
         if (sessionBrowser != null) {
-            ConnectionHandler connectionHandler = Failsafe.nn(sessionBrowser.getConnectionHandler());
+            ConnectionHandler connectionHandler = Failsafe.nn(sessionBrowser.getConnection());
             visible = DatabaseFeature.SESSION_KILL.isSupported(connectionHandler);
-            SessionBrowserTable editorTable = sessionBrowser.getEditorTable();
+            SessionBrowserTable editorTable = sessionBrowser.getBrowserTable();
             enabled = editorTable.getSelectedRows().length > 0;
         }
 

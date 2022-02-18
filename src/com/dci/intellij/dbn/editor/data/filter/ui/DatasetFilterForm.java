@@ -1,8 +1,9 @@
 package com.dci.intellij.dbn.editor.data.filter.ui;
 
-import com.dci.intellij.dbn.common.dispose.DisposableContainer;
+import com.dci.intellij.dbn.common.dispose.DisposableContainers;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
 import com.dci.intellij.dbn.common.ui.DBNHeaderForm;
+import com.dci.intellij.dbn.common.ui.Fonts;
 import com.dci.intellij.dbn.common.util.Actions;
 import com.dci.intellij.dbn.editor.data.filter.DatasetFilter;
 import com.dci.intellij.dbn.editor.data.filter.DatasetFilterGroup;
@@ -17,7 +18,6 @@ import com.intellij.openapi.actionSystem.ActionToolbar;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
-import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.JComponent;
@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Map;
 
 public class DatasetFilterForm extends ConfigurationEditorForm<DatasetFilterGroup> implements ListSelectionListener {
-    private final Map<String, ConfigurationEditorForm> filterDetailPanels = DisposableContainer.map(this);
+    private final Map<String, ConfigurationEditorForm> filterDetailPanels = DisposableContainers.map(this);
     private static final String BLANK_PANEL_ID = "BLANK_PANEL";
 
     private JPanel mainPanel;
@@ -43,7 +43,7 @@ public class DatasetFilterForm extends ConfigurationEditorForm<DatasetFilterGrou
     public DatasetFilterForm(DatasetFilterGroup filterGroup, @NotNull DBDataset dataset) {
         super(filterGroup);
         filtersList.setModel(filterGroup);
-        filtersList.setFont(UIUtil.getLabelFont());
+        filtersList.setFont(Fonts.getLabelFont());
         Project project = dataset.getProject();
 
         DBNHeaderForm headerForm = new DBNHeaderForm(this, dataset);

@@ -46,11 +46,17 @@ public class Actions implements Lookup {
         return popupMenu;
     }
 
+    public static String adjustActionName(@NotNull String name) {
+        return name.replaceAll("_", "__");
+    }
+
     private static String adjustPlace(String place) {
         if (Strings.isEmpty(place)) {
             return UUID.randomUUID().toString();
         }
         return place;
     }
+
+
 
 }

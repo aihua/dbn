@@ -4,15 +4,14 @@ import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.notification.NotificationGroup;
 import com.dci.intellij.dbn.common.notification.NotificationSupport;
+import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.ThreadMonitor;
-import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.dci.intellij.dbn.connection.config.ConnectionDetailSettings;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.jdbc.IntervalLoader;
 import com.dci.intellij.dbn.connection.jdbc.ResourceStatus;
-import com.dci.intellij.dbn.language.common.WeakRef;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
@@ -26,14 +25,15 @@ import java.sql.SQLTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public final class ConnectionPool extends StatefulDisposable.Base implements NotificationSupport, Disposable {
-    private static final ConnectionPoolCleanTask POOL_CLEANER_TASK = new ConnectionPoolCleanTask();
+    static {
+        ConnectionPoolCleaner.INSTANCE.start();
+    }
+
     private int peakPoolSize = 0;
 
     private final ConnectionHandlerRef connectionHandler;
@@ -62,7 +62,6 @@ public final class ConnectionPool extends StatefulDisposable.Base implements Not
     ConnectionPool(@NotNull ConnectionHandler connectionHandler) {
         super(connectionHandler);
         this.connectionHandler = connectionHandler.getRef();
-        POOL_CLEANER_TASK.register(this);
     }
 
     DBNConnection ensureTestConnection() throws SQLException {
@@ -129,7 +128,7 @@ public final class ConnectionPool extends StatefulDisposable.Base implements Not
             synchronized (this) {
                 if (shouldInit(connection)) {
                     try {
-                        ResourceUtil.close(connection);
+                        Resources.close(connection);
 
                         connection = ConnectionUtil.connect(connectionHandler, sessionId);
                         dedicatedConnections.put(sessionId, connection);
@@ -200,8 +199,8 @@ public final class ConnectionPool extends StatefulDisposable.Base implements Not
             }
             connection = createPoolConnection();
         }
-        ResourceUtil.setReadonly(connectionHandler, connection, readonly);
-        ResourceUtil.setAutoCommit(connection, readonly);
+        Resources.setReadonly(connectionHandler, connection, readonly);
+        Resources.setAutoCommit(connection, readonly);
         return connection;
     }
 
@@ -222,7 +221,7 @@ public final class ConnectionPool extends StatefulDisposable.Base implements Not
                             return connection;
                         } else {
                             poolConnections.remove(connection);
-                            ResourceUtil.close(connection);
+                            Resources.close(connection);
                         }
                     }
                 }
@@ -240,8 +239,8 @@ public final class ConnectionPool extends StatefulDisposable.Base implements Not
         log.debug("[DBN] Attempt to create new pool connection for '" + connectionName + "'");
         DBNConnection connection = ConnectionUtil.connect(connectionHandler, SessionId.POOL);
 
-        ResourceUtil.setAutoCommit(connection, true);
-        ResourceUtil.setReadonly(connectionHandler, connection, true);
+        Resources.setAutoCommit(connection, true);
+        Resources.setReadonly(connectionHandler, connection, true);
         connectionStatus.setConnected(true);
         connectionStatus.setValid(true);
 
@@ -271,9 +270,9 @@ public final class ConnectionPool extends StatefulDisposable.Base implements Not
         if (connection != null) {
             if (connection.isPoolConnection()) {
                 try {
-                    ResourceUtil.rollback(connection);
-                    ResourceUtil.setAutoCommit(connection, true);
-                    ResourceUtil.setReadonly(getConnectionHandler(), connection, true);
+                    Resources.rollback(connection);
+                    Resources.setAutoCommit(connection, true);
+                    Resources.setReadonly(getConnectionHandler(), connection, true);
                     connection.set(ResourceStatus.RESERVED, false);
                 } catch (SQLException e) {
                     dropConnection(connection);
@@ -288,7 +287,7 @@ public final class ConnectionPool extends StatefulDisposable.Base implements Not
     void dropConnection(DBNConnection connection) {
         if (connection != null) {
             poolConnections.remove(connection);
-            ResourceUtil.close(connection);
+            Resources.close(connection);
         }
     }
 
@@ -303,10 +302,10 @@ public final class ConnectionPool extends StatefulDisposable.Base implements Not
         SessionId sessionId = connection.getSessionId();
         if (sessionId == SessionId.POOL) {
             poolConnections.remove(connection);
-            ResourceUtil.close(connection);
+            Resources.close(connection);
         } else {
             dedicatedConnections.remove(sessionId);
-            ResourceUtil.close(connection);
+            Resources.close(connection);
         }
     }
 
@@ -328,7 +327,7 @@ public final class ConnectionPool extends StatefulDisposable.Base implements Not
 
     @Override
     public void disposeInner() {
-        closeConnections();
+        Background.run(() -> closeConnections());
     }
 
     public boolean isConnected(SessionId sessionId) {
@@ -344,7 +343,7 @@ public final class ConnectionPool extends StatefulDisposable.Base implements Not
         return false;
     }
 
-    private void clean() {
+    void clean() {
         if (!poolConnections.isEmpty()) {
             try {
                 ConnectionHandler connectionHandler = getConnectionHandler();
@@ -365,7 +364,7 @@ public final class ConnectionPool extends StatefulDisposable.Base implements Not
                             this.poolConnections.clear();
 
                             for (DBNConnection connection : poolConnections) {
-                                ResourceUtil.close(connection);
+                                Resources.close(connection);
                             }
                         }
 
@@ -378,32 +377,5 @@ public final class ConnectionPool extends StatefulDisposable.Base implements Not
                 log.error("Failed to clean connection pool", e);
             }
         }
-    }
-
-    private static class ConnectionPoolCleanTask extends TimerTask {
-        List<WeakRef<ConnectionPool>> connectionPools = CollectionUtil.createConcurrentList();
-
-        @Override
-        public void run() {
-            for (WeakRef<ConnectionPool> connectionPoolRef : connectionPools) {
-                ConnectionPool connectionPool = connectionPoolRef.get();
-                if (connectionPool == null) {
-                    // not referenced any more, removed from
-                    connectionPools.remove(connectionPoolRef);
-
-                } else {
-                    connectionPool.clean();
-                }
-            }
-        }
-
-        void register(ConnectionPool connectionPool) {
-            connectionPools.add(WeakRef.of(connectionPool));
-        }
-    }
-
-    static {
-        Timer poolCleaner = new Timer("DBN - Idle Connection Pool Cleaner");
-        poolCleaner.schedule(POOL_CLEANER_TASK, TimeUtil.Millis.ONE_MINUTE, TimeUtil.Millis.ONE_MINUTE);
     }
 }

@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.editor.data;
 
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ResourceUtil;
+import com.dci.intellij.dbn.connection.Resources;
 import com.dci.intellij.dbn.database.DatabaseInterface;
 import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
 import com.dci.intellij.dbn.object.DBColumn;
@@ -16,7 +16,7 @@ import java.util.List;
 public class DatasetEditorUtils {
     public static List<String> loadDistinctColumnValues(@NotNull DBColumn column) {
         try {
-            ConnectionHandler connectionHandler = column.getConnectionHandler();
+            ConnectionHandler connectionHandler = column.getConnection();
             return DatabaseInterface.call(
                     true,
                     connectionHandler,
@@ -41,7 +41,7 @@ public class DatasetEditorUtils {
                                 list.add(value);
                             }
                         } finally {
-                            ResourceUtil.close(resultSet);
+                            Resources.close(resultSet);
                         }
                         return list;
                     });

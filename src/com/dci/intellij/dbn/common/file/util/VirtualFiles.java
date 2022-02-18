@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.common.event.ApplicationEvents;
 import com.dci.intellij.dbn.common.thread.Write;
 import com.dci.intellij.dbn.vfs.DBVirtualFileImpl;
 import com.dci.intellij.dbn.vfs.DatabaseFileSystem;
+import com.intellij.injected.editor.VirtualFileWindow;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ProjectRootManager;
 import com.intellij.openapi.vfs.LocalFileSystem;
@@ -17,6 +18,7 @@ import com.intellij.openapi.vfs.newvfs.events.VFileEvent;
 import com.intellij.openapi.vfs.newvfs.events.VFilePropertyChangeEvent;
 import com.intellij.testFramework.LightVirtualFile;
 import com.intellij.util.io.ReadOnlyAttributeUtil;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -26,7 +28,8 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-public class VirtualFileUtil {
+public final class VirtualFiles {
+    private VirtualFiles() {}
 
     public static Icon getIcon(VirtualFile virtualFile) {
         if (virtualFile instanceof DBVirtualFileImpl) {
@@ -93,12 +96,32 @@ public class VirtualFileUtil {
     }
 
     @Nullable
-    public static VirtualFile getOriginalFile(VirtualFile virtualFile) {
-        if (virtualFile instanceof LightVirtualFile) {
-            LightVirtualFile lightVirtualFile = (LightVirtualFile) virtualFile;
-            return lightVirtualFile.getOriginalFile();
+    public static VirtualFile getOriginalFile(VirtualFile file) {
+        if (file instanceof LightVirtualFile) {
+            LightVirtualFile lightVirtualFile = (LightVirtualFile) file;
+            VirtualFile originalFile = lightVirtualFile.getOriginalFile();
+            if (originalFile != null && originalFile != file) {
+                return getOriginalFile(originalFile);
+            }
         }
-        return null;
+        return file;
+    }
+
+    @Contract("null -> null; !null-> !null")
+    public static VirtualFile getUnderlyingFile(VirtualFile file) {
+        file = getOriginalFile(file);
+
+        if (file instanceof VirtualFileWindow) {
+            VirtualFileWindow fileWindow = (VirtualFileWindow) file;
+            return fileWindow.getDelegate();
+        }
+
+        if (file instanceof LightVirtualFile) {
+            LightVirtualFile lightVirtualFile = (LightVirtualFile) file;
+            // TODO is this ever the case?
+        }
+        return file;
+
     }
 
     public static VFileEvent createFileRenameEvent(

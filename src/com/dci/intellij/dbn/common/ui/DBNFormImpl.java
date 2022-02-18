@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.common.ui;
 
-import com.dci.intellij.dbn.common.dispose.SafeDisposer;
+import com.dci.intellij.dbn.common.action.DataProviders;
+import com.dci.intellij.dbn.common.dispose.ComponentDisposer;
 import com.dci.intellij.dbn.common.environment.options.EnvironmentSettings;
 import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.common.ui.component.DBNComponent;
@@ -42,7 +43,7 @@ public abstract class DBNFormImpl
     private void initialise() {
         initialised = true;
         JComponent mainComponent = getMainComponent();
-        DataManager.registerDataProvider(mainComponent, this);
+        DataProviders.register(mainComponent, this);
         GUIUtil.visitRecursively(mainComponent, component -> {
             if (component instanceof JPanel) {
                 JPanel panel = (JPanel) component;
@@ -81,7 +82,7 @@ public abstract class DBNFormImpl
     protected void disposeInner() {
         JComponent component = getComponent();
         DataManager.removeDataProvider(component);
-        SafeDisposer.dispose(component);
+        ComponentDisposer.dispose(component);
         nullify();
     }
 }

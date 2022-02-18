@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.diagnostics.ui;
 
-import com.dci.intellij.dbn.common.dispose.DisposableContainer;
+import com.dci.intellij.dbn.common.dispose.DisposableContainers;
+import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.ui.Borders;
 import com.dci.intellij.dbn.common.ui.DBNFormImpl;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
@@ -8,13 +9,17 @@ import com.dci.intellij.dbn.connection.ConnectionBundle;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionManager;
+import com.dci.intellij.dbn.connection.config.ConnectionConfigListener;
 import com.intellij.openapi.project.Project;
 import com.intellij.ui.ColoredListCellRenderer;
 import com.intellij.ui.SimpleTextAttributes;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.*;
-import java.awt.*;
+import javax.swing.DefaultListModel;
+import javax.swing.JList;
+import javax.swing.JPanel;
+import javax.swing.ListModel;
+import java.awt.BorderLayout;
 import java.util.List;
 import java.util.Map;
 
@@ -25,7 +30,7 @@ public class ConnectionDiagnosticsForm extends DBNFormImpl {
     private JList<ConnectionHandler> connectionsList;
     private int tabSelectionIndex;
 
-    private final Map<ConnectionId, ConnectionDiagnosticsDetailsForm> resourceMonitorForms = DisposableContainer.map(this);
+    private final Map<ConnectionId, ConnectionDiagnosticsDetailsForm> resourceMonitorForms = DisposableContainers.map(this);
 
     public ConnectionDiagnosticsForm(@NotNull Project project) {
         super(null, project);
@@ -37,6 +42,22 @@ public class ConnectionDiagnosticsForm extends DBNFormImpl {
         });
         connectionsList.setCellRenderer(new ConnectionListCellRenderer());
 
+        ListModel<ConnectionHandler> model = createModel();
+        connectionsList.setModel(model);
+        connectionsList.setSelectedIndex(0);
+
+        ProjectEvents.subscribe(project, this,
+                ConnectionConfigListener.TOPIC,
+                ConnectionConfigListener.whenSetupChanged(() -> rebuildModel()));
+    }
+
+    private void rebuildModel() {
+        ListModel<ConnectionHandler> model = createModel();
+        connectionsList.setModel(model);
+    }
+
+    @NotNull
+    private ListModel<ConnectionHandler> createModel() {
         DefaultListModel<ConnectionHandler> model = new DefaultListModel<>();
         ConnectionManager connectionManager = ConnectionManager.getInstance(ensureProject());
         ConnectionBundle connectionBundle = connectionManager.getConnectionBundle();
@@ -44,8 +65,7 @@ public class ConnectionDiagnosticsForm extends DBNFormImpl {
         for (ConnectionHandler connection : connections) {
             model.addElement(connection);
         }
-        connectionsList.setModel(model);
-        connectionsList.setSelectedIndex(0);
+        return model;
     }
 
     private void showDetailsForm(ConnectionHandler connectionHandler) {

@@ -11,7 +11,7 @@ import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.ui.tree.TreeEventType;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ResourceUtil;
+import com.dci.intellij.dbn.connection.Resources;
 import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
@@ -95,7 +95,7 @@ public class DBSchemaImpl extends DBObjectImpl<DBSchemaMetadata> implements DBSc
         set(PUBLIC_SCHEMA, metadata.isPublic());
         set(SYSTEM_SCHEMA, metadata.isSystem());
         set(EMPTY_SCHEMA, metadata.isEmpty());
-        set(USER_SCHEMA, Strings.equalsIgnoreCase(name, getConnectionHandler().getUserName()));
+        set(USER_SCHEMA, Strings.equalsIgnoreCase(name, this.getConnection().getUserName()));
         return name;
     }
 
@@ -442,7 +442,7 @@ public class DBSchemaImpl extends DBObjectImpl<DBSchemaMetadata> implements DBSc
     @Override
     public void refreshObjectsStatus() throws SQLException {
         Set<BrowserTreeNode> refreshNodes = resetObjectsStatus();
-        ConnectionHandler connectionHandler = getConnectionHandler();
+        ConnectionHandler connectionHandler = this.getConnection();
 
         DatabaseInterface.run(true,
                 connectionHandler,
@@ -473,7 +473,7 @@ public class DBSchemaImpl extends DBObjectImpl<DBSchemaMetadata> implements DBSc
                             }
                         }
                     } finally {
-                        ResourceUtil.close(resultSet);
+                        Resources.close(resultSet);
                     }
 
                     try {
@@ -499,7 +499,7 @@ public class DBSchemaImpl extends DBObjectImpl<DBSchemaMetadata> implements DBSc
                             }
                         }
                     } finally {
-                        ResourceUtil.close(resultSet);
+                        Resources.close(resultSet);
                     }
                 });
 

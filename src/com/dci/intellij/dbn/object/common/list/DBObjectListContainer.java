@@ -11,7 +11,6 @@ import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
-import com.dci.intellij.dbn.common.util.Safe;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.DatabaseEntity;
 import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
@@ -19,6 +18,7 @@ import com.dci.intellij.dbn.database.DatabaseObjectTypeId;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.type.DBObjectRelationType;
 import com.dci.intellij.dbn.object.type.DBObjectType;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -32,11 +32,11 @@ import static com.dci.intellij.dbn.common.dispose.Failsafe.check;
 @Getter
 public final class DBObjectListContainer implements StatefulDisposable {
     private static final DBObjectList<?>[] DISPOSED_OBJECTS = new DBObjectList[0];
-    private static final DBObjectRelationList[] DISPOSED_OBJECT_RELATIONS = new DBObjectRelationList[0];
+    private static final DBObjectRelationList[] DISPOSED_RELATIONS = new DBObjectRelationList[0];
 
     private DatabaseEntity owner;
     private DBObjectList<?>[] objects;
-    private DBObjectRelationList[] objectRelations;
+    private DBObjectRelationList[] relations;
 
     public DBObjectListContainer(@NotNull DatabaseEntity owner) {
         this.owner = owner;
@@ -49,7 +49,7 @@ public final class DBObjectListContainer implements StatefulDisposable {
 
     public void visitObjects(@NotNull DBObjectListVisitor visitor, boolean visitInternal) {
         if (objects != null) {
-            Safe.run(() -> {
+            try {
                 checkDisposed(visitor);
                 for (DBObjectList<?> objectList : objects) {
                     if (check(objectList) && (visitInternal || !objectList.isInternal())) {
@@ -59,7 +59,7 @@ public final class DBObjectListContainer implements StatefulDisposable {
                         visitor.visit(objectList);
                     }
                 }
-            });
+            } catch (ProcessCanceledException ignore) {}
         }
     }
 
@@ -187,7 +187,7 @@ public final class DBObjectListContainer implements StatefulDisposable {
 
     private boolean isSupported(DBObjectType objectType) {
         DatabaseEntity owner = getOwner();
-        ConnectionHandler connectionHandler = owner.getConnectionHandler();
+        ConnectionHandler connectionHandler = owner.getConnection();
         DatabaseCompatibilityInterface compatibilityInterface = DatabaseCompatibilityInterface.getInstance(connectionHandler);
         return compatibilityInterface.supportsObjectType(objectType.getTypeId());
     }
@@ -332,7 +332,7 @@ public final class DBObjectListContainer implements StatefulDisposable {
      *                      Object Relation Lists                    *
      *****************************************************************/
     private boolean isSupported(DBObjectRelationType objectRelationType) {
-        ConnectionHandler connectionHandler = getOwner().getConnectionHandler();
+        ConnectionHandler connectionHandler = getOwner().getConnection();
         DatabaseCompatibilityInterface compatibilityInterface = DatabaseCompatibilityInterface.getInstance(connectionHandler);
         DatabaseObjectTypeId sourceTypeId = objectRelationType.getSourceType().getTypeId();
         DatabaseObjectTypeId targetTypeId = objectRelationType.getTargetType().getTypeId();
@@ -341,9 +341,9 @@ public final class DBObjectListContainer implements StatefulDisposable {
     }
 
     @Nullable
-    public <T extends DBObjectRelation> DBObjectRelationList<T> getObjectRelations(DBObjectRelationType relationType) {
-        if (objectRelations != null) {
-            for (DBObjectRelationList objectRelations : objectRelations) {
+    public <T extends DBObjectRelation> DBObjectRelationList<T> getRelations(DBObjectRelationType relationType) {
+        if (relations != null) {
+            for (DBObjectRelationList objectRelations : relations) {
                 if (objectRelations.getObjectRelationType() == relationType) {
                     return objectRelations;
                 }
@@ -384,11 +384,11 @@ public final class DBObjectListContainer implements StatefulDisposable {
         if (isSupported(type)) {
             DBObjectRelationList objectRelationList = new DBObjectRelationListImpl(type, parent, dependencyAdapter);
 
-            if (objectRelations == null)
-                objectRelations = new DBObjectRelationList[1]; else
-                objectRelations =  Arrays.copyOf(objectRelations, objectRelations.length + 1);
+            if (relations == null)
+                relations = new DBObjectRelationList[1]; else
+                relations =  Arrays.copyOf(relations, relations.length + 1);
 
-            objectRelations[objectRelations.length-1] = objectRelationList;
+            relations[relations.length-1] = objectRelationList;
             return objectRelationList;
         }
         return null;
@@ -401,18 +401,15 @@ public final class DBObjectListContainer implements StatefulDisposable {
 
     @Override
     public boolean isDisposed() {
-        return objects == DISPOSED_OBJECTS || objectRelations == DISPOSED_OBJECT_RELATIONS;
+        return objects == DISPOSED_OBJECTS || relations == DISPOSED_RELATIONS;
     }
 
     @Override
     public void dispose() {
         if (!isDisposed()) {
-            DBObjectList<?>[] elements = this.objects;
-            this.objects = DISPOSED_OBJECTS;
-            this.objectRelations = DISPOSED_OBJECT_RELATIONS;
+            this.objects = SafeDisposer.replace(this.objects, DISPOSED_OBJECTS, false);
+            this.relations = SafeDisposer.replace(this.relations, DISPOSED_RELATIONS, false);
             this.owner = null;
-
-            SafeDisposer.dispose(elements, false, false);
         }
     }
 }

@@ -6,7 +6,7 @@ import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.thread.Dispatch;
-import com.dci.intellij.dbn.common.ui.FontMetricsCache;
+import com.dci.intellij.dbn.common.ui.FontMetrics;
 import com.dci.intellij.dbn.common.ui.Mouse;
 import com.dci.intellij.dbn.common.ui.component.DBNComponent;
 import com.dci.intellij.dbn.common.util.Strings;
@@ -15,6 +15,7 @@ import com.dci.intellij.dbn.language.common.WeakRef;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.util.UserDataHolder;
+import com.intellij.ui.border.CustomLineBorder;
 import com.intellij.ui.components.JBScrollPane;
 import com.intellij.util.keyFMap.KeyFMap;
 import com.intellij.util.ui.UIUtil;
@@ -22,10 +23,28 @@ import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
+import javax.swing.DefaultListSelectionModel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.JViewport;
 import javax.swing.event.EventListenerList;
-import javax.swing.table.*;
-import java.awt.*;
+import javax.swing.table.DefaultTableColumnModel;
+import javax.swing.table.JTableHeader;
+import javax.swing.table.TableCellEditor;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
+import javax.swing.table.TableModel;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.MouseInfo;
+import java.awt.Point;
+import java.awt.PointerInfo;
+import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
 import java.awt.font.FontRenderContext;
 import java.awt.font.LineMetrics;
@@ -33,6 +52,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
+
+import static com.dci.intellij.dbn.common.dispose.Failsafe.nd;
+import static com.dci.intellij.dbn.common.dispose.SafeDisposer.replace;
 
 public abstract class DBNTable<T extends DBNTableModel> extends JTable implements StatefulDisposable, UserDataHolder {
     private static final int MAX_COLUMN_WIDTH = 300;
@@ -47,11 +69,11 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
 
     private Timer scrollTimer;
     private final Latent<JBScrollPane> scrollPane = Latent.weak(() -> UIUtil.getParentOfType(JBScrollPane.class, DBNTable.this));
-    private final FontMetricsCache metricsCache = new FontMetricsCache(this);
+    private final FontMetrics metricsCache = new FontMetrics(this);
 
-    public DBNTable(@NotNull DBNComponent parent, @NotNull T tableModel, boolean showHeader) {
-        super(tableModel);
-        this.parentComponent = WeakRef.of(parent);
+    public DBNTable(DBNComponent parent, T tableModel, boolean showHeader) {
+        super(nd(tableModel));
+        this.parentComponent = WeakRef.of(nd(parent));
 
         setGridColor(Colors.getTableGridColor());
         Font font = getFont();//UIUtil.getListFont();
@@ -66,6 +88,8 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
             tableHeader.setVisible(false);
             tableHeader.setPreferredSize(new Dimension(-1, 0));
         } else {
+            tableHeader.setBackground(Colors.getPanelBackground());
+            tableHeader.setBorder(new CustomLineBorder(Colors.getTableHeaderGridColor(), 0, 0, 1, 0));
             tableHeader.setDefaultRenderer(new BasicTableHeaderRenderer());
             tableHeader.addMouseMotionListener(Mouse.listener().onDrag(e -> {
                 JBScrollPane scrollPane = getScrollPane();
@@ -98,15 +122,24 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
     }
 
     @Override
+    public void setBackground(Color bg) {
+        super.setBackground(bg);
+        Container parent = getParent();
+        if (parent instanceof JBScrollPane) {
+            JBScrollPane scrollPane = (JBScrollPane) parent;
+            scrollPane.getViewport().setBackground(bg);
+        }
+    }
+
+    @Override
     public String getToolTipText(@NotNull MouseEvent event) {
         return null;
     }
 
     @Override
     public void setModel(@NotNull TableModel dataModel) {
-        T oldDataModel = (T) super.getModel();
+        dataModel = replace(super.getModel(), dataModel, false);
         super.setModel(dataModel);
-        SafeDisposer.dispose(oldDataModel, false, true);
     }
 
     protected void initTableSorter() {
@@ -422,7 +455,7 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
     public void dispose(){
         if (!disposed) {
             disposed = true;
-            SafeDisposer.dispose(getModel(), false, true);
+            SafeDisposer.dispose(super.getModel(), false);
             listenerList = new EventListenerList();
             columnModel = new DefaultTableColumnModel();
             selectionModel = new DefaultListSelectionModel();

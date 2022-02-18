@@ -1,10 +1,8 @@
 package com.dci.intellij.dbn.vfs.file;
 
 import com.dci.intellij.dbn.common.DevNullStreams;
-import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ConnectionHandlerRef;
-import com.dci.intellij.dbn.connection.ConnectionId;
-import com.dci.intellij.dbn.connection.SchemaId;
+import com.dci.intellij.dbn.connection.*;
+import com.dci.intellij.dbn.connection.mapping.FileConnectionContextImpl;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.language.sql.SQLFileType;
 import com.dci.intellij.dbn.vfs.DBVirtualFileImpl;
@@ -20,24 +18,24 @@ import java.io.OutputStream;
 
 public class DBConnectionVirtualFile extends DBVirtualFileImpl {
     private static final byte[] EMPTY_CONTENT = new byte[0];
-    private final ConnectionHandlerRef connectionHandler;
+    private final ConnectionHandlerRef connection;
 
-    public DBConnectionVirtualFile(ConnectionHandler connectionHandler) {
-        super(connectionHandler.getProject());
-        this.connectionHandler = connectionHandler.getRef();
-        this.name = connectionHandler.getName();
+    public DBConnectionVirtualFile(ConnectionHandler connection) {
+        super(connection.getProject());
+        this.connection = connection.getRef();
+        this.name = connection.getName();
     }
 
     @NotNull
     @Override
     public ConnectionId getConnectionId() {
-        return connectionHandler.getConnectionId();
+        return connection.getConnectionId();
     }
 
     @Override
     @NotNull
-    public ConnectionHandler getConnectionHandler() {
-        return connectionHandler.ensure();
+    public ConnectionHandler getConnection() {
+        return connection.ensure();
     }
 
     @Nullable
@@ -48,7 +46,7 @@ public class DBConnectionVirtualFile extends DBVirtualFileImpl {
 
     @Nullable
     @Override
-    public DatabaseSession getDatabaseSession() {
+    public DatabaseSession getSession() {
         return null;
     }
 
@@ -58,7 +56,7 @@ public class DBConnectionVirtualFile extends DBVirtualFileImpl {
 
     @Override
     public boolean isValid() {
-        return super.isValid() && connectionHandler.isValid();
+        return super.isValid() && connection.isValid();
     }
 
     @NotNull
@@ -91,7 +89,7 @@ public class DBConnectionVirtualFile extends DBVirtualFileImpl {
 
     @Override
     public Icon getIcon() {
-        return getConnectionHandler().getIcon();
+        return getConnection().getIcon();
     }
 
     @Override
@@ -140,6 +138,26 @@ public class DBConnectionVirtualFile extends DBVirtualFileImpl {
     @Override
     public String getExtension() {
         return null;
+    }
+
+    static final class CustomFileConnectionContext extends FileConnectionContextImpl {
+        public CustomFileConnectionContext(
+                @NotNull DBConsoleVirtualFile consoleFile,
+                @Nullable SessionId sessionId,
+                @Nullable SchemaId schemaId) {
+
+            super(consoleFile.getUrl(), consoleFile.getConnectionId(), sessionId, schemaId);
+        }
+
+        @Override
+        public void setFileUrl(String fileUrl) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public boolean setConnectionId(ConnectionId connectionId) {
+            throw new UnsupportedOperationException();
+        }
     }
 }
 

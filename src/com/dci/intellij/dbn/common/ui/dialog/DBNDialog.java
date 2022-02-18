@@ -150,7 +150,7 @@ public abstract class DBNDialog<F extends DBNForm> extends DialogWrapper impleme
             super.dispose();
             SafeDisposer.dispose(form);
             disposeInner();
-            nullify();
+            //nullify();
         }
     }
 

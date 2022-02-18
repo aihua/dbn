@@ -7,6 +7,8 @@ import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.connection.SessionId;
+import com.dci.intellij.dbn.connection.mapping.FileConnectionContext;
+import com.dci.intellij.dbn.connection.mapping.FileConnectionContextProvider;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.database.DatabaseDebuggerInterface;
 import com.dci.intellij.dbn.editor.code.content.SourceCodeContent;
@@ -18,6 +20,7 @@ import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.vfs.DBConsoleType;
 import com.dci.intellij.dbn.vfs.DBParseableVirtualFile;
 import com.dci.intellij.dbn.vfs.DatabaseFileViewProvider;
+import com.dci.intellij.dbn.vfs.file.DBConnectionVirtualFile.CustomFileConnectionContext;
 import com.intellij.lang.Language;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.RangeMarker;
@@ -29,40 +32,36 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
 import com.intellij.util.LocalTimeCounter;
+import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.Icon;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import javax.swing.*;
+import java.io.*;
 import java.nio.charset.Charset;
 import java.util.List;
 import java.util.Objects;
 
-public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> implements DocumentListener, DBParseableVirtualFile, Comparable<DBConsoleVirtualFile> {
-    private long modificationTimestamp = LocalTimeCounter.currentTime();
+@Getter
+public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> implements DocumentListener, DBParseableVirtualFile, Comparable<DBConsoleVirtualFile>, FileConnectionContextProvider {
+    private transient long modificationTimestamp = LocalTimeCounter.currentTime();
     private final SourceCodeContent content = new SourceCodeContent();
-    private SchemaId databaseSchema;
-    private DatabaseSession databaseSession;
+    private final FileConnectionContext connectionContext;
 
     public DBConsoleVirtualFile(@NotNull DBConsole console) {
         super(console.getProject(), DBObjectRef.of(console));
-        ConnectionHandler connectionHandler = console.getConnectionHandler();
-        databaseSession = connectionHandler.getSessionBundle().getMainSession();
-        setDatabaseSchema(connectionHandler.getDefaultSchema());
-        setCharset(connectionHandler.getSettings().getDetailSettings().getCharset());
-    }
 
-    public SourceCodeContent getContent() {
-        return content;
+        ConnectionHandler connectionHandler = console.getConnection();
+        SchemaId schemaId = connectionHandler.getDefaultSchema();
+        SessionId sessionId = connectionHandler.getSessionBundle().getMainSession().getId();
+        connectionContext = new CustomFileConnectionContext(this, sessionId, schemaId);
+
+        setCharset(connectionHandler.getSettings().getDetailSettings().getCharset());
     }
 
     public void setText(String text) {
         if (getObject().getConsoleType() == DBConsoleType.DEBUG && Strings.isEmpty(text)) {
-            ConnectionHandler connectionHandler = getConnectionHandler();
+            ConnectionHandler connectionHandler = getConnection();
             Project project = connectionHandler.getProject();
 
             DatabaseDebuggerInterface debuggerInterface = connectionHandler.getInterfaceProvider().getDebuggerInterface();
@@ -74,7 +73,7 @@ public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> impleme
 
     @Override
     public PsiFile initializePsiFile(DatabaseFileViewProvider fileViewProvider, Language language) {
-        ConnectionHandler connectionHandler = getConnectionHandler();
+        ConnectionHandler connectionHandler = getConnection();
         DBLanguageDialect languageDialect = connectionHandler.resolveLanguageDialect(language);
         return languageDialect == null ? null : fileViewProvider.initializePsiFile(languageDialect);
     }
@@ -93,39 +92,39 @@ public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> impleme
     @Nullable
     @Override
     public Icon getIcon() {
-        switch (getConsole().getConsoleType()) {
+        switch (getType()) {
             case STANDARD: return Icons.FILE_SQL_CONSOLE;
             case DEBUG: return Icons.FILE_SQL_DEBUG_CONSOLE;
         }
         return null;
     }
-    public void setDatabaseSchema(SchemaId currentSchema) {
-        this.databaseSchema = currentSchema;
+    public void setDatabaseSchema(SchemaId schemaId) {
+        connectionContext.setSchemaId(schemaId);
     }
 
-    public void setDatabaseSchemaName(String currentSchemaName) {
-        if (Strings.isEmpty(currentSchemaName)) {
-            this.databaseSchema = null;
+    public void setDatabaseSchemaName(String schemaName) {
+        if (Strings.isEmpty(schemaName)) {
+            setDatabaseSchema(null);
         } else {
-            this.databaseSchema = SchemaId.get(currentSchemaName);
+            setDatabaseSchema(SchemaId.get(schemaName));
         }
     }
 
     public String getDatabaseSchemaName() {
-        return this.databaseSchema == null ? null : this.databaseSchema.id();
+        return connectionContext.getSchemaName();
     }
 
     public void setDatabaseSessionId(SessionId sessionId) {
-        databaseSession = getConnectionHandler().getSessionBundle().getSession(sessionId);
+        connectionContext.setSessionId(sessionId);
     }
 
     @Override
-    public DatabaseSession getDatabaseSession() {
-        return databaseSession;
+    public DatabaseSession getSession() {
+        return connectionContext.getSession();
     }
 
     public void setDatabaseSession(DatabaseSession databaseSession) {
-        this.databaseSession = databaseSession;
+        this.connectionContext.setSessionId(databaseSession == null ? SessionId.MAIN : databaseSession.getId());;
     }
 
     @Override
@@ -136,7 +135,7 @@ public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> impleme
     @Override
     @Nullable
     public SchemaId getSchemaId() {
-        return databaseSchema;
+        return connectionContext.getSchemaId();
     }
 
     public DBConsoleType getType() {
@@ -153,7 +152,7 @@ public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> impleme
         return false;
     }
 
-    public boolean isDefault() {return Objects.equals(name, getConnectionHandler().getName());}
+    public boolean isDefault() {return Objects.equals(name, getConnection().getName());}
 
     @Override
     public VirtualFile getParent() {
@@ -194,11 +193,6 @@ public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> impleme
     public long getTimeStamp() {
         return 0;
     }
-
-  @Override
-  public long getModificationStamp() {
-    return modificationTimestamp;
-  }
 
     @Override
     public long getLength() {

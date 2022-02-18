@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.data.model.basic;
 
+import com.dci.intellij.dbn.common.dispose.Disposed;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
@@ -29,7 +30,6 @@ import javax.swing.event.ListDataEvent;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -363,8 +363,7 @@ public class BasicDataModel<
      *******************************************************  */
     @Override
     public void disposeInner() {
-        SafeDisposer.dispose(rows, true, true);
-        rows = Collections.emptyList();
+        rows = SafeDisposer.replace(rows, Disposed.list(), false);
         nullify();
     }
 

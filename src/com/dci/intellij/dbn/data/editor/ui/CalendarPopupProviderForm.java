@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.color.Colors;
 import com.dci.intellij.dbn.common.locale.Formatter;
 import com.dci.intellij.dbn.common.ui.Borders;
+import com.dci.intellij.dbn.common.ui.Fonts;
 import com.dci.intellij.dbn.common.ui.GUIUtil;
 import com.dci.intellij.dbn.common.ui.KeyUtil;
 import com.dci.intellij.dbn.common.ui.Mouse;
@@ -17,7 +18,6 @@ import com.intellij.openapi.ui.popup.JBPopup;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.ui.JBColor;
 import com.intellij.util.ui.JBUI;
-import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -31,6 +31,11 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableModel;
 import java.awt.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Cursor;
+import java.awt.KeyboardFocusManager;
 import java.awt.event.FocusEvent;
 import java.awt.event.KeyEvent;
 import java.awt.event.MouseEvent;
@@ -39,9 +44,8 @@ import java.text.ParseException;
 import java.util.*;
 
 public class CalendarPopupProviderForm extends TextFieldPopupProviderForm implements TableModelListener {
-    private static final Font BOLD = new Font(UIUtil.getMenuFont().getFontName(), Font.BOLD, UIUtil.getMenuFont().getSize());
-    private final TableCellRenderer CELL_RENDERER = new CalendarTableCellRenderer();
-    private final TableCellRenderer HEADER_CELL_RENDERER = new CalendarTableHeaderCellRenderer();
+    private static final TableCellRenderer CELL_RENDERER = new CalendarTableCellRenderer();
+    private static final TableCellRenderer HEADER_CELL_RENDERER = new CalendarTableHeaderCellRenderer();
     private final TableModel CALENDER_HEADER_TABLE_MODEL = new CalendarHeaderTableModel();
     private JPanel mainPanel;
     private JTable daysTable;
@@ -210,6 +214,7 @@ public class CalendarPopupProviderForm extends TextFieldPopupProviderForm implem
     private void selectDate() {
         CalendarTableModel model = (CalendarTableModel) daysTable.getModel();
         Date date = model.getTimestamp(daysTable.getSelectedRow(), daysTable.getSelectedColumn());
+        TextFieldWithPopup editorComponent = getEditorComponent();
         editorComponent.setText(getFormatter().formatDateTime(date));
         hidePopup();
         getTextField().requestFocus();
@@ -568,7 +573,7 @@ public class CalendarPopupProviderForm extends TextFieldPopupProviderForm implem
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
             Component component = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
             setHorizontalAlignment(RIGHT);
-            setFont(BOLD);
+            setFont(Fonts.BOLD);
             setBorder(EMPTY_BORDER);
             //setForeground(column == 0 ? Color.RED : GUIUtil.getTableForeground());
             setForeground(FOREGROUND_COLOR);

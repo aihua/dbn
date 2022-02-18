@@ -205,7 +205,7 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
     @Nullable
     public ConnectionHandler getConnectionHandler() {
         DBLanguagePsiFile file = getFile();
-        return file.getConnectionHandler();
+        return file.getConnection();
     }
 
     @Nullable
@@ -379,7 +379,7 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
                     if (virtualFile instanceof DBSessionStatementVirtualFile) {
                         DBSessionStatementVirtualFile sessionBrowserStatementFile = (DBSessionStatementVirtualFile) virtualFile;
                         SessionBrowser sessionBrowser = sessionBrowserStatementFile.getSessionBrowser();
-                        SessionBrowserForm editorForm = sessionBrowser.getEditorForm();
+                        SessionBrowserForm editorForm = sessionBrowser.getBrowserForm();
                         EditorEx viewer = editorForm.getDetailsForm().getCurrentSqlPanel().getViewer();
                         if (viewer != null) {
                             descriptor.navigateIn(viewer);

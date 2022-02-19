@@ -52,12 +52,9 @@ import com.intellij.ui.tabs.impl.TabLabel;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.Icon;
-import javax.swing.JComponent;
-import javax.swing.JPanel;
+import javax.swing.*;
 import javax.swing.tree.TreePath;
-import java.awt.BorderLayout;
-import java.awt.Component;
+import java.awt.*;
 import java.awt.event.MouseListener;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -161,7 +158,7 @@ public class ExecutionConsoleForm extends DBNFormImpl{
         }
     });
 
-    private final TabsListener tabsListener = new TabsListener() {
+    private final TabsListener tabsListener = new TabsListener.Adapter() {
         @Override
         public void selectionChanged(TabInfo oldSelection, TabInfo newSelection) {
             if (canScrollToSource) {

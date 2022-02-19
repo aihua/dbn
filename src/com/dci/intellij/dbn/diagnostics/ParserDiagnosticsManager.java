@@ -123,7 +123,7 @@ public class ParserDiagnosticsManager extends AbstractProjectComponent implement
                 String newFileName = scrambler.scrambleName(file);
                 File scrambledFile = new File(rootDir, newFileName);
                 try {
-                    FileUtils.write(scrambledFile, scrambled, file.getCharset());
+                    FileUtils.write(scrambledFile, scrambled, file.getCharset().name());
                 } catch (IOException e) {
                     NotificationSupport.sendWarningNotification(
                             getProject(),

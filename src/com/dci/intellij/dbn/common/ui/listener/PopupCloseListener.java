@@ -6,7 +6,7 @@ import com.intellij.openapi.ui.popup.LightweightWindowEvent;
 import com.intellij.openapi.util.Disposer;
 import org.jetbrains.annotations.NotNull;
 
-public class PopupCloseListener implements JBPopupListener {
+public class PopupCloseListener extends JBPopupListener.Adapter {
     private final Disposable content;
 
     private PopupCloseListener(@NotNull Disposable content) {

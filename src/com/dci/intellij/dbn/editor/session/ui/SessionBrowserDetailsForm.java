@@ -18,8 +18,8 @@ import com.intellij.ui.tabs.TabsListener;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.JPanel;
-import java.awt.BorderLayout;
+import javax.swing.*;
+import java.awt.*;
 
 public class SessionBrowserDetailsForm extends DBNFormImpl{
     private JPanel mainPanel;
@@ -59,7 +59,7 @@ public class SessionBrowserDetailsForm extends DBNFormImpl{
             detailsTabbedPane.addTab(explainPlanTabInfo);
         }
 
-        detailsTabbedPane.addListener(new TabsListener(){
+        detailsTabbedPane.addListener(new TabsListener.Adapter(){
             @Override
             public void selectionChanged(TabInfo oldSelection, TabInfo newSelection) {
                 if (newSelection.getText().equals("Explain Plan")) {

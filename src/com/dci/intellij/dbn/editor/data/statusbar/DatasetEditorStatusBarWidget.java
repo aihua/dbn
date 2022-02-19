@@ -19,14 +19,13 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.CustomStatusBarWidget;
 import com.intellij.openapi.wm.StatusBar;
+import com.intellij.openapi.wm.WindowManager;
 import com.intellij.util.Alarm;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import java.awt.BorderLayout;
+import javax.swing.*;
+import java.awt.*;
 
 public class DatasetEditorStatusBarWidget extends AbstractProjectComponent implements CustomStatusBarWidget, FileEditorManagerListener {
     private static final String WIDGET_ID = DatasetEditorStatusBarWidget.class.getName();
@@ -77,6 +76,14 @@ public class DatasetEditorStatusBarWidget extends AbstractProjectComponent imple
         return null;
     }
 
+    @Override
+    public void projectOpened() {
+        Dispatch.run(() -> {
+            Project project = getProject();
+            StatusBar statusBar = WindowManager.getInstance().getStatusBar(project);
+            statusBar.addWidget(this, this);
+        });
+    }
     @Override
     public void selectionChanged(@NotNull FileEditorManagerEvent event) {
         update();

@@ -1,20 +1,27 @@
 package com.dci.intellij.dbn.common.dispose;
 
 import com.dci.intellij.dbn.common.list.FilteredList;
+import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.vfs.DBVirtualFile;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.progress.ProcessCanceledException;
+import com.intellij.openapi.ui.popup.JBPopup;
 import com.intellij.openapi.util.Disposer;
+import com.intellij.ui.tabs.JBTabs;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collection;
-import java.util.Map;
-import java.util.Timer;
+import java.util.*;
+
+import static com.dci.intellij.dbn.common.thread.ThreadMonitor.isDispatchThread;
 
 @Slf4j
 public final class SafeDisposer {
+    private static final List<Class<?>> DISPATCH_CANDIDATES = Arrays.asList(
+            JBPopup.class,
+            JBTabs.class
+            /*, ...*/);
 
     private SafeDisposer() {}
 
@@ -50,10 +57,14 @@ public final class SafeDisposer {
     public static void dispose(@Nullable Disposable disposable, boolean registered) {
         try {
             if (Failsafe.check(disposable)) {
-                if (registered) {
-                    Disposer.dispose(disposable);
+                if (isDispatchCandidate(disposable) && !isDispatchThread()) {
+                    Dispatch.run(() -> dispose(disposable, registered));
                 } else {
-                    disposable.dispose();
+                    if (registered) {
+                        Disposer.dispose(disposable);
+                    } else {
+                        disposable.dispose();
+                    }
                 }
             }
         } catch (ProcessCanceledException ignore) {
@@ -149,4 +160,12 @@ public final class SafeDisposer {
         }
     }
 
+    private static boolean isDispatchCandidate(Object object) {
+        for (Class<?> candidate : DISPATCH_CANDIDATES) {
+            if (candidate.isAssignableFrom(object.getClass())) {
+                return true;
+            }
+        }
+        return false;
+    }
 }

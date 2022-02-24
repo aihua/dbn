@@ -158,8 +158,8 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
         Project project = getProject();
         if (databaseFile.isContentLoaded()) {
             if (startInBackground)
-                Progress.background(project, "Reloading object source code", false, (progress) -> reloadAndUpdateEditors(databaseFile)); else
-                Progress.prompt(project, "Reloading object source code", false, (progress) -> reloadAndUpdateEditors(databaseFile));
+                Progress.background(project, "Reloading object source code", false, progress -> reloadAndUpdateEditors(databaseFile)); else
+                Progress.prompt(project, "Reloading object source code", false, progress -> reloadAndUpdateEditors(databaseFile));
         }
     }
 
@@ -242,11 +242,11 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
 
                         showWarningDialog(project,"Version conflict",message,
                                 options("Merge Changes", "Cancel"), 0,
-                                (option) -> {
+                                option -> {
                                     if (option == 0) {
                                         Progress.prompt(project,
                                                 "Loading database source code", false,
-                                                (progress) -> {
+                                                progress -> {
                                                     try {
                                                         SourceCodeContent sourceCodeContent = loadSourceFromDatabase(object, contentType);
                                                         String databaseContent = sourceCodeContent.getText().toString();
@@ -280,12 +280,12 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
 
     public SourceCodeContent loadSourceFromDatabase(@NotNull DBSchemaObject object, DBContentType contentType) throws SQLException {
         ProgressMonitor.setTaskDescription("Loading source code of " + object.getQualifiedNameWithType());
-        ConnectionHandler connectionHandler = object.getConnection();
+        ConnectionHandler connection = object.getConnection();
         boolean optionalContent = contentType == DBContentType.CODE_BODY;
 
         String sourceCode = DatabaseInterface.call(true,
-                connectionHandler,
-                (provider, connection) -> {
+                connection,
+                (provider, conn) -> {
                     ResultSet resultSet = null;
                     try {
                         DatabaseMetadataInterface metadataInterface = provider.getMetadataInterface();
@@ -293,7 +293,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
                                 object,
                                 contentType,
                                 metadataInterface,
-                                connection);
+                                conn);
 
                         StringBuilder buffer = new StringBuilder();
                         while (resultSet != null && resultSet.next()) {
@@ -315,7 +315,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
         String objectName = object.getName();
         DBObjectType objectType = object.getObjectType();
 
-        DatabaseDDLInterface ddlInterface = connectionHandler.getInterfaceProvider().getDdlInterface();
+        DatabaseDDLInterface ddlInterface = connection.getInterfaceProvider().getDdlInterface();
         ddlInterface.computeSourceCodeOffsets(sourceCodeContent, objectType.getTypeId(), objectName);
         return sourceCodeContent;
     }
@@ -409,11 +409,11 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
     public ChangeTimestamp loadChangeTimestamp(@NotNull DBSchemaObject object, DBContentType contentType) throws SQLException{
         if (DatabaseFeature.OBJECT_CHANGE_TRACING.isSupported(object)) {
             ProgressMonitor.setTaskDescription("Loading timestamp for " + object.getQualifiedNameWithType());
-            ConnectionHandler connectionHandler = object.getConnection();
+            ConnectionHandler connection = object.getConnection();
 
             Timestamp timestamp = DatabaseInterface.call(true,
-                    connectionHandler,
-                    (provider, connection) -> {
+                    connection,
+                    (provider, conn) -> {
                         ResultSet resultSet = null;
                         try {
                             String schemaName = object.getSchema().getName();
@@ -424,7 +424,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
                                     schemaName,
                                     objectName,
                                     contentQualifier,
-                                    connection);
+                                    conn);
 
                             return resultSet.next() ? resultSet.getTimestamp(1) : null;
                         } finally {
@@ -460,8 +460,8 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
     }
 
     private boolean isValidObjectTypeAndName(@NotNull DBLanguagePsiFile psiFile, @NotNull DBSchemaObject object, DBContentType contentType) {
-        ConnectionHandler connectionHandler = object.getConnection();
-        DatabaseDDLInterface ddlInterface = connectionHandler.getInterfaceProvider().getDdlInterface();
+        ConnectionHandler connection = object.getConnection();
+        DatabaseDDLInterface ddlInterface = connection.getInterfaceProvider().getDdlInterface();
         if (ddlInterface.includesTypeAndNameInSourceContent(object.getObjectType().getTypeId())) {
             PsiElement psiElement = PsiUtil.getFirstLeaf(psiFile);
 
@@ -511,7 +511,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
 
     public void storeSourceToDatabase(DBSourceCodeVirtualFile sourceCodeFile, @Nullable SourceCodeEditor fileEditor, @Nullable Runnable successCallback) {
         Project project = getProject();
-        Progress.prompt(project, "Saving sources to database", false, (progress) -> {
+        Progress.prompt(project, "Saving sources to database", false, progress -> {
             try {
                 sourceCodeFile.saveSourceToDatabase();
                 ProjectEvents.notify(project,
@@ -560,7 +560,7 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
 
     @Override
     public boolean canCloseProject() {
-        boolean exitApp = InternalApi.isApplicationExitInProgress();
+        boolean exitApp = InternalApi.isAppExitInProgress();
         boolean canClose = true;
         Project project = getProject();
         FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
@@ -607,15 +607,15 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
     public void loadSourceCode(@NotNull DBSourceCodeVirtualFile sourceCodeFile, boolean force) {
         String objectDescription = sourceCodeFile.getObject().getQualifiedNameWithType();
         ConnectionAction.invoke("loading the source code", false, sourceCodeFile,
-                (action) -> Progress.background(getProject(), "Loading source code for " + objectDescription, false,
-                        (progress) -> loadSourceFromDatabase(sourceCodeFile, force, false)));
+                action -> Progress.background(getProject(), "Loading source code for " + objectDescription, false,
+                        progress -> loadSourceFromDatabase(sourceCodeFile, force, false)));
     }
 
     public void saveSourceCode(@NotNull DBSourceCodeVirtualFile sourceCodeFile, @Nullable SourceCodeEditor fileEditor, Runnable successCallback) {
         String objectDescription = sourceCodeFile.getObject().getQualifiedNameWithType();
         ConnectionAction.invoke("saving the source code", false, sourceCodeFile,
-                (action) -> Progress.prompt(getProject(), "Saving source code for " + objectDescription, false,
-                        (progress) -> saveSourceToDatabase(sourceCodeFile, fileEditor, successCallback)));
+                action -> Progress.prompt(getProject(), "Saving source code for " + objectDescription, false,
+                        progress -> saveSourceToDatabase(sourceCodeFile, fileEditor, successCallback)));
     }
 
     public void revertSourceCodeChanges(@NotNull DBEditableObjectVirtualFile databaseFile, Runnable successCallback) {
@@ -652,8 +652,8 @@ public class SourceCodeManager extends AbstractProjectComponent implements Persi
     public void saveSourceCodeChanges(@NotNull DBEditableObjectVirtualFile databaseFile, Runnable successCallback) {
         String objectDescription = databaseFile.getObject().getQualifiedNameWithType();
         ConnectionAction.invoke("saving the source code", false, databaseFile,
-                (action) -> Progress.prompt(getProject(), "Saving source code for " + objectDescription, false,
-                        (progress) -> {
+                action -> Progress.prompt(getProject(), "Saving source code for " + objectDescription, false,
+                        progress -> {
                             List<DBSourceCodeVirtualFile> sourceCodeFiles = databaseFile.getSourceCodeFiles();
                             for (DBSourceCodeVirtualFile sourceCodeFile : sourceCodeFiles) {
                                 if (sourceCodeFile.is(MODIFIED)) {

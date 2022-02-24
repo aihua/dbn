@@ -50,10 +50,15 @@ import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
+import javax.swing.JList;
+import javax.swing.ListSelectionModel;
 import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static com.dci.intellij.dbn.common.message.MessageCallback.when;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
@@ -195,8 +200,8 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
             if (activeConnection == null) {
                 DBSchemaObject schemaObject = objectRef.get();
                 if (schemaObject != null) {
-                    ConnectionHandler connectionHandler = schemaObject.getConnection();
-                    contextManager.setConnection(virtualFile, connectionHandler);
+                    ConnectionHandler connection = schemaObject.getConnection();
+                    contextManager.setConnection(virtualFile, connection);
                     contextManager.setDatabaseSchema(virtualFile, schemaObject.getSchemaId());
                 }
             }
@@ -249,7 +254,6 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
         Project project = getProject();
 
         if (fileNameProvider != null) {
-            //ConnectionHandler connectionHandler = object.getCache();
             FileChooserDescriptor descriptor = new FileChooserDescriptor(false, true, false, false, false, false);
             descriptor.setTitle("Select New DDL-File Location");
 

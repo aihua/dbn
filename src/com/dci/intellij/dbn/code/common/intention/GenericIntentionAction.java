@@ -18,7 +18,7 @@ public abstract class GenericIntentionAction implements IntentionAction, Iconabl
     }
 
     @Nullable
-    protected ConnectionHandler getConnectionHandler(PsiFile psiFile) {
+    protected ConnectionHandler getConnection(PsiFile psiFile) {
         if (psiFile instanceof DBLanguagePsiFile) {
             DBLanguagePsiFile dbLanguagePsiFile = (DBLanguagePsiFile) psiFile;
             return dbLanguagePsiFile.getConnection();

@@ -6,7 +6,7 @@ import com.dci.intellij.dbn.common.compatibility.CompatibilityUtil;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.thread.Dispatch;
-import com.dci.intellij.dbn.common.ui.GUIUtil;
+import com.dci.intellij.dbn.common.ui.util.UserInterface;
 import com.dci.intellij.dbn.common.util.MathResult;
 import com.dci.intellij.dbn.common.util.Safe;
 import com.dci.intellij.dbn.editor.data.DatasetEditor;
@@ -120,7 +120,7 @@ public class DatasetEditorStatusBarWidget extends AbstractProjectComponent imple
                         "Average " + mathResult.getAverage());
                 textLabel.setIcon(Icons.COMMON_DATA_GRID);
             }
-            GUIUtil.repaint(getComponent());
+            UserInterface.repaint(getComponent());
         });
     }
 

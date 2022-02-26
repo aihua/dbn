@@ -4,7 +4,7 @@ import com.dci.intellij.dbn.common.properties.KeyValueProperty;
 import com.dci.intellij.dbn.common.ui.table.DBNEditableTableModel;
 import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.common.util.Strings;
-import lombok.var;
+import lombok.val;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -19,7 +19,7 @@ public class PropertiesTableModel extends DBNEditableTableModel {
     }
 
     public void loadProperties(Map<String, String> propertiesMap) {
-        for (var entry : propertiesMap.entrySet()) {
+        for (val entry : propertiesMap.entrySet()) {
             String key = entry.getKey();
             String value = entry.getValue();
 

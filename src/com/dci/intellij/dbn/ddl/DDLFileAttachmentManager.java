@@ -7,7 +7,7 @@ import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.file.util.FileSearchRequest;
 import com.dci.intellij.dbn.common.file.util.VirtualFiles;
 import com.dci.intellij.dbn.common.thread.Write;
-import com.dci.intellij.dbn.common.ui.ListUtil;
+import com.dci.intellij.dbn.common.ui.util.Lists;
 import com.dci.intellij.dbn.common.util.Documents;
 import com.dci.intellij.dbn.common.util.Messages;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -47,21 +47,16 @@ import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.openapi.vfs.newvfs.BulkFileListener;
 import com.intellij.openapi.vfs.newvfs.events.VFileDeleteEvent;
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent;
-import lombok.var;
+import lombok.val;
 import org.jdom.Element;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.JList;
-import javax.swing.ListSelectionModel;
+import javax.swing.*;
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static com.dci.intellij.dbn.common.message.MessageCallback.when;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
@@ -136,7 +131,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
 
 
     public boolean hasAttachedDDLFiles(DBObjectRef<DBSchemaObject> objectRef) {
-        for (var entry : mappings.entrySet()) {
+        for (val entry : mappings.entrySet()) {
             if (entry.getValue().equals(objectRef)) return true;
         }
         return false;
@@ -406,7 +401,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
             SelectFromListDialog fileTypeDialog = new SelectFromListDialog(
                     getProject(),
                     fileNameProviders.toArray(),
-                    ListUtil.BASIC_TO_STRING_ASPECT,
+                    Lists.BASIC_TO_STRING_ASPECT,
                     "Select DDL file type",
                     ListSelectionModel.SINGLE_SELECTION);
             JList list = Failsafe.nd((JList) fileTypeDialog.getPreferredFocusedComponent());
@@ -422,7 +417,7 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
 
     private List<String> getAttachedFileUrls(DBObjectRef<DBSchemaObject> objectRef) {
         List<String> fileUrls = new ArrayList<>();
-        for (var entry : mappings.entrySet()) {
+        for (val entry : mappings.entrySet()) {
             String fileUrl = entry.getKey();
             if (entry.getValue().equals(objectRef)) {
                 fileUrls.add(fileUrl);
@@ -486,9 +481,9 @@ public class DDLFileAttachmentManager extends AbstractProjectComponent implement
     @Override
     public Element getState() {
         Element element = new Element("state");
-        for (var entry : mappings.entrySet()) {
+        for (val entry : mappings.entrySet()) {
             String fileUrl = entry.getKey();
-            DBObjectRef<DBSchemaObject> objectRef = entry.getValue();
+            val objectRef = entry.getValue();
 
             Element childElement = new Element("mapping");
             childElement.setAttribute("file-url", fileUrl);

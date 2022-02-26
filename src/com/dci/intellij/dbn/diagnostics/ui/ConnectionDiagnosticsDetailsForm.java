@@ -1,8 +1,8 @@
 package com.dci.intellij.dbn.diagnostics.ui;
 
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.ui.DBNFormImpl;
-import com.dci.intellij.dbn.common.ui.DBNHeaderForm;
+import com.dci.intellij.dbn.common.ui.form.DBNFormBase;
+import com.dci.intellij.dbn.common.ui.form.DBNHeaderForm;
 import com.dci.intellij.dbn.common.ui.tab.TabbedPane;
 import com.dci.intellij.dbn.common.ui.table.DBNTable;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -16,7 +16,7 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.*;
 import java.awt.*;
 
-public class ConnectionDiagnosticsDetailsForm extends DBNFormImpl {
+public class ConnectionDiagnosticsDetailsForm extends DBNFormBase {
     private final DBNTable<MetadataDiagnosticsTableModel> metadataTable;
     private final DBNTable<ConnectivityDiagnosticsTableModel> connectivityTable;
 

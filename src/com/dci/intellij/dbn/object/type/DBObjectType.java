@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.StringTokenizer;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Getter
 public enum DBObjectType implements DynamicContentType<DBObjectType> {
@@ -142,6 +143,8 @@ public enum DBObjectType implements DynamicContentType<DBObjectType> {
     private Map<DBContentType, Icon> icons;
     private Map<DBContentType, DDLFileTypeId> ddlFileTypeIds;
 
+    private static final Map<String, DBObjectType> CACHE = new ConcurrentHashMap<>(200);
+
     DBObjectType(DatabaseObjectTypeId typeId, String name, String listName, Icon icon, Icon disabledIcon, Icon listIcon, boolean generic) {
         this.typeId = typeId;
         this.name = name.intern();
@@ -217,7 +220,8 @@ public enum DBObjectType implements DynamicContentType<DBObjectType> {
 
     public boolean isOverloadable() {
         // TODO confirm no other object type can be overloadable
-        return getGenericType() == METHOD;
+        DBObjectType genericType = getGenericType();
+        return genericType == METHOD || genericType == TYPE;
     }
 
     public boolean hasChild(DBObjectType objectType) {
@@ -419,18 +423,29 @@ public enum DBObjectType implements DynamicContentType<DBObjectType> {
             return null;
         }
 
-        try {
-            return valueOf(typeName);
-        } catch (IllegalArgumentException e) {
-            typeName = typeName.replace('_', ' ');
-            for (DBObjectType objectType: values()) {
-                if (Strings.equalsIgnoreCase(objectType.name, typeName)) {
-                    return objectType;
+        return CACHE.computeIfAbsent(typeName, name -> {
+            name = name.toUpperCase();
+            try {
+                return valueOf(name);
+            } catch (IllegalArgumentException e) {
+                for (DBObjectType objectType: values()) {
+                    if (objectType.matches(name)) {
+                        return objectType;
+                    }
                 }
+                System.out.println("ERROR - [UNKNOWN] undefined object type: " + name);
+                return UNKNOWN;
             }
-            System.out.println("ERROR - [UNKNOWN] undefined object type: " + typeName);
-            return UNKNOWN;
-        }
+        });
+    }
+
+    private boolean matches(String name) {
+        String typeName = this.name();
+        String typeIdName = getTypeId().name();
+        String presentableName = this.name;
+        return Strings.equalsIgnoreCase(typeName, name) ||
+                Strings.equalsIgnoreCase(typeIdName, name) ||
+                Strings.equalsIgnoreCase(presentableName, name.replace('_', ' '));
     }
 
     public static String toCsv(List<DBObjectType> objectTypes) {

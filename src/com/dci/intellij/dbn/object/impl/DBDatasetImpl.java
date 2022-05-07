@@ -7,6 +7,7 @@ import com.dci.intellij.dbn.common.content.loader.DynamicContentLoader;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentResultSetLoader;
 import com.dci.intellij.dbn.common.content.loader.DynamicSubcontentLoader;
 import com.dci.intellij.dbn.common.util.Commons;
+import com.dci.intellij.dbn.common.util.Safe;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.data.type.DBDataType;
 import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
@@ -50,7 +51,7 @@ public abstract class DBDatasetImpl<M extends DBObjectMetadata> extends DBSchema
     protected void initLists() {
         super.initLists();
         DBSchema schema = getSchema();
-        DBObjectListContainer childObjects = initChildObjects();
+        DBObjectListContainer childObjects = ensureChildObjects();
         columns = childObjects.createSubcontentObjectList(COLUMN, this, schema);
         constraints = childObjects.createSubcontentObjectList(CONSTRAINT, this, schema);
         triggers = childObjects.createSubcontentObjectList(DATASET_TRIGGER, this, schema);
@@ -134,7 +135,7 @@ public abstract class DBDatasetImpl<M extends DBObjectMetadata> extends DBSchema
 
             @Override
             public boolean match(DBColumn column, DynamicContent dynamicContent) {
-                DBDataset dataset = (DBDataset) dynamicContent.getParentEntity();
+                DBDataset dataset = dynamicContent.getParentEntity();
                 return Commons.match(column.getDataset(), dataset);
             }
 
@@ -146,13 +147,16 @@ public abstract class DBDatasetImpl<M extends DBObjectMetadata> extends DBSchema
                     public ResultSet createResultSet(DynamicContent<DBColumn> dynamicContent, DBNConnection connection) throws SQLException {
                         DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
                         DBDataset dataset = dynamicContent.getParentEntity();
-                        return metadataInterface.loadColumns(dataset.getSchema().getName(), dataset.getName(), connection);
+                        return metadataInterface.loadColumns(
+                                getSchemaName(dataset),
+                                getObjectName(dataset),
+                                connection);
                     }
 
                     @Override
                     public DBColumn createElement(DynamicContent<DBColumn> content, DBColumnMetadata metadata, LoaderCache cache) throws SQLException {
                         DBDataset dataset = content.getParentEntity();
-                        return new DBColumnImpl(dataset, metadata);
+                        return dataset == null ? null : new DBColumnImpl(dataset, metadata);
                     }
                 };
             }
@@ -162,7 +166,7 @@ public abstract class DBDatasetImpl<M extends DBObjectMetadata> extends DBSchema
 
             @Override
             public boolean match(DBConstraint constraint, DynamicContent dynamicContent) {
-                DBDataset dataset = (DBDataset) dynamicContent.getParentEntity();
+                DBDataset dataset = dynamicContent.getParentEntity();
                 DBDataset constraintDataset = constraint.getDataset();
                 return Commons.match(constraintDataset, dataset);
             }
@@ -175,7 +179,10 @@ public abstract class DBDatasetImpl<M extends DBObjectMetadata> extends DBSchema
                     public ResultSet createResultSet(DynamicContent<DBConstraint> dynamicContent, DBNConnection connection) throws SQLException {
                         DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
                         DBDataset dataset = dynamicContent.getParentEntity();
-                        return metadataInterface.loadConstraints(dataset.getSchema().getName(), dataset.getName(), connection);
+                        return metadataInterface.loadConstraints(
+                                getSchemaName(dataset),
+                                getObjectName(dataset),
+                                connection);
                     }
 
                     @Override
@@ -192,7 +199,7 @@ public abstract class DBDatasetImpl<M extends DBObjectMetadata> extends DBSchema
 
             @Override
             public boolean match(DBDatasetTrigger trigger, DynamicContent dynamicContent) {
-                DBDataset dataset = (DBDataset) dynamicContent.getParentEntity();
+                DBDataset dataset = dynamicContent.getParentEntity();
                 return Commons.match(trigger.getDataset(), dataset);
             }
 
@@ -204,7 +211,10 @@ public abstract class DBDatasetImpl<M extends DBObjectMetadata> extends DBSchema
                     public ResultSet createResultSet(DynamicContent<DBDatasetTrigger> dynamicContent, DBNConnection connection) throws SQLException {
                         DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
                         DBDataset dataset = dynamicContent.getParentEntity();
-                        return metadataInterface.loadDatasetTriggers(dataset.getSchema().getName(), dataset.getName(), connection);
+                        return metadataInterface.loadDatasetTriggers(
+                                getSchemaName(dataset),
+                                getObjectName(dataset),
+                                connection);
                     }
 
                     @Override
@@ -220,7 +230,7 @@ public abstract class DBDatasetImpl<M extends DBObjectMetadata> extends DBSchema
 
             @Override
             public boolean match(DBIndex index, DynamicContent dynamicContent) {
-                DBDataset dataset = (DBDataset) dynamicContent.getParentEntity();
+                DBDataset dataset = dynamicContent.getParentEntity();
                 DBDataset indexDataset = index.getDataset();
                 return Commons.match(indexDataset, dataset);
             }
@@ -233,7 +243,10 @@ public abstract class DBDatasetImpl<M extends DBObjectMetadata> extends DBSchema
                     public ResultSet createResultSet(DynamicContent<DBIndex> dynamicContent, DBNConnection connection) throws SQLException {
                         DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
                         DBDataset dataset = dynamicContent.getParentEntity();
-                        return metadataInterface.loadIndexes(dataset.getSchema().getName(), dataset.getName(), connection);
+                        return metadataInterface.loadIndexes(
+                                getSchemaName(dataset),
+                                getObjectName(dataset),
+                                connection);
                     }
 
                     @Override
@@ -249,7 +262,7 @@ public abstract class DBDatasetImpl<M extends DBObjectMetadata> extends DBSchema
             @Override
             public boolean match(DynamicContentElement sourceElement, DynamicContent dynamicContent) {
                 DBIndexColumnRelation indexColumnRelation = (DBIndexColumnRelation) sourceElement;
-                DBDataset dataset = (DBDataset) dynamicContent.getParentEntity();
+                DBDataset dataset = dynamicContent.getParentEntity();
                 DBDataset columnDataset = indexColumnRelation.getColumn().getDataset();
                 return Commons.match(columnDataset, dataset);
             }
@@ -262,7 +275,10 @@ public abstract class DBDatasetImpl<M extends DBObjectMetadata> extends DBSchema
                     public ResultSet createResultSet(DynamicContent<DBIndexColumnRelation> dynamicContent, DBNConnection connection) throws SQLException {
                         DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
                         DBDataset dataset = dynamicContent.getParentEntity();
-                        return metadataInterface.loadIndexRelations(dataset.getSchema().getName(), dataset.getName(), connection);
+                        return metadataInterface.loadIndexRelations(
+                                getSchemaName(dataset),
+                                getObjectName(dataset),
+                                connection);
                     }
 
                     @Override
@@ -270,8 +286,8 @@ public abstract class DBDatasetImpl<M extends DBObjectMetadata> extends DBSchema
                         String columnName = metadata.getColumnName();
                         String indexName = metadata.getIndexName();
                         DBDataset dataset = content.getParentEntity();
-                        DBIndex index = dataset.getIndex(indexName);
-                        DBColumn column = dataset.getColumn(columnName);
+                        DBIndex index = Safe.call(dataset, d -> d.getIndex(indexName));
+                        DBColumn column = Safe.call(dataset, d -> d.getColumn(columnName));
 
                         if (column != null && index != null) {
                             return new DBIndexColumnRelation(index, column);
@@ -288,8 +304,9 @@ public abstract class DBDatasetImpl<M extends DBObjectMetadata> extends DBSchema
             @Override
             public boolean match(DynamicContentElement sourceElement, DynamicContent dynamicContent) {
                 DBConstraintColumnRelation constraintColumnRelation = (DBConstraintColumnRelation) sourceElement;
-                DBDataset dataset = (DBDataset) dynamicContent.getParentEntity();
-                DBDataset columnDataset = constraintColumnRelation.getColumn().getDataset();
+                DBDataset dataset = dynamicContent.getParentEntity();
+                DBColumn column = constraintColumnRelation.getColumn();
+                DBDataset columnDataset = Safe.call(column, c -> c.getDataset());
                 return Commons.match(columnDataset, dataset);
             }
 
@@ -304,7 +321,10 @@ public abstract class DBDatasetImpl<M extends DBObjectMetadata> extends DBSchema
 
                         DatabaseMetadataInterface metadataInterface = dynamicContent.getMetadataInterface();
                         DBDataset dataset = dynamicContent.getParentEntity();
-                        return metadataInterface.loadConstraintRelations(dataset.getSchema().getName(), dataset.getName(), connection);
+                        return metadataInterface.loadConstraintRelations(
+                                getSchemaName(dataset),
+                                getObjectName(dataset),
+                                connection);
                     }
 
                     @Override
@@ -317,8 +337,8 @@ public abstract class DBDatasetImpl<M extends DBObjectMetadata> extends DBSchema
                         short position = metadata.getPosition();
 
                         DBDataset dataset = content.getParentEntity();
-                        DBColumn column = dataset.getColumn(columnName);
-                        DBConstraint constraint = dataset.getConstraint(constraintName);
+                        DBColumn column = Safe.call(dataset, d -> d.getColumn(columnName));
+                        DBConstraint constraint = Safe.call(dataset, d -> d.getConstraint(constraintName));
 
                         if (column != null && constraint != null) {
                             return new DBConstraintColumnRelation(constraint, column, position);

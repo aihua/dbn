@@ -211,6 +211,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
         return getChildObject(name, overload, lookupHidden, new NodeBase<>(this, null));
     }
 
+    @Nullable
     public DBObject getChildObject(String name, short overload, boolean lookupHidden, Node<DBObject> lookupPath) {
         DBObject childObject = super.getChildObject(name, overload, lookupHidden);
         if (childObject == null) {
@@ -255,7 +256,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
     }
 
     private DBObjectList<DBObject> loadChildObjectList(DBObjectType objectType) {
-        DBObjectListContainer childObjects = initChildObjects();
+        DBObjectListContainer childObjects = ensureChildObjects();
         DBObjectList<DBObject> objectList = childObjects.getObjects(objectType);
         if (objectList != null) {
             for (DBObject object : objectList.getObjects()) {

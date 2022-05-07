@@ -159,14 +159,14 @@ public interface ConnectionHandler extends StatefulDisposable, EnvironmentTypePr
     @Deprecated
     boolean hasUncommittedChanges();
 
-    @NotNull
+    @Nullable
     StatementExecutionQueue getExecutionQueue(SessionId sessionId);
 
     @NotNull
     PsiDirectory getPsiDirectory();
 
-    static List<ConnectionId> ids(List<ConnectionHandler> connectionHandlers) {
-        return Lists.convert(connectionHandlers, connection -> connection.getConnectionId()) ;
+    static List<ConnectionId> ids(List<ConnectionHandler> connections) {
+        return Lists.convert(connections, connection -> connection.getConnectionId()) ;
     }
 
     DatabaseCompatibility getCompatibility();

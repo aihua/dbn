@@ -13,5 +13,6 @@ public interface UserDataKeys {
     Key<ProjectRef> PROJECT_REF = Key.create("DBNavigator.ProjectRef");
     Key<List<StatementExecutionProcessor>> STATEMENT_EXECUTION_PROCESSORS = Key.create("DBNavigator.StatementExecutionProcessors");
     Key<FileConnectionContext> FILE_CONNECTION_MAPPING = Key.create("DBNavigator.FileConnectionMapping");
+    Key<Boolean> HAS_CONNECTIVITY_CONTEXT = Key.create("DBNavigator.HasConnectivityContext");
 
 }

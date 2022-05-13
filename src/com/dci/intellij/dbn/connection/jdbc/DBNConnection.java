@@ -37,6 +37,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static com.dci.intellij.dbn.common.util.Unsafe.cast;
 import static com.dci.intellij.dbn.connection.jdbc.ResourceStatus.ACTIVE;
 import static com.dci.intellij.dbn.connection.jdbc.ResourceStatus.RESERVED;
 
@@ -75,7 +76,7 @@ public class DBNConnection extends DBNConnectionBase {
             new ResourceStatusAdapterImpl<DBNConnection>(this,
                     ResourceStatus.VALID,
                     ResourceStatus.CHANGING_VALID,
-                    ResourceStatus.CHECKING_VALID,
+                    ResourceStatus.EVALUATING_VALID,
                     TimeUtil.Millis.TEN_SECONDS,
                     Boolean.TRUE,
                     Boolean.FALSE) { // false is terminal status
@@ -93,7 +94,7 @@ public class DBNConnection extends DBNConnectionBase {
             new ResourceStatusAdapterImpl<DBNConnection>(this,
                     ResourceStatus.AUTO_COMMIT,
                     ResourceStatus.CHANGING_AUTO_COMMIT,
-                    ResourceStatus.CHECKING_AUTO_COMMIT,
+                    ResourceStatus.EVALUATING_AUTO_COMMIT,
                     TimeUtil.Millis.TEN_SECONDS,
                     Boolean.FALSE,
                     null) { // no terminal status
@@ -120,7 +121,7 @@ public class DBNConnection extends DBNConnectionBase {
             new ResourceStatusAdapterImpl<DBNConnection>(this,
                     ResourceStatus.READ_ONLY,
                     ResourceStatus.CHANGING_READ_ONLY,
-                    ResourceStatus.CHECKING_READ_ONLY,
+                    ResourceStatus.EVALUATING_READ_ONLY,
                     TimeUtil.Millis.TEN_SECONDS,
                     Boolean.FALSE,
                     null) { // no terminal status
@@ -168,22 +169,22 @@ public class DBNConnection extends DBNConnectionBase {
     }
 
     @Override
-    protected <S extends Statement> S wrap(S statement) {
+    protected <S extends Statement> S wrap(Statement statement) {
         updateLastAccess();
         if (statement instanceof CallableStatement) {
             CallableStatement callableStatement = (CallableStatement) statement;
-            statement = (S) new DBNCallableStatement(callableStatement, this);
+            statement = new DBNCallableStatement(callableStatement, this);
 
         } else  if (statement instanceof PreparedStatement) {
             PreparedStatement preparedStatement = (PreparedStatement) statement;
-            statement = (S) new DBNPreparedStatement(preparedStatement, this);
+            statement = new DBNPreparedStatement(preparedStatement, this);
 
         } else {
-            statement = (S) new DBNStatement<Statement>(statement, this);
+            statement = new DBNStatement<>(statement, this);
         }
 
         activeStatements.add((DBNStatement) statement);
-        return statement;
+        return cast(statement);
     }
 
     protected void park(DBNStatement statement) {
@@ -231,7 +232,13 @@ public class DBNConnection extends DBNConnectionBase {
 
     @Override
     public void closeInner() throws SQLException {
-        inner.close();
+        try {
+            if (!isAutoCommit()) {
+                inner.rollback();
+            }
+        } finally {
+            inner.close();
+        }
     }
 
     public boolean isPoolConnection() {
@@ -302,6 +309,10 @@ public class DBNConnection extends DBNConnectionBase {
         return autoCommit.get();
     }
 
+    public boolean isAutoCommit() {
+        return getAutoCommit();
+    }
+
     @Override
     public void setReadOnly(boolean readOnly) throws SQLException {
         this.readOnly.set(readOnly);
@@ -334,11 +345,11 @@ public class DBNConnection extends DBNConnectionBase {
     public void close() throws SQLException {
         try {
             super.close();
-            updateLastAccess();
             List<DBNPreparedStatement> statements = new ArrayList<>(cachedStatements.values());
             cachedStatements.clear();
             Resources.close(statements);
         } finally {
+            updateLastAccess();
             resetDataChanges();
             notifyStatusChange();
         }

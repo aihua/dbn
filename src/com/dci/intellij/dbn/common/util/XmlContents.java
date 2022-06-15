@@ -1,23 +1,36 @@
 package com.dci.intellij.dbn.common.util;
 
+import com.intellij.openapi.util.JDOMUtil;
+import lombok.extern.slf4j.Slf4j;
 import org.jdom.Document;
-import org.jdom.adapters.XML4JDOMAdapter;
-import org.jdom.input.DOMBuilder;
-import org.jetbrains.annotations.Nullable;
+import org.jdom.Element;
+import org.jdom.input.SAXBuilder;
 
 import java.io.InputStream;
 
+@Slf4j
 public final class XmlContents {
     private XmlContents() {}
 
-    public static Document loadXmlFile(Class clazz, String fileName) throws Exception {
+    public static Element fileToElement(Class clazz, String fileName) throws Exception {
         try (InputStream inputStream = clazz.getResourceAsStream(fileName)){
-            return createXmlDocument(inputStream);
+            return streamToElement(inputStream);
         }
     }
 
-    @Nullable
-    public static Document createXmlDocument(InputStream inputStream) throws Exception {
-        return new DOMBuilder().build(new XML4JDOMAdapter().getDocument(inputStream, false));
+    public static Element streamToElement(InputStream inputStream) throws Exception{
+        return JDOMUtil.load(inputStream);
     }
+
+    public static Document fileToDocument(Class clazz, String fileName) throws Exception {
+        try (InputStream inputStream = clazz.getResourceAsStream(fileName)){
+            return streamToDocument(inputStream);
+        }
+    }
+
+    public static Document streamToDocument(InputStream inputStream) throws Exception{
+        SAXBuilder builder = new SAXBuilder();
+        return builder.build(inputStream);
+    }
+
 }

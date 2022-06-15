@@ -36,6 +36,7 @@ import java.util.regex.Pattern;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.connectionIdAttribute;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
 import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.PS;
+import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.PSS;
 
 @Slf4j
 @Getter
@@ -191,7 +192,7 @@ public class DBObjectRef<T extends DBObject> implements Comparable<DBObjectRef<?
     }
 
     private static String quotePathElement(String pathElement) {
-        if (pathElement.contains(PS)) {
+        if (pathElement.contains(PSS)) {
             return QUOTE + pathElement + QUOTE;
         }
         return pathElement;
@@ -298,13 +299,18 @@ public class DBObjectRef<T extends DBObject> implements Comparable<DBObjectRef<?
         return object == null ? null : (DBObjectRef<T>) object.ref();
     }
 
+    public static <T extends DBObject> String serialised(@Nullable T object) {
+        DBObjectRef ref = DBObjectRef.of(object);
+        return ref == null ? null : ref.serialize();
+    }
+
     @Nullable
-    public static <T extends DBObject> T get(DBObjectRef<T> objectRef) {
+    public static <T extends DBObject> T get(@Nullable DBObjectRef<T> objectRef) {
         return objectRef == null ? null : objectRef.get();
     }
 
     @NotNull
-    public static <T extends DBObject> T ensure(DBObjectRef<T> objectRef) {
+    public static <T extends DBObject> T ensure(@Nullable DBObjectRef<T> objectRef) {
         T object = get(objectRef);
         return Failsafe.nn(object);
     }
@@ -494,7 +500,7 @@ public class DBObjectRef<T extends DBObject> implements Comparable<DBObjectRef<?
     @Override
     public int hashCode() {
         if (hashCode == -1) {
-            hashCode = (getConnectionId() + PS + serialize()).hashCode();
+            hashCode = (getConnectionId() + PSS + serialize()).hashCode();
         }
         return hashCode;
     }

@@ -16,8 +16,8 @@ import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.filter.CompoundFilter;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.ui.tree.TreeEventType;
+import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.common.util.SearchAdapter;
-import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.DatabaseEntity;
 import com.dci.intellij.dbn.connection.config.ConnectionFilterSettings;
@@ -37,6 +37,8 @@ import com.intellij.navigation.ItemPresentation;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiDirectory;
+import lombok.Getter;
+import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -50,9 +52,13 @@ import java.util.function.Consumer;
 
 import static com.dci.intellij.dbn.common.content.DynamicContentStatus.*;
 import static com.dci.intellij.dbn.common.util.Search.binarySearch;
-import static com.dci.intellij.dbn.common.util.Search.linearSearch;
+import static com.dci.intellij.dbn.common.util.Search.comboSearch;
+import static com.dci.intellij.dbn.object.common.DBObjectSearchAdapters.binary;
+import static com.dci.intellij.dbn.object.common.DBObjectSearchAdapters.linear;
 import static com.dci.intellij.dbn.object.type.DBObjectType.*;
 
+@Getter
+@Setter
 public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> implements DBObjectList<T> {
     private final DBObjectType objectType;
     private ObjectQuickFilter<T> quickFilter;
@@ -119,17 +125,6 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
     }
 
     @Override
-    public void setQuickFilter(ObjectQuickFilter<T> quickFilter) {
-        this.quickFilter = quickFilter;
-    }
-
-    @Nullable
-    @Override
-    public ObjectQuickFilter<T> getQuickFilter() {
-        return this.quickFilter;
-    }
-
-    @Override
     @Nullable
     public Filter<T> getConfigFilter() {
         ConnectionHandler connection = this.getConnection();
@@ -189,35 +184,26 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
                     return super.getElement(name, overload);
 
                 } else if (objectType == TYPE) {
-                    SearchAdapter<T> adapter = SearchAdapter.forType(name, overload, false);
-                    T element = binarySearch(elements, adapter);
-                    if (element == null) {
-                        adapter = SearchAdapter.forType(name, overload, true);
-                        element = binarySearch(elements, adapter);
-                    }
-                    return element;
+                    return Commons.coalesce(
+                            () -> binarySearch(elements, binary(name, overload, false)),
+                            () -> binarySearch(elements, binary(name, overload, true)));
 
                 } else if (isSearchable()) {
-                    SearchAdapter<T> adapter = objectType.isOverloadable() ?
-                            SearchAdapter.forObject(name, overload) :
-                            SearchAdapter.forObject(name);
-
                     if (objectType == COLUMN) {
-                        T element = binarySearch(elements, adapter);
-                        if (element == null) {
-                            // primary key columns are sorted by position at beginning ot the list of elements
-                            element = linearSearch(elements,
-                                    e -> e.getName().equalsIgnoreCase(name),
-                                    e -> ((DBColumn) e).isPrimaryKey());
-                        }
-                        return element;
-
+                        // primary key columns are sorted by position at beginning ot the list of elements
+                        SearchAdapter<T> linear = linear(name, c -> c instanceof DBColumn && ((DBColumn) c).isPrimaryKey());
+                        SearchAdapter<T> binary = binary(name);
+                        return comboSearch(elements, linear, binary);
                     }  else {
-                        return binarySearch(elements, adapter);
+                        SearchAdapter<T> binary = objectType.isOverloadable() ?
+                                binary(name, overload) :
+                                binary(name);
+
+                        return binarySearch(elements, binary);
 
                     }
                 } else {
-                    super.getElement(name, overload);
+                    return super.getElement(name, overload);
                 }
             }
         }
@@ -229,21 +215,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
     }
 
     @Override
-    public T getObject(String name, String parentName) {
-        for (T element : elements) {
-            String elementName = element.getName();
-            String elementParentName = element.getParentObject().getName();
-
-            if (Strings.equalsIgnoreCase(elementName, name) &&
-                    Strings.equalsIgnoreCase(elementParentName, parentName)) {
-                return element;
-            }
-        }
-        return null;
-    }
-
-    @Override
-    public void sortElements(List<T> elements) {
+    protected void sortElements(List<T> elements) {
         DatabaseBrowserSettings browserSettings = DatabaseBrowserSettings.getInstance(getProject());
         DatabaseBrowserSortingSettings sortingSettings = browserSettings.getSortingSettings();
         DBObjectComparator<T> comparator = objectType == ANY ? null : sortingSettings.getComparator(objectType);
@@ -429,12 +401,6 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
         return getChildren().indexOf(child);
     }
 
-
-    @Override
-    public DBObjectType getObjectType() {
-        return objectType;
-    }
-
     @Override
     public DynamicContentType getContentType() {
         return objectType;
@@ -528,5 +494,13 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
     public void disposeInner() {
         psiDirectory = null;
         super.disposeInner();
+    }
+
+    @Override
+    public void sort(DBObjectComparator<T> comparator) {
+        if (elements.size() > 1) {
+            elements.sort(comparator);
+            set(SEARCHABLE, comparator.getSortingType() == SortingType.NAME);
+        }
     }
 }

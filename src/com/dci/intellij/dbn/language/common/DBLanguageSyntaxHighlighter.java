@@ -30,7 +30,7 @@ public abstract class DBLanguageSyntaxHighlighter extends SyntaxHighlighterBase 
 
     @SneakyThrows
     private Document loadDefinition(String tokenTypesFile) {
-        return XmlContents.loadXmlFile(getResourceLookupClass(), tokenTypesFile);
+        return XmlContents.fileToDocument(getResourceLookupClass(), tokenTypesFile);
     }
 
     protected Class getResourceLookupClass() {

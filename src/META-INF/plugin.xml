@@ -2,7 +2,7 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.3.1779.1</version>
+    <version>3.3.1801.1</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
@@ -31,8 +31,9 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
-            <li><b>3.3.1779</b>
+            <li><b>3.3.1801</b>
             <ul>
+                <li>Fixed issues with code completion and identifier resolvers
                 <li>Bug fixes and performance improvements
             </ul>
             <li><b>3.3.1555</b>
@@ -217,6 +218,16 @@
         <component><implementation-class>com.dci.intellij.dbn.connection.ssl.SslConnectionManager</implementation-class></component>
         <component><implementation-class>com.dci.intellij.dbn.options.DefaultProjectSettingsManager</implementation-class></component>
         <component><implementation-class>com.dci.intellij.dbn.credentials.DatabaseCredentialManager</implementation-class></component>
+
+        <!--Object sorters-->
+        <component><implementation-class>com.dci.intellij.dbn.object.common.sorting.DBColumnNameComparator</implementation-class></component>
+        <component><implementation-class>com.dci.intellij.dbn.object.common.sorting.DBColumnPositionComparator</implementation-class></component>
+        <component><implementation-class>com.dci.intellij.dbn.object.common.sorting.DBProcedureNameComparator</implementation-class></component>
+        <component><implementation-class>com.dci.intellij.dbn.object.common.sorting.DBProcedurePositionComparator</implementation-class></component>
+        <component><implementation-class>com.dci.intellij.dbn.object.common.sorting.DBFunctionNameComparator</implementation-class></component>
+        <component><implementation-class>com.dci.intellij.dbn.object.common.sorting.DBFunctionPositionComparator</implementation-class></component>
+        <component><implementation-class>com.dci.intellij.dbn.object.common.sorting.DBArgumentNameComparator</implementation-class></component>
+        <component><implementation-class>com.dci.intellij.dbn.object.common.sorting.DBArgumentPositionComparator</implementation-class></component>
     </application-components>
     <project-components>
         <!--<component><implementation-class>com.dci.intellij.dbn.options.GlobalProjectSettings</implementation-class></component>-->

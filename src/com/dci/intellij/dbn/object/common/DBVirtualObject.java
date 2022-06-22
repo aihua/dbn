@@ -2,7 +2,7 @@ package com.dci.intellij.dbn.object.common;
 
 import com.dci.intellij.dbn.code.common.lookup.LookupItemBuilder;
 import com.dci.intellij.dbn.code.common.lookup.ObjectLookupItemBuilder;
-import com.dci.intellij.dbn.common.content.DynamicContentStatus;
+import com.dci.intellij.dbn.common.content.DynamicContentProperty;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.path.Node;
@@ -34,7 +34,6 @@ import com.dci.intellij.dbn.language.common.psi.lookup.VirtualObjectLookupAdapte
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.dci.intellij.dbn.object.common.sorting.DBObjectComparator;
-import com.dci.intellij.dbn.object.common.sorting.SortingType;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.vfs.file.DBContentVirtualFile;
@@ -259,7 +258,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
 
     private DBObjectList<DBObject> loadChildObjectList(DBObjectType objectType) {
         DBObjectListContainer childObjects = ensureChildObjects();
-        DBObjectList<DBObject> objectList = childObjects.getObjects(objectType);
+        DBObjectList<DBObject> objectList = childObjects.getObjectList(objectType);
         if (objectList != null) {
             for (DBObject object : objectList.getObjects()) {
                 if (!object.isValid()) {
@@ -270,16 +269,16 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
         }
 
         if (objectList == null) {
-            objectList = childObjects.createObjectList(objectType, this, DynamicContentStatus.MUTABLE);
+            objectList = childObjects.createObjectList(objectType, this, DynamicContentProperty.MUTABLE);
             if (objectList != null) {
                 // mark as loaded so default loading mechanism does not kick in.
-                objectList.set(DynamicContentStatus.LOADED, true);
+                objectList.set(DynamicContentProperty.LOADED, true);
             }
         }
 
         if (objectList != null && objectList.isEmpty()) {
             loadChildObjects(objectType, objectList);
-            objectList.set(DynamicContentStatus.LOADED, true);
+            objectList.set(DynamicContentProperty.LOADED, true);
         }
         return objectList;
     }
@@ -330,7 +329,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
                     }
                     objectList.addObject(object);
                 }
-                objectList.sort(DBObjectComparator.virtual(objectType, SortingType.NAME));
+                objectList.sort(DBObjectComparator.basic(objectType));
             });
 
 

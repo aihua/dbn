@@ -91,6 +91,12 @@ public class ElementTypeBundle {
             }
 
             if (builder.rewriteIds) {
+/*
+                ByteArrayOutputStream stringWriter = new ByteArrayOutputStream();
+                JDOMUtil.write(document, stringWriter);
+
+                String data = stringWriter.getBuffer().toString();
+*/
                 StringWriter stringWriter = new StringWriter();
                 new XMLOutputter().output(document, stringWriter);
 

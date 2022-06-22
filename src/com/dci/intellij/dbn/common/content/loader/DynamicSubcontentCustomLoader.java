@@ -2,8 +2,10 @@ package com.dci.intellij.dbn.common.content.loader;
 
 import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.content.DynamicContentElement;
-import com.dci.intellij.dbn.common.content.DynamicContentStatus;
+import com.dci.intellij.dbn.common.content.DynamicContentProperty;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
+import com.dci.intellij.dbn.common.content.GroupedDynamicContent;
+import com.dci.intellij.dbn.common.content.dependency.ContentDependencyAdapter;
 import com.dci.intellij.dbn.common.content.dependency.SubcontentDependencyAdapter;
 import com.dci.intellij.dbn.common.util.CollectionUtil;
 import com.dci.intellij.dbn.database.common.metadata.DBObjectMetadata;
@@ -13,6 +15,7 @@ import org.jetbrains.annotations.Nullable;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public abstract class DynamicSubcontentCustomLoader<
                 T extends DynamicContentElement,
@@ -30,24 +33,37 @@ public abstract class DynamicSubcontentCustomLoader<
     protected abstract T resolveElement(DynamicContent<T> dynamicContent, DynamicContentElement sourceElement);
 
     @Override
-    public void loadContent(DynamicContent<T> dynamicContent, boolean forceReload) throws SQLException {
+    public void loadContent(DynamicContent<T> content, boolean forceReload) throws SQLException {
         List<T> list = null;
-        SubcontentDependencyAdapter dependencyAdapter = (SubcontentDependencyAdapter) dynamicContent.getDependencyAdapter();
-        for (Object object : dependencyAdapter.getSourceContent().getAllElements()) {
-            dynamicContent.checkDisposed();
-            DynamicContentElement sourceElement = (DynamicContentElement) object;
-            T element = resolveElement(dynamicContent, sourceElement);
-            if (element != null) {
-                dynamicContent.checkDisposed();
-                if (list == null) {
-                    list = dynamicContent.isMutable() ?
-                            CollectionUtil.createConcurrentList() :
-                            new ArrayList<T>();
+        ContentDependencyAdapter adapter = content.getDependencyAdapter();
+        if (adapter instanceof SubcontentDependencyAdapter) {
+            SubcontentDependencyAdapter dependencyAdapter = (SubcontentDependencyAdapter) adapter;
+            DynamicContent sourceContent = dependencyAdapter.getSourceContent();
+            if (sourceContent instanceof GroupedDynamicContent) {
+                GroupedDynamicContent groupedContent = (GroupedDynamicContent) sourceContent;
+                List<DynamicContentElement> childElements = groupedContent.getChildElements(content.ensureParentEntity().getName());
+                list = childElements.stream().map(e -> resolveElement(content, e)).filter(e -> e != null).collect(Collectors.toList());
+            } else {
+                List elements = sourceContent.getAllElements();
+                for (Object object : elements) {
+                    content.checkDisposed();
+                    DynamicContentElement sourceElement = (DynamicContentElement) object;
+                    T element = resolveElement(content, sourceElement);
+                    if (element != null) {
+                        content.checkDisposed();
+                        if (list == null) {
+                            list = content.isMutable() ?
+                                    CollectionUtil.createConcurrentList() :
+                                    new ArrayList<T>();
+                        }
+                        list.add(element);
+                    }
                 }
-                list.add(element);
+
             }
         }
-        dynamicContent.setElements(list);
-        dynamicContent.set(DynamicContentStatus.MASTER, false);
+
+        content.setElements(list);
+        content.set(DynamicContentProperty.MASTER, false);
     }
 }

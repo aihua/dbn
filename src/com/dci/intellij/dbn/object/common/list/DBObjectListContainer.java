@@ -1,7 +1,8 @@
 package com.dci.intellij.dbn.object.common.list;
 
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
-import com.dci.intellij.dbn.common.content.DynamicContentStatus;
+import com.dci.intellij.dbn.common.Direction;
+import com.dci.intellij.dbn.common.content.DynamicContentProperty;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
 import com.dci.intellij.dbn.common.content.dependency.BasicDependencyAdapter;
 import com.dci.intellij.dbn.common.content.dependency.ContentDependencyAdapter;
@@ -11,6 +12,7 @@ import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
+import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.DatabaseEntity;
 import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
@@ -27,9 +29,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
+import static com.dci.intellij.dbn.common.Direction.DOWN;
+import static com.dci.intellij.dbn.common.Direction.UP;
 import static com.dci.intellij.dbn.common.dispose.Failsafe.check;
 import static com.dci.intellij.dbn.common.util.Search.binarySearch;
 import static com.dci.intellij.dbn.common.util.Unsafe.cast;
+import static com.dci.intellij.dbn.object.type.DBObjectType.ANY;
 import static java.util.Collections.emptyList;
 
 @Getter
@@ -73,9 +78,7 @@ public final class DBObjectListContainer implements StatefulDisposable {
 
     @NotNull
     public <T extends DBObject> List<T> getObjects(DBObjectType objectType, boolean internal) {
-        DBObjectList<?> objects = internal ?
-                getInternalObjects(objectType) :
-                getObjects(objectType);
+        DBObjectList<?> objects = getObjectList(objectType, internal);
         if (objects == null) {
             return emptyList();
         } else {
@@ -89,73 +92,78 @@ public final class DBObjectListContainer implements StatefulDisposable {
     }
 
     @Nullable
-    public <T extends DBObject> DBObjectList<T> getObjects(DBObjectType objectType) {
+    public <T extends DBObject> DBObjectList<T> getObjectList(DBObjectType objectType) {
+        return getObjectList(objectType, false);
+    }
+
+    public <T extends DBObject> DBObjectList<T> getObjectList(DBObjectType objectType, boolean internal) {
         DBObjectList<T> objectList = findObjects(objectType);
-        if (check(objectList) && !objectList.isInternal()) {
+        if (check(objectList) && internal == objectList.isInternal()) {
             return objectList;
+        }
+        return null;
+    }
+
+    public <T extends DBObject> T getObject(DBObjectType objectType, String name, short overload) {
+        return objectType == ANY  ?
+                findAnyObject(name, overload, false) :
+                findObject(objectType, name, overload, Direction.ANY, false);
+    }
+
+    public <T extends DBObject> T getInternalObject(DBObjectType objectType, String name, short overload) {
+        return objectType == ANY  ?
+                findAnyObject(name, overload, true) :
+                findObject(objectType, name, overload, Direction.ANY, true);
+    }
+
+    @Nullable
+    private <T extends DBObject> T findAnyObject(String name, short overload, boolean internal) {
+        for (DBObjectList<?> objectList : getObjects()) {
+            if (internal == objectList.isInternal() && !objectList.isDependency() && !objectList.isHidden()) {
+                DBObject object = objectList.getObject(name, overload);
+                if (object != null) {
+                    return cast(object);
+                }
+            }
         }
         return null;
     }
 
     @Nullable
-    public <T extends DBObject> DBObjectList<T> getInternalObjects(DBObjectType objectType) {
-        DBObjectList<T> objectList = findObjects(objectType);
-        if (check(objectList) && objectList.isInternal()) {
-            return objectList;
+    private <T extends DBObject> T findObject(DBObjectType objectType, String name, short overload, Direction direction, boolean internal) {
+        DBObjectList<?> objectList = getObjectList(objectType, internal);
+
+        if (objectList != null && !objectList.isHidden()) {
+            return cast(objectList.getObject(name, overload));
+        }
+
+        switch (direction) {
+            case UP:   return findInheritedObject(objectType, name, overload, internal);
+            case DOWN: return findInheritingObject(objectType, name, overload, internal);
+            case ANY:  return Commons.coalesce(
+                        () -> findInheritedObject(objectType, name, overload, internal),
+                        () -> findInheritingObject(objectType, name, overload, internal));
         }
         return null;
     }
 
-
-    public DBObject getObject(DBObjectType objectType, String name, short overload) {
-        DBObjectList<?> objectList = getObjects(objectType);
-        if (objectList == null) {
-            objectList = getInternalObjects(objectType);
+    @Nullable
+    private <T extends DBObject> T findInheritedObject(DBObjectType objectType, String name, short overload, boolean internal) {
+        DBObjectType inheritedType = objectType.getInheritedType();
+        if (inheritedType != null && inheritedType != objectType) {
+            return findObject(inheritedType, name, overload, UP, internal);
         }
-        if (objectList != null) {
-            return objectList.getObject(name, overload);
-        }
+        return null;
+    }
 
-        if (objectType.getInheritingTypes().size() > 0) {
-            Set<DBObjectType> objectTypes = objectType.getInheritingTypes();
-            for (DBObjectType objType : objectTypes) {
-                DBObject object = getObject(objType, name, overload);
+    @Nullable
+    private <T extends DBObject> T findInheritingObject(DBObjectType objectType, String name, short overload, boolean internal) {
+        Set<DBObjectType> inheritingTypes = objectType.getInheritingTypes();
+        if (!inheritingTypes.isEmpty()) {
+            for (DBObjectType objType : inheritingTypes) {
+                DBObject object = findObject(objType, name, overload, DOWN, internal);
                 if (object != null) {
-                    return object;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    public <T extends DBObject> T getInternalObject(DBObjectType objectType, String name, short overload) {
-        if (objectType.isGeneric()) {
-            Set<DBObjectType> objectTypes = objectType.getInheritingTypes();
-            for (DBObjectType objType : objectTypes) {
-                DBObjectList<T> objectList = getInternalObjects(objType);
-                if (objectList != null) {
-                    T object = objectList.getObject(name, overload);
-                    if (object != null) {
-                        return object;
-                    }
-                }
-            }
-        } else {
-            DBObjectList<T> objectList = getInternalObjects(objectType);
-            if (objectList != null) {
-                return objectList.getObject(name, overload);
-            }
-        }
-        return null;
-    }
-
-    public DBObject getObject(String name, short overload) {
-        if (objects != null) {
-            for (DBObjectList<?> objectList : objects) {
-                DBObject object = objectList.getObject(name, overload);
-                if (object != null) {
-                    return object;
+                    return cast(object);
                 }
             }
         }
@@ -166,12 +174,14 @@ public final class DBObjectListContainer implements StatefulDisposable {
     public DBObject getObjectForParentType(DBObjectType parentObjectType, String name, short overload, boolean lookupInternal) {
         if (objects != null) {
             for (DBObjectList<?> objectList : objects) {
-                if ((!objectList.isInternal() || lookupInternal) && check(objectList)) {
-                    DBObjectType objectType = objectList.getObjectType();
-                    if (objectType.getParents().contains(parentObjectType)) {
-                        DBObject object = objectList.getObject(name, overload);
-                        if (object != null) {
-                            return object;
+                if (check(objectList) && !objectList.isHidden() && !objectList.isDependency()) {
+                    if (lookupInternal || !objectList.isInternal()) {
+                        DBObjectType objectType = objectList.getObjectType();
+                        if (objectType.getParents().contains(parentObjectType)) {
+                            DBObject object = objectList.getObject(name, overload);
+                            if (object != null) {
+                                return object;
+                            }
                         }
                     }
                 }
@@ -217,9 +227,9 @@ public final class DBObjectListContainer implements StatefulDisposable {
     public <T extends DBObject> DBObjectList<T>  createObjectList(
             @NotNull DBObjectType objectType,
             @NotNull BrowserTreeNode treeParent,
-            DynamicContentStatus... statuses) {
+            DynamicContentProperty... properties) {
         if (isSupported(objectType)) {
-            return createObjectList(objectType, treeParent, BasicDependencyAdapter.INSTANCE, statuses);
+            return createObjectList(objectType, treeParent, BasicDependencyAdapter.INSTANCE, properties);
         }
         return null;
     }
@@ -230,14 +240,14 @@ public final class DBObjectListContainer implements StatefulDisposable {
             @NotNull BrowserTreeNode treeParent,
             DatabaseEntity sourceContentHolder,
             DynamicContentType<?> sourceContentType,
-            DynamicContentStatus... statuses) {
+            DynamicContentProperty... properties) {
         if (isSupported(objectType)) {
             if (sourceContentHolder != null && sourceContentHolder.getDynamicContent(sourceContentType) != null) {
                 ContentDependencyAdapter dependencyAdapter =
                         SubcontentDependencyAdapter.create(
                                 sourceContentHolder,
                                 sourceContentType);
-                return createObjectList(objectType, treeParent, dependencyAdapter, statuses);
+                return createObjectList(objectType, treeParent, dependencyAdapter, properties);
             }
         }
         return null;
@@ -248,14 +258,14 @@ public final class DBObjectListContainer implements StatefulDisposable {
             @NotNull DBObjectType objectType,
             @NotNull BrowserTreeNode treeParent,
             DBObject sourceContentHolder,
-            DynamicContentStatus... statuses) {
+            DynamicContentProperty... properties) {
         if (isSupported(objectType)) {
             if (sourceContentHolder.getDynamicContent(objectType) != null) {
                 ContentDependencyAdapter dependencyAdapter =
                         SubcontentDependencyAdapter.create(
                                 sourceContentHolder,
                                 objectType);
-                return createObjectList(objectType, treeParent, dependencyAdapter, statuses);
+                return createObjectList(objectType, treeParent, dependencyAdapter, properties);
             }
         }
         return null;
@@ -263,10 +273,14 @@ public final class DBObjectListContainer implements StatefulDisposable {
 
     private <T extends DBObject> DBObjectList<T> createObjectList(
             @NotNull DBObjectType objectType,
-            @NotNull BrowserTreeNode treeParent,
+            @NotNull DatabaseEntity parent,
             ContentDependencyAdapter dependencyAdapter,
-            DynamicContentStatus... statuses) {
-        DBObjectList<T> objectList = new DBObjectListImpl<>(objectType, treeParent, dependencyAdapter, statuses);
+            DynamicContentProperty... properties) {
+
+        boolean grouped = Commons.isOneOf(DynamicContentProperty.GROUPED, properties);
+        DBObjectList<T> objectList = grouped ?
+                new DBObjectListImpl.Grouped<>(objectType, parent, dependencyAdapter, properties):
+                new DBObjectListImpl<>(objectType, parent, dependencyAdapter, properties);
         addObjectList(objectList);
 
         return objectList;
@@ -340,8 +354,10 @@ public final class DBObjectListContainer implements StatefulDisposable {
     }
 
     public void loadObjects(DBObjectType objectType) {
-        DBObjectList<?> objectList = getObjects(objectType);
-        if (objectList == null) objectList = getInternalObjects(objectType);
+        DBObjectList<?> objectList = Commons.coalesce(
+                () -> getObjectList(objectType, false),
+                () -> getObjectList(objectType, true));
+
         if (objectList != null) {
             objectList.getElements();
         }
@@ -363,7 +379,7 @@ public final class DBObjectListContainer implements StatefulDisposable {
     public <T extends DBObjectRelation> DBObjectRelationList<T> getRelations(DBObjectRelationType relationType) {
         if (relations != null) {
             for (DBObjectRelationList objectRelations : relations) {
-                if (objectRelations.getObjectRelationType() == relationType) {
+                if (objectRelations.getRelationType() == relationType) {
                     return cast(objectRelations);
                 }
             }
@@ -375,20 +391,22 @@ public final class DBObjectListContainer implements StatefulDisposable {
             DBObjectRelationType type,
             DatabaseEntity parent,
             DBObjectList firstContent,
-            DBObjectList secondContent) {
+            DBObjectList secondContent,
+            DynamicContentProperty... properties) {
         if (isSupported(type)) {
             ContentDependencyAdapter dependencyAdapter = DualContentDependencyAdapter.create(firstContent, secondContent);
-            createObjectRelationList(type, parent, dependencyAdapter);
+            createObjectRelationList(type, parent, dependencyAdapter, properties);
         }
     }
 
     public void createSubcontentObjectRelationList(
             DBObjectRelationType relationType,
             DatabaseEntity parent,
-            DBObject sourceContentObject) {
+            DBObject sourceContentObject,
+            DynamicContentProperty... properties) {
         if (isSupported(relationType)) {
             ContentDependencyAdapter dependencyAdapter = SubcontentDependencyAdapter.create(sourceContentObject, relationType);
-            createObjectRelationList(relationType, parent, dependencyAdapter);
+            createObjectRelationList(relationType, parent, dependencyAdapter, properties);
         }
     }
 
@@ -396,9 +414,14 @@ public final class DBObjectListContainer implements StatefulDisposable {
     private void createObjectRelationList(
             DBObjectRelationType type,
             DatabaseEntity parent,
-            ContentDependencyAdapter dependencyAdapter) {
+            ContentDependencyAdapter dependencyAdapter,
+            DynamicContentProperty... properties) {
         if (isSupported(type)) {
-            DBObjectRelationList objectRelationList = new DBObjectRelationListImpl(type, parent, dependencyAdapter);
+            boolean grouped = Commons.isOneOf(DynamicContentProperty.GROUPED, properties);
+
+            DBObjectRelationList objectRelationList = grouped ?
+                    new DBObjectRelationListImpl.Grouped(type, parent, dependencyAdapter, properties) :
+                    new DBObjectRelationListImpl(type, parent, dependencyAdapter, properties);
 
             if (relations == null)
                 relations = new DBObjectRelationList[1]; else

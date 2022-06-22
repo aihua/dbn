@@ -6,8 +6,9 @@ import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.browser.options.DatabaseBrowserSettings;
 import com.dci.intellij.dbn.browser.options.DatabaseBrowserSortingSettings;
 import com.dci.intellij.dbn.common.content.DynamicContentImpl;
-import com.dci.intellij.dbn.common.content.DynamicContentStatus;
+import com.dci.intellij.dbn.common.content.DynamicContentProperty;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
+import com.dci.intellij.dbn.common.content.GroupedDynamicContent;
 import com.dci.intellij.dbn.common.content.dependency.ContentDependencyAdapter;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoader;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoaderImpl;
@@ -15,6 +16,7 @@ import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.filter.CompoundFilter;
 import com.dci.intellij.dbn.common.filter.Filter;
+import com.dci.intellij.dbn.common.range.Range;
 import com.dci.intellij.dbn.common.ui.tree.TreeEventType;
 import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.common.util.SearchAdapter;
@@ -39,18 +41,24 @@ import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiDirectory;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.val;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.Icon;
 import javax.swing.tree.TreeNode;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 
-import static com.dci.intellij.dbn.common.content.DynamicContentStatus.*;
+import static com.dci.intellij.dbn.common.content.DynamicContentProperty.*;
+import static com.dci.intellij.dbn.common.util.Commons.nvl;
 import static com.dci.intellij.dbn.common.util.Search.binarySearch;
 import static com.dci.intellij.dbn.common.util.Search.comboSearch;
 import static com.dci.intellij.dbn.object.common.DBObjectSearchAdapters.binary;
@@ -66,12 +74,12 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
 
     DBObjectListImpl(
             @NotNull DBObjectType objectType,
-            @NotNull BrowserTreeNode treeParent,
+            @NotNull DatabaseEntity parent,
             ContentDependencyAdapter dependencyAdapter,
-            DynamicContentStatus... statuses) {
-        super(treeParent, dependencyAdapter, statuses);
+            DynamicContentProperty... properties) {
+        super(parent, dependencyAdapter, properties);
         this.objectType = objectType;
-        if ((treeParent instanceof DBSchema || treeParent instanceof DBObjectBundle) && !isInternal()) {
+        if ((parent instanceof DBSchema || parent instanceof DBObjectBundle) && !isInternal()) {
             ObjectQuickFilterManager quickFilterManager = ObjectQuickFilterManager.getInstance(getProject());
             quickFilterManager.restoreQuickFilter(this);
         }
@@ -87,11 +95,6 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
             DynamicContentType parentContentType = parent.getDynamicContentType();
             return DynamicContentLoaderImpl.resolve(parentContentType, objectType);
         }
-    }
-
-    @Override
-    public boolean isInternal() {
-        return is(INTERNAL);
     }
 
     @Nullable
@@ -190,7 +193,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
 
                 } else if (isSearchable()) {
                     if (objectType == COLUMN) {
-                        // primary key columns are sorted by position at beginning ot the list of elements
+                        // primary key columns are sorted by position at beginning of the list of elements
                         SearchAdapter<T> linear = linear(name, c -> c instanceof DBColumn && ((DBColumn) c).isPrimaryKey());
                         SearchAdapter<T> binary = binary(name);
                         return comboSearch(elements, linear, binary);
@@ -210,22 +213,50 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
         return null;
     }
 
+
+    @Override
+    public boolean isInternal() {
+        return is(INTERNAL);
+    }
+
+    @Override
+    public boolean isHidden() {
+        return is(HIDDEN);
+    }
+
+    @Override
+    public boolean isDependency() {
+        return is(DEPENDENCY);
+    }
+
     private boolean isSearchable() {
-        return !isInternal() && is(SEARCHABLE);
+        return is(SEARCHABLE);
     }
 
     @Override
     protected void sortElements(List<T> elements) {
-        DatabaseBrowserSettings browserSettings = DatabaseBrowserSettings.getInstance(getProject());
-        DatabaseBrowserSortingSettings sortingSettings = browserSettings.getSortingSettings();
-        DBObjectComparator<T> comparator = objectType == ANY ? null : sortingSettings.getComparator(objectType);
-
-        if (comparator != null) {
-            elements.sort(comparator);
-            set(SEARCHABLE, comparator.getSortingType() == SortingType.NAME);
+        if (isInternal()) {
+            if (is(GROUPED) || true ) { // TODO binary search on grouped elements
+                super.sortElements(elements);
+            } else {
+                val comparator = DBObjectComparator.basic(objectType);
+                elements.sort(comparator);
+                set(SEARCHABLE, true);
+            }
         } else {
-            super.sortElements(elements);
-            set(SEARCHABLE, true);
+            DatabaseBrowserSettings browserSettings = DatabaseBrowserSettings.getInstance(getProject());
+            DatabaseBrowserSortingSettings sortingSettings = browserSettings.getSortingSettings();
+            val comparator = objectType == ANY ? null : sortingSettings.getComparator(objectType);
+
+            if (comparator != null) {
+                elements.sort(comparator);
+                boolean searchable = comparator.getSortingType() == SortingType.NAME;
+                set(SEARCHABLE, searchable);
+            } else {
+                super.sortElements(elements);
+                set(SEARCHABLE, true);
+            }
+
         }
     }
 
@@ -269,7 +300,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
         try {
             Project project = getProject();
             BrowserTreeNode treeParent = getParent();
-            if (isNot(INTERNAL) && isTouched() && Failsafe.check(project) && treeParent.isTreeStructureLoaded()) {
+            if (!isInternal() && isTouched() && Failsafe.check(project) && treeParent.isTreeStructureLoaded()) {
                 ProjectEvents.notify(project,
                         BrowserTreeEventListener.TOPIC,
                         (listener) -> listener.nodeChanged(this, TreeEventType.STRUCTURE_CHANGED));
@@ -474,7 +505,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
     }
 
     public String toString() {
-        if (is(DISPOSED)) {
+        if (isDisposed()) {
             return getName() + " - " + super.toString();
         }
 
@@ -501,6 +532,90 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
         if (elements.size() > 1) {
             elements.sort(comparator);
             set(SEARCHABLE, comparator.getSortingType() == SortingType.NAME);
+        }
+    }
+
+    public static class Grouped<T extends DBObject> extends DBObjectListImpl<T> implements GroupedDynamicContent<T> {
+        private Map<DBObjectType, Range> parentTypeRanges;
+        private Map<String, Range> parentNameRanges;
+
+        Grouped(
+                @NotNull DBObjectType objectType,
+                @NotNull DatabaseEntity parent,
+                ContentDependencyAdapter dependencyAdapter,
+                DynamicContentProperty... statuses) {
+            super(objectType, parent, dependencyAdapter, statuses);
+            set(GROUPED, true);
+        }
+
+
+        @Override
+        protected void afterUpdate() {
+            parentTypeRanges = new HashMap<>();
+            parentNameRanges = new HashMap<>();
+
+            List<T> elements = getAllElements();
+            if (!elements.isEmpty()) {
+                DBObjectType currentParentType = null;
+                String currentParentName = null;
+                int currentTypeOffset = 0;
+                int currentNameOffset = 0;
+                for (int i = 0; i < elements.size(); i++) {
+                    T object = elements.get(i);
+                    DBObject parentObject = object.getParentObject();
+                    DBObjectType parentType = parentObject.getObjectType();
+                    String parentName = parentObject.getName();
+
+                    currentParentType = nvl(currentParentType, parentType);
+                    currentParentName = nvl(currentParentName, parentName);
+
+                    if (currentParentType != parentType) {
+                        parentTypeRanges.put(currentParentType, new Range(currentTypeOffset, i - 1));
+                        currentParentType = parentType;
+                        currentTypeOffset = i;
+                    }
+
+                    if (!Objects.equals(currentParentName, parentName)) {
+                        parentNameRanges.put(currentParentName, new Range(currentNameOffset, i - 1));
+                        currentParentName = parentName;
+                        currentNameOffset = i;
+                    }
+
+
+                    if (i == elements.size() - 1) {
+                        parentTypeRanges.put(currentParentType, new Range(currentTypeOffset, i));
+                        parentNameRanges.put(currentParentName, new Range(currentNameOffset, i));
+                    }
+                }
+            }
+        }
+
+        public List<T> getChildElements(String parentName) {
+            List<T> elements = getAllElements();
+            if (parentNameRanges != null) {
+                Range range = parentNameRanges.get(parentName);
+                if (range != null) {
+                    return elements.subList(range.getLeft(), range.getRight() + 1);
+                }
+            }
+            return Collections.emptyList();
+        }
+
+        @Override
+        public T getElement(String name, short overload) {
+            if (parentNameRanges != null) {
+                SearchAdapter<T> adapter = getObjectType().isOverloadable() ?
+                        binary(name, overload) :
+                        binary(name);
+                Collection<Range> ranges = parentNameRanges.values();
+                for (Range range : ranges) {
+                    T element = binarySearch(elements, range.getLeft(), range.getRight(), adapter);
+                    if (element != null) {
+                        return element;
+                    }
+                }
+            }
+            return null;
         }
     }
 }

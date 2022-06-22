@@ -2,11 +2,14 @@ package com.dci.intellij.dbn.common.content;
 
 import com.dci.intellij.dbn.common.property.Property;
 
-public enum DynamicContentStatus implements Property.IntBase {
+public enum DynamicContentProperty implements Property.IntBase {
     MASTER,
     MUTABLE,
     INTERNAL,
+    HIDDEN,
     PASSIVE,
+    GROUPED,
+    DEPENDENCY,
 
     DIRTY,
     ERROR,

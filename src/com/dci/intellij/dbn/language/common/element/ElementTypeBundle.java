@@ -95,6 +95,11 @@ public class ElementTypeBundle {
                 new XMLOutputter().output(document, stringWriter);
 
                 String data = stringWriter.getBuffer().toString();
+*/
+                StringWriter stringWriter = new StringWriter();
+                new XMLOutputter().output(document, stringWriter);
+
+                String data = stringWriter.getBuffer().toString();
                 System.out.println(data);
 
                 CopyPasteManager copyPasteManager = CopyPasteManager.getInstance();

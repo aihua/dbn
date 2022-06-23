@@ -124,12 +124,7 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
 
     @Override
     public boolean isDirty() {
-        return is(DIRTY);
-    }
-
-    @Override
-    public boolean isMutable() {
-        return is(MUTABLE);
+        return is(DIRTY) || getDependencyAdapter().isDependencyDirty();
     }
 
     @Override
@@ -151,13 +146,12 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
             return true;
         }
 
-        ConnectionHandler connection = this.getConnection();
         if (!isLoaded()) {
-            return dependencyAdapter.canConnect(connection);
+            return dependencyAdapter.canConnect(getConnection());
         }
 
-        if (isDirty() || dependencyAdapter.areDependenciesDirty()) {
-            return dependencyAdapter.canLoad(connection);
+        if (isDirty()) {
+            return dependencyAdapter.canLoad(getConnection());
         }
 
         return false;
@@ -338,7 +332,11 @@ public abstract class DynamicContentImpl<T extends DynamicContentElement>
             elements = FixedArrayList.from(elements);
         }
         List<T> oldElements = this.elements;
-        this.elements = FilteredList.stateful((FilterDelegate<T>) () -> getFilter(), elements);
+        if (elements != EMPTY_CONTENT && isNot(INTERNAL) && isNot(VIRTUAL)) {
+            elements = FilteredList.stateful((FilterDelegate<T>) () -> getFilter(), elements);
+        }
+
+        this.elements = elements;
 
         afterUpdate();
         if (oldElements.size() != 0 || elements.size() != 0 ){

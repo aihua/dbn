@@ -14,7 +14,7 @@ Repository areas:
 When filing a bug report, remember that the more detailed the bug is described,
 the more likely it is to be reproduced and fixed. The same applies to usability issues and feature requirements.
 
-Environment details (like OS name and version, IDE version, Plugin version and build no.) are always welcome and valuable inputs for identifying or isolating a given defect or misbehavior.    
+Environment details (like OS name and version, IDE version, Plugin version and build no.) are always welcome and valuable inputs for identifying or isolating a given defect or misbehavior.
 
 ---
 ## Contributing code
@@ -38,6 +38,6 @@ Follow the [Golden Rule][COCGR] and the more specific [Contributor Covenant Code
 
 [APL2]:  https://www.apache.org/licenses/LICENSE-2.0.html
 [ITR]:   https://database-navigator.atlassian.net
-[SCR]:   https://bitbucket.org/dancioca/dbn 
+[SCR]:   https://bitbucket.org/dancioca/dbn
 [COCGR]: https://en.wikipedia.org/wiki/Golden_Rule
 [CCCOC]: https://www.contributor-covenant.org/version/1/4/code-of-conduct/ 

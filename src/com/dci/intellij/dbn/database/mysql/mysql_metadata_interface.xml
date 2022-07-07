@@ -51,6 +51,8 @@
         <statement>
             select
                 CHARACTER_SET_NAME as CHARSET_NAME,
+                CHARACTER_SET_NAME as DISPLAY_NAME,
+                'N' as IS_DEPRECATED,
                 MAXLEN as MAX_LENGTH
             from information_schema.CHARACTER_SETS
             order by CHARACTER_SET_NAME asc
@@ -139,7 +141,8 @@
                 'N' as IS_HIDDEN,
                 if(col.COLUMN_KEY = 'PRI', 'Y', 'N') as IS_PRIMARY_KEY,
                 if(kcu.COLUMN_NAME is null, 'N', 'Y') as IS_FOREIGN_KEY,
-                'N' as IS_UNIQUE_KEY
+                'N' as IS_UNIQUE_KEY,
+                'N' as IS_IDENTITY
             from information_schema.`COLUMNS` col
                     left join (
                         select
@@ -215,7 +218,8 @@
                 'N' as IS_HIDDEN,
                 if(col.COLUMN_KEY = 'PRI', 'Y', 'N') as IS_PRIMARY_KEY,
                 if(kcu.COLUMN_NAME is null, 'N', 'Y') as IS_FOREIGN_KEY,
-                'N' as IS_UNIQUE_KEY
+                'N' as IS_UNIQUE_KEY,
+                'N' as IS_IDENTITY
             from information_schema.`COLUMNS` col
                     left join (
                         select

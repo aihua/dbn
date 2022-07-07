@@ -2,7 +2,7 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.3.1881.1</version>
+    <version>3.3.1923.1</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
@@ -26,13 +26,14 @@
                 <li>Any JDBC compliant database (EXPERIMENTAL)
             </ul><br>
             <br><br>
-            This tool is free for personal and commercial usage. <br>
+            This tool is free for personal and commercial use.<br>
             <a href="https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=3QAPZFCCARA4J">Donations</a> are very welcome though.<br>
     ]]></description>
     <change-notes><![CDATA[
         <ul>
-            <li><b>3.3.1881</b>
+            <li><b>3.3.1923</b>
             <ul>
+                <li>Data Editor improvements
                 <li>Fixed issues with code completion and identifier resolvers
                 <li>Bug fixes and performance improvements
             </ul>

@@ -57,6 +57,7 @@ public class DBColumnImpl extends DBObjectImpl<DBColumnMetadata> implements DBCo
         set(PRIMARY_KEY, metadata.isPrimaryKey());
         set(FOREIGN_KEY, metadata.isForeignKey());
         set(UNIQUE_KEY, metadata.isUniqueKey());
+        set(IDENTITY, metadata.isIdentity());
         set(NULLABLE, metadata.isNullable());
         set(HIDDEN, metadata.isHidden());
         position = metadata.getPosition();
@@ -164,6 +165,11 @@ public class DBColumnImpl extends DBObjectImpl<DBColumnMetadata> implements DBCo
     }
 
     @Override
+    public boolean isIdentity() {
+        return is(IDENTITY);
+    }
+
+    @Override
     public boolean isForeignKey() {
         return is(FOREIGN_KEY);
     }
@@ -252,17 +258,10 @@ public class DBColumnImpl extends DBObjectImpl<DBColumnMetadata> implements DBCo
                 break;
             }
             if (schema.isSystemSchema() == isSystemSchema) {
-                DBObjectListContainer childObjects = schema.getChildObjects();
-                if (childObjects != null) {
-                    // TODO terrible linear scan
-                    DBObjectList internalColumns = childObjects.getObjectList(COLUMN, true);
-                    if (internalColumns != null) {
-                        List<DBColumn> columns = (List<DBColumn>) internalColumns.getObjects();
-                        for (DBColumn column : columns){
-                            if (this.equals(column.getForeignKeyColumn())) {
-                                list.add(column);
-                            }
-                        }
+                List<DBColumn> columns = schema.getForeignKeyColumns();
+                for (DBColumn column : columns){
+                    if (this.equals(column.getForeignKeyColumn())) {
+                        list.add(column);
                     }
                 }
             }
@@ -317,7 +316,8 @@ public class DBColumnImpl extends DBObjectImpl<DBColumnMetadata> implements DBCo
         }
 
         StringBuilder attributes  = new StringBuilder();
-        if (isPrimaryKey()) attributes.append("PK");
+        if (isIdentity()) attributes.append("IDENTITY");
+        if (isPrimaryKey()) attributes.append(" PK");
         if (isForeignKey()) attributes.append(" FK");
         if (!isPrimaryKey() && !isNullable()) attributes.append(" not null");
 

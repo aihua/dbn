@@ -17,9 +17,10 @@ import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.filter.CompoundFilter;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.range.Range;
+import com.dci.intellij.dbn.common.search.SearchAdapter;
+import com.dci.intellij.dbn.common.string.StringDeBuilder;
 import com.dci.intellij.dbn.common.ui.tree.TreeEventType;
 import com.dci.intellij.dbn.common.util.Commons;
-import com.dci.intellij.dbn.common.util.SearchAdapter;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.DatabaseEntity;
 import com.dci.intellij.dbn.connection.config.ConnectionFilterSettings;
@@ -41,19 +42,25 @@ import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiDirectory;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.val;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.*;
+import javax.swing.Icon;
 import javax.swing.tree.TreeNode;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.function.Consumer;
 
 import static com.dci.intellij.dbn.common.content.DynamicContentProperty.*;
+import static com.dci.intellij.dbn.common.search.Search.binarySearch;
+import static com.dci.intellij.dbn.common.search.Search.comboSearch;
 import static com.dci.intellij.dbn.common.util.Commons.nvl;
-import static com.dci.intellij.dbn.common.util.Search.binarySearch;
-import static com.dci.intellij.dbn.common.util.Search.comboSearch;
 import static com.dci.intellij.dbn.object.common.DBObjectSearchAdapters.binary;
 import static com.dci.intellij.dbn.object.common.DBObjectSearchAdapters.linear;
 import static com.dci.intellij.dbn.object.type.DBObjectType.*;
@@ -75,7 +82,6 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
             ObjectQuickFilterManager quickFilterManager = ObjectQuickFilterManager.getInstance(getProject());
             quickFilterManager.restoreQuickFilter(this);
         }
-        //DBObjectListLoaderRegistry.register(treeParent, objectType, loader);
     }
 
     @Override
@@ -139,20 +145,21 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
     @NotNull
     @Override
     public String getQualifiedName() {
-        // TODO is StringBulder insert(0...) better than this?
-        String path = getName();
+        StringDeBuilder builder = new StringDeBuilder();
+        builder.append(getName());
+
         DatabaseEntity parent = getParent();
         while(parent != null) {
-            path = parent.getName() + "." + path;
+            builder.prepend('.');
+            builder.prepend(parent.getName());
             if (parent instanceof DBObject) {
                 DBObject object = (DBObject) parent;
                 parent = object.getParent();
             } else {
                 parent = parent.getParentEntity();
             }
-
         }
-        return path;
+        return builder.toString();
     }
 
     @Override
@@ -247,29 +254,26 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
     @Override
     protected void sortElements(List<T> elements) {
         if (is(VIRTUAL)) {
-            super.sortElements(elements);
+            elements.sort(DBObjectComparator.classic());
 
         } else if (isInternal()) {
-            if (is(GROUPED) || true ) { // TODO binary search on grouped elements
-                super.sortElements(elements);
+            if (is(GROUPED)) {
+                elements.sort(DBObjectComparator.grouped());
             } else {
                 elements.sort(DBObjectComparator.basic(objectType));
                 set(SEARCHABLE, true);
             }
         } else {
-            DatabaseBrowserSettings browserSettings = DatabaseBrowserSettings.getInstance(getProject());
-            DatabaseBrowserSortingSettings sortingSettings = browserSettings.getSortingSettings();
-            val comparator = objectType == ANY ? null : sortingSettings.getComparator(objectType);
-
-            if (comparator != null) {
-                elements.sort(comparator);
-                boolean searchable = comparator.getSortingType() == SortingType.NAME;
-                set(SEARCHABLE, searchable);
-            } else {
-                super.sortElements(elements);
-                set(SEARCHABLE, true);
+            DBObjectComparator<T> comparator = DBObjectComparator.classic();
+            if (objectType != ANY) {
+                DatabaseBrowserSettings browserSettings = DatabaseBrowserSettings.getInstance(getProject());
+                DatabaseBrowserSortingSettings sortingSettings = browserSettings.getSortingSettings();
+                comparator = nvl(sortingSettings.getComparator(objectType), comparator);
             }
 
+            elements.sort(comparator);
+            boolean searchable = comparator.getSortingType() == SortingType.NAME;
+            set(SEARCHABLE, searchable);
         }
     }
 
@@ -531,14 +535,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
     @Override
     public void disposeInner() {
         super.disposeInner();
-    }
-
-    @Override
-    public void sort(DBObjectComparator<T> comparator) {
-        if (elements.size() > 1) {
-            elements.sort(comparator);
-            set(SEARCHABLE, comparator.getSortingType() == SortingType.NAME);
-        }
+        changeSignature();
     }
 
     public static class Grouped<T extends DBObject> extends DBObjectListImpl<T> implements GroupedDynamicContent<T> {

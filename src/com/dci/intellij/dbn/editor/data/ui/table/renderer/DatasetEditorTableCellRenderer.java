@@ -36,6 +36,7 @@ public class DatasetEditorTableCellRenderer extends BasicTableCellRenderer {
             boolean insertRow = row.is(INSERTING);
             boolean caretRow = !insertRow && table.getCellSelectionEnabled() && table.getSelectedRow() == rowIndex && table.getSelectedRowCount() == 1;
             boolean modified = cell.is(MODIFIED);
+            boolean updating = cell.is(UPDATING);
             boolean auditColumn = columnInfo != null && columnInfo.isAuditColumn();
             boolean primaryKey = columnInfo != null && columnInfo.isPrimaryKey();
             boolean foreignKey = columnInfo != null && columnInfo.isForeignKey();
@@ -47,7 +48,7 @@ public class DatasetEditorTableCellRenderer extends BasicTableCellRenderer {
             if (isSelected) {
                 textAttributes = attributes.getSelection();
             } else {
-                if (loading || dirty || !connected) {
+                if (loading || dirty || !connected || updating) {
                     textAttributes = attributes.getLoadingData(caretRow);
                 } else if (deletedRow) {
                     textAttributes = attributes.getDeletedData();
@@ -71,8 +72,9 @@ public class DatasetEditorTableCellRenderer extends BasicTableCellRenderer {
             Border border = Borders.lineBorder(background);
 
             if (cell.hasError() && connected) {
-                border = Borders.lineBorder(SimpleTextAttributes.ERROR_ATTRIBUTES.getFgColor());
                 SimpleTextAttributes errorData = attributes.getErrorData();
+                //border = Borders.lineBorder(SimpleTextAttributes.ERROR_ATTRIBUTES.getFgColor());
+                border = Borders.lineBorder(errorData.getBgColor());
                 background = errorData.getBgColor();
                 foreground = errorData.getFgColor();
                 textAttributes = textAttributes.derive(errorData.getStyle(), foreground, background, null);

@@ -7,7 +7,6 @@ import com.dci.intellij.dbn.common.content.GroupedDynamicContent;
 import com.dci.intellij.dbn.common.content.dependency.ContentDependencyAdapter;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoader;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoaderImpl;
-import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.range.Range;
 import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.connection.DatabaseEntity;
@@ -18,9 +17,13 @@ import com.dci.intellij.dbn.object.type.DBObjectRelationType;
 import com.intellij.openapi.project.Project;
 import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 
 import static com.dci.intellij.dbn.common.util.Commons.nvl;
 
@@ -35,7 +38,6 @@ class DBObjectRelationListImpl<T extends DBObjectRelation> extends DynamicConten
             DynamicContentProperty... properties) {
         super(parent, dependencyAdapter, properties);
         this.relationType = type;
-        //DBObjectListLoaderRegistry.register(parent, type, loader);
     }
 
     @Override
@@ -48,12 +50,6 @@ class DBObjectRelationListImpl<T extends DBObjectRelation> extends DynamicConten
     @NotNull
     public List<T> getObjectRelations() {
         return getAllElements();
-    }
-
-    @Override
-    @Nullable
-    public Filter getFilter() {
-        return null;
     }
 
     @Override
@@ -95,6 +91,10 @@ class DBObjectRelationListImpl<T extends DBObjectRelation> extends DynamicConten
         return objectRelations;
     }
 
+    @Override
+    protected void sortElements(List<T> elements) {
+        elements.sort(null);
+    }
 
     /*********************************************************
      *                   DynamicContent                      *
@@ -109,7 +109,7 @@ class DBObjectRelationListImpl<T extends DBObjectRelation> extends DynamicConten
    @Override
    public String getContentDescription() {
         if (getParentEntity() instanceof DBObject) {
-            DBObject object = (DBObject) getParentEntity();
+            DBObject object = getParentEntity();
             return getName() + " of " + object.getQualifiedNameWithType();
         }
        return getName() + " from " + this.getConnection().getName() ;

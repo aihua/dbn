@@ -60,6 +60,8 @@
         <statement>
             select
                 CHARACTER_SET_NAME as CHARSET_NAME,
+                CHARACTER_SET_NAME as DISPLAY_NAME,
+                'N' as IS_DEPRECATED,
                 -1 as MAX_LENGTH
             from INFORMATION_SCHEMA.CHARACTER_SETS
             order by CHARACTER_SET_NAME asc
@@ -111,7 +113,8 @@
                 'N' as IS_HIDDEN,
                 case when pk.COLUMN_NAME is null then 'N' else 'Y' end as IS_PRIMARY_KEY,
                 case when fk.COLUMN_NAME is null then 'N' else 'Y' end as IS_FOREIGN_KEY,
-                'N' as IS_UNIQUE_KEY
+                'N' as IS_UNIQUE_KEY,
+                case when col.IS_IDENTITY = 'YES' then 'Y' else 'N' end as IS_IDENTITY
             from INFORMATION_SCHEMA.COLUMNS col
                     left join (select
                                    kcu.TABLE_SCHEMA,
@@ -166,7 +169,8 @@
                 'N' as IS_HIDDEN,
                 case when pk.COLUMN_NAME is null then 'N' else 'Y' end as IS_PRIMARY_KEY,
                 case when fk.COLUMN_NAME is null then 'N' else 'Y' end as IS_FOREIGN_KEY,
-                'N' as IS_UNIQUE_KEY
+                'N' as IS_UNIQUE_KEY,
+                case when col.IS_IDENTITY = 'YES' then 'Y' else 'N' end as IS_IDENTITY
             from INFORMATION_SCHEMA.COLUMNS col
                     left join (select
                                    kcu.TABLE_SCHEMA,

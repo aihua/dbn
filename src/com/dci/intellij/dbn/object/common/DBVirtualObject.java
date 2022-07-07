@@ -32,7 +32,6 @@ import com.dci.intellij.dbn.language.common.psi.lookup.SimpleObjectLookupAdapter
 import com.dci.intellij.dbn.language.common.psi.lookup.VirtualObjectLookupAdapter;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
-import com.dci.intellij.dbn.object.common.sorting.DBObjectComparator;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.vfs.file.DBContentVirtualFile;
@@ -60,6 +59,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.dci.intellij.dbn.common.content.DynamicContentProperty.*;
+import static com.dci.intellij.dbn.object.common.sorting.DBObjectComparator.compareName;
+import static com.dci.intellij.dbn.object.common.sorting.DBObjectComparator.compareType;
 
 public class DBVirtualObject extends DBObjectImpl implements PsiReference {
     private static final PsiLookupAdapter CHR_STAR_LOOKUP_ADAPTER = new PsiLookupAdapter() {
@@ -262,10 +263,12 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
         DBObjectList<DBObject> objectList = childObjects.getObjectList(objectType);
 
         if (objectList == null) {
-            objectList = childObjects.createObjectList(objectType, this, MUTABLE, VIRTUAL);
-            if (objectList != null) {
-                loadChildObjects(objectType, objectList);
-                objectList.set(LOADED, true);
+            if (objectType.isChildOf(getObjectType())) {
+                objectList = childObjects.createObjectList(objectType, this, MUTABLE, VIRTUAL);
+                if (objectList != null) {
+                    loadChildObjects(objectType, objectList);
+                    objectList.set(LOADED, true);
+                }
             }
         } else {
             boolean invalid = objectList.getObjects().stream().anyMatch(o -> !o.isValid());
@@ -329,7 +332,6 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
             });
 
             objectList.setElements(objects);
-            objectList.sort(DBObjectComparator.basic(objectType));
         }
     }
 
@@ -469,10 +471,10 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
 
     @Override
     public int compareTo(@NotNull Object o) {
-        DBVirtualObject that = (DBVirtualObject) o;
-        int result = this.getObjectType().compareTo(that.getObjectType());
+        DBObject that = (DBObject) o;
+        int result = compareType(this, that);
         if (result == 0) {
-            return this.getName().compareToIgnoreCase(that.getName());
+            return compareName(this, that);
         }
         return result;
     }

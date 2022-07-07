@@ -7,11 +7,11 @@ import com.dci.intellij.dbn.common.content.DynamicContentType;
 import com.dci.intellij.dbn.common.content.GroupedDynamicContent;
 import com.dci.intellij.dbn.common.content.dependency.ContentDependencyAdapter;
 import com.dci.intellij.dbn.common.content.dependency.SubcontentDependencyAdapter;
+import com.dci.intellij.dbn.connection.DatabaseEntity;
 import com.dci.intellij.dbn.database.common.metadata.DBObjectMetadata;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -32,7 +32,7 @@ public abstract class DynamicSubcontentCustomLoader<
     protected abstract T resolveElement(DynamicContent<T> dynamicContent, DynamicContentElement sourceElement);
 
     @Override
-    public void loadContent(DynamicContent<T> content, boolean forceReload) throws SQLException {
+    public void loadContent(DynamicContent<T> content, boolean forceReload) {
         List<T> list = null;
         ContentDependencyAdapter adapter = content.getDependencyAdapter();
         if (adapter instanceof SubcontentDependencyAdapter) {
@@ -40,7 +40,8 @@ public abstract class DynamicSubcontentCustomLoader<
             DynamicContent sourceContent = dependencyAdapter.getSourceContent();
             if (sourceContent instanceof GroupedDynamicContent) {
                 GroupedDynamicContent groupedContent = (GroupedDynamicContent) sourceContent;
-                List<DynamicContentElement> childElements = groupedContent.getChildElements(content.ensureParentEntity());
+                DatabaseEntity parentEntity = content.ensureParentEntity();
+                List<DynamicContentElement> childElements = groupedContent.getChildElements(parentEntity);
                 list = childElements.stream().map(e -> resolveElement(content, e)).filter(e -> e != null).collect(Collectors.toList());
             } else {
                 List elements = sourceContent.getAllElements();

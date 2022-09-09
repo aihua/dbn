@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.execution.method;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.routine.ParametricRunnable;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
@@ -11,6 +12,7 @@ import com.dci.intellij.dbn.common.util.Messages;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
+import com.dci.intellij.dbn.connection.config.ConnectionConfigListener;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseExecutionInterface;
 import com.dci.intellij.dbn.database.DatabaseFeature;
@@ -61,7 +63,17 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
 
     private MethodExecutionManager(Project project) {
         super(project);
+        ProjectEvents.subscribe(project, this, ConnectionConfigListener.TOPIC, connectionConfigListener);
     }
+
+    private final ConnectionConfigListener connectionConfigListener = new ConnectionConfigListener() {
+        @Override
+        public void connectionRemoved(ConnectionId connectionId) {
+            browserSettings.connectionRemoved(connectionId);
+            executionHistory.connectionRemoved(connectionId);
+            argumentValuesHistory.connectionRemoved(connectionId);
+        }
+    };
 
     public static MethodExecutionManager getInstance(@NotNull Project project) {
         return Failsafe.getComponent(project, MethodExecutionManager.class);
@@ -95,32 +107,30 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
                         progress -> {
                             Project project = getProject();
                             ConnectionHandler connection = action.getConnection();
+                            String methodIdentifier = executionInput.getMethodRef().getPath();
                             if (connection.isValid()) {
                                 DBMethod method = executionInput.getMethod();
                                 if (method == null) {
                                     String message =
-                                            "Can not execute method " +
-                                                    executionInput.getMethodRef().getPath() + ".\nMethod not found!";
+                                            "Can not execute method " + methodIdentifier + ".\nMethod not found!";
                                     Messages.showErrorDialog(project, message);
                                 } else {
-                                    // load the arguments in background
+                                    // load the arguments while in background
                                     executionInput.getMethod().getArguments();
-                                    Dispatch.run(() -> {
-                                        MethodExecutionInputDialog executionDialog = new MethodExecutionInputDialog(executionInput, debuggerType);
-                                        executionDialog.show();
-                                        if (executionDialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
-                                            callback.run();
-                                        }
-                                    });
+                                    showInputDialog(executionInput, debuggerType, callback);
                                 }
                             } else {
                                 String message =
-                                        "Can not execute method " + executionInput.getMethodRef().getPath() + ".\n" +
+                                        "Can not execute method " + methodIdentifier + ".\n" +
                                                 "No connectivity to '" + connection.getQualifiedName() + "'. " +
                                                 "Please check your connection settings and try again.";
                                 Messages.showErrorDialog(project, message);
                             }
                         }));
+    }
+
+    private void showInputDialog(@NotNull MethodExecutionInput executionInput, @NotNull DBDebuggerType debuggerType, @NotNull Runnable executor) {
+        MethodExecutionInputDialog.open(executionInput, debuggerType, executor);
     }
 
 
@@ -251,14 +261,14 @@ public class MethodExecutionManager extends AbstractProjectComponent implements 
             DBMethod currentMethod = executionInput == null ? null : executionInput.getMethod();
             if (currentMethod != null) {
                 currentMethod.getArguments();
-                settings.setConnection(currentMethod.getConnection());
-                settings.setSchema(currentMethod.getSchema());
-                settings.setMethod(currentMethod);
+                settings.setSelectedConnection(currentMethod.getConnection());
+                settings.setSelectedSchema(currentMethod.getSchema());
+                settings.setSelectedMethod(currentMethod);
             }
 
-            DBSchema schema = settings.getSchema();
+            DBSchema schema = settings.getSelectedSchema();
             ObjectTreeModel objectTreeModel = !debug || DatabaseFeature.DEBUGGING.isSupported(schema) ?
-                    new ObjectTreeModel(schema, settings.getVisibleObjectTypes(), settings.getMethod()) :
+                    new ObjectTreeModel(schema, settings.getVisibleObjectTypes(), settings.getSelectedMethod()) :
                     new ObjectTreeModel(null, settings.getVisibleObjectTypes(), null);
 
             Dispatch.run(() -> {

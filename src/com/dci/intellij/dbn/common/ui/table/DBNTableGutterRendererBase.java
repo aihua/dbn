@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.common.ui.table;
 
 import com.dci.intellij.dbn.common.color.Colors;
 import com.dci.intellij.dbn.common.latent.Latent;
+import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.ui.util.Borders;
 import com.dci.intellij.dbn.common.ui.util.Fonts;
 import com.intellij.ui.border.CustomLineBorder;
@@ -52,7 +53,7 @@ public abstract class DBNTableGutterRendererBase implements DBNTableGutterRender
         if (preferredSize.getWidth() != preferredWidth) {
             Dimension dimension = new Dimension(preferredWidth, -1);
             mainPanel.setPreferredSize(dimension);
-            list.setPreferredSize(new Dimension(preferredWidth, (int) list.getPreferredSize().getHeight()));
+            Dispatch.run(() -> list.setPreferredSize(new Dimension(preferredWidth, (int) list.getPreferredSize().getHeight())));
         }
         return mainPanel;
     }

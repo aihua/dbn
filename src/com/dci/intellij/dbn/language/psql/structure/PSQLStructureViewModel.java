@@ -17,9 +17,9 @@ public class PSQLStructureViewModel extends DBLanguageStructureViewModel {
     private static final Collection<NodeProvider> NODE_PROVIDERS = Collections.singletonList(new ShowDetailsNodeProvider());
 
 
-    private Sorter[] sorters = new Sorter[] {new PSQLStructureViewModelSorter()};
-    private Grouper[] groupers = new Grouper[]{new PSQLStructureViewModelGrouper()};
-    private Filter[] filters = new Filter[]{new PSQLStructureViewModelFilter()};
+    private final Sorter[] sorters = new Sorter[] {new PSQLStructureViewModelSorter()};
+    private final Grouper[] groupers = new Grouper[]{new PSQLStructureViewModelGrouper()};
+    private final Filter[] filters = new Filter[]{new PSQLStructureViewModelFilter()};
 
     PSQLStructureViewModel(Editor editor, PsiFile psiFile) {
         super(editor, psiFile);
@@ -51,7 +51,7 @@ public class PSQLStructureViewModel extends DBLanguageStructureViewModel {
 
     @NotNull
     @Override
-    public Collection<NodeProvider> getNodeProviders() {
+    public Collection getNodeProviders() {
         return Collections.emptyList();//NODE_PROVIDERS;
     }
 }

@@ -23,7 +23,7 @@ public class DatasetEditorStatusBarWidgetFactory /*implements StatusBarWidgetFac
     @NotNull
     @Override
     public StatusBarWidget createWidget(@NotNull Project project) {
-        return Failsafe.getComponent(project, DatasetEditorStatusBarWidget.class);
+        return projectService(project, DatasetEditorStatusBarWidget.class);
     }
 
     @Override

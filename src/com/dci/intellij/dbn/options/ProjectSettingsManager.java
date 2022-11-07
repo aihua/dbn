@@ -3,9 +3,10 @@ package com.dci.intellij.dbn.options;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.browser.options.DatabaseBrowserSettings;
 import com.dci.intellij.dbn.code.common.completion.options.CodeCompletionSettings;
-import com.dci.intellij.dbn.code.common.style.options.ProjectCodeStyleSettings;
-import com.dci.intellij.dbn.common.AbstractProjectComponent;
 import com.dci.intellij.dbn.common.action.UserDataKeys;
+import com.dci.intellij.dbn.common.component.Components;
+import com.dci.intellij.dbn.common.component.PersistentState;
+import com.dci.intellij.dbn.common.component.ProjectComponentBase;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.util.Messages;
@@ -16,15 +17,20 @@ import com.dci.intellij.dbn.connection.config.ConnectionConfigListener;
 import com.dci.intellij.dbn.connection.config.ConnectionConfigType;
 import com.dci.intellij.dbn.connection.config.tns.TnsName;
 import com.dci.intellij.dbn.connection.config.ui.ConnectionBundleSettingsForm;
+import com.dci.intellij.dbn.connection.console.DatabaseConsoleManager;
 import com.dci.intellij.dbn.connection.operation.options.OperationSettings;
 import com.dci.intellij.dbn.data.grid.options.DataGridSettings;
 import com.dci.intellij.dbn.ddl.options.DDLFileSettings;
+import com.dci.intellij.dbn.editor.EditorStateManager;
+import com.dci.intellij.dbn.editor.code.SourceCodeManager;
+import com.dci.intellij.dbn.editor.data.DatasetEditorManager;
 import com.dci.intellij.dbn.editor.data.options.DataEditorSettings;
 import com.dci.intellij.dbn.execution.common.options.ExecutionEngineSettings;
 import com.dci.intellij.dbn.navigation.options.NavigationSettings;
+import com.dci.intellij.dbn.object.common.loader.DatabaseLoaderManager;
 import com.dci.intellij.dbn.options.general.GeneralProjectSettings;
 import com.dci.intellij.dbn.options.ui.ProjectSettingsDialog;
-import com.intellij.openapi.components.PersistentStateComponent;
+import com.dci.intellij.dbn.vfs.DatabaseFileManager;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.project.Project;
@@ -45,19 +51,19 @@ import static com.dci.intellij.dbn.common.message.MessageCallback.when;
 )
 @Getter
 @Setter
-public class ProjectSettingsManager extends AbstractProjectComponent implements PersistentStateComponent<Element> {
+public class ProjectSettingsManager extends ProjectComponentBase implements PersistentState {
     public static final String COMPONENT_NAME = "DBNavigator.Project.Settings";
 
     private final ProjectSettings projectSettings;
     private ConfigId lastConfigId;
 
     private ProjectSettingsManager(Project project) {
-        super(project);
+        super(project, COMPONENT_NAME);
         projectSettings = new ProjectSettings(project);
     }
 
     public static ProjectSettingsManager getInstance(@NotNull Project project) {
-        return Failsafe.getComponent(project, ProjectSettingsManager.class);
+        return Components.projectService(project, ProjectSettingsManager.class);
     }
 
     public static ProjectSettings getSettings(Project project) {
@@ -98,10 +104,6 @@ public class ProjectSettingsManager extends AbstractProjectComponent implements 
 
     public CodeCompletionSettings getCodeCompletionSettings() {
         return getProjectSettings().getCodeCompletionSettings();
-    }
-
-    public ProjectCodeStyleSettings getCodeStyleSettings() {
-        return getProjectSettings().getCodeStyleSettings();
     }
 
     public OperationSettings getOperationSettings() {
@@ -175,6 +177,18 @@ public class ProjectSettingsManager extends AbstractProjectComponent implements 
         getProject().putUserData(UserDataKeys.PROJECT_SETTINGS_LOADED, true);
     }
 
+    @Override
+    public void initializeComponent() {
+        // TODO find another way to define "silent" dependencies
+        Project project = getProject();
+        DatabaseConsoleManager.getInstance(project);
+        EditorStateManager.getInstance(project);
+        SourceCodeManager.getInstance(project);
+        DatasetEditorManager.getInstance(project);
+        DatabaseFileManager.getInstance(project);
+        DatabaseLoaderManager.getInstance(project);
+    }
+
     public void exportToDefaultSettings() {
         final Project project = getProject();
         Messages.showQuestionDialog(
@@ -230,11 +244,5 @@ public class ProjectSettingsManager extends AbstractProjectComponent implements 
                         }
                     }));
         }
-    }
-
-    @NotNull
-    @Override
-    public String getComponentName() {
-        return COMPONENT_NAME;
     }
 }

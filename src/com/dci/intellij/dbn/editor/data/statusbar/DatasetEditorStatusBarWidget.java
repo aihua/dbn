@@ -18,6 +18,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.CustomStatusBarWidget;
 import com.intellij.openapi.wm.StatusBar;
+import com.intellij.openapi.wm.WindowManager;
 import com.intellij.util.Alarm;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -41,6 +42,8 @@ public class DatasetEditorStatusBarWidget extends ProjectComponentBase implement
         component.add(textLabel, BorderLayout.WEST);
 
         ProjectEvents.subscribe(project, this, FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorManagerListener());
+
+        Dispatch.run(() -> registerStatusBarWidget());
     }
 
     public static DatasetEditorStatusBarWidget getInstance(@NotNull Project project) {
@@ -66,6 +69,12 @@ public class DatasetEditorStatusBarWidget extends ProjectComponentBase implement
         };
     }
 
+
+    private void registerStatusBarWidget() {
+        Project project = getProject();
+        StatusBar statusBar = WindowManager.getInstance().getStatusBar(project);
+        statusBar.addWidget(this, this);
+    }
 
     @NotNull
     @Override

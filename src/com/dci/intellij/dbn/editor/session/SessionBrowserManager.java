@@ -32,7 +32,7 @@ import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
-import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
+import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -96,6 +96,11 @@ public class SessionBrowserManager extends ProjectComponentBase implements Persi
                         SafeDisposer.dispose(timestampUpdater);
                     }
                 }
+            }
+
+            @Override
+            public void selectionChanged(@NotNull FileEditorManagerEvent event) {
+
             }
         };
     }

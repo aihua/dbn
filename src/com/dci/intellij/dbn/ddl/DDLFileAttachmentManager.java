@@ -85,6 +85,10 @@ public class DDLFileAttachmentManager extends ProjectComponentBase implements Pe
     private BulkFileListener bulkFileListener() {
         return new BulkFileListener() {
             @Override
+            public void before(@NotNull List<? extends VFileEvent> events) {
+            }
+
+            @Override
             public void after(@NotNull List<? extends VFileEvent> events) {
                 for (VFileEvent event : events) {
                     VirtualFile file = event.getFile();

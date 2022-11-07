@@ -23,7 +23,6 @@ import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
-import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.project.Project;
@@ -38,9 +37,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.dci.intellij.dbn.common.component.Components.projectService;
-import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.enumAttribute;
-import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.setEnumAttribute;
-import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.*;
 
 @State(
     name = EditorStateManager.COMPONENT_NAME,
@@ -79,6 +76,12 @@ public class EditorStateManager extends ProjectComponentBase implements Persiste
     @NotNull
     private FileEditorManagerListener fileEditorManagerListener() {
         return new FileEditorManagerListener() {
+            @Override
+            public void fileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {}
+
+            @Override
+            public void fileClosed(@NotNull FileEditorManager source, @NotNull VirtualFile file) {}
+
             @Override
             public void selectionChanged(@NotNull FileEditorManagerEvent event) {
                 DBObject oldObject = null;

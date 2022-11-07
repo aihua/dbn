@@ -31,10 +31,4 @@ public class ConnectionLoadStatusBarWidget extends ProjectComponentBase implemen
     public void install(@NotNull StatusBar statusBar) {
 
     }
-
-    @NotNull
-    @Override
-    public String getComponentName() {
-        return null;
-    }
 }

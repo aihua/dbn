@@ -175,9 +175,9 @@ public class ProjectSettingsManager extends ProjectComponentBase implements Pers
     public void loadState(@NotNull Element element) {
         projectSettings.readConfiguration(element);
         getProject().putUserData(UserDataKeys.PROJECT_SETTINGS_LOADED, true);
+        initializeComponent();
     }
 
-    @Override
     public void initializeComponent() {
         // TODO find another way to define "silent" dependencies
         Project project = getProject();

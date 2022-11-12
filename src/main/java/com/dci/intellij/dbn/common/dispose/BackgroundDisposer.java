@@ -32,7 +32,7 @@ public final class BackgroundDisposer {
     private BackgroundDisposer() {
         ApplicationEvents.subscribe(null, AppLifecycleListener.TOPIC, new AppLifecycleListener.Adapter() {
             public void appWillBeClosed(boolean isRestart) {
-                exiting = true;
+                INSTANCE.setExiting(true);
             }
         });
 
@@ -40,10 +40,9 @@ public final class BackgroundDisposer {
             @Override
             @Compatibility
             public void applicationExiting() {
-                exiting = true;
+                INSTANCE.setExiting(true);
             }
         });
-
     }
 
     public static void queue(Runnable runnable) {

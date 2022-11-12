@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.common.dispose;
 
 import com.dci.intellij.dbn.common.compatibility.Compatibility;
-import com.dci.intellij.dbn.common.component.ApplicationComponent;
+import com.dci.intellij.dbn.common.event.ApplicationEvents;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.ThreadMonitor;
 import com.dci.intellij.dbn.common.thread.ThreadProperty;
@@ -22,7 +22,7 @@ import static com.dci.intellij.dbn.common.thread.ThreadMonitor.isDisposerProcess
 @Slf4j
 @Getter
 @Setter
-public final class BackgroundDisposer implements ApplicationComponent {
+public final class BackgroundDisposer {
     private final BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
     private volatile boolean running;
     private volatile boolean exiting = false;
@@ -30,6 +30,13 @@ public final class BackgroundDisposer implements ApplicationComponent {
     private static final BackgroundDisposer INSTANCE = new BackgroundDisposer();
 
     private BackgroundDisposer() {
+        ApplicationEvents.subscribe(null, AppLifecycleListener.TOPIC, new AppLifecycleListener() {
+            @Override
+            public void appWillBeClosed(boolean isRestart) {
+                exiting = true;
+            }
+        });
+
         ApplicationManager.getApplication().addApplicationListener(new ApplicationAdapter() {
             @Override
             @Compatibility
@@ -37,13 +44,7 @@ public final class BackgroundDisposer implements ApplicationComponent {
                 exiting = true;
             }
         });
-    }
 
-    public static class ApplicationLifecycleListener implements AppLifecycleListener {
-        @Override
-        public void appWillBeClosed(boolean isRestart) {
-            INSTANCE.setExiting(true);
-        }
     }
 
     public static void queue(Runnable runnable) {

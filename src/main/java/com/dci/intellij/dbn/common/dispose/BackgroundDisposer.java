@@ -34,6 +34,10 @@ public final class BackgroundDisposer {
             public void appWillBeClosed(boolean isRestart) {
                 INSTANCE.setExiting(true);
             }
+
+            public void appClosing() {
+                INSTANCE.setExiting(true);
+            }
         });
 
         ApplicationManager.getApplication().addApplicationListener(new ApplicationAdapter() {

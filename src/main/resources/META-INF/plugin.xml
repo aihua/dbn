@@ -2,7 +2,7 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.3.2160.3</version>
+    <version>3.3.2410.3</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
@@ -31,6 +31,11 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
+            <li><b>3.3.2410</b>
+            <ul>
+                <li>Architectural changes (components - move to services)
+                <li>Bug fixes
+            </ul>
             <li><b>3.3.2160</b>
             <ul>
                 <li>Oracle JDBC debugger fix
@@ -272,9 +277,10 @@
         <projectService serviceImplementation="com.dci.intellij.dbn.connection.session.DatabaseSessionManager"/>
         <projectService serviceImplementation="com.dci.intellij.dbn.connection.console.DatabaseConsoleManager"/>
     </extensions>
-    <module-components>
-        <!--<component><implementation-class>com.dci.intellij.dbn.browser.cache.ModuleBrowserCacheComponent</implementation-class></component>-->
-    </module-components>
+
+    <applicationListeners>
+        <listener class="com.dci.intellij.dbn.common.dispose.BackgroundDisposer$ApplicationLifecycleListener" topic="com.intellij.ide.AppLifecycleListener"/>
+    </applicationListeners>
 
     <actions>
         <action class="com.dci.intellij.dbn.execution.script.action.ExecuteScriptFileAction" id="DBNavigator.Actions.Editor.ExecuteScript" text="Execute SQL Script" icon="/img/action/ExecuteAsScript.png">

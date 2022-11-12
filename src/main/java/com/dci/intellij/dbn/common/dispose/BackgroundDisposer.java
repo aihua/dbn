@@ -1,7 +1,7 @@
 package com.dci.intellij.dbn.common.dispose;
 
 import com.dci.intellij.dbn.common.compatibility.Compatibility;
-import com.dci.intellij.dbn.common.event.ApplicationEvents;
+import com.dci.intellij.dbn.common.component.ApplicationComponent;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.ThreadMonitor;
 import com.dci.intellij.dbn.common.thread.ThreadProperty;
@@ -9,6 +9,8 @@ import com.intellij.ide.AppLifecycleListener;
 import com.intellij.openapi.application.ApplicationAdapter;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.progress.ProcessCanceledException;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.BlockingQueue;
@@ -18,7 +20,9 @@ import java.util.concurrent.TimeUnit;
 import static com.dci.intellij.dbn.common.thread.ThreadMonitor.isDisposerProcess;
 
 @Slf4j
-public class BackgroundDisposer {
+@Getter
+@Setter
+public final class BackgroundDisposer implements ApplicationComponent {
     private final BlockingQueue<Runnable> queue = new LinkedBlockingQueue<>();
     private volatile boolean running;
     private volatile boolean exiting = false;
@@ -39,7 +43,13 @@ public class BackgroundDisposer {
                 exiting = true;
             }
         });
+    }
 
+    public static class ApplicationLifecycleListener extends AppLifecycleListener.Adapter() {
+        @Override
+        public void appWillBeClosed(boolean isRestart) {
+            INSTANCE.setExiting(true);
+        }
     }
 
     public static void queue(Runnable runnable) {
@@ -52,17 +62,15 @@ public class BackgroundDisposer {
     }
 
     private void push(Runnable runnable) {
-        if (!exiting) {
-            queue.offer(runnable);
-            if (!running && !exiting) {
-                synchronized (BackgroundDisposer.class) {
-                    if (!running && !exiting) {
-                        running = true;
-                        startDisposer();
+        if (exiting) return;
+        queue.offer(runnable);
 
-                    }
-                }
-            }
+        if (running || exiting) return;
+
+        synchronized (this) {
+            if (running || exiting) return;
+            running = true;
+            startDisposer();
         }
     }
 
@@ -72,13 +80,13 @@ public class BackgroundDisposer {
                 ThreadMonitor.wrap(ThreadProperty.DISPOSER, () -> {
                     while (!exiting) {
                         Runnable task = queue.poll(10, TimeUnit.SECONDS);
-                        if (task != null) {
-                            try {
-                                task.run();
-                            } catch (ProcessCanceledException ignore){
-                            } catch (Exception e) {
-                                log.error("Background disposer failed", e);
-                            }
+                        if (task == null) continue;
+
+                        try {
+                            task.run();
+                        } catch (ProcessCanceledException ignore){
+                        } catch (Exception e) {
+                            log.error("Background disposer failed", e);
                         }
                     }
                 });

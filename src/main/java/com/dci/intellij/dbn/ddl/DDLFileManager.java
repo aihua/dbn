@@ -159,9 +159,10 @@ public class DDLFileManager extends ProjectComponentBase implements PersistentSt
 
     @Override
     public void loadState(@NotNull Element element) {
+        if (!getProject().isDefault()) initializeComponent();
     }
 
-    @Override
+    //@Override
     public void initializeComponent() {
         registerExtensions(getExtensionSettings());
     }

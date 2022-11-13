@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.ddl;
 import com.dci.intellij.dbn.common.compatibility.LegacyEditorNotificationsProvider;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
+import com.dci.intellij.dbn.common.util.Editors;
 import com.dci.intellij.dbn.ddl.options.DDLFileGeneralSettings;
 import com.dci.intellij.dbn.ddl.options.DDLFileSettings;
 import com.dci.intellij.dbn.ddl.options.listener.DDLFileSettingsChangeListener;
@@ -50,7 +51,7 @@ public class DDLMappedNotificationProvider extends LegacyEditorNotificationsProv
             @Override
             public void ddlFileDetached(Project project, VirtualFile virtualFile) {
                 if (!project.isDisposed()) {
-                    EditorNotifications notifications = EditorNotifications.getInstance(project);
+                    EditorNotifications notifications = Editors.getNotifications(project);;
                     notifications.updateNotifications(virtualFile);
                 }
             }
@@ -58,7 +59,7 @@ public class DDLMappedNotificationProvider extends LegacyEditorNotificationsProv
             @Override
             public void ddlFileAttached(Project project, VirtualFile virtualFile) {
                 if (!project.isDisposed()) {
-                    EditorNotifications notifications = EditorNotifications.getInstance(project);
+                    EditorNotifications notifications = Editors.getNotifications(project);;
                     notifications.updateNotifications(virtualFile);
                 }
             }
@@ -86,7 +87,7 @@ public class DDLMappedNotificationProvider extends LegacyEditorNotificationsProv
                         DDLFileAttachmentManager attachmentManager = DDLFileAttachmentManager.getInstance(project);
                         List<VirtualFile> attachedDDLFiles = attachmentManager.getAttachedDDLFiles(objectRef);
                         if (attachedDDLFiles != null) {
-                            EditorNotifications notifications = EditorNotifications.getInstance(project);
+                            EditorNotifications notifications = Editors.getNotifications(project);;
                             for (VirtualFile virtualFile : attachedDDLFiles) {
                                 notifications.updateNotifications(virtualFile);
                             }
@@ -100,7 +101,7 @@ public class DDLMappedNotificationProvider extends LegacyEditorNotificationsProv
     @NotNull
     private static DDLFileSettingsChangeListener ddlFileSettingsChangeListener() {
         return (Project project) -> {
-            EditorNotifications notifications = EditorNotifications.getInstance(project);
+            EditorNotifications notifications = Editors.getNotifications(project);;
             notifications.updateAllNotifications();
         };
     }

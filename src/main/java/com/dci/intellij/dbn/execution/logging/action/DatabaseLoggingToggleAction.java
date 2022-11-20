@@ -2,12 +2,11 @@ package com.dci.intellij.dbn.execution.logging.action;
 
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.action.Lookups;
-import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.mapping.FileConnectionContextManager;
-import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
 import com.dci.intellij.dbn.database.DatabaseFeature;
+import com.dci.intellij.dbn.database.interfaces.DatabaseCompatibilityInterface;
 import com.dci.intellij.dbn.debugger.DatabaseDebuggerManager;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.Presentation;
@@ -17,6 +16,8 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import static com.dci.intellij.dbn.common.dispose.Checks.isValid;
 
 public class DatabaseLoggingToggleAction extends ToggleAction implements DumbAware {
 
@@ -37,7 +38,7 @@ public class DatabaseLoggingToggleAction extends ToggleAction implements DumbAwa
         if (project != null && virtualFile != null) {
             FileConnectionContextManager contextManager = FileConnectionContextManager.getInstance(project);
             ConnectionHandler connection = contextManager.getConnection(virtualFile);
-            if (Failsafe.check(connection) && !connection.isVirtual()) {
+            if (isValid(connection) && !connection.isVirtual()) {
                 return connection ;
             }
 
@@ -54,17 +55,17 @@ public class DatabaseLoggingToggleAction extends ToggleAction implements DumbAwa
     @Override
     public void update(@NotNull AnActionEvent e) {
         super.update(e);
-        ConnectionHandler activeConnection = getConnection(e);
+        ConnectionHandler connection = getConnection(e);
         Presentation presentation = e.getPresentation();
 
         boolean visible = false;
         String name = "Database Logging";
-        if (activeConnection != null) {
-            boolean supportsLogging = DatabaseFeature.DATABASE_LOGGING.isSupported(activeConnection);
+        if (connection != null) {
+            boolean supportsLogging = DatabaseFeature.DATABASE_LOGGING.isSupported(connection);
             if (supportsLogging && isVisible(e)) {
                 visible = true;
-                DatabaseCompatibilityInterface compatibilityInterface = activeConnection.getInterfaceProvider().getCompatibilityInterface();
-                String databaseLogName = compatibilityInterface.getDatabaseLogName();
+                DatabaseCompatibilityInterface compatibility = connection.getCompatibilityInterface();
+                String databaseLogName = compatibility.getDatabaseLogName();
                 if (Strings.isNotEmpty(databaseLogName)) {
                     name = name + " (" + databaseLogName + ")";
                 }

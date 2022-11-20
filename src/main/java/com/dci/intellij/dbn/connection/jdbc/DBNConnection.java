@@ -1,13 +1,12 @@
 package com.dci.intellij.dbn.connection.jdbc;
 
-import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.project.ProjectRef;
-import com.dci.intellij.dbn.common.routine.ThrowableCallable;
-import com.dci.intellij.dbn.common.routine.ThrowableRunnable;
 import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.dci.intellij.dbn.connection.*;
 import com.dci.intellij.dbn.connection.transaction.PendingTransactionBundle;
+import com.dci.intellij.dbn.database.interfaces.DatabaseInterface.Callable;
+import com.dci.intellij.dbn.database.interfaces.DatabaseInterface.Runnable;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -23,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
 import static com.dci.intellij.dbn.common.util.Unsafe.cast;
 import static com.dci.intellij.dbn.connection.jdbc.ResourceStatus.ACTIVE;
 import static com.dci.intellij.dbn.connection.jdbc.ResourceStatus.RESERVED;
@@ -250,13 +250,13 @@ public class DBNConnection extends DBNConnectionBase {
     @Override
     public void statusChanged(ResourceStatus status) {
         ConnectionHandler connection = ConnectionHandler.get(id);
-        if (Failsafe.check(connection)) {
-            ConnectionHandlerStatusHolder connectionStatus = connection.getConnectionStatus();
-            switch (status) {
-                case CLOSED: connectionStatus.getConnected().markDirty(); break;
-                case VALID: connectionStatus.getValid().markDirty(); break;
-                case ACTIVE: connectionStatus.getActive().markDirty(); break;
-            }
+        if (isNotValid(connection)) return;
+
+        ConnectionHandlerStatusHolder connectionStatus = connection.getConnectionStatus();
+        switch (status) {
+            case CLOSED: connectionStatus.getConnected().markDirty(); break;
+            case VALID: connectionStatus.getValid().markDirty(); break;
+            case ACTIVE: connectionStatus.getActive().markDirty(); break;
         }
     }
 
@@ -399,7 +399,7 @@ public class DBNConnection extends DBNConnectionBase {
     }
 
 
-    public <T> T withSavepoint(ThrowableCallable<T, SQLException> callable) throws SQLException{
+    public <T> T withSavepoint(Callable<T> callable) throws SQLException{
         Savepoint savepoint = Resources.createSavepoint(this);
         try {
             return callable.call();
@@ -411,7 +411,7 @@ public class DBNConnection extends DBNConnectionBase {
         }
     }
 
-    public void withSavepoint(ThrowableRunnable<SQLException> runnable) throws SQLException{
+    public void withSavepoint(Runnable runnable) throws SQLException{
         Savepoint savepoint = Resources.createSavepoint(this);
         try {
             runnable.run();

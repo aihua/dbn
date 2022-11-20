@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.common.thread;
 
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
+import com.dci.intellij.dbn.common.dispose.Checks;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.routine.ProgressRunnable;
 import com.dci.intellij.dbn.common.util.Cancellable;
@@ -11,8 +12,7 @@ import com.intellij.openapi.progress.Task.Backgroundable;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.concurrent.atomic.AtomicReference;
-
+import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
 import static com.dci.intellij.dbn.common.thread.ThreadProperty.MODAL;
 import static com.dci.intellij.dbn.common.thread.ThreadProperty.PROGRESS;
 import static com.intellij.openapi.progress.PerformInBackgroundOption.ALWAYS_BACKGROUND;
@@ -23,84 +23,58 @@ public final class Progress {
     private Progress() {}
 
     public static void background(Project project, String title, boolean cancellable, ProgressRunnable runnable) {
-        if (Failsafe.check(project)) {
-            ThreadInfo invoker = ThreadMonitor.current();
-            start(new Backgroundable(Failsafe.nd(project), title, cancellable, ALWAYS_BACKGROUND) {
-                @Override
-                public void run(@NotNull ProgressIndicator indicator) {
-                    ThreadMonitor.run(
-                            invoker,
-                            PROGRESS,
-                            () -> Cancellable.run(() -> runnable.run(indicator)));
-                }
-            });
-        }
-    }
+        if (isNotValid(project)) return;
 
-    public static void background(Project project, String title, AtomicReference<Thread> handle, ProgressRunnable runnable) {
-        if (Failsafe.check(project)) {
-            Thread current = handle.get();
-            if (current != null) {
-                current.interrupt();
+        ThreadInfo invoker = ThreadMonitor.current();
+        Backgroundable task = new Backgroundable(Failsafe.nd(project), title, cancellable, ALWAYS_BACKGROUND) {
+            @Override
+            public void run(@NotNull ProgressIndicator indicator) {
+                ThreadMonitor.run(
+                        invoker,
+                        PROGRESS,
+                        () -> Cancellable.run(() -> runnable.run(indicator)));
             }
-            ThreadInfo invoker = ThreadMonitor.current();
-            start(new Backgroundable(Failsafe.nd(project), title, false, ALWAYS_BACKGROUND) {
-                @Override
-                public void run(@NotNull ProgressIndicator indicator) {
-                    ThreadMonitor.run(
-                            invoker,
-                            PROGRESS,
-                            () -> Cancellable.run(() -> {
-                                try {
-                                    handle.set(Thread.currentThread());
-                                    runnable.run(indicator);
-                                } finally {
-                                    handle.set(null);
-                                }
-
-                            }));
-                }
-            });
-        }
+        };
+        start(task);
     }
 
     public static void prompt(Project project, String title, boolean cancellable, ProgressRunnable runnable) {
-        if (Failsafe.check(project)) {
-            ThreadInfo invoker = ThreadMonitor.current();
-            start(new Backgroundable(Failsafe.nd(project), title, cancellable, DEAF) {
-                @Override
-                public void run(@NotNull ProgressIndicator indicator) {
-                    ThreadMonitor.run(
-                            invoker,
-                            PROGRESS,
-                            () -> Cancellable.run(() -> runnable.run(indicator)));
-                }
-            });
-        }
+        if (isNotValid(project)) return;
+
+        ThreadInfo invoker = ThreadMonitor.current();
+        Backgroundable task = new Backgroundable(Failsafe.nd(project), title, cancellable, DEAF) {
+            @Override
+            public void run(@NotNull ProgressIndicator indicator) {
+                ThreadMonitor.run(
+                        invoker,
+                        PROGRESS,
+                        () -> Cancellable.run(() -> runnable.run(indicator)));
+            }
+        };
+        start(task);
     }
 
     public static void modal(Project project, String title, boolean cancellable, ProgressRunnable runnable) {
-        if (Failsafe.check(project)) {
-            ThreadInfo invoker = ThreadMonitor.current();
-            start(new Task.Modal(project, title, cancellable) {
-                @Override
-                public void run(@NotNull ProgressIndicator indicator) {
-                    ThreadMonitor.run(
-                            invoker,
-                            MODAL,
-                            () -> Cancellable.run(() -> runnable.run(indicator)));
+        if (isNotValid(project)) return;
 
-                }
-            });
-        }
+        ThreadInfo invoker = ThreadMonitor.current();
+        Task.Modal task = new Task.Modal(project, title, cancellable) {
+            @Override
+            public void run(@NotNull ProgressIndicator indicator) {
+                ThreadMonitor.run(
+                        invoker,
+                        MODAL,
+                        () -> Cancellable.run(() -> runnable.run(indicator)));
+
+            }
+        };
+        start(task);
     }
 
     private static void start(Task task) {
-        if (Failsafe.check(task) && Failsafe.check(task.getProject())) {
-            Dispatch.run(() -> {
-                ProgressManager progressManager = ProgressManager.getInstance();
-                progressManager.run(task);
-            });
+        if (Checks.allValid(task, task.getProject())) {
+            ProgressManager progressManager = ProgressManager.getInstance();
+            progressManager.run(task);
         }
     }
 

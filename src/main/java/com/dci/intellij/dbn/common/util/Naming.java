@@ -2,6 +2,8 @@ package com.dci.intellij.dbn.common.util;
 
 import com.dci.intellij.dbn.language.common.psi.IdentifierPsiElement;
 import com.dci.intellij.dbn.object.common.DBObject;
+import com.dci.intellij.dbn.object.type.DBObjectType;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.HashSet;
 import java.util.List;
@@ -9,6 +11,7 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 public class Naming {
+
     private Naming() {}
 
     public static String nextNumberedIdentifier(String identifier, boolean insertWhitespace) {
@@ -179,5 +182,13 @@ public class Naming {
         } else {
             return charSequence;
         }
+    }
+
+    public static String getQualifiedObjectName(DBObject object) {
+        return object.getTypeName() + " \"" + object.ref().getPath() + "\"";
+    }
+
+    public static String getQualifiedObjectName(DBObjectType objectType, String objectName, @Nullable DBObject parentObject) {
+        return objectType.getName() + " \"" + (parentObject == null ? "" : parentObject.ref().getPath()) + "." + objectName + "\"";
     }
 }

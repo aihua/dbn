@@ -55,6 +55,7 @@ import java.io.IOException;
 import java.util.*;
 
 import static com.dci.intellij.dbn.common.component.Components.projectService;
+import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
 import static com.dci.intellij.dbn.common.message.MessageCallback.when;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
 import static com.dci.intellij.dbn.common.util.Messages.options;
@@ -143,7 +144,7 @@ public class DDLFileAttachmentManager extends ProjectComponentBase implements Pe
             VirtualFileManager virtualFileManager = VirtualFileManager.getInstance();
             for (String fileUrl : fileUrls) {
                 VirtualFile virtualFile = virtualFileManager.findFileByUrl(fileUrl);
-                if (virtualFile == null || !virtualFile.isValid()) {
+                if (isNotValid(virtualFile)) {
                     mappings.remove(fileUrl);
                 } else {
                     if (virtualFiles == null) virtualFiles = new ArrayList<>();
@@ -183,7 +184,7 @@ public class DDLFileAttachmentManager extends ProjectComponentBase implements Pe
         if (virtualFiles != null && virtualFiles.size() > 0) {
             List<VirtualFile> obsolete = null;
             for (VirtualFile virtualFile : virtualFiles) {
-                if (!virtualFile.isValid() || !isValidDDLFile(virtualFile, objectRef)) {
+                if (isNotValid(virtualFile) || !isValidDDLFile(virtualFile, objectRef)) {
                     if (obsolete == null) obsolete = new ArrayList<>();
                     obsolete.add(virtualFile);
                 }

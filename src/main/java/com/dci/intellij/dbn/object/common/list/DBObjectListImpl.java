@@ -51,6 +51,8 @@ import java.util.*;
 import java.util.function.Consumer;
 
 import static com.dci.intellij.dbn.common.content.DynamicContentProperty.*;
+import static com.dci.intellij.dbn.common.dispose.Checks.isValid;
+import static com.dci.intellij.dbn.common.list.FilteredList.unwrap;
 import static com.dci.intellij.dbn.common.search.Search.binarySearch;
 import static com.dci.intellij.dbn.common.search.Search.comboSearch;
 import static com.dci.intellij.dbn.common.util.Commons.nvl;
@@ -79,7 +81,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
 
     @Override
     public DynamicContentLoader<T, DBObjectMetadata> getLoader() {
-        BrowserTreeNode parent = getParent();
+        DatabaseEntity parent = getParent();
         if (parent instanceof DBVirtualObject) {
             return DynamicContentLoader.VOID_CONTENT_LOADER;
         } else {
@@ -122,7 +124,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
     @Nullable
     public Filter<T> getConfigFilter() {
         ConnectionHandler connection = this.getConnection();
-        if (Failsafe.check(connection) && !connection.isVirtual()) {
+        if (isValid(connection) && !connection.isVirtual()) {
             ConnectionFilterSettings filterSettings = connection.getSettings().getFilterSettings();
             return filterSettings.getNameFilter(objectType);
         }
@@ -292,7 +294,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
 
     @Override
     public PsiDirectory getPsiDirectory() {
-        return getConnection().getObjectBundle().getObjectListPsiDirectory(this);
+        return getObjectBundle().getObjectListPsiDirectory(this);
     }
 
     @Override
@@ -300,7 +302,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
         try {
             Project project = getProject();
             BrowserTreeNode treeParent = getParent();
-            if (!isInternal() && isTouched() && Failsafe.check(project) && treeParent.isTreeStructureLoaded()) {
+            if (!isInternal() && isTouched() && isValid(project) && treeParent.isTreeStructureLoaded()) {
                 ProjectEvents.notify(project,
                         BrowserTreeEventListener.TOPIC,
                         (listener) -> listener.nodeChanged(this, TreeEventType.STRUCTURE_CHANGED));
@@ -517,7 +519,8 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
             DBObject object = (DBObject) getTreeParent();
             return getName() + " of " + object.getQualifiedNameWithType();
         }*/
-        return getParentEntity().getDynamicContentType() + " (" + getParentEntity().getName() + ") " + getName() + " - " + super.toString();
+        DatabaseEntity parentEntity = getParentEntity();
+        return parentEntity.getDynamicContentType() + " (" + parentEntity.getName() + ") " + getName() + " - " + super.toString();
     }
 
     @Override
@@ -546,30 +549,30 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentImpl<T> 
 
         @Override
         protected void afterUpdate() {
-            List<T> elements = getAllElements();
-            if (!elements.isEmpty()) {
-                Map<DBObjectRef, Range> ranges = new HashMap<>();
+            List<T> elements = unwrap(this.elements);
+            if (elements.isEmpty()) return;
 
-                DBObjectRef currentParent = null;
-                int currentOffset = 0;
-                for (int i = 0; i < elements.size(); i++) {
-                    T object = elements.get(i);
-                    DBObjectRef parent = object.getParentObject().ref();
-                    currentParent = nvl(currentParent, parent);
+            Map<DBObjectRef, Range> ranges = new HashMap<>();
 
-                    if (!Objects.equals(currentParent, parent)) {
-                        ranges.put(currentParent, new Range(currentOffset, i - 1));
-                        currentParent = parent;
-                        currentOffset = i;
-                    }
+            DBObjectRef currentParent = null;
+            int rangeStart = 0;
+            for (int i = 0; i < elements.size(); i++) {
+                T object = elements.get(i);
+                DBObjectRef parent = object.getParentObject().ref();
+                currentParent = nvl(currentParent, parent);
 
-                    if (i == elements.size() - 1) {
-                        ranges.put(currentParent, new Range(currentOffset, i));
-                    }
+                if (!Objects.equals(currentParent, parent)) {
+                    ranges.put(currentParent, new Range(rangeStart, i - 1));
+                    currentParent = parent;
+                    rangeStart = i;
                 }
 
-                this.ranges = ranges;
+                if (i == elements.size() - 1) {
+                    ranges.put(currentParent, new Range(rangeStart, i));
+                }
             }
+
+            this.ranges = ranges;
         }
 
         public List<T> getChildElements(DatabaseEntity entity) {

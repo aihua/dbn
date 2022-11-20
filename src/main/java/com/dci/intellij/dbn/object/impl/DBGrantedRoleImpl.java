@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.object.impl;
 
 import com.dci.intellij.dbn.database.common.metadata.def.DBGrantedRoleMetadata;
 import com.dci.intellij.dbn.object.DBGrantedRole;
+import com.dci.intellij.dbn.object.DBPrivilege;
 import com.dci.intellij.dbn.object.DBRole;
 import com.dci.intellij.dbn.object.DBRoleGrantee;
 import com.dci.intellij.dbn.object.common.DBObject;
@@ -26,7 +27,7 @@ public class DBGrantedRoleImpl extends DBObjectImpl<DBGrantedRoleMetadata> imple
     @Override
     protected String initObject(DBGrantedRoleMetadata metadata) throws SQLException {
         String name = metadata.getGrantedRoleName();
-        this.role = DBObjectRef.of(this.getConnection().getObjectBundle().getRole(name));
+        this.role = DBObjectRef.of(getObjectBundle().getRole(name));
         set(ADMIN_OPTION, metadata.isAdminOption());
         set(DEFAULT_ROLE, metadata.isDefaultRole());
         return name;
@@ -56,6 +57,12 @@ public class DBGrantedRoleImpl extends DBObjectImpl<DBGrantedRoleMetadata> imple
     @Override
     public boolean isDefaultRole() {
         return is(DEFAULT_ROLE);
+    }
+
+    @Override
+    public boolean hasPrivilege(DBPrivilege privilege) {
+        DBRole role = getRole();
+        return role != null && role.hasPrivilege(privilege);
     }
 
     @Nullable

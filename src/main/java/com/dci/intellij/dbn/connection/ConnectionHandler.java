@@ -5,6 +5,7 @@ import com.dci.intellij.dbn.common.Referenceable;
 import com.dci.intellij.dbn.common.cache.Cache;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.database.DatabaseInfo;
+import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.environment.EnvironmentTypeProvider;
 import com.dci.intellij.dbn.common.filter.Filter;
@@ -17,7 +18,8 @@ import com.dci.intellij.dbn.connection.info.ConnectionInfo;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.session.DatabaseSessionBundle;
 import com.dci.intellij.dbn.database.DatabaseCompatibility;
-import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
+import com.dci.intellij.dbn.database.interfaces.DatabaseInterfaceQueue;
+import com.dci.intellij.dbn.database.interfaces.DatabaseInterfaces;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionQueue;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
@@ -34,13 +36,10 @@ import java.sql.SQLException;
 import java.util.List;
 
 public interface ConnectionHandler extends StatefulDisposable, EnvironmentTypeProvider, ConnectionProvider, Presentable, ConnectionIdProvider, Referenceable<ConnectionRef> {
-    @Nullable
-    static ConnectionHandler get(ConnectionId connectionId) {
-        return ConnectionCache.resolveConnection(connectionId);
-    }
 
     @NotNull
     Project getProject();
+
     DBNConnection getTestConnection() throws SQLException;
 
     @NotNull
@@ -50,7 +49,10 @@ public interface ConnectionHandler extends StatefulDisposable, EnvironmentTypePr
     DBNConnection getMainConnection(@Nullable SchemaId schemaId) throws SQLException;
 
     @NotNull
-    DBNConnection getConnection(SessionId sessionId, @Nullable SchemaId schemaId) throws SQLException;
+    DBNConnection getConnection(@NotNull SessionId sessionId) throws SQLException;
+
+    @NotNull
+    DBNConnection getConnection(@NotNull SessionId sessionId, @Nullable SchemaId schemaId) throws SQLException;
 
     @NotNull
     DBNConnection getDebugConnection(@Nullable SchemaId schemaId) throws SQLException;
@@ -97,7 +99,9 @@ public interface ConnectionHandler extends StatefulDisposable, EnvironmentTypePr
     @Nullable
     ConnectionInfo getConnectionInfo();
 
-    default Cache getMetaDataCache(){ return null;}
+    default Cache getMetaDataCache() {
+        return null;
+    }
 
     @NotNull
     String getConnectionName(@Nullable DBNConnection connection);
@@ -113,40 +117,68 @@ public interface ConnectionHandler extends StatefulDisposable, EnvironmentTypePr
 
     boolean isDatabaseInitialized();
 
-    @NotNull ConnectionBundle getConnectionBundle();
-    @NotNull ConnectionPool getConnectionPool();
-    DatabaseInterfaceProvider getInterfaceProvider();
-    @NotNull DBObjectBundle getObjectBundle();
+    @NotNull
+    ConnectionBundle getConnectionBundle();
+
+    @NotNull
+    ConnectionPool getConnectionPool();
+
+    @NotNull
+    DatabaseInterfaces getInterfaces();
+
+    DatabaseInterfaceQueue getInterfaceQueue();
+
+    @NotNull
+    DBObjectBundle getObjectBundle();
+
     @Nullable
     SchemaId getUserSchema();
+
     @Nullable
     SchemaId getDefaultSchema();
-    @NotNull List<SchemaId> getSchemaIds();
-    @Nullable SchemaId getSchemaId(String name);
+
+    @NotNull
+    List<SchemaId> getSchemaIds();
+
+    @Nullable
+    SchemaId getSchemaId(String name);
 
     @Nullable
     DBSchema getSchema(SchemaId schema);
 
     boolean isValid();
+
     boolean isVirtual();
+
     boolean isAutoCommit();
+
     boolean isLoggingEnabled();
-    boolean hasPendingTransactions(@NotNull DBNConnection connection);
+
+    boolean hasPendingTransactions(@NotNull DBNConnection conn);
+
     void setAutoCommit(boolean autoCommit);
+
     void setLoggingEnabled(boolean loggingEnabled);
+
     void disconnect() throws SQLException;
 
     ConnectionId getConnectionId();
+
     String getUserName();
+
     String getPresentableText();
+
     String getQualifiedName();
 
     @Nullable
     DBLanguageDialect resolveLanguageDialect(Language language);
+
     DBLanguageDialect getLanguageDialect(DBLanguage language);
+
     boolean isEnabled();
 
     DatabaseType getDatabaseType();
+
     double getDatabaseVersion();
 
     Filter<BrowserTreeNode> getObjectTypeFilter();
@@ -171,14 +203,28 @@ public interface ConnectionHandler extends StatefulDisposable, EnvironmentTypePr
     PsiDirectory getPsiDirectory();
 
     static List<ConnectionId> ids(List<ConnectionHandler> connections) {
-        return Lists.convert(connections, connection -> connection.getConnectionId()) ;
+        return Lists.convert(connections, connection -> connection.getConnectionId());
     }
 
     DatabaseCompatibility getCompatibility();
 
-    default void resetCompatibilityMonitor(){};
+    String getDebuggerVersion();
 
-    default String getMetaLoadTitle() {
-        return "Loading data dictionary (" + getName() + ")";
+    default void resetCompatibilityMonitor() {
+    }
+
+    @Nullable
+    static ConnectionHandler get(ConnectionId connectionId) {
+        return ConnectionCache.resolve(connectionId);
+    }
+
+    @NotNull
+    static ConnectionHandler ensure(ConnectionId connectionId) {
+        return Failsafe.nd(get(connectionId));
+    }
+
+    @NotNull
+    static ConnectionHandler local() {
+        return ConnectionLocalContext.getConnection();
     }
 }

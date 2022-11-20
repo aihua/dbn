@@ -15,9 +15,9 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.config.ConnectionConfigListener;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
-import com.dci.intellij.dbn.database.DatabaseExecutionInterface;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.database.common.execution.MethodExecutionProcessor;
+import com.dci.intellij.dbn.database.interfaces.DatabaseExecutionInterface;
 import com.dci.intellij.dbn.debugger.DBDebuggerType;
 import com.dci.intellij.dbn.execution.ExecutionContext;
 import com.dci.intellij.dbn.execution.ExecutionManager;
@@ -45,6 +45,7 @@ import java.sql.SQLException;
 import java.util.List;
 
 import static com.dci.intellij.dbn.common.component.Components.projectService;
+import static com.dci.intellij.dbn.common.dispose.Checks.isValid;
 import static com.dci.intellij.dbn.common.message.MessageCallback.when;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.CANCELLED;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.EXECUTING;
@@ -114,8 +115,7 @@ public class MethodExecutionManager extends ProjectComponentBase implements Pers
                             if (connection.isValid()) {
                                 DBMethod method = executionInput.getMethod();
                                 if (method == null) {
-                                    String message =
-                                            "Can not execute method " + methodIdentifier + ".\nMethod not found!";
+                                    String message = "Can not execute method " + methodIdentifier + ".\nMethod not found!";
                                     Messages.showErrorDialog(project, message);
                                 } else {
                                     // load the arguments while in background
@@ -149,7 +149,7 @@ public class MethodExecutionManager extends ProjectComponentBase implements Pers
             if (selectedInput != null) {
                 // initialize method arguments while in background
                 DBMethod method = selectedInput.getMethod();
-                if (Failsafe.check(method)) {
+                if (isValid(method)) {
                     method.getArguments();
                 }
             }
@@ -187,7 +187,7 @@ public class MethodExecutionManager extends ProjectComponentBase implements Pers
         } else {
             Project project = method.getProject();
             ConnectionHandler connection = Failsafe.nn(method.getConnection());
-            DatabaseExecutionInterface executionInterface = connection.getInterfaceProvider().getExecutionInterface();
+            DatabaseExecutionInterface executionInterface = connection.getInterfaces().getExecutionInterface();
             MethodExecutionProcessor executionProcessor = executionInterface.createExecutionProcessor(method);
 
             Progress.prompt(project, "Executing method", true, progress -> {
@@ -238,7 +238,7 @@ public class MethodExecutionManager extends ProjectComponentBase implements Pers
         DBMethod method = executionInput.getMethod();
         if (method != null) {
             ConnectionHandler connection = method.getConnection();
-            DatabaseExecutionInterface executionInterface = connection.getInterfaceProvider().getExecutionInterface();
+            DatabaseExecutionInterface executionInterface = connection.getInterfaces().getExecutionInterface();
             MethodExecutionProcessor executionProcessor = debuggerType == DBDebuggerType.JDWP ?
                     executionInterface.createExecutionProcessor(method) :
                     executionInterface.createDebugExecutionProcessor(method);

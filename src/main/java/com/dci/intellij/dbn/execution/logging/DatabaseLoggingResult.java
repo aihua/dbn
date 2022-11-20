@@ -6,7 +6,7 @@ import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
-import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
+import com.dci.intellij.dbn.database.interfaces.DatabaseCompatibilityInterface;
 import com.dci.intellij.dbn.execution.ExecutionResultBase;
 import com.dci.intellij.dbn.execution.logging.ui.DatabaseLoggingResultConsole;
 import com.dci.intellij.dbn.execution.logging.ui.DatabaseLoggingResultForm;
@@ -19,6 +19,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
+
+import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
 
 public class DatabaseLoggingResult extends ExecutionResultBase<DatabaseLoggingResultForm> {
 
@@ -45,8 +47,8 @@ public class DatabaseLoggingResult extends ExecutionResultBase<DatabaseLoggingRe
         ConnectionHandler connection = getConnection();
         VirtualFile sourceFile = context.getSourceFile();
         if (sourceFile == null) {
-            DatabaseCompatibilityInterface compatibilityInterface = connection.getInterfaceProvider().getCompatibilityInterface();
-            String databaseLogName = compatibilityInterface.getDatabaseLogName();
+            DatabaseCompatibilityInterface compatibility = connection.getCompatibilityInterface();
+            String databaseLogName = compatibility.getDatabaseLogName();
 
             return connection.getName() + " - " + Commons.nvl(databaseLogName, "Log Output");
         } else {
@@ -93,20 +95,20 @@ public class DatabaseLoggingResult extends ExecutionResultBase<DatabaseLoggingRe
     public void write(LogOutputContext context, LogOutput output) {
         this.context = context;
         DatabaseLoggingResultForm resultForm = getForm();
-        if (Failsafe.check(resultForm)) {
-            DatabaseLoggingResultConsole console = resultForm.getConsole();
-            if (output.isClearBuffer()) {
-                console.clear();
-            }
-            if (output.isScrollToEnd()) {
-                ConsoleView consoleView = console.getConsole();
-                if (consoleView instanceof ConsoleViewImpl) {
-                    ConsoleViewImpl consoleViewImpl = (ConsoleViewImpl) consoleView;
-                    consoleViewImpl.requestScrollingToEnd();
-                }
-            }
-            console.writeToConsole(context, output);
+        if (isNotValid(resultForm)) return;
+
+        DatabaseLoggingResultConsole console = resultForm.getConsole();
+        if (output.isClearBuffer()) {
+            console.clear();
         }
+        if (output.isScrollToEnd()) {
+            ConsoleView consoleView = console.getConsole();
+            if (consoleView instanceof ConsoleViewImpl) {
+                ConsoleViewImpl consoleViewImpl = (ConsoleViewImpl) consoleView;
+                consoleViewImpl.requestScrollingToEnd();
+            }
+        }
+        console.writeToConsole(context, output);
     }
 
     /********************************************************

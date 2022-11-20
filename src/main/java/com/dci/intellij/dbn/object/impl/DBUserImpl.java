@@ -6,14 +6,8 @@ import com.dci.intellij.dbn.browser.ui.HtmlToolTipBuilder;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
 import com.dci.intellij.dbn.database.common.metadata.def.DBUserMetadata;
-import com.dci.intellij.dbn.object.DBGrantedPrivilege;
-import com.dci.intellij.dbn.object.DBGrantedRole;
-import com.dci.intellij.dbn.object.DBRole;
-import com.dci.intellij.dbn.object.DBSchema;
-import com.dci.intellij.dbn.object.DBSystemPrivilege;
-import com.dci.intellij.dbn.object.DBUser;
+import com.dci.intellij.dbn.object.*;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBObjectBundle;
 import com.dci.intellij.dbn.object.common.DBObjectImpl;
@@ -26,10 +20,11 @@ import com.dci.intellij.dbn.object.type.DBObjectType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.Icon;
+import javax.swing.*;
 import java.sql.SQLException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.ROOT_OBJECT;
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.SESSION_USER;
@@ -124,16 +119,15 @@ public class DBUserImpl extends DBObjectImpl<DBUserMetadata> implements DBUser {
     }
 
     @Override
-    public boolean hasSystemPrivilege(DBSystemPrivilege systemPrivilege) {
+    public boolean hasPrivilege(DBPrivilege privilege) {
         for (DBGrantedPrivilege grantedPrivilege : getPrivileges()) {
-            if (grantedPrivilege.getPrivilege().equals(systemPrivilege)) {
+            if (Objects.equals(grantedPrivilege.getPrivilege(), privilege)) {
                 return true;
             }
         }
-        DatabaseCompatibilityInterface compatibilityInterface = this.getConnection().getInterfaceProvider().getCompatibilityInterface();
-        if (compatibilityInterface.supportsObjectType(GRANTED_ROLE.getTypeId())) {
+        if (GRANTED_ROLE.isSupported(this)) {
             for (DBGrantedRole grantedRole : getRoles()) {
-                if (grantedRole.getRole().hasPrivilege(systemPrivilege)) {
+                if (grantedRole.hasPrivilege(privilege)) {
                     return true;
                 }
             }
@@ -144,7 +138,7 @@ public class DBUserImpl extends DBObjectImpl<DBUserMetadata> implements DBUser {
     @Override
     public boolean hasRole(DBRole role) {
         for (DBGrantedRole grantedRole : getRoles()) {
-            if (grantedRole.getRole().equals(role)) {
+            if (Objects.equals(grantedRole.getRole(), role)) {
                 return true;
             }
         }

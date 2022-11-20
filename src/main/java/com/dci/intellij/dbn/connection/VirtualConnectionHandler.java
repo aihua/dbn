@@ -16,7 +16,8 @@ import com.dci.intellij.dbn.connection.info.ConnectionInfo;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.session.DatabaseSessionBundle;
 import com.dci.intellij.dbn.database.DatabaseCompatibility;
-import com.dci.intellij.dbn.database.DatabaseInterfaceProvider;
+import com.dci.intellij.dbn.database.interfaces.DatabaseInterfaceQueue;
+import com.dci.intellij.dbn.database.interfaces.DatabaseInterfaces;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionQueue;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
@@ -32,10 +33,13 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
+import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static com.dci.intellij.dbn.common.util.Exceptions.unsupported;
 
 @Getter
 public class VirtualConnectionHandler extends StatefulDisposable.Base implements ConnectionHandler {
@@ -52,7 +56,7 @@ public class VirtualConnectionHandler extends StatefulDisposable.Base implements
     private final DatabaseCompatibility compatibility = DatabaseCompatibility.noFeatures();
     private final DatabaseSessionBundle sessionBundle = new DatabaseSessionBundle(this);
 
-    private DatabaseInterfaceProvider interfaceProvider;
+    private DatabaseInterfaces interfaces;
 
     private final Latent<ConnectionSettings> connectionSettings = Latent.basic(() -> {
         ConnectionBundleSettings connectionBundleSettings = ConnectionBundleSettings.getInstance(getProject());
@@ -105,7 +109,7 @@ public class VirtualConnectionHandler extends StatefulDisposable.Base implements
 
     @Override
     public DBLanguageDialect getLanguageDialect(DBLanguage language) {
-        return getInterfaceProvider().getLanguageDialect(language);
+        return getInterfaces().getLanguageDialect(language);
     }
 
     @Override
@@ -175,12 +179,18 @@ public class VirtualConnectionHandler extends StatefulDisposable.Base implements
         return false;
     }
 
+    @NotNull
     @Override
-    public DatabaseInterfaceProvider getInterfaceProvider() {
-        if (interfaceProvider == null) {
-            interfaceProvider = DatabaseInterfaceProviders.get(this);
+    public DatabaseInterfaces getInterfaces() {
+        if (interfaces == null) {
+            interfaces = DatabaseInterfacesBundle.get(this);
         }
-        return interfaceProvider;
+        return interfaces;
+    }
+
+    @Override
+    public DatabaseInterfaceQueue getInterfaceQueue() {
+        return unsupported();
     }
 
     @Nullable
@@ -202,13 +212,13 @@ public class VirtualConnectionHandler extends StatefulDisposable.Base implements
     @NotNull
     @Override
     public DBNConnection getPoolConnection(boolean readonly) {
-        throw new UnsupportedOperationException();
+        return unsupported();
     }
 
     @NotNull
     @Override
     public DBNConnection getPoolConnection(@Nullable SchemaId schemaId, boolean readonly) {
-        throw new UnsupportedOperationException();
+        return unsupported();
     }
 
     @Override
@@ -218,31 +228,37 @@ public class VirtualConnectionHandler extends StatefulDisposable.Base implements
     @NotNull
     @Override
     public DBNConnection getMainConnection() {
-        throw new UnsupportedOperationException();
+        return unsupported();
     }
 
     @NotNull
     @Override
     public DBNConnection getDebugConnection(SchemaId schemaId) {
-        throw new UnsupportedOperationException();
+        return unsupported();
     }
 
     @NotNull
     @Override
     public DBNConnection getDebuggerConnection() {
-        throw new UnsupportedOperationException();
+        return unsupported();
     }
 
     @NotNull
     @Override
-    public DBNConnection getConnection(SessionId sessionId, @Nullable SchemaId schemaId) {
-        throw new UnsupportedOperationException();
+    public DBNConnection getConnection(@NotNull SessionId sessionId, @Nullable SchemaId schemaId) {
+        return unsupported();
+    }
+
+    @NotNull
+    @Override
+    public DBNConnection getConnection(@NotNull SessionId sessionId) throws SQLException {
+        return unsupported();
     }
 
     @NotNull
     @Override
     public DBNConnection getMainConnection(@Nullable SchemaId schemaId) {
-        throw new UnsupportedOperationException();
+        return unsupported();
     }
 
     @Override
@@ -293,14 +309,14 @@ public class VirtualConnectionHandler extends StatefulDisposable.Base implements
     }
 
     @Override
-    public boolean hasPendingTransactions(@NotNull DBNConnection connection) {
+    public boolean hasPendingTransactions(@NotNull DBNConnection conn) {
         return false;
     }
 
     @NotNull
     @Override
     public AuthenticationInfo getTemporaryAuthenticationInfo() {
-        throw new UnsupportedOperationException();
+        return unsupported();
     }
 
     @Override
@@ -316,13 +332,13 @@ public class VirtualConnectionHandler extends StatefulDisposable.Base implements
     @Override
     @NotNull
     public ConnectionBundle getConnectionBundle() {
-        throw new UnsupportedOperationException();
+        return unsupported();
     }
 
     @Override
     @NotNull
     public ConnectionPool getConnectionPool() {
-        throw new UnsupportedOperationException();
+        return unsupported();
     }
 
     @Override
@@ -356,25 +372,25 @@ public class VirtualConnectionHandler extends StatefulDisposable.Base implements
     @Override
     @NotNull
     public DBSessionBrowserVirtualFile getSessionBrowserFile() {
-        throw new UnsupportedOperationException();
+        return unsupported();
     }
 
     @NotNull
     @Override
     public PsiDirectory getPsiDirectory() {
-        throw new UnsupportedOperationException();
+        return unsupported();
     }
 
     @NotNull
     @Override
     public DatabaseConsoleBundle getConsoleBundle() {
-        throw new UnsupportedOperationException();
+        return unsupported();
     }
 
     @NotNull
     @Override
     public DatabaseSessionBundle getSessionBundle() {
-        throw new UnsupportedOperationException();
+        return unsupported();
     }
 
     @Override
@@ -404,6 +420,11 @@ public class VirtualConnectionHandler extends StatefulDisposable.Base implements
     @Override
     public StatementExecutionQueue getExecutionQueue(SessionId sessionId) {
         return null;
+    }
+
+    @Override
+    public String getDebuggerVersion() {
+        return "Unknown";
     }
 
     @Override

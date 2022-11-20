@@ -3,7 +3,7 @@ package com.dci.intellij.dbn.database.sqlite.adapter;
 import com.dci.intellij.dbn.common.cache.Cache;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.util.Strings;
-import com.dci.intellij.dbn.database.DatabaseInterface;
+import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.database.common.util.ResultSetStub;
 
 import java.sql.SQLException;
@@ -15,7 +15,7 @@ public class SqliteMetadataResultSet<T extends SqliteMetadataResultSetRow>
         extends StatefulDisposable.Base
         implements ResultSetStub {
 
-    private List<T> rows = new ArrayList<T>();
+    private final List<T> rows = new ArrayList<T>();
     private int cursor = -1;
 
     @Override
@@ -57,7 +57,7 @@ public class SqliteMetadataResultSet<T extends SqliteMetadataResultSetRow>
     }
 
     protected static Cache cache() {
-        return DatabaseInterface.cache();
+        return ConnectionHandler.local().getMetaDataCache();
     }
 
     @Override

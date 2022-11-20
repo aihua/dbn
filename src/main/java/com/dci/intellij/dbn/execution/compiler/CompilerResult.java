@@ -3,10 +3,13 @@ package com.dci.intellij.dbn.execution.compiler;
 import com.dci.intellij.dbn.common.message.MessageType;
 import com.dci.intellij.dbn.common.notification.NotificationGroup;
 import com.dci.intellij.dbn.common.notification.NotificationSupport;
+import com.dci.intellij.dbn.common.util.Naming;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.Resources;
-import com.dci.intellij.dbn.database.DatabaseInterface;
+import com.dci.intellij.dbn.database.interfaces.DatabaseInterfaceInvoker;
+import com.dci.intellij.dbn.database.interfaces.DatabaseMetadataInterface;
+import com.dci.intellij.dbn.database.interfaces.queue.InterfaceTaskDefinition;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
@@ -14,6 +17,7 @@ import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
+import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
 import java.sql.ResultSet;
@@ -22,8 +26,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class CompilerResult implements Disposable, NotificationSupport {
+import static com.dci.intellij.dbn.common.Priority.HIGH;
 
+@Getter
+public class CompilerResult implements Disposable, NotificationSupport {
     private final DBObjectRef<DBSchemaObject> object;
     private final List<CompilerMessage> compilerMessages = new ArrayList<>();
     private CompilerAction compilerAction;
@@ -31,12 +37,12 @@ public class CompilerResult implements Disposable, NotificationSupport {
 
     public CompilerResult(CompilerAction compilerAction, ConnectionHandler connection, DBSchema schema, DBObjectType objectType, String objectName) {
         object = new DBObjectRef<>(schema.ref(), objectType, objectName);
-        init(connection, schema, objectName, compilerAction);
+        init(connection, schema, objectName, objectType, compilerAction);
     }
 
     public CompilerResult(CompilerAction compilerAction, DBSchemaObject object) {
         this.object = DBObjectRef.of(object);
-        init(object.getConnection(), object.getSchema(), object.getName(), compilerAction);
+        init(object.getConnection(), object.getSchema(), object.getName(), object.getObjectType(), compilerAction);
     }
 
     public CompilerResult(CompilerAction compilerAction, DBSchemaObject object, DBContentType contentType, String errorMessage) {
@@ -46,32 +52,36 @@ public class CompilerResult implements Disposable, NotificationSupport {
         compilerMessages.add(compilerMessage);
     }
 
-    private void init(ConnectionHandler connection, DBSchema schema, String objectName, CompilerAction compilerAction) {
+    private void init(ConnectionHandler connection, DBSchema schema, String objectName, DBObjectType objectType, CompilerAction compilerAction) {
         this.compilerAction = compilerAction;
         DBContentType contentType = compilerAction.getContentType();
 
         try {
-            DatabaseInterface.run(true,
-                    connection,
-                    (provider, conn) -> {
-                        ResultSet resultSet = null;
-                        try {
-                            resultSet = provider.getMetadataInterface().loadCompileObjectErrors(
-                                    schema.getName(),
-                                    objectName,
-                                    conn);
+            InterfaceTaskDefinition taskDefinition = InterfaceTaskDefinition.create(HIGH,
+                    "Loading compiler data",
+                    "Loading compile results for " + Naming.getQualifiedObjectName(objectType, objectName, schema),
+                    connection.getInterfaceContext());
 
-                            while (resultSet != null && resultSet.next()) {
-                                CompilerMessage errorMessage = new CompilerMessage(this, resultSet);
-                                error = true;
-                                if (/*!compilerAction.isDDL() || */contentType.isBundle() || contentType == errorMessage.getContentType()) {
-                                    compilerMessages.add(errorMessage);
-                                }
-                            }
-                        } finally{
-                            Resources.close(resultSet);
+            DatabaseInterfaceInvoker.execute(taskDefinition, conn -> {
+                ResultSet resultSet = null;
+                try {
+                    DatabaseMetadataInterface metadata = connection.getMetadataInterface();
+                    resultSet = metadata.loadCompileObjectErrors(
+                            schema.getName(),
+                            objectName,
+                            conn);
+
+                    while (resultSet != null && resultSet.next()) {
+                        CompilerMessage errorMessage = new CompilerMessage(this, resultSet);
+                        error = true;
+                        if (/*!compilerAction.isDDL() || */contentType.isBundle() || contentType == errorMessage.getContentType()) {
+                            compilerMessages.add(errorMessage);
                         }
-                    });
+                    }
+                } finally {
+                    Resources.close(resultSet);
+                }
+            });
         } catch (SQLException e) {
             sendErrorNotification(
                     NotificationGroup.COMPILER,
@@ -92,21 +102,8 @@ public class CompilerResult implements Disposable, NotificationSupport {
         }
     }
 
-    public CompilerAction getCompilerAction() {
-        return compilerAction;
-    }
-
-    public boolean isError() {
-        return error;
-    }
-
     public boolean isSingleMessage() {
         return compilerMessages.size() == 1;
-    }
-
-
-    public List<CompilerMessage> getCompilerMessages() {
-        return compilerMessages;
     }
 
     @Nullable

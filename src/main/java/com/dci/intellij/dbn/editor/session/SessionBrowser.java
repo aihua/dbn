@@ -1,12 +1,13 @@
 package com.dci.intellij.dbn.editor.session;
 
 import com.dci.intellij.dbn.common.action.DataKeys;
+import com.dci.intellij.dbn.common.dispose.Checks;
 import com.dci.intellij.dbn.common.dispose.DisposableUserDataHolderBase;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
+import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.Dispatch;
-import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.ui.util.UserInterface;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -90,34 +91,33 @@ public class SessionBrowser extends DisposableUserDataHolderBase implements File
     }
 
     public void loadSessions(boolean force) {
-        if (shouldLoad(force)) {
-            ConnectionAction.invoke("loading the sessions", false, this,
-                    action -> Progress.background(getProject(), "Loading sessions", false,
-                            progress -> {
-                                if (shouldLoad(force)) {
-                                    DBSessionBrowserVirtualFile databaseFile = getDatabaseFile();
-                                    try {
-                                        setLoading(true);
-                                        SessionBrowserManager sessionBrowserManager = SessionBrowserManager.getInstance(getProject());
-                                        SessionBrowserModel model = sessionBrowserManager.loadSessions(databaseFile);
-                                        replaceModel(model);
-                                    } finally {
-                                        ProjectEvents.notify(getProject(),
-                                                SessionBrowserLoadListener.TOPIC,
-                                                (listener) -> listener.sessionsLoaded(databaseFile));
-                                        setLoading(false);
-                                    }
-                                }
-                            }),
-                    cancel -> {
+        if (!canLoad(force)) return;
+
+        ConnectionAction.invoke("loading the sessions", false, this,
+                action -> Background.run(() -> {
+                    if (!canLoad(force)) return;
+
+                    DBSessionBrowserVirtualFile databaseFile = getDatabaseFile();
+                    try {
+                        setLoading(true);
+                        SessionBrowserManager sessionBrowserManager = SessionBrowserManager.getInstance(getProject());
+                        SessionBrowserModel model = sessionBrowserManager.loadSessions(databaseFile);
+                        replaceModel(model);
+                    } finally {
+                        ProjectEvents.notify(getProject(),
+                                SessionBrowserLoadListener.TOPIC,
+                                (listener) -> listener.sessionsLoaded(databaseFile));
                         setLoading(false);
-                        setRefreshInterval(0);
-                    },
-                    null);
-        }
+                    }
+                }),
+                cancel -> {
+                    setLoading(false);
+                    setRefreshInterval(0);
+                },
+                null);
     }
 
-    private boolean shouldLoad(boolean force) {
+    private boolean canLoad(boolean force) {
         return !loading && !isPreventLoading(force);
     }
 
@@ -152,7 +152,7 @@ public class SessionBrowser extends DisposableUserDataHolderBase implements File
     }
 
     void refreshLoadTimestamp() {
-        if (Failsafe.check(browserForm)) {
+        if (Checks.isValid(browserForm)) {
             browserForm.refreshLoadTimestamp();
         }
     }

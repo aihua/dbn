@@ -14,6 +14,7 @@ import com.dci.intellij.dbn.common.consumer.ListCollector;
 import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
+import com.dci.intellij.dbn.common.dispose.Checks;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
@@ -25,8 +26,8 @@ import com.dci.intellij.dbn.common.util.*;
 import com.dci.intellij.dbn.connection.*;
 import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
 import com.dci.intellij.dbn.connection.jdbc.DBNCallableStatement;
-import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
 import com.dci.intellij.dbn.database.common.metadata.DBObjectMetadata;
+import com.dci.intellij.dbn.database.interfaces.DatabaseCompatibilityInterface;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
@@ -213,8 +214,8 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
                 String identifierQuotes = connection.getCompatibility().getIdentifierQuote();
                 return identifierQuotes + name + identifierQuotes;
             } else {
-                DatabaseCompatibilityInterface compatibilityInterface = DatabaseCompatibilityInterface.getInstance(this);
-                QuotePair quotes = compatibilityInterface.getDefaultIdentifierQuotes();
+                DatabaseCompatibilityInterface compatibility = getCompatibilityInterface();
+                QuotePair quotes = compatibility.getDefaultIdentifierQuotes();
                 return quotes.quote(name);
             }
         } else {
@@ -298,14 +299,6 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
     public DBObjectAttribute[] getObjectAttributes(){return null;}
     @Override
     public DBObjectAttribute getNameAttribute(){return null;}
-
-    @NotNull
-    @Override
-    public DBObjectBundle getObjectBundle() {
-        ConnectionHandler connection = this.getConnection();
-        return connection.getObjectBundle();
-    }
-
 
     @NotNull
     @Override
@@ -448,7 +441,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
                 if (elements != null) {
                     for (DBObjectList<?> objectList : elements) {
                         CancellableConsumer.checkCancelled(consumer);
-                        if (!objectList.isInternal() && Failsafe.check(objectList)) {
+                        if (!objectList.isInternal() && Checks.isValid(objectList)) {
                             objectList.collectObjects(consumer);
                         }
                     }
@@ -485,50 +478,46 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
     @Override
     @NotNull
     public LookupItemBuilder getLookupItemBuilder(DBLanguage language) {
-        DBObjectBundle objectBundle = Failsafe.nn(getObjectBundle());
-        return objectBundle.getLookupItemBuilder(objectRef, language);
+        return getObjectBundle().getLookupItemBuilder(objectRef, language);
     }
 
     @Override
     @NotNull
     public DBObjectPsiCache getPsiCache() {
-        DBObjectBundle objectBundle = Failsafe.nn(getObjectBundle());
-        return objectBundle.getObjectPsiCache(ref());
+        return getObjectBundle().getObjectPsiCache(ref());
     }
 
     @Override
     @NotNull
     public DBObjectVirtualFile<?> getVirtualFile() {
-        DBObjectBundle objectBundle = Failsafe.nn(getObjectBundle());
-        return objectBundle.getObjectVirtualFile(ref());
+        return getObjectBundle().getObjectVirtualFile(ref());
     }
 
     @Override
     public String extractDDL() throws SQLException {
         // TODO move to database interface (ORACLE)
-        return PooledConnection.call(true,
-                getConnection(),
-                connection -> {
-                    DBNCallableStatement statement = null;
-                    try {
-                        DBObjectType objectType = getObjectType();
-                        DBObjectType genericType = objectType.getGenericType();
-                        objectType = genericType == DBObjectType.TRIGGER ? genericType : objectType;
-                        String objectTypeName = objectType.getName().toUpperCase();
+        ConnectionHandler connection = getConnection();
+        return PooledConnection.call(connection.getInterfaceContext(), conn -> {
+            DBNCallableStatement statement = null;
+            try {
+                DBObjectType objectType = getObjectType();
+                DBObjectType genericType = objectType.getGenericType();
+                objectType = genericType == DBObjectType.TRIGGER ? genericType : objectType;
+                String objectTypeName = objectType.getName().toUpperCase();
 
-                        statement = connection.prepareCall("{? = call DBMS_METADATA.GET_DDL(?, ?, ?)}");
-                        statement.registerOutParameter(1, Types.CLOB);
-                        statement.setString(2, objectTypeName);
-                        statement.setString(3, getName());
-                        statement.setString(4, getSchema().getName());
+                statement = conn.prepareCall("{? = call DBMS_METADATA.GET_DDL(?, ?, ?)}");
+                statement.registerOutParameter(1, Types.CLOB);
+                statement.setString(2, objectTypeName);
+                statement.setString(3, getName());
+                statement.setString(4, getSchema().getName());
 
-                        statement.execute();
-                        String ddl = statement.getString(1);
-                        return ddl == null ? null : ddl.trim();
-                    } finally{
-                        Resources.close(statement);
-                    }
-                });
+                statement.execute();
+                String ddl = statement.getString(1);
+                return ddl == null ? null : ddl.trim();
+            } finally {
+                Resources.close(statement);
+            }
+        });
     }
 
     @Override
@@ -654,8 +643,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
                 }
             }
         } else {
-            DBObjectBundle objectBundle = getObjectBundle();
-            DBObjectList<?> parentObjectList = objectBundle.getObjectList(objectType);
+            DBObjectList<?> parentObjectList = getObjectBundle().getObjectList(objectType);
             return Failsafe.nn(parentObjectList);
         }
         throw AlreadyDisposedException.INSTANCE;

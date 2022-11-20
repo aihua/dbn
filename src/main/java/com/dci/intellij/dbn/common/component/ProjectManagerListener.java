@@ -3,7 +3,6 @@ package com.dci.intellij.dbn.common.component;
 import com.dci.intellij.dbn.common.compatibility.Compatibility;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.project.ProjectManager;
-import com.intellij.openapi.project.VetoableProjectManagerListener;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
@@ -23,8 +22,7 @@ public interface ProjectManagerListener {
         if (projectComponent instanceof ProjectManagerListener) {
 
             ProjectManagerListener listener = (ProjectManagerListener) projectComponent;
-            VetoableProjectManagerListener projectManagerListener = new VetoableProjectManagerListener() {
-                @Override
+            com.intellij.openapi.project.ProjectManagerListener projectManagerListener = new com.intellij.openapi.project.ProjectManagerListener() {
                 public boolean canClose(@NotNull Project project) {
                     return !isSupported(project) || listener.canCloseProject();
                 }

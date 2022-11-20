@@ -14,10 +14,10 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionRef;
 import com.dci.intellij.dbn.connection.context.ConnectionProvider;
 import com.dci.intellij.dbn.connection.operation.options.OperationSettings;
-import com.dci.intellij.dbn.database.DatabaseDebuggerInterface;
-import com.dci.intellij.dbn.database.DatabaseFeature;
-import com.dci.intellij.dbn.database.DatabaseInterface;
 import com.dci.intellij.dbn.database.common.debug.DebuggerVersionInfo;
+import com.dci.intellij.dbn.database.interfaces.DatabaseDebuggerInterface;
+import com.dci.intellij.dbn.database.interfaces.DatabaseInterfaceInvoker;
+import com.dci.intellij.dbn.database.interfaces.queue.InterfaceTaskDefinition;
 import com.dci.intellij.dbn.debugger.common.breakpoint.DBBreakpointUpdaterFileEditorListener;
 import com.dci.intellij.dbn.debugger.common.config.*;
 import com.dci.intellij.dbn.debugger.common.process.DBProgramRunner;
@@ -62,9 +62,11 @@ import org.jetbrains.annotations.Nullable;
 import java.sql.SQLException;
 import java.util.*;
 
+import static com.dci.intellij.dbn.common.Priority.HIGHEST;
 import static com.dci.intellij.dbn.common.component.Components.projectService;
 import static com.dci.intellij.dbn.common.message.MessageCallback.when;
 import static com.dci.intellij.dbn.common.util.Commons.list;
+import static com.dci.intellij.dbn.database.DatabaseFeature.DEBUGGING;
 
 @State(
     name = DatabaseDebuggerManager.COMPONENT_NAME,
@@ -382,11 +384,11 @@ public class DatabaseDebuggerManager extends ProjectComponentBase implements Per
         DBUser user = objectBundle.getUser(userName);
 
         if (user != null) {
-            String[] privilegeNames = connection.getInterfaceProvider().getDebuggerInterface().getRequiredPrivilegeNames();
+            String[] privilegeNames = connection.getDebuggerInterface().getRequiredPrivilegeNames();
 
             for (String privilegeName : privilegeNames) {
                 DBSystemPrivilege systemPrivilege = objectBundle.getSystemPrivilege(privilegeName);
-                if (systemPrivilege == null || !user.hasSystemPrivilege(systemPrivilege))  {
+                if (systemPrivilege == null || !user.hasPrivilege(systemPrivilege))  {
                     missingPrivileges.add(privilegeName);
                 }
             }
@@ -402,22 +404,30 @@ public class DatabaseDebuggerManager extends ProjectComponentBase implements Per
     };
 
     public String getDebuggerVersion(@NotNull ConnectionHandler connection) {
-        if (DatabaseFeature.DEBUGGING.isSupported(connection)) {
-            try {
-                return DatabaseInterface.call(true,
-                        connection,
-                        (provider, conn) -> {
-                            DatabaseDebuggerInterface debuggerInterface = provider.getDebuggerInterface();
-                            DebuggerVersionInfo debuggerVersion = debuggerInterface.getDebuggerVersion(conn);
-                            return debuggerVersion.getVersion();
-                        });
-            } catch (SQLException e) {
-                sendErrorNotification(
-                        NotificationGroup.DEBUGGER,
-                        "Failed to load debugger version: {0}", e);
-            }
+        return loadDebuggerVersion(connection);
+    }
+
+    private String loadDebuggerVersion(@NotNull ConnectionHandler connection) {
+        if (!DEBUGGING.isSupported(connection)) return "Unknown";
+
+        try {
+            InterfaceTaskDefinition taskDefinition = InterfaceTaskDefinition.create(HIGHEST,
+                    "Loading metadata",
+                    "Loading debugger version",
+                    connection.getInterfaceContext());
+
+            return DatabaseInterfaceInvoker.load(taskDefinition, conn -> {
+                DatabaseDebuggerInterface debuggerInterface = connection.getDebuggerInterface();
+                DebuggerVersionInfo debuggerVersion = debuggerInterface.getDebuggerVersion(conn);
+                return debuggerVersion.getVersion();
+            });
+        } catch (SQLException e) {
+            sendErrorNotification(
+                    NotificationGroup.DEBUGGER,
+                    "Failed to load debugger version: {0}", e);
+
+            return "Unknown";
         }
-        return "Unknown";
     }
 
     /*********************************************

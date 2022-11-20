@@ -3,14 +3,14 @@ package com.dci.intellij.dbn.object.common;
 import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentResultSetLoader;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.PooledConnection;
 import com.dci.intellij.dbn.connection.Resources;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
-import com.dci.intellij.dbn.database.DatabaseDDLInterface;
-import com.dci.intellij.dbn.database.DatabaseInterface;
-import com.dci.intellij.dbn.database.DatabaseMetadataInterface;
 import com.dci.intellij.dbn.database.common.metadata.DBObjectMetadata;
 import com.dci.intellij.dbn.database.common.metadata.def.DBObjectDependencyMetadata;
+import com.dci.intellij.dbn.database.interfaces.DatabaseDataDefinitionInterface;
+import com.dci.intellij.dbn.database.interfaces.DatabaseInterfaceInvoker;
+import com.dci.intellij.dbn.database.interfaces.DatabaseMetadataInterface;
+import com.dci.intellij.dbn.database.interfaces.queue.InterfaceTaskDefinition;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.psql.PSQLLanguage;
@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import static com.dci.intellij.dbn.common.Priority.HIGHEST;
 import static com.dci.intellij.dbn.common.content.DynamicContentProperty.DEPENDENCY;
 import static com.dci.intellij.dbn.common.content.DynamicContentProperty.INTERNAL;
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.*;
@@ -130,41 +131,48 @@ public abstract class DBSchemaObjectImpl<M extends DBObjectMetadata> extends DBO
 
     @Override
     public List<DBSchema> getReferencingSchemas() throws SQLException {
-        return DatabaseInterface.call(
-                true,
-                getConnection(),
-                (provider, connection) -> {
-                    List<DBSchema> schemas = new ArrayList<>();
-                    ResultSet resultSet = null;
-                    try {
-                        DBSchema schema1 = getSchema();
-                        DatabaseMetadataInterface metadataInterface = provider.getMetadataInterface();
-                        resultSet = metadataInterface.loadReferencingSchemas(schema1.getName(), getName(), connection);
-                        DBObjectBundle objectBundle = getConnection().getObjectBundle();
-                        while (resultSet.next()) {
-                            String schemaName = resultSet.getString("SCHEMA_NAME");
-                            DBSchema schema = objectBundle.getSchema(schemaName);
-                            if (schema != null)  {
-                                schemas.add(schema);
-                            }
-                        }
-                        if (schemas.isEmpty()) {
-                            schemas.add(schema1);
-                        }
+        InterfaceTaskDefinition taskDefinition = InterfaceTaskDefinition.create(HIGHEST,
+                "Loading data dictionary",
+                "Loading schema references for " + getQualifiedNameWithType(),
+                getInterfaceContext());
 
-                    } finally {
-                        Resources.close(resultSet);
+        return DatabaseInterfaceInvoker.load(taskDefinition, conn -> {
+            List<DBSchema> schemas = new ArrayList<>();
+            ResultSet resultSet = null;
+            try {
+                DBSchema schema = getSchema();
+                DatabaseMetadataInterface metadataInterface = getMetadataInterface();
+                resultSet = metadataInterface.loadReferencingSchemas(schema.getName(), getName(), conn);
+                DBObjectBundle objectBundle = getObjectBundle();
+                while (resultSet.next()) {
+                    String schemaName = resultSet.getString("SCHEMA_NAME");
+                    DBSchema sch = objectBundle.getSchema(schemaName);
+                    if (sch != null) {
+                        schemas.add(sch);
                     }
-                    return schemas;
-                });
+                }
+                if (schemas.isEmpty()) {
+                    schemas.add(schema);
+                }
+
+            } finally {
+                Resources.close(resultSet);
+            }
+            return schemas;
+        });
     }
 
     @Override
     public void executeUpdateDDL(DBContentType contentType, String oldCode, String newCode) throws SQLException {
-        ConnectionHandler connection = this.getConnection();
-        PooledConnection.run(false, connection, getSchemaId(), conn -> {
-            DatabaseDDLInterface ddlInterface = connection.getInterfaceProvider().getDdlInterface();
-            ddlInterface.updateObject(getName(), getObjectType().getName(), oldCode,  newCode, conn);
+        InterfaceTaskDefinition taskDefinition = InterfaceTaskDefinition.create(HIGHEST,
+                "Updating source code",
+                "Updating sources of " + getQualifiedNameWithType(),
+                getInterfaceContext());
+
+        DatabaseInterfaceInvoker.execute(taskDefinition, conn -> {
+            ConnectionHandler connection = getConnection();
+            DatabaseDataDefinitionInterface dataDefinition = connection.getDataDefinitionInterface();
+            dataDefinition.updateObject(getName(), getObjectType().getName(), oldCode,  newCode, conn);
         });
     }
 
@@ -193,8 +201,7 @@ public abstract class DBSchemaObjectImpl<M extends DBObjectMetadata> extends DBO
 
                 if (schema == null) {
                     DBSchemaObject schemaObject = content.ensureParentEntity();
-                    ConnectionHandler connection = schemaObject.getConnection();
-                    schema = connection.getObjectBundle().getSchema(objectOwner);
+                    schema = schemaObject.getObjectBundle().getSchema(objectOwner);
                     cache.setObject(objectOwner,  schema);
                 }
 
@@ -222,8 +229,7 @@ public abstract class DBSchemaObjectImpl<M extends DBObjectMetadata> extends DBO
                 DBSchema schema = (DBSchema) cache.getObject(objectOwner);
                 if (schema == null) {
                     DBSchemaObject schemaObject = content.ensureParentEntity();
-                    ConnectionHandler connection = schemaObject.getConnection();
-                    schema = connection.getObjectBundle().getSchema(objectOwner);
+                    schema = schemaObject.getObjectBundle().getSchema(objectOwner);
                     cache.setObject(objectOwner,  schema);
                 }
                 return schema == null ? null : schema.getChildObject(objectType, objectName, (short) 0, true);

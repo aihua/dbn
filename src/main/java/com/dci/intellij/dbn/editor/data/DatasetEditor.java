@@ -19,7 +19,7 @@ import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.connection.transaction.TransactionAction;
 import com.dci.intellij.dbn.connection.transaction.TransactionListener;
 import com.dci.intellij.dbn.data.grid.options.DataGridSettingsChangeListener;
-import com.dci.intellij.dbn.database.DatabaseMessageParserInterface;
+import com.dci.intellij.dbn.database.interfaces.DatabaseMessageParserInterface;
 import com.dci.intellij.dbn.editor.data.filter.DatasetFilter;
 import com.dci.intellij.dbn.editor.data.filter.DatasetFilterManager;
 import com.dci.intellij.dbn.editor.data.filter.DatasetFilterType;
@@ -35,6 +35,7 @@ import com.dci.intellij.dbn.editor.data.ui.DatasetEditorForm;
 import com.dci.intellij.dbn.editor.data.ui.table.DatasetEditorTable;
 import com.dci.intellij.dbn.object.DBDataset;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
+import com.dci.intellij.dbn.vfs.DatabaseFileSystem;
 import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
 import com.intellij.codeHighlighting.BackgroundEditorHighlighter;
 import com.intellij.ide.structureView.StructureViewBuilder;
@@ -337,7 +338,7 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
             checkDisposed();
             focusEditor();
             ConnectionHandler connection = getConnection();
-            DatabaseMessageParserInterface messageParserInterface = connection.getInterfaceProvider().getMessageParserInterface();
+            DatabaseMessageParserInterface messageParserInterface = connection.getMessageParserInterface();
             Project project = getProject();
             DatasetFilterManager filterManager = DatasetFilterManager.getInstance(project);
 
@@ -508,7 +509,7 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
 
     public boolean isEditable() {
         DatasetEditorModel tableModel = getTableModel();
-        ConnectionHandler connection = tableModel.getConnectionHandler();
+        ConnectionHandler connection = tableModel.getConnection();
         return tableModel.isEditable() && connection.isConnected(SessionId.MAIN);
     }
 
@@ -669,6 +670,8 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
 
     @Override
     public String toString() {
+        DBEditableObjectVirtualFile databaseFile = this.databaseFile;
+        if (databaseFile == null) return DatabaseFileSystem.createObjectPath(dataset);
         return databaseFile.getPath();
     }
 

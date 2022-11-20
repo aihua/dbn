@@ -3,13 +3,8 @@ package com.dci.intellij.dbn.object.impl;
 import com.dci.intellij.dbn.browser.DatabaseBrowserUtils;
 import com.dci.intellij.dbn.browser.model.BrowserTreeNode;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.database.DatabaseCompatibilityInterface;
 import com.dci.intellij.dbn.database.common.metadata.def.DBRoleMetadata;
-import com.dci.intellij.dbn.object.DBGrantedPrivilege;
-import com.dci.intellij.dbn.object.DBGrantedRole;
-import com.dci.intellij.dbn.object.DBPrivilege;
-import com.dci.intellij.dbn.object.DBRole;
-import com.dci.intellij.dbn.object.DBUser;
+import com.dci.intellij.dbn.object.*;
 import com.dci.intellij.dbn.object.common.DBObjectBundle;
 import com.dci.intellij.dbn.object.common.DBObjectImpl;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
@@ -24,6 +19,7 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.ROOT_OBJECT;
 import static com.dci.intellij.dbn.object.type.DBObjectRelationType.ROLE_PRIVILEGE;
@@ -75,7 +71,7 @@ public class DBRoleImpl extends DBObjectImpl<DBRoleMetadata> implements DBRole {
     @Override
     public List<DBUser> getUserGrantees() {
         List<DBUser> grantees = new ArrayList<>();
-        List<DBUser> users = this.getConnection().getObjectBundle().getUsers();
+        List<DBUser> users = getObjectBundle().getUsers();
         if (users != null) {
             for (DBUser user : users) {
                 if (user.hasRole(this)) {
@@ -89,7 +85,7 @@ public class DBRoleImpl extends DBObjectImpl<DBRoleMetadata> implements DBRole {
     @Override
     public List<DBRole> getRoleGrantees() {
         List<DBRole> grantees = new ArrayList<>();
-        List<DBRole> roles = this.getConnection().getObjectBundle().getRoles();
+        List<DBRole> roles = getObjectBundle().getRoles();
         if (roles != null) {
             for (DBRole role : roles) {
                 if (role.hasRole(this)) {
@@ -103,12 +99,12 @@ public class DBRoleImpl extends DBObjectImpl<DBRoleMetadata> implements DBRole {
     @Override
     public boolean hasPrivilege(DBPrivilege privilege) {
         for (DBGrantedPrivilege rolePrivilege : getPrivileges()) {
-            if (rolePrivilege.getPrivilege().equals(privilege)) {
+            if (Objects.equals(rolePrivilege.getPrivilege(), privilege)) {
                 return true;
             }
         }
         for (DBGrantedRole inheritedRole : getGrantedRoles()) {
-            if (inheritedRole.getRole().hasPrivilege(privilege)) {
+            if (inheritedRole.hasPrivilege(privilege)) {
                 return true;
             }
         }
@@ -118,7 +114,7 @@ public class DBRoleImpl extends DBObjectImpl<DBRoleMetadata> implements DBRole {
     @Override
     public boolean hasRole(DBRole role) {
         for (DBGrantedRole inheritedRole : getGrantedRoles()) {
-            if (inheritedRole.getRole().equals(role)) {
+            if (Objects.equals(inheritedRole.getRole(), role)) {
                 return true;
             }
         }
@@ -130,8 +126,7 @@ public class DBRoleImpl extends DBObjectImpl<DBRoleMetadata> implements DBRole {
         List<DBObjectNavigationList> navigationLists = new LinkedList<>();
         navigationLists.add(DBObjectNavigationList.create("User grantees", getUserGrantees()));
 
-        DatabaseCompatibilityInterface compatibilityInterface = getConnection().getInterfaceProvider().getCompatibilityInterface();
-        if (compatibilityInterface.supportsObjectType(ROLE.getTypeId())) {
+        if (ROLE.isSupported(this)) {
             navigationLists.add(DBObjectNavigationList.create("Role grantees", getRoleGrantees()));
         }
         return navigationLists;

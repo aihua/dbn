@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.component.Components;
 import com.dci.intellij.dbn.common.component.PersistentState;
 import com.dci.intellij.dbn.common.component.ProjectComponentBase;
+import com.dci.intellij.dbn.common.component.ProjectManagerListener;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.thread.Dispatch;
@@ -31,12 +32,11 @@ import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
-import com.intellij.openapi.project.DumbAwareRunnable;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.startup.StartupManager;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.util.containers.ContainerUtil;
 import lombok.Getter;
+import lombok.Setter;
 import lombok.val;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
@@ -52,12 +52,12 @@ import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
     storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 @Getter
-public class DatabaseFileManager extends ProjectComponentBase implements PersistentState {
+@Setter
+public class DatabaseFileManager extends ProjectComponentBase implements PersistentState, ProjectManagerListener {
     public static final String COMPONENT_NAME = "DBNavigator.Project.DatabaseFileManager";
 
     private final Set<DBObjectVirtualFile<?>> openFiles = ContainerUtil.newConcurrentSet();
     private Map<ConnectionId, List<DBObjectRef<DBSchemaObject>>> pendingOpenFiles = new HashMap<>();
-    private boolean projectInitialized = false;
     private final String sessionId;
 
     private DatabaseFileManager(@NotNull Project project) {
@@ -70,17 +70,6 @@ public class DatabaseFileManager extends ProjectComponentBase implements Persist
                 ConnectionConfigListener.TOPIC,
                 ConnectionConfigListener.whenChangedOrRemoved(id -> closeFiles(id)));
 
-/*
-        StartupManager.getInstance(project).registerPreStartupActivity(new Runnable() {
-            @Override
-            public void run() {
-                projectInitializing = true;
-            }
-        });
-*/
-        StartupManager startupManager = StartupManager.getInstance(project);
-        startupManager.registerPostStartupActivity((DumbAwareRunnable) () -> projectInitialized = true);
-        startupManager.registerPostStartupActivity((DumbAwareRunnable) () -> reopenDatabaseEditors());
     }
 
     public static DatabaseFileManager getInstance(@NotNull Project project) {
@@ -225,8 +214,8 @@ public class DatabaseFileManager extends ProjectComponentBase implements Persist
         Element stateElement = new Element("state");
         Element openFilesElement = new Element("open-files");
         stateElement.addContent(openFilesElement);
-        for (DBObjectVirtualFile openFile : openFiles) {
-            DBObjectRef<DBSchemaObject> objectRef = openFile.getObjectRef();
+        for (DBObjectVirtualFile<?> openFile : openFiles) {
+            DBObjectRef<?> objectRef = openFile.getObjectRef();
             Element fileElement = new Element("object");
             objectRef.writeState(fileElement);
             openFilesElement.addContent(fileElement);
@@ -251,25 +240,24 @@ public class DatabaseFileManager extends ProjectComponentBase implements Persist
         }
     }
 
-    private void reopenDatabaseEditors() {
+    public void reopenDatabaseEditors() {
+        if (pendingOpenFiles == null || pendingOpenFiles.isEmpty()) return;
+
+        // overwrite and nullify
+        val pendingOpenFiles = this.pendingOpenFiles;
+        this.pendingOpenFiles = null;
+
         Project project = getProject();
-        if (pendingOpenFiles != null && !pendingOpenFiles.isEmpty()) {
-            Map<ConnectionId, List<DBObjectRef<DBSchemaObject>>> pendingOpenFiles = this.pendingOpenFiles;
-            this.pendingOpenFiles = null;
+        ConnectionManager connectionManager = ConnectionManager.getInstance(project);
+        for (val entry : pendingOpenFiles.entrySet()) {
+            ConnectionId connectionId = entry.getKey();
+            ConnectionHandler connection = connectionManager.getConnection(connectionId);
+            if (connection == null) continue;
 
-            ConnectionManager connectionManager = ConnectionManager.getInstance(project);
-            for (val entry : pendingOpenFiles.entrySet()) {
-                ConnectionId connectionId = entry.getKey();
-                val objectRefs = entry.getValue();
+            ConnectionDetailSettings connectionDetailSettings = connection.getSettings().getDetailSettings();
+            if (!connectionDetailSettings.isRestoreWorkspace()) continue;
 
-                ConnectionHandler connection = connectionManager.getConnection(connectionId);
-                if (connection != null) {
-                    ConnectionDetailSettings connectionDetailSettings = connection.getSettings().getDetailSettings();
-                    if (connectionDetailSettings.isRestoreWorkspace()) {
-                        reopenDatabaseEditors(objectRefs, connection);
-                    }
-                }
-            }
+            reopenDatabaseEditors(entry.getValue(), connection);
         }
     }
 

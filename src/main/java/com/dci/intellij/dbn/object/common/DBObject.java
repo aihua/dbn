@@ -11,6 +11,7 @@ import com.dci.intellij.dbn.common.property.PropertyHolder;
 import com.dci.intellij.dbn.common.util.Consumer;
 import com.dci.intellij.dbn.connection.PresentableConnectionProvider;
 import com.dci.intellij.dbn.connection.SchemaId;
+import com.dci.intellij.dbn.database.interfaces.DatabaseInterfaceContext;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
@@ -28,7 +29,7 @@ import com.dci.intellij.dbn.vfs.file.DBObjectVirtualFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import javax.swing.Icon;
+import javax.swing.*;
 import java.sql.SQLException;
 import java.util.List;
 
@@ -75,7 +76,6 @@ public interface DBObject extends
 
     DBObject getParentObject();
 
-    @NotNull DBObjectBundle getObjectBundle();
     @Nullable DBObject getDefaultNavigationObject();
 
     @NotNull
@@ -135,5 +135,9 @@ public interface DBObject extends
     @Override
     default DynamicContentType<?> getDynamicContentType() {
         return getObjectType();
+    }
+
+    default DatabaseInterfaceContext getInterfaceContext() {
+        return DatabaseInterfaceContext.create(getConnection(), getSchemaId(), true);
     }
 }

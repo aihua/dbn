@@ -4,19 +4,22 @@ import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.browser.DatabaseBrowserManager;
 import com.dci.intellij.dbn.common.component.PersistentState;
 import com.dci.intellij.dbn.common.component.ProjectComponentBase;
+import com.dci.intellij.dbn.common.component.ProjectManagerListener;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.database.DatabaseInfo;
-import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
+import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.message.MessageCallback;
-import com.dci.intellij.dbn.common.option.InteractiveOptionBroker;
 import com.dci.intellij.dbn.common.routine.ParametricRunnable;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
-import com.dci.intellij.dbn.common.util.*;
+import com.dci.intellij.dbn.common.util.Editors;
+import com.dci.intellij.dbn.common.util.Lists;
+import com.dci.intellij.dbn.common.util.Strings;
+import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.dci.intellij.dbn.connection.config.ConnectionConfigListener;
 import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSettings;
@@ -27,8 +30,6 @@ import com.dci.intellij.dbn.connection.jdbc.ResourceStatus;
 import com.dci.intellij.dbn.connection.mapping.FileConnectionContextManager;
 import com.dci.intellij.dbn.connection.transaction.DatabaseTransactionManager;
 import com.dci.intellij.dbn.connection.transaction.TransactionAction;
-import com.dci.intellij.dbn.connection.transaction.TransactionOption;
-import com.dci.intellij.dbn.connection.transaction.options.TransactionManagerSettings;
 import com.dci.intellij.dbn.connection.transaction.ui.IdleConnectionDialog;
 import com.dci.intellij.dbn.connection.ui.ConnectionAuthenticationDialog;
 import com.dci.intellij.dbn.execution.ExecutionManager;
@@ -54,9 +55,8 @@ import java.util.TimerTask;
 import java.util.function.Predicate;
 
 import static com.dci.intellij.dbn.common.component.Components.projectService;
+import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
 import static com.dci.intellij.dbn.common.message.MessageCallback.when;
-import static com.dci.intellij.dbn.common.util.Commons.list;
-import static com.dci.intellij.dbn.common.util.Lists.isLast;
 import static com.dci.intellij.dbn.common.util.Messages.*;
 import static com.dci.intellij.dbn.connection.transaction.TransactionAction.actions;
 
@@ -65,7 +65,7 @@ import static com.dci.intellij.dbn.connection.transaction.TransactionAction.acti
     storages = @Storage(DatabaseNavigator.STORAGE_FILE)
 )
 @Slf4j
-public class ConnectionManager extends ProjectComponentBase implements PersistentState {
+public class ConnectionManager extends ProjectComponentBase implements PersistentState, ProjectManagerListener {
 
     public static final String COMPONENT_NAME = "DBNavigator.Project.ConnectionManager";
 
@@ -87,6 +87,11 @@ public class ConnectionManager extends ProjectComponentBase implements Persisten
 
         idleConnectionCleaner = new Timer("DBN - Idle Connection Cleaner");
         idleConnectionCleaner.schedule(new CloseIdleConnectionTask(), TimeUtil.Millis.ONE_MINUTE, TimeUtil.Millis.ONE_MINUTE);
+    }
+
+    @Override
+    public void projectClosed() {
+        ConnectionCache.releaseCache(getProject());
     }
 
     @Override
@@ -112,22 +117,21 @@ public class ConnectionManager extends ProjectComponentBase implements Persisten
 
     private void refreshObjects(ConnectionId connectionId) {
         ConnectionHandler connection = getConnection(connectionId);
-        if (connection != null) {
+        if (connection == null) return;
+
+        Background.run(() -> {
+            connection.resetCompatibilityMonitor();
+            List<TransactionAction> actions = actions(TransactionAction.DISCONNECT);
+
             Project project = getProject();
-            Progress.background(project, "Refreshing database objects", true, progress -> {
-                connection.resetCompatibilityMonitor();
-                List<TransactionAction> actions = actions(TransactionAction.DISCONNECT);
-
-                DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(project);
-                List<DBNConnection> connections = connection.getConnections();
-                for (DBNConnection conn : connections) {
-                    Progress.check(progress);
-                    transactionManager.execute(connection, conn, actions, false, null);
-                }
-                connection.getObjectBundle().getObjectLists().refreshObjects();
-
-            });
-        }
+            DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(project);
+            List<DBNConnection> connections = connection.getConnections();
+            for (DBNConnection conn : connections) {
+                ProgressMonitor.checkCancelled();
+                transactionManager.execute(connection, conn, actions, false, null);
+            }
+            connection.getObjectBundle().getObjectLists().refreshObjects();
+        });
     }
 
     /*********************************************************
@@ -395,30 +399,6 @@ public class ConnectionManager extends ProjectComponentBase implements Persisten
         return false;
     }
 
-    private void commitAll(@Nullable Runnable callback) {
-        DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(getProject());
-
-        List<ConnectionHandler> connections = getConnections(
-                connection -> connection.hasUncommittedChanges());
-
-        for (ConnectionHandler connection : connections) {
-            Runnable commitCallback = isLast(connections, connection) ? callback : null;
-            transactionManager.commit(connection, null, false, false, commitCallback);
-        }
-    }
-
-    private void rollbackAll(@Nullable Runnable callback) {
-        DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(getProject());
-
-        List<ConnectionHandler> connections = getConnections(
-                connection -> connection.hasUncommittedChanges());
-
-        for (ConnectionHandler connection : connections) {
-            Runnable rollbackCallback = isLast(connections, connection) ? callback : null;
-            transactionManager.rollback(connection, null, false, false, rollbackCallback);
-        }
-    }
-
     public boolean isValidConnectionId(ConnectionId connectionId) {
         return getConnection(connectionId) != null;
     }
@@ -427,8 +407,8 @@ public class ConnectionManager extends ProjectComponentBase implements Persisten
         @Override
         public void run() {
             try {
-                List<ConnectionHandler> connections = getConnections();
-                for (ConnectionHandler connection : connections) {
+                if (isNotValid(ConnectionManager.this.getProject())) return;
+                for (ConnectionHandler connection : getConnections()) {
                     resolveIdleStatus(connection);
                 }
             } catch (Exception e){
@@ -438,9 +418,9 @@ public class ConnectionManager extends ProjectComponentBase implements Persisten
 
         private void resolveIdleStatus(ConnectionHandler connection) {
             try {
-                List<TransactionAction> actions = actions(TransactionAction.DISCONNECT_IDLE);
+                if (isNotValid(connection) || isNotValid(connection.getProject())) return;
 
-                Failsafe.nd(connection);
+                List<TransactionAction> actions = actions(TransactionAction.DISCONNECT_IDLE);
                 DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(getProject());
                 List<DBNConnection> connections = connection.getConnections(ConnectionType.MAIN, ConnectionType.SESSION);
 
@@ -488,42 +468,6 @@ public class ConnectionManager extends ProjectComponentBase implements Persisten
                 });
             });
         }
-    }
-
-    /**********************************************
-    *            ProjectManagerListener           *
-    ***********************************************/
-
-    @Override
-    public boolean canCloseProject() {
-        if (!hasUncommittedChanges()) return true;
-
-        boolean exitApp = InternalApi.isAppExitInProgress();
-        Project project = getProject();
-        DatabaseTransactionManager transactionManager = DatabaseTransactionManager.getInstance(project);
-        TransactionManagerSettings transactionManagerSettings = transactionManager.getSettings();
-        InteractiveOptionBroker<TransactionOption> closeProjectOptionHandler = transactionManagerSettings.getCloseProject();
-
-        closeProjectOptionHandler.resolve(
-                list(project.getName()),
-                option -> {
-                    switch (option) {
-                        case COMMIT: {
-                            commitAll(() -> closeProject(exitApp));
-                            break;
-                        }
-                        case ROLLBACK: {
-                            rollbackAll(() -> closeProject(exitApp));
-                            break;
-                        }
-                        case REVIEW_CHANGES: {
-                            transactionManager.showPendingTransactionsOverviewDialog(null);
-                            break;
-                        }
-                    }
-                });
-
-        return false;
     }
 
     /*********************************************************

@@ -1,16 +1,11 @@
 package com.dci.intellij.dbn.common.content.loader;
 
-import com.dci.intellij.dbn.common.content.DynamicContent;
-import com.dci.intellij.dbn.common.content.DynamicContentElement;
-import com.dci.intellij.dbn.common.content.DynamicContentProperty;
-import com.dci.intellij.dbn.common.content.DynamicContentType;
-import com.dci.intellij.dbn.common.content.GroupedDynamicContent;
+import com.dci.intellij.dbn.common.content.*;
 import com.dci.intellij.dbn.common.content.dependency.ContentDependencyAdapter;
 import com.dci.intellij.dbn.common.content.dependency.SubcontentDependencyAdapter;
-import com.dci.intellij.dbn.common.thread.ThreadMonitor;
-import com.dci.intellij.dbn.common.thread.ThreadProperty;
 import com.dci.intellij.dbn.connection.DatabaseEntity;
 import com.dci.intellij.dbn.database.common.metadata.DBObjectMetadata;
+import com.dci.intellij.dbn.database.interfaces.DatabaseInterfaceQueue;
 import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -58,7 +53,7 @@ public class DynamicSubcontentLoader<T extends DynamicContentElement, M extends 
                 alternativeLoader.loadContent(content, false);
 
             } else if (sourceContent instanceof GroupedDynamicContent) {
-                GroupedDynamicContent groupedContent = (GroupedDynamicContent) sourceContent;
+                GroupedDynamicContent<T> groupedContent = (GroupedDynamicContent<T>) sourceContent;
                 DatabaseEntity parent = content.ensureParentEntity();
                 List<T> list = groupedContent.getChildElements(parent);
                 content.setElements(list);
@@ -75,8 +70,12 @@ public class DynamicSubcontentLoader<T extends DynamicContentElement, M extends 
         if (dependencyAdapter.isSourceContentReady()) {
             return false;
         } else {
+            DatabaseInterfaceQueue interfaceQueue = dependencyAdapter.getSourceContent().getConnection().getInterfaceQueue();
+            int maxActiveTasks = interfaceQueue.maxActiveTasks();
+            int count = interfaceQueue.size() + interfaceQueue.counters().running().get();
+
             //ThreadInfo thread = ThreadMonitor.current();
-            if (/*thread.is(ThreadProperty.CODE_ANNOTATING) || */ThreadMonitor.getProcessCount(ThreadProperty.PROGRESS) > 20) {
+            if (/*thread.is(ThreadProperty.CODE_ANNOTATING) || ThreadMonitor.getProcessCount(ThreadProperty.PROGRESS) > 20 ||*/ count > maxActiveTasks) {
                 return false;
             } else {
                 return true;

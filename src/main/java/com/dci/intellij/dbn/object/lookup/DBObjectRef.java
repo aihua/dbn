@@ -7,11 +7,11 @@ import com.dci.intellij.dbn.common.string.StringDeBuilder;
 import com.dci.intellij.dbn.common.thread.Timeout;
 import com.dci.intellij.dbn.common.util.Lists;
 import com.dci.intellij.dbn.common.util.Strings;
-import com.dci.intellij.dbn.common.util.Unsafe;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionManager;
-import com.dci.intellij.dbn.connection.context.ConnectionProvider;
+import com.dci.intellij.dbn.connection.SchemaId;
+import com.dci.intellij.dbn.connection.context.DatabaseContextBase;
 import com.dci.intellij.dbn.language.common.WeakRef;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObject;
@@ -36,13 +36,15 @@ import java.util.regex.Pattern;
 import static com.dci.intellij.dbn.common.dispose.Checks.isValid;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.connectionIdAttribute;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
+import static com.dci.intellij.dbn.common.util.Commons.nvl;
+import static com.dci.intellij.dbn.common.util.Unsafe.cast;
 import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.PS;
 import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.PSS;
 
 @Slf4j
 @Getter
 @Setter
-public class DBObjectRef<T extends DBObject> implements Comparable<DBObjectRef<?>>, Reference<T>, PersistentStateElement, ConnectionProvider {
+public class DBObjectRef<T extends DBObject> implements Comparable<DBObjectRef<?>>, Reference<T>, PersistentStateElement, DatabaseContextBase {
     private static final String QUOTE = "'";
 
     private Object parent; // can hold connection id or an actual DBObjectRef (memory optimisation)
@@ -90,16 +92,18 @@ public class DBObjectRef<T extends DBObject> implements Comparable<DBObjectRef<?
 
     }
 
-    public DBObject getParentObject(DBObjectType objectType) {
-        DBObjectRef<?> parentRef = getParentRef(objectType);
+    @Nullable
+    public <P extends DBObject> P getParentObject(DBObjectType objectType) {
+        DBObjectRef<P> parentRef = getParentRef(objectType);
         return DBObjectRef.get(parentRef);
     }
 
-    public DBObjectRef<?> getParentRef(DBObjectType objectType) {
+    @Nullable
+    public <P extends DBObject> DBObjectRef<P> getParentRef(DBObjectType objectType) {
         DBObjectRef<?> element = this;
         while (element != null) {
             if (element.objectType.matches(objectType)) {
-                return element;
+                return cast(element);
             }
 
             element = element.getParentRef();
@@ -265,6 +269,7 @@ public class DBObjectRef<T extends DBObject> implements Comparable<DBObjectRef<?
         return objectType.getName() + " \"" + getPath() + "\"";
     }
 
+    @Nullable
     public ConnectionId getConnectionId() {
         if (parent instanceof ConnectionId) {
             return (ConnectionId) parent;
@@ -273,7 +278,8 @@ public class DBObjectRef<T extends DBObject> implements Comparable<DBObjectRef<?
             DBObjectRef parentRef = (DBObjectRef) parent;
             return parentRef.getConnectionId();
         }
-        return null;
+        T object = get();
+        return object == null ? null : object.getConnectionId();
     }
 
     public boolean is(@NotNull DBObject object) {
@@ -399,7 +405,7 @@ public class DBObjectRef<T extends DBObject> implements Comparable<DBObjectRef<?
                 }
             }
         }
-        return Unsafe.cast(object);
+        return cast(object);
     }
 
     @Nullable
@@ -408,13 +414,20 @@ public class DBObjectRef<T extends DBObject> implements Comparable<DBObjectRef<?
         return ConnectionHandler.get(getConnectionId());
     }
 
-    protected DBSchema getSchema() {
+    public DBSchema getSchema() {
         return (DBSchema) getParentObject(DBObjectType.SCHEMA);
     }
 
+    @Nullable
+    @Override
+    public SchemaId getSchemaId() {
+        DBSchema schema = getSchema();
+        return schema == null ? null : schema.getSchemaId();
+    }
+
     public String getSchemaName() {
-        DBObjectRef<?> schemaRef = getParentRef(DBObjectType.SCHEMA);
-        return schemaRef == null ? null : schemaRef.objectName;
+        DBSchema schema = getSchema();
+        return schema == null ? null : schema.getName();
     }
 
     public String getFileName() {
@@ -485,7 +498,10 @@ public class DBObjectRef<T extends DBObject> implements Comparable<DBObjectRef<?
 
     @Override
     public int compareTo(@NotNull DBObjectRef<?> that) {
-        int result = this.getConnectionId().compareTo(that.getConnectionId());
+        ConnectionId thisConnectionId = nvl(this.getConnectionId(), ConnectionId.UNKNOWN);
+        ConnectionId thatConnectionId = nvl(that.getConnectionId(), ConnectionId.UNKNOWN);
+
+        int result = thisConnectionId.compareTo(thatConnectionId);
         if (result != 0) return result;
 
         DBObjectRef<?> thisParent = this.getParentRef();

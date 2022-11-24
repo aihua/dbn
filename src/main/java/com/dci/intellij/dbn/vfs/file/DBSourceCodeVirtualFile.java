@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.vfs.file;
 
-import com.dci.intellij.dbn.common.DevNullStreams;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.ThreadMonitor;
 import com.dci.intellij.dbn.common.thread.Write;
@@ -8,7 +7,6 @@ import com.dci.intellij.dbn.common.util.ChangeTimestamp;
 import com.dci.intellij.dbn.common.util.Documents;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.context.ConnectionProvider;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.editor.DBContentType;
@@ -37,14 +35,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.OutputStream;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.*;
 
 @Slf4j
-public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBParseableVirtualFile, ConnectionProvider, DocumentListener {
+public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBParseableVirtualFile, DocumentListener {
 
     private SourceCodeContent originalContent = new SourceCodeContent();
     private SourceCodeContent localContent = new SourceCodeContent();
@@ -246,12 +243,6 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
 
     private boolean isChangeMonitoringSupported() {
         return DatabaseFeature.OBJECT_CHANGE_MONITORING.isSupported(getObject());
-    }
-
-    @Override
-    @NotNull
-    public OutputStream getOutputStream(Object o, long l, long l1) {
-        return DevNullStreams.OUTPUT_STREAM;
     }
 
     @Override

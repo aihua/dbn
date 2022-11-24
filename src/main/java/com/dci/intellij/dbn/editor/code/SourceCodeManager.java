@@ -295,7 +295,7 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
         InterfaceTaskDefinition taskDefinition = InterfaceTaskDefinition.create(HIGH,
                 "Loading source code",
                 "Loading source code of " + object.getQualifiedNameWithType(),
-                connection.getInterfaceContext());
+                connection.createInterfaceContext());
 
         String sourceCode = DatabaseInterfaceInvoker.load(taskDefinition, conn -> {
             ResultSet resultSet = null;
@@ -426,7 +426,7 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
         InterfaceTaskDefinition taskDefinition = InterfaceTaskDefinition.create(HIGHEST,
                 "Loading object details",
                 "Loading change timestamp for " + object.getQualifiedNameWithType(),
-                connection.getInterfaceContext());
+                connection.createInterfaceContext());
 
         Timestamp timestamp = DatabaseInterfaceInvoker.load(taskDefinition, conn -> {
             ResultSet resultSet = null;
@@ -680,11 +680,11 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
      *********************************************/
     @Nullable
     @Override
-    public Element getState() {
+    public Element getComponentState() {
         return null;
     }
 
     @Override
-    public void loadState(@NotNull Element element) {
+    public void loadComponentState(@NotNull Element element) {
     }
 }

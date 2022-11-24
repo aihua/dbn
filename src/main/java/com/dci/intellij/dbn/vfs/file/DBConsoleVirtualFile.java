@@ -5,9 +5,11 @@ import com.dci.intellij.dbn.code.common.style.options.CodeStyleCaseSettings;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.connection.SessionId;
 import com.dci.intellij.dbn.connection.mapping.FileConnectionContext;
+import com.dci.intellij.dbn.connection.mapping.FileConnectionContextImpl;
 import com.dci.intellij.dbn.connection.mapping.FileConnectionContextProvider;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.database.interfaces.DatabaseDebuggerInterface;
@@ -20,7 +22,6 @@ import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.vfs.DBConsoleType;
 import com.dci.intellij.dbn.vfs.DBParseableVirtualFile;
 import com.dci.intellij.dbn.vfs.DatabaseFileViewProvider;
-import com.dci.intellij.dbn.vfs.file.DBConnectionVirtualFile.CustomFileConnectionContext;
 import com.intellij.lang.Language;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.RangeMarker;
@@ -29,9 +30,7 @@ import com.intellij.openapi.editor.event.DocumentListener;
 import com.intellij.openapi.editor.ex.DocumentEx;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
-import com.intellij.util.LocalTimeCounter;
 import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -44,7 +43,6 @@ import java.util.Objects;
 
 @Getter
 public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> implements DocumentListener, DBParseableVirtualFile, Comparable<DBConsoleVirtualFile>, FileConnectionContextProvider {
-    private transient long modificationTimestamp = LocalTimeCounter.currentTime();
     private final SourceCodeContent content = new SourceCodeContent();
     private final FileConnectionContext connectionContext;
 
@@ -54,7 +52,7 @@ public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> impleme
         ConnectionHandler connection = console.getConnection();
         SchemaId schemaId = connection.getDefaultSchema();
         SessionId sessionId = connection.getSessionBundle().getMainSession().getId();
-        connectionContext = new CustomFileConnectionContext(this, sessionId, schemaId);
+        connectionContext = createConnectionContext(this, sessionId, schemaId);
 
         setCharset(connection.getSettings().getDetailSettings().getCharset());
     }
@@ -124,7 +122,7 @@ public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> impleme
     }
 
     public void setDatabaseSession(DatabaseSession databaseSession) {
-        this.connectionContext.setSessionId(databaseSession == null ? SessionId.MAIN : databaseSession.getId());;
+        this.connectionContext.setSessionId(databaseSession == null ? SessionId.MAIN : databaseSession.getId());
     }
 
     @Override
@@ -152,16 +150,8 @@ public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> impleme
         return false;
     }
 
-    public boolean isDefault() {return Objects.equals(getName(), getConnection().getName());}
-
-    @Override
-    public VirtualFile getParent() {
-        return null;
-    }
-
-    @Override
-    public VirtualFile[] getChildren() {
-        return VirtualFile.EMPTY_ARRAY;
+    public boolean isDefault() {
+        return Objects.equals(getName(), getConnection().getName());
     }
 
     @NotNull
@@ -172,12 +162,15 @@ public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> impleme
 
     @Override
     @NotNull
-    public OutputStream getOutputStream(Object requestor, final long modificationTimestamp, long newTimeStamp) throws IOException {
+    public OutputStream getOutputStream(Object requestor, long modificationStamp, long timeStamp) throws IOException {
         return new ByteArrayOutputStream() {
             @Override
             public void close() {
-                DBConsoleVirtualFile.this.modificationTimestamp = modificationTimestamp;
                 content.setText(toString());
+
+                setTimeStamp(timeStamp);
+                setModificationStamp(modificationStamp);
+
             }
         };
     }
@@ -190,17 +183,8 @@ public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> impleme
     }
 
     @Override
-    public long getTimeStamp() {
-        return 0;
-    }
-
-    @Override
     public long getLength() {
-        try {
-            return contentsToByteArray().length;
-        } catch (IOException e) {
-            return 0;
-        }
+        return content.length();
     }
 
     @Override
@@ -239,5 +223,22 @@ public class DBConsoleVirtualFile extends DBObjectVirtualFile<DBConsole> impleme
                 content.getOffsets().setGuardedBlocks(blocks);
             }
         }
+    }
+
+    private static FileConnectionContext createConnectionContext(
+            DBConsoleVirtualFile consoleFile,
+            SessionId sessionId,
+            SchemaId schemaId) {
+        return new FileConnectionContextImpl(consoleFile.getUrl(), consoleFile.getConnectionId(), sessionId, schemaId) {
+            @Override
+            public void setFileUrl(String fileUrl) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public boolean setConnectionId(ConnectionId connectionId) {
+                throw new UnsupportedOperationException();
+            }
+        };
     }
 }

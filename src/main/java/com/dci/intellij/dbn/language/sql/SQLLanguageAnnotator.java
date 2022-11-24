@@ -16,7 +16,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 
-import static com.dci.intellij.dbn.connection.mapping.FileConnectionContextManager.hasHasConnectivityContext;
+import static com.dci.intellij.dbn.connection.mapping.FileConnectionContextManager.hasConnectivityContext;
 import static com.dci.intellij.dbn.debugger.DatabaseDebuggerManager.isDebugConsole;
 
 public class SQLLanguageAnnotator implements Annotator {
@@ -130,7 +130,7 @@ public class SQLLanguageAnnotator implements Annotator {
         if (executablePsiElement.isValid() && !executablePsiElement.isNestedExecutable()) {
             DBLanguagePsiFile psiFile = executablePsiElement.getFile();
             VirtualFile file = psiFile.getVirtualFile();
-            if (!isDebugConsole(file) && hasHasConnectivityContext(file)) {
+            if (!isDebugConsole(file) && hasConnectivityContext(file)) {
                 Annotation annotation = holder.createInfoAnnotation(executablePsiElement, null);
                 annotation.setGutterIconRenderer(new StatementGutterRenderer(executablePsiElement));
             }

@@ -195,8 +195,8 @@ public class DatabaseFileManager extends ProjectComponentBase implements Persist
     public void closeDatabaseFiles(@NotNull final List<ConnectionId> connectionIds) {
         FileEditorManager fileEditorManager = FileEditorManager.getInstance(getProject());
         for (VirtualFile virtualFile : fileEditorManager.getOpenFiles()) {
-            if (virtualFile instanceof DBVirtualFileImpl) {
-                DBVirtualFileImpl databaseVirtualFile = (DBVirtualFileImpl) virtualFile;
+            if (virtualFile instanceof DBVirtualFileBase) {
+                DBVirtualFileBase databaseVirtualFile = (DBVirtualFileBase) virtualFile;
                 ConnectionId connectionId = databaseVirtualFile.getConnectionId();
                 if (connectionIds.contains(connectionId)) {
                     closeFile(virtualFile);
@@ -210,7 +210,7 @@ public class DatabaseFileManager extends ProjectComponentBase implements Persist
      *********************************************/
     @Nullable
     @Override
-    public Element getState() {
+    public Element getComponentState() {
         Element stateElement = new Element("state");
         Element openFilesElement = new Element("open-files");
         stateElement.addContent(openFilesElement);
@@ -225,7 +225,7 @@ public class DatabaseFileManager extends ProjectComponentBase implements Persist
     }
 
     @Override
-    public void loadState(@NotNull Element element) {
+    public void loadComponentState(@NotNull Element element) {
         Element openFilesElement = element.getChild("open-files");
         if (openFilesElement != null && pendingOpenFiles != null) {
             List<Element> fileElements = openFilesElement.getChildren();

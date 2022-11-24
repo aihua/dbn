@@ -12,7 +12,7 @@ import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.object.type.DBObjectType;
-import com.dci.intellij.dbn.vfs.DBVirtualFileImpl;
+import com.dci.intellij.dbn.vfs.DBVirtualFileBase;
 import com.intellij.ide.navigationToolbar.NavBarPresentation;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.UnknownFileType;
@@ -24,10 +24,9 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 
-public class DBObjectVirtualFile<T extends DBObject> extends DBVirtualFileImpl {
+public class DBObjectVirtualFile<T extends DBObject> extends DBVirtualFileBase {
     private static final byte[] EMPTY_BYTE_CONTENT = new byte[0];
     protected DBObjectRef<T> object;
 
@@ -97,11 +96,6 @@ public class DBObjectVirtualFile<T extends DBObject> extends DBVirtualFileImpl {
     }
 
     @Override
-    public boolean isWritable() {
-        return false;
-    }
-
-    @Override
     public boolean isDirectory() {
         return true;
     }
@@ -128,11 +122,6 @@ public class DBObjectVirtualFile<T extends DBObject> extends DBVirtualFileImpl {
     }
 
     @Override
-    public VirtualFile[] getChildren() {
-        return VirtualFile.EMPTY_ARRAY;
-    }
-
-    @Override
     @NotNull
     public OutputStream getOutputStream(Object o, long l, long l1) throws IOException {
         return DevNullStreams.OUTPUT_STREAM;
@@ -145,11 +134,6 @@ public class DBObjectVirtualFile<T extends DBObject> extends DBVirtualFileImpl {
     }
 
     @Override
-    public long getTimeStamp() {
-        return 0;
-    }
-
-    @Override
     public long getLength() {
         return 0;
     }
@@ -157,17 +141,6 @@ public class DBObjectVirtualFile<T extends DBObject> extends DBVirtualFileImpl {
     @Override
     public void refresh(boolean b, boolean b1, Runnable runnable) {
 
-    }
-
-    @NotNull
-    @Override
-    public InputStream getInputStream() throws IOException {
-        return DevNullStreams.INPUT_STREAM;
-    }
-
-    @Override
-    public long getModificationStamp() {
-        return 1;
     }
 
     @Override

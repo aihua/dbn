@@ -8,14 +8,13 @@ import com.dci.intellij.dbn.common.content.DynamicContentType;
 import com.dci.intellij.dbn.common.environment.EnvironmentTypeProvider;
 import com.dci.intellij.dbn.common.path.Node;
 import com.dci.intellij.dbn.common.property.PropertyHolder;
+import com.dci.intellij.dbn.common.ui.Presentable;
 import com.dci.intellij.dbn.common.util.Consumer;
-import com.dci.intellij.dbn.connection.PresentableConnectionProvider;
-import com.dci.intellij.dbn.connection.SchemaId;
+import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.database.interfaces.DatabaseInterfaceContext;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
-import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.DBUser;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
@@ -40,11 +39,15 @@ public interface DBObject extends
         LookupItemBuilderProvider,
         Referenceable,
         EnvironmentTypeProvider,
-        PresentableConnectionProvider {
+        Presentable {
 
     @NotNull
     @Override
     String getName();
+
+    @NotNull
+    @Override
+    ConnectionId getConnectionId();
 
     @NotNull
     DBObjectType getObjectType();
@@ -56,8 +59,6 @@ public interface DBObject extends
     DBObjectAttribute[] getObjectAttributes();
     DBObjectAttribute getNameAttribute();
 
-    @Override
-    short getOverload();
     String getQuotedName(boolean quoteAlways);
     boolean needsNameQuoting();
     String getQualifiedNameWithType();
@@ -71,8 +72,6 @@ public interface DBObject extends
 
     @Nullable
     DBUser getOwner();
-    DBSchema getSchema();
-    SchemaId getSchemaId();
 
     DBObject getParentObject();
 
@@ -137,7 +136,7 @@ public interface DBObject extends
         return getObjectType();
     }
 
-    default DatabaseInterfaceContext getInterfaceContext() {
+    default DatabaseInterfaceContext createInterfaceContext() {
         return DatabaseInterfaceContext.create(getConnection(), getSchemaId(), true);
     }
 }

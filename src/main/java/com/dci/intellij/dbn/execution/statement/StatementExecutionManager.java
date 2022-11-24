@@ -57,6 +57,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.dci.intellij.dbn.common.component.Components.projectService;
+import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.*;
 
 @State(
@@ -89,7 +90,7 @@ public class StatementExecutionManager extends ProjectComponentBase implements P
 
             @Override
             public void transactionCompleted(@NotNull Document document, @NotNull PsiFile file) {
-                try {
+                Guarded.run(() -> {
                     Project project = file.getProject();
                     VirtualFile virtualFile = file.getVirtualFile();
                     if (virtualFile.isInLocalFileSystem()) {
@@ -106,8 +107,7 @@ public class StatementExecutionManager extends ProjectComponentBase implements P
                             }
                         }
                     }
-                } catch (ProcessCanceledException ignore) {
-                }
+                });
             }
         };
     }
@@ -199,11 +199,11 @@ public class StatementExecutionManager extends ProjectComponentBase implements P
         Collection<StatementExecutionProcessor> executionProcessors = getExecutionProcessors(fileEditor);
 
         for (StatementExecutionProcessor executionProcessor : executionProcessors) {
-            if (!executionProcessor.isBound()) {
-                ExecutablePsiElement execPsiElement = executionProcessor.getExecutionInput().getExecutablePsiElement();
-                if (execPsiElement != null && execPsiElement.matches(executablePsiElement, matchType)) {
-                    return executionProcessor;
-                }
+            if (executionProcessor.isBound()) continue;
+
+            ExecutablePsiElement execPsiElement = executionProcessor.getExecutionInput().getExecutablePsiElement();
+            if (execPsiElement != null && execPsiElement.matches(executablePsiElement, matchType)) {
+                return executionProcessor;
             }
         }
         return null;
@@ -229,39 +229,39 @@ public class StatementExecutionManager extends ProjectComponentBase implements P
     }
 
     private void executeStatements(@Nullable VirtualFile virtualFile, List<StatementExecutionProcessor> executionProcessors, DataContext dataContext) {
-        if (virtualFile != null && executionProcessors.size() > 0) {
-            try {
-                Project project = getProject();
-                FileConnectionContextManager contextManager = FileConnectionContextManager.getInstance(project);
+        if (isNotValid(virtualFile) || executionProcessors.isEmpty()) return;
 
-                DBLanguagePsiFile databaseFile = Failsafe.nn(executionProcessors.get(0).getPsiFile());
-                contextManager.selectConnectionAndSchema(
-                        databaseFile.getVirtualFile(),
-                        dataContext,
-                        () -> ConnectionAction.invoke(
-                                "the statement execution", false,
-                                () -> contextManager.getConnection(virtualFile),
-                                (action) -> promptExecutionDialogs(executionProcessors, DBDebuggerType.NONE,
-                                        () -> {
-                                            for (StatementExecutionProcessor executionProcessor : executionProcessors) {
-                                                ExecutionContext context = executionProcessor.getExecutionContext();
-                                                StatementExecutionInput executionInput = executionProcessor.getExecutionInput();
-                                                SessionId sessionId = executionInput.getTargetSessionId();
-                                                ConnectionId connectionId = executionInput.getConnectionId();
-                                                if (context.isNot(EXECUTING) && context.isNot(QUEUED)) {
-                                                    if (sessionId == SessionId.POOL) {
-                                                        Progress.background(project, "Executing statement", true,
-                                                                progress -> process(executionProcessor));
-                                                    } else {
-                                                        StatementExecutionQueue queue = getExecutionQueue(connectionId, sessionId);
-                                                        if (queue != null && !queue.contains(executionProcessor)) {
-                                                            queue.queue(executionProcessor);
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        })));
-            } catch (ProcessCanceledException ignore) {}
+        Guarded.run(() -> {
+            FileConnectionContextManager contextManager = FileConnectionContextManager.getInstance(getProject());
+            contextManager.selectConnectionAndSchema(
+                    virtualFile,
+                    dataContext,
+                    () -> ConnectionAction.invoke(
+                            "the statement execution", false,
+                            contextManager.getConnection(virtualFile),
+                            action -> promptExecutionDialogs(executionProcessors, DBDebuggerType.NONE,
+                                    () -> executeStatements(executionProcessors))));
+
+        });
+    }
+
+    private void executeStatements(List<StatementExecutionProcessor> executionProcessors) {
+        for (StatementExecutionProcessor executionProcessor : executionProcessors) {
+            ExecutionContext context = executionProcessor.getExecutionContext();
+            StatementExecutionInput executionInput = executionProcessor.getExecutionInput();
+            SessionId sessionId = executionInput.getTargetSessionId();
+            ConnectionId connectionId = executionInput.getConnectionId();
+            if (context.isNot(EXECUTING) && context.isNot(QUEUED)) {
+                if (sessionId == SessionId.POOL) {
+                    Progress.background(getProject(), "Executing statement", true,
+                            progress -> process(executionProcessor));
+                } else {
+                    StatementExecutionQueue queue = getExecutionQueue(connectionId, sessionId);
+                    if (queue != null && !queue.contains(executionProcessor)) {
+                        queue.queue(executionProcessor);
+                    }
+                }
+            }
         }
     }
 
@@ -503,7 +503,7 @@ public class StatementExecutionManager extends ProjectComponentBase implements P
      *********************************************/
     @Nullable
     @Override
-    public Element getState() {
+    public Element getComponentState() {
         Element element = new Element("state");
         variablesCache.writeState(element);
         return element;
@@ -511,7 +511,7 @@ public class StatementExecutionManager extends ProjectComponentBase implements P
 
     @Override
 
-    public void loadState(@NotNull Element element) {
+    public void loadComponentState(@NotNull Element element) {
         variablesCache.readState(element);
     }
 }

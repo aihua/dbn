@@ -1,6 +1,5 @@
 package com.dci.intellij.dbn.vfs.file;
 
-import com.dci.intellij.dbn.common.DevNullStreams;
 import com.dci.intellij.dbn.common.property.PropertyHolder;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -18,7 +17,7 @@ import com.dci.intellij.dbn.object.DBView;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
-import com.dci.intellij.dbn.vfs.DBVirtualFileImpl;
+import com.dci.intellij.dbn.vfs.DBVirtualFileBase;
 import com.dci.intellij.dbn.vfs.VirtualFileStatus;
 import com.dci.intellij.dbn.vfs.VirtualFileStatusHolder;
 import com.intellij.openapi.fileTypes.FileType;
@@ -28,10 +27,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
-import java.io.IOException;
-import java.io.InputStream;
 
-public abstract class DBContentVirtualFile extends DBVirtualFileImpl implements PropertyHolder<VirtualFileStatus>  {
+public abstract class DBContentVirtualFile extends DBVirtualFileBase implements PropertyHolder<VirtualFileStatus>  {
     private final WeakRef<DBEditableObjectVirtualFile> mainDatabaseFile;
     private final FileType fileType;
 
@@ -127,11 +124,6 @@ public abstract class DBContentVirtualFile extends DBVirtualFileImpl implements 
     }
 
     @Override
-    public boolean isDirectory() {
-        return false;
-    }
-
-    @Override
     @Nullable
     public VirtualFile getParent() {
         if (isValid()) {
@@ -149,28 +141,7 @@ public abstract class DBContentVirtualFile extends DBVirtualFileImpl implements 
     }
 
     @Override
-    public VirtualFile[] getChildren() {
-        return VirtualFile.EMPTY_ARRAY;
-    }
-
-    @Override
-    public long getTimeStamp() {
-        return 0;
-    }
-
-    @Override
     public void refresh(boolean b, boolean b1, Runnable runnable) {
 
-    }
-
-    @NotNull
-    @Override
-    public InputStream getInputStream() throws IOException {
-        return DevNullStreams.INPUT_STREAM;
-    }
-
-    @Override
-    public long getModificationStamp() {
-        return 1;
     }
 }

@@ -164,7 +164,7 @@ public class EditorStateManager extends ProjectComponentBase implements Persiste
      *****************************************/
     @Nullable
     @Override
-    public Element getState() {
+    public Element getComponentState() {
         Element element = new Element("state");
         Element editorProvidersElement = new Element("last-used-providers");
         element.addContent(editorProvidersElement);
@@ -182,7 +182,7 @@ public class EditorStateManager extends ProjectComponentBase implements Persiste
     }
 
     @Override
-    public void loadState(Element element) {
+    public void loadComponentState(@NotNull Element element) {
         lastUsedEditorProviders.clear();
         Element editorProvidersElement = element.getChild("last-used-providers");
         if (editorProvidersElement != null) {

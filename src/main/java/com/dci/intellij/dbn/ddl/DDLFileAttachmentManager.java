@@ -322,7 +322,7 @@ public class DDLFileAttachmentManager extends ProjectComponentBase implements Pe
     public void updateDDLFiles(DBEditableObjectVirtualFile databaseFile) {
         Project project = getProject();
         DDLFileSettings ddlFileSettings = DDLFileSettings.getInstance(project);
-        if (ddlFileSettings.getGeneralSettings().isSynchronizeDDLFilesEnabled()) {
+        if (ddlFileSettings.getGeneralSettings().isDdlFilesSynchronizationEnabled()) {
             DDLFileManager ddlFileManager = DDLFileManager.getInstance(project);
             List<VirtualFile> ddlFiles = databaseFile.getAttachedDDLFiles();
             if (ddlFiles != null && !ddlFiles.isEmpty()) {
@@ -495,7 +495,7 @@ public class DDLFileAttachmentManager extends ProjectComponentBase implements Pe
      *********************************************/
     @Nullable
     @Override
-    public Element getState() {
+    public Element getComponentState() {
         Element element = new Element("state");
         for (val entry : mappings.entrySet()) {
             String fileUrl = entry.getKey();
@@ -511,7 +511,7 @@ public class DDLFileAttachmentManager extends ProjectComponentBase implements Pe
     }
 
     @Override
-    public void loadState(@NotNull Element element) {
+    public void loadComponentState(@NotNull Element element) {
         VirtualFileManager virtualFileManager = VirtualFileManager.getInstance();
         for (Element child : element.getChildren()) {
             String fileUrl = stringAttribute(child, "file-url");

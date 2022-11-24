@@ -317,7 +317,7 @@ public class DatabaseBrowserManager extends ProjectComponentBase implements Pers
      *****************************************/
     @Nullable
     @Override
-    public Element getState() {
+    public Element getComponentState() {
         Element element = new Element("state");
         autoscrollToEditor.writeConfiguration(element);
         autoscrollFromEditor.writeConfiguration(element);
@@ -327,7 +327,7 @@ public class DatabaseBrowserManager extends ProjectComponentBase implements Pers
     }
 
     @Override
-    public void loadState(@NotNull Element element) {
+    public void loadComponentState(@NotNull Element element) {
         autoscrollToEditor.readConfiguration(element);
         autoscrollFromEditor.readConfiguration(element);
         showObjectProperties.readConfiguration(element);

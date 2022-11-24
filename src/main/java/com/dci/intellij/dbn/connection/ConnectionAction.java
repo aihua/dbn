@@ -7,7 +7,8 @@ import com.dci.intellij.dbn.common.routine.ParametricCallable;
 import com.dci.intellij.dbn.common.routine.ParametricRunnable;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.util.Commons;
-import com.dci.intellij.dbn.connection.context.ConnectionProvider;
+import com.dci.intellij.dbn.common.util.Guarded;
+import com.dci.intellij.dbn.connection.context.DatabaseContext;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 
@@ -16,10 +17,10 @@ public abstract class ConnectionAction implements Runnable{
 
     private final String description;
     private final boolean interactive;
-    private final ConnectionProvider connectionProvider;
+    private final DatabaseContext connectionProvider;
     private boolean cancelled;
 
-    private ConnectionAction(String description, boolean interactive, ConnectionProvider connectionProvider) {
+    private ConnectionAction(String description, boolean interactive, DatabaseContext connectionProvider) {
         this.description = description;
         this.interactive = interactive;
         this.connectionProvider = connectionProvider;
@@ -47,7 +48,7 @@ public abstract class ConnectionAction implements Runnable{
             ConnectionHandler connection = getConnection();
             if (connection.isVirtual() || connection.canConnect()) {
                 if (interactive || connection.isValid()) {
-                    run();
+                    Guarded.run(() -> run());
                 } else {
                     String connectionName = connection.getName();
                     Throwable connectionException = connection.getConnectionStatus().getConnectionException();
@@ -71,13 +72,13 @@ public abstract class ConnectionAction implements Runnable{
         ConnectionHandler connection = getConnection();
         ConnectionManager.promptDatabaseInitDialog(
                 connection,
-                (option) -> {
+                option -> {
                     if (option == 0) {
                         ConnectionInstructions instructions = connection.getInstructions();
                         instructions.setAllowAutoInit(true);
                         instructions.setAllowAutoConnect(true);
                         if (connection.isAuthenticationProvided()) {
-                            run();
+                            Guarded.run(() -> run());
                         } else {
                             promptAuthenticationDialog();
                         }
@@ -95,9 +96,9 @@ public abstract class ConnectionAction implements Runnable{
         connectionManager.promptAuthenticationDialog(
                 connection,
                 temporaryAuthenticationInfo,
-                (authenticationInfo) -> {
+                authenticationInfo -> {
                     if (authenticationInfo != null) {
-                        run();
+                        Guarded.run(() -> run());
                     } else {
                         cancel();
                     }
@@ -109,10 +110,10 @@ public abstract class ConnectionAction implements Runnable{
         ConnectionManager.promptConnectDialog(
                 connection,
                 description,
-                (option) -> {
+                option -> {
                     if (option == 0) {
                         connection.getInstructions().setAllowAutoConnect(true);
-                        run();
+                        Guarded.run(() -> run());
                     } else {
                         cancel();
                     }
@@ -128,12 +129,12 @@ public abstract class ConnectionAction implements Runnable{
     public static void invoke(
             String description,
             boolean interactive,
-            ConnectionProvider connectionProvider,
+            DatabaseContext databaseContext,
             ParametricRunnable.Basic<ConnectionAction> action) {
-        new ConnectionAction(description, interactive, connectionProvider) {
+        new ConnectionAction(description, interactive, databaseContext) {
             @Override
             public void run() {
-                action.run(this);
+                Guarded.run(() -> action.run(this));
             }
         }.start();
     }
@@ -141,16 +142,16 @@ public abstract class ConnectionAction implements Runnable{
     public static void invoke(
             String description,
             boolean interactive,
-            ConnectionProvider connectionProvider,
+            DatabaseContext databaseContext,
             ParametricRunnable.Basic<ConnectionAction> action,
             ParametricRunnable.Basic<ConnectionAction> cancel,
             ParametricCallable.Basic<ConnectionAction, Boolean> canExecute) {
 
-        new ConnectionAction(description, interactive, connectionProvider) {
+        new ConnectionAction(description, interactive, databaseContext) {
             @Override
             public void run() {
                 if (canExecute == null || canExecute.call(this)) {
-                    action.run(this);
+                    Guarded.run(() -> action.run(this));
                 }
             }
 

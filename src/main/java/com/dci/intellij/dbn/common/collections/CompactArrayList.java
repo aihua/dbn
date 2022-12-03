@@ -5,18 +5,22 @@ import org.jetbrains.annotations.NotNull;
 import java.io.Serializable;
 import java.util.*;
 
-import static com.dci.intellij.dbn.common.util.Exceptions.unsupported;
+import static com.dci.intellij.dbn.common.exception.Exceptions.unsupported;
 import static com.dci.intellij.dbn.common.util.Unsafe.cast;
 
 public final class CompactArrayList<T> implements List<T>, RandomAccess, Serializable {
     private Object[] elements;
 
-    private CompactArrayList(List<T> elements) {
+    public CompactArrayList(List<T> elements) {
         this.elements = elements.toArray();
     }
 
-    private CompactArrayList(Object[] elements) {
+    public CompactArrayList(Object[] elements) {
         this.elements = elements;
+    }
+
+    public CompactArrayList(int size) {
+        this.elements = new Object[size];
     }
 
     public static <T> List<T> from(List<T> list) {

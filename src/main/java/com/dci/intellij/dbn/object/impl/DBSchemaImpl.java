@@ -20,7 +20,6 @@ import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.common.metadata.def.*;
 import com.dci.intellij.dbn.database.interfaces.DatabaseInterfaceInvoker;
 import com.dci.intellij.dbn.database.interfaces.DatabaseMetadataInterface;
-import com.dci.intellij.dbn.database.interfaces.queue.InterfaceTaskDefinition;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.object.*;
 import com.dci.intellij.dbn.object.common.DBObject;
@@ -174,19 +173,19 @@ public class DBSchemaImpl extends DBObjectImpl<DBSchemaMetadata> implements DBSc
     }
 
     @Override
-    public DBObject getChildObject(DBObjectType objectType, String name, short overload, boolean lookupHidden) {
+    public <T extends DBObject> T  getChildObject(DBObjectType objectType, String name, short overload, boolean lookupHidden) {
         if (objectType.isSchemaObject()) {
             DBObject object = super.getChildObject(objectType, name, overload, lookupHidden);
             if (object == null && objectType != SYNONYM) {
-                DBSynonym synonym = (DBSynonym) super.getChildObject(SYNONYM, name, overload, lookupHidden);
+                DBSynonym synonym = super.getChildObject(SYNONYM, name, overload, lookupHidden);
                 if (synonym != null) {
                     DBObject underlyingObject = synonym.getUnderlyingObject();
                     if (underlyingObject != null && underlyingObject.isOfType(objectType)) {
-                        return synonym;
+                        return cast(synonym);
                     }
                 }
             } else {
-                return object;
+                return cast(object);
             }
         }
         return null;
@@ -425,20 +424,18 @@ public class DBSchemaImpl extends DBObjectImpl<DBSchemaMetadata> implements DBSc
     @Override
     public void refreshObjectsStatus() throws SQLException {
         Set<BrowserTreeNode> refreshNodes = resetObjectsStatus();
-        ConnectionHandler connection = this.getConnection();
 
-        InterfaceTaskDefinition taskDefinition = InterfaceTaskDefinition.create(LOW,
+        DatabaseInterfaceInvoker.schedule(LOW,
                 "Refreshing object status",
                 "Refreshing object status for " + getQualifiedNameWithType(),
-                connection.createInterfaceContext());
-
-        DatabaseInterfaceInvoker.schedule(taskDefinition, conn -> {
-            refreshValidStatus(refreshNodes, conn);
-            refreshDebugStatus(refreshNodes, conn);
-            Background.run(() ->
-                    refreshNodes.forEach(n -> ProjectEvents.notify(getProject(), BrowserTreeEventListener.TOPIC,
-                            l -> l.nodeChanged(n, TreeEventType.NODES_CHANGED))));
-        });
+                getConnectionId(),
+                conn -> {
+                    refreshValidStatus(refreshNodes, conn);
+                    refreshDebugStatus(refreshNodes, conn);
+                    Background.run(() ->
+                            refreshNodes.forEach(n -> ProjectEvents.notify(getProject(), BrowserTreeEventListener.TOPIC,
+                                    listener -> listener.nodeChanged(n, TreeEventType.NODES_CHANGED))));
+                });
 
 
     }
@@ -510,7 +507,7 @@ public class DBSchemaImpl extends DBObjectImpl<DBSchemaMetadata> implements DBSc
 
     private Set<BrowserTreeNode> resetObjectsStatus() {
         ObjectStatusUpdater updater = new ObjectStatusUpdater();
-        ensureChildObjects().visitObjects(updater, true);
+        ensureChildObjects().visit(updater, true);
         return updater.getRefreshNodes();
     }
 

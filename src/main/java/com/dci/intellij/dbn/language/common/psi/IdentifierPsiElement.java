@@ -33,6 +33,7 @@ import javax.swing.*;
 import java.util.Set;
 import java.util.function.Consumer;
 
+import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
 import static com.dci.intellij.dbn.common.util.Commons.nvl;
 
 public abstract class IdentifierPsiElement extends LeafPsiElement<IdentifierElementType> {
@@ -497,6 +498,11 @@ public abstract class IdentifierPsiElement extends LeafPsiElement<IdentifierElem
     @Override
     @Nullable
     public PsiElement resolve() {
+        return guarded(null,  () -> doResolve());
+    }
+
+    @Nullable
+    private PsiElement doResolve() {
         if (isResolving()) {
             return ref.getReference();
         }

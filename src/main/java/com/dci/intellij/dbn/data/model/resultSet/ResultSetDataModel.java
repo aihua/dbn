@@ -1,18 +1,18 @@
 package com.dci.intellij.dbn.data.model.resultSet;
 
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionRef;
 import com.dci.intellij.dbn.connection.Resources;
+import com.dci.intellij.dbn.connection.context.DatabaseContextBase;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.connection.jdbc.DBNResultSet;
 import com.dci.intellij.dbn.connection.jdbc.DBNStatement;
 import com.dci.intellij.dbn.connection.jdbc.ResourceStatus;
 import com.dci.intellij.dbn.data.model.sortable.SortableDataModel;
 import com.dci.intellij.dbn.data.model.sortable.SortableDataModelState;
-import com.intellij.openapi.util.Disposer;
 import lombok.Getter;
 import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
@@ -26,7 +26,7 @@ import java.util.List;
 public class ResultSetDataModel<
         R extends ResultSetDataModelRow<? extends ResultSetDataModel<R, C>, C>,
         C extends ResultSetDataModelCell<R, ? extends ResultSetDataModel<R, C>>>
-        extends SortableDataModel<R, C> {
+        extends SortableDataModel<R, C> implements DatabaseContextBase {
 
     private final ConnectionRef connection;
     private DBNResultSet resultSet;
@@ -150,11 +150,11 @@ public class ResultSetDataModel<
     }
 
     private void disposeRows(final List<R> oldRows) {
-        SafeDisposer.dispose(oldRows);
+        Disposer.dispose(oldRows);
     }
 
     protected void disposeRow(R row) {
-        SafeDisposer.dispose(row);
+        Disposer.dispose(row);
     }
 
     public void closeResultSet() {

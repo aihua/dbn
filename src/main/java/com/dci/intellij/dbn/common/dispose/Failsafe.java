@@ -1,16 +1,18 @@
 package com.dci.intellij.dbn.common.dispose;
 
-import com.dci.intellij.dbn.common.routine.ParametricRunnable;
 import com.intellij.mock.MockProject;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.testFramework.LightVirtualFile;
+import lombok.SneakyThrows;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.concurrent.Callable;
+
 import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
-import static com.dci.intellij.dbn.common.dispose.Checks.isValid;
 
 public class Failsafe {
     private static final VirtualFile DUMMY_VIRTUAL_FILE = new LightVirtualFile();
@@ -31,10 +33,33 @@ public class Failsafe {
         return object;
     }
 
-    public static <T, E extends Throwable> void invoke(@Nullable T target, ParametricRunnable<T, E> invoker) throws E {
-        if (isValid(target)) {
-            invoker.run(target);
+    @SneakyThrows
+    public static <R> R guarded(R defaultValue, @Nullable Callable<R> callable){
+        try {
+            return callable == null ? defaultValue : callable.call();
+        } catch (ProcessCanceledException | IllegalStateException | AbstractMethodError ignore /*| UnsupportedOperationException*/){
+            return defaultValue;
+        } catch (Exception e) {
+            // DBNE-4876 (????!!)
+            if (e != AlreadyDisposedException.INSTANCE) {
+                throw e;
+            }
+            return defaultValue;
+
         }
+
     }
 
+    public static void guarded(@Nullable Runnable runnable){
+        try {
+            if (runnable != null) runnable.run();
+        } catch (ProcessCanceledException | IllegalStateException | AbstractMethodError ignore /*| UnsupportedOperationException*/){
+        } catch (Exception e) {
+            // DBNE-4876 (????!!)
+            if (e != AlreadyDisposedException.INSTANCE) {
+                throw e;
+            }
+        }
+
+    }
 }

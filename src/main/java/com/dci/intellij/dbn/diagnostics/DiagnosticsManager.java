@@ -3,7 +3,7 @@ package com.dci.intellij.dbn.diagnostics;
 import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.component.PersistentState;
 import com.dci.intellij.dbn.common.component.ProjectComponentBase;
-import com.dci.intellij.dbn.common.dispose.SafeDisposer;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.ui.form.DBNForm;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.SessionId;
@@ -54,12 +54,12 @@ public class DiagnosticsManager extends ProjectComponentBase implements Persiste
 
     public DiagnosticBundle<String> getMetadataInterfaceDiagnostics(ConnectionId connectionId) {
         return metadataInterfaceDiagnostics.
-                computeIfAbsent(connectionId, id -> new DiagnosticBundle<>(DiagnosticType.METADATA_INTERFACE));
+                computeIfAbsent(connectionId, id -> DiagnosticBundle.composite(DiagnosticType.METADATA_INTERFACE));
     }
 
     public DiagnosticBundle<SessionId> getConnectivityDiagnostics(ConnectionId connectionId) {
         return connectivityDiagnostics.
-                computeIfAbsent(connectionId, id -> new DiagnosticBundle<>(DiagnosticType.DATABASE_CONNECTIVITY));
+                computeIfAbsent(connectionId, id -> DiagnosticBundle.basic(DiagnosticType.DATABASE_CONNECTIVITY));
     }
 
     public void openDiagnosticsSettings() {
@@ -90,7 +90,7 @@ public class DiagnosticsManager extends ProjectComponentBase implements Persiste
             content.setCloseable(true);
             content.setPinnable(true);
             contentManager.addContent(content);
-            SafeDisposer.register(content, form);
+            Disposer.register(content, form);
         }
 
         Content content = getDiagnosticsContent(category);

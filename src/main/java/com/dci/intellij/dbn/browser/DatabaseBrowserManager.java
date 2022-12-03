@@ -12,11 +12,10 @@ import com.dci.intellij.dbn.browser.ui.DatabaseBrowserForm;
 import com.dci.intellij.dbn.browser.ui.DatabaseBrowserTree;
 import com.dci.intellij.dbn.common.component.PersistentState;
 import com.dci.intellij.dbn.common.component.ProjectComponentBase;
-import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.latent.Latent;
-import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.options.setting.BooleanSetting;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.Dispatch;
@@ -36,12 +35,9 @@ import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.wm.ToolWindow;
 import com.intellij.openapi.wm.ToolWindowManager;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -51,6 +47,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.dci.intellij.dbn.common.component.Components.projectService;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.nn;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.connectionIdAttribute;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
 
@@ -68,9 +65,7 @@ public class DatabaseBrowserManager extends ProjectComponentBase implements Pers
 
     public static final ThreadLocal<Boolean> AUTOSCROLL_FROM_EDITOR = new ThreadLocal<>();
 
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private final Latent<BrowserToolWindowForm> toolWindowForm = Latent.basic(() -> {
+    private final transient Latent<BrowserToolWindowForm> toolWindowForm = Latent.basic(() -> {
         BrowserToolWindowForm form = new BrowserToolWindowForm(this, getProject());
         Disposer.register(this, form);
         return form;
@@ -119,7 +114,7 @@ public class DatabaseBrowserManager extends ProjectComponentBase implements Pers
 
     @NotNull
     public BrowserToolWindowForm getToolWindowForm() {
-        return Failsafe.nn(toolWindowForm.get());
+        return nn(toolWindowForm.get());
     }
 
     public BooleanSetting getAutoscrollFromEditor() {
@@ -351,17 +346,12 @@ public class DatabaseBrowserManager extends ProjectComponentBase implements Pers
                 if (schemas != null && schemas.isLoaded()) {
                     for (DBSchema schema : objectBundle.getSchemas()) {
                         List<DBObjectType> objectTypes = new ArrayList<>();
-                        DBObjectListContainer childObjects = schema.getChildObjects();
-                        if (childObjects != null) {
-                            DBObjectList[] objectLists = childObjects.getObjects();
-                            if (objectLists != null) {
-                                for (DBObjectList objectList : objectLists) {
-                                    if (objectList.isLoaded() || objectList.isLoading()) {
-                                        objectTypes.add(objectList.getObjectType());
-                                    }
-                                }
+                        schema.visitChildObjects(o -> {
+                            if (o.isLoaded() || o.isLoading()) {
+                                objectTypes.add(o.getObjectType());
                             }
-                        }
+                        }, true);
+
                         if (objectTypes.size() > 0) {
                             Element schemaElement = new Element("schema");
                             schemaElement.setAttribute("name", schema.getName());
@@ -411,12 +401,10 @@ public class DatabaseBrowserManager extends ProjectComponentBase implements Pers
                     List<DBObjectType> objectTypes = DBObjectType.fromCsv(objectTypesAttr);
 
                     for (DBObjectType objectType : objectTypes) {
-                        ProgressMonitor.checkCancelled();
                         DBObjectListContainer childObjects = schema.getChildObjects();
-                        if (childObjects != null) {
-                            ProgressMonitor.checkCancelled();
-                            childObjects.loadObjects(objectType);
-                        }
+                        if (childObjects == null) continue;
+
+                        childObjects.loadObjects(objectType);
                     }
                 });
             }

@@ -13,26 +13,23 @@ import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoaderImpl;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentResultSetLoader;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.latent.Latent;
-import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.notification.NotificationGroup;
 import com.dci.intellij.dbn.common.notification.NotificationSupport;
+import com.dci.intellij.dbn.common.routine.Consumer;
 import com.dci.intellij.dbn.common.thread.Background;
-import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.thread.Read;
 import com.dci.intellij.dbn.common.ui.tree.TreeEventType;
 import com.dci.intellij.dbn.common.util.Commons;
-import com.dci.intellij.dbn.common.util.Consumer;
 import com.dci.intellij.dbn.common.util.Lists;
 import com.dci.intellij.dbn.connection.*;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.data.type.DBDataTypeBundle;
 import com.dci.intellij.dbn.data.type.DBNativeDataType;
-import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.database.DatabaseObjectIdentifier;
 import com.dci.intellij.dbn.database.common.metadata.DBObjectMetadata;
 import com.dci.intellij.dbn.database.common.metadata.def.*;
@@ -59,7 +56,6 @@ import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.psi.PsiDirectory;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiFileFactory;
@@ -75,6 +71,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static com.dci.intellij.dbn.browser.DatabaseBrowserUtils.treeVisibilityChanged;
 import static com.dci.intellij.dbn.common.content.DynamicContentProperty.GROUPED;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.nd;
+import static com.dci.intellij.dbn.common.util.Commons.nvl;
+import static com.dci.intellij.dbn.database.DatabaseFeature.OBJECT_INVALIDATION;
 import static com.dci.intellij.dbn.object.type.DBObjectRelationType.*;
 import static com.dci.intellij.dbn.object.type.DBObjectType.*;
 
@@ -135,8 +134,8 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
 
         this.publicSchemas = Latent.mutable(
-                () -> Failsafe.nd(schemas).getSignature(),
-                () -> Commons.nvl(Lists.filter(getSchemas(), s -> s.isPublicSchema()), Collections.emptyList()));
+                () -> nd(schemas).getSignature(),
+                () -> nvl(Lists.filter(getSchemas(), s -> s.isPublicSchema()), Collections.emptyList()));
 
         ProjectEvents.subscribe(project, this, DataDefinitionChangeListener.TOPIC, dataDefinitionChangeListener());
         ProjectEvents.subscribe(project, this, SourceCodeManagerListener.TOPIC, sourceCodeManagerListener());
@@ -400,7 +399,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
         Filter<BrowserTreeNode> objectTypeFilter = connection.getObjectTypeFilter();
 
         List<BrowserTreeNode> treeChildren = Lists.filter(allPossibleTreeChildren, objectTypeFilter);
-        treeChildren = Commons.nvl(treeChildren, Collections.emptyList());
+        treeChildren = nvl(treeChildren, Collections.emptyList());
 
         for (BrowserTreeNode objectList : treeChildren) {
             Background.run(() -> objectList.initTreeElement());
@@ -465,7 +464,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
     @Override
     public String getPresentableText() {
-        return this.getConnection().getPresentableText();
+        return this.getConnection().getName();
     }
 
     @Override
@@ -529,7 +528,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     @NotNull
     @Override
     public String getName() {
-        return Commons.nvl(getPresentableText(), "Object Bundle");
+        return nvl(getPresentableText(), "Object Bundle");
     }
 
     @Override
@@ -661,34 +660,27 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     }
 
     @Override
-    public void refreshObjectsStatus(final @Nullable DBSchemaObject requester) {
-        ConnectionHandler connection = this.getConnection();
-        if (DatabaseFeature.OBJECT_INVALIDATION.isSupported(connection)) {
-            Background.run(() -> {
-                try {
-                    List<DBSchema> schemas = requester == null ? getSchemas() : requester.getReferencingSchemas();
+    public void refreshObjectsStatus(@Nullable DBSchemaObject requester) {
+        ConnectionHandler connection = getConnection();
+        if (!OBJECT_INVALIDATION.isSupported(connection)) return;
 
-                    int size = schemas.size();
-                    for (int i = 0; i < size; i++) {
-                        ProgressMonitor.checkCancelled();
-                        if (size > 3) {
+        Background.run(() -> {
+            try {
+                List<DBSchema> schemas = requester == null ? getSchemas() : requester.getReferencingSchemas();
 
-                            ProgressMonitor.setProgressIndeterminate(false);
-                            ProgressMonitor.setProgressFraction(Progress.progressOf(i, size));
-                        }
-                        DBSchema schema = schemas.get(i);
-                        ProgressMonitor.setProgressText("Updating object status in schema " + schema.getName() + "... ");
-                        schema.refreshObjectsStatus();
-                    }
-                } catch (IndexOutOfBoundsException ignore) {
-                    // underlying list may mutate
-                } catch (SQLException e) {
-                    sendErrorNotification(
-                            NotificationGroup.BROWSER,
-                            "Error refreshing object status: {0}", e);
+                int size = schemas.size();
+                for (int i = 0; i < size; i++) {
+                    DBSchema schema = schemas.get(i);
+                    schema.refreshObjectsStatus();
                 }
-            });
-        }
+            } catch (IndexOutOfBoundsException ignore) {
+                // underlying list may mutate
+            } catch (SQLException e) {
+                sendErrorNotification(
+                        NotificationGroup.BROWSER,
+                        "Error refreshing object status: {0}", e);
+            }
+        });
     }
 
     @Override
@@ -705,7 +697,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     @Override
     @NotNull
     public Project getProject() {
-        return this.getConnection().getProject();
+        return getConnection().getProject();
     }
 
     @Override
@@ -916,8 +908,8 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
     @Override
     public void disposeInner() {
-        SafeDisposer.dispose(objectLists, false);
-        SafeDisposer.dispose(dataTypes, false);
+        Disposer.dispose(objectLists, false);
+        Disposer.dispose(dataTypes, false);
         nullify();
     }
 }

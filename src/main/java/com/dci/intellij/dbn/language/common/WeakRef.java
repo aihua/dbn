@@ -9,6 +9,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.lang.ref.WeakReference;
 
+import static com.dci.intellij.dbn.common.dispose.Failsafe.nd;
+
 public class WeakRef<T> extends WeakReference<T> {
     protected WeakRef(T referent) {
         super(referent);
@@ -22,6 +24,12 @@ public class WeakRef<T> extends WeakReference<T> {
     @Nullable
     public static <T> T get(@Nullable WeakRef<T> ref) {
         return ref == null ? null : ref.get();
+    }
+
+    @NotNull
+    public static <T> T ensure(@Nullable WeakRef<T> ref) {
+        T object = get(ref);
+        return nd(object);
     }
 
     @Nullable

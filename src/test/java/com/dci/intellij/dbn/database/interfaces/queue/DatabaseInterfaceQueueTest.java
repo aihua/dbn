@@ -1,8 +1,8 @@
 package com.dci.intellij.dbn.database.interfaces.queue;
 
 import com.dci.intellij.dbn.common.Priority;
+import com.dci.intellij.dbn.common.exception.Exceptions;
 import com.dci.intellij.dbn.common.thread.Threads;
-import com.dci.intellij.dbn.common.util.Exceptions;
 import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.dci.intellij.dbn.common.util.Unsafe;
 import lombok.AllArgsConstructor;
@@ -32,7 +32,7 @@ public class DatabaseInterfaceQueueTest {
     public void scheduleAndWait() {
         invoke(100, task -> {
             try {
-                InterfaceTaskDefinition taskDefinition = InterfaceTaskDefinition.create(task.priority, "test", "test", null);
+                InterfaceTaskRequest taskDefinition = InterfaceTaskRequest.create(task.priority, "test", "test", null, null);
                 queue.scheduleAndWait(taskDefinition, () -> {
                     System.out.println("Executing " + task);
                     Unsafe.silent(() -> Thread.sleep(task.time));
@@ -50,7 +50,7 @@ public class DatabaseInterfaceQueueTest {
     public void scheduleAndForget() {
         invoke(100, task -> {
             try {
-                InterfaceTaskDefinition taskDefinition = InterfaceTaskDefinition.create(task.priority, "test", "test", null);
+                InterfaceTaskRequest taskDefinition = InterfaceTaskRequest.create(task.priority, "test", "test", null, null);
                 queue.scheduleAndForget(taskDefinition, () -> {
                     System.out.println("Executing " + task);
                     Unsafe.silent(() -> Thread.sleep(task.time));
@@ -80,7 +80,7 @@ public class DatabaseInterfaceQueueTest {
         }
 
         Thread invoker = Thread.currentThread();
-        queue.counters().running().addListener(value -> {
+        queue.counters().running.addListener(value -> {
             if (value == 0 && queue.size() == 0) {
                 LockSupport.unpark(invoker);
                 System.out.println("UNPARKED");
@@ -93,7 +93,7 @@ public class DatabaseInterfaceQueueTest {
         System.out.println("DONE " + TimeUnit.MILLISECONDS.toSeconds(TimeUtil.millisSince(sleepStart)));
 
         executorService.shutdown();
-        Assert.assertEquals(times, queue.counters().finished().get());
+        Assert.assertEquals(times, queue.counters().finished.get());
         long elapsedTime = TimeUtil.millisSince(start);
         long activeTime = totalTime.get() / queue.maxActiveTasks();
         long difference = Math.abs(activeTime - elapsedTime);

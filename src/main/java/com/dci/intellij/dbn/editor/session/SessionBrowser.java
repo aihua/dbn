@@ -3,8 +3,8 @@ package com.dci.intellij.dbn.editor.session;
 import com.dci.intellij.dbn.common.action.DataKeys;
 import com.dci.intellij.dbn.common.dispose.Checks;
 import com.dci.intellij.dbn.common.dispose.DisposableUserDataHolderBase;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.Dispatch;
@@ -30,7 +30,6 @@ import com.intellij.openapi.fileEditor.FileEditorLocation;
 import com.intellij.openapi.fileEditor.FileEditorState;
 import com.intellij.openapi.fileEditor.FileEditorStateLevel;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
@@ -38,10 +37,8 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.beans.PropertyChangeListener;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 
 public class SessionBrowser extends DisposableUserDataHolderBase implements FileEditor, DatabaseContextBase, DataProvider {
     private final WeakRef<DBSessionBrowserVirtualFile> databaseFile;
@@ -110,7 +107,7 @@ public class SessionBrowser extends DisposableUserDataHolderBase implements File
                         setLoading(false);
                     }
                 }),
-                cancel -> {
+                action -> {
                     setLoading(false);
                     setRefreshInterval(0);
                 },
@@ -165,28 +162,25 @@ public class SessionBrowser extends DisposableUserDataHolderBase implements File
         interruptSessions(SessionInterruptionType.TERMINATE);
     }
 
-    public void interruptSession(Object sessionId, Object serialNumber, SessionInterruptionType type) {
+    public void interruptSession(SessionIdentifier identifier, SessionInterruptionType type) {
         SessionBrowserManager sessionBrowserManager = SessionBrowserManager.getInstance(getProject());
-        Map<Object, Object> sessionIds = new HashMap<>();
-        sessionIds.put(sessionId, serialNumber);
-        sessionBrowserManager.interruptSessions(this, sessionIds, type);
+        sessionBrowserManager.interruptSessions(this, Collections.singletonList(identifier), type);
         loadSessions(true);
     }
 
     private void interruptSessions(SessionInterruptionType type) {
-        SessionBrowserManager sessionBrowserManager = SessionBrowserManager.getInstance(getProject());
+        List<SessionIdentifier> sessionIds = new ArrayList<>();
+
         SessionBrowserTable editorTable = getBrowserTable();
-        int[] selectedRows = editorTable.getSelectedRows();
-        Map<Object, Object> sessionIds = new HashMap<>();
-        for (int selectedRow : selectedRows) {
-            SessionBrowserModelRow row = editorTable.getModel().getRowAtIndex(selectedRow);
+        SessionBrowserModel model = editorTable.getModel();
+        for (int selectedRow : editorTable.getSelectedRows()) {
+            SessionBrowserModelRow row = model.getRowAtIndex(selectedRow);
             if (row != null) {
-                Object sessionId = row.getSessionId();
-                Object serialNumber = row.getSerialNumber();
-                sessionIds.put(sessionId, serialNumber);
+                sessionIds.add(row.getSessionIdentifier());
             }
         }
 
+        SessionBrowserManager sessionBrowserManager = SessionBrowserManager.getInstance(getProject());
         sessionBrowserManager.interruptSessions(this, sessionIds, type);
         loadSessions(true);
     }
@@ -341,7 +335,7 @@ public class SessionBrowser extends DisposableUserDataHolderBase implements File
     }
 
     private void stopRefreshTimer() {
-        SafeDisposer.dispose(refreshTimer);
+        Disposer.dispose(refreshTimer);
         refreshTimer = null;
     }
 

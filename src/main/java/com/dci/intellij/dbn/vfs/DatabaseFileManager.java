@@ -16,6 +16,7 @@ import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.ConnectionManager;
 import com.dci.intellij.dbn.connection.config.ConnectionConfigListener;
 import com.dci.intellij.dbn.connection.config.ConnectionDetailSettings;
+import com.dci.intellij.dbn.editor.DatabaseFileEditorManager;
 import com.dci.intellij.dbn.editor.code.SourceCodeManager;
 import com.dci.intellij.dbn.editor.code.diff.SourceCodeDiffManager;
 import com.dci.intellij.dbn.editor.code.options.CodeEditorConfirmationSettings;
@@ -264,22 +265,24 @@ public class DatabaseFileManager extends ProjectComponentBase implements Persist
     private static void reopenDatabaseEditors(@NotNull List<DBObjectRef<DBSchemaObject>> objectRefs, @NotNull ConnectionHandler connection) {
         Project project = connection.getProject();
         ConnectionAction.invoke("opening database editors", false, connection, action ->
-                Progress.background(project, "Opening database editors (" + connection.getQualifiedName() + ")", true, progress -> {
-                    progress.setIndeterminate(true);
-                    progress.setText(connection.getQualifiedName());
-                    DatabaseFileSystem databaseFileSystem = DatabaseFileSystem.getInstance();
+                Progress.background(project, connection, true,
+                        "Restoring database workspace",
+                        "Opening database editors for connection " + connection.getName(),
+                        progress -> {
+                            progress.setIndeterminate(true);
+                            DatabaseFileEditorManager editorManager = DatabaseFileEditorManager.getInstance(project);
 
-                    for (DBObjectRef<DBSchemaObject> objectRef : objectRefs) {
-                        if (progress.isCanceled()) continue;
-                        if (connection.canConnect()) {
-                            DBSchemaObject object = objectRef.get(project);
-                            if (object != null) {
-                                progress.setText(connection.getQualifiedName() + " - " + objectRef.getQualifiedNameWithType());
+                            for (DBObjectRef<DBSchemaObject> objectRef : objectRefs) {
+                                if (progress.isCanceled()) continue;
+                                if (!connection.canConnect()) continue;
+
+                                DBSchemaObject object = objectRef.get(project);
+                                if (object == null) continue;
+
+                                progress.setText2(connection.getName() + " - " + objectRef.getQualifiedNameWithType());
                                 object.initChildren();
-                                databaseFileSystem.openEditor(object, null, false, false);
+                                editorManager.openEditor(object, null, false, false);
                             }
-                        }
-                    }
-                }));
+                        }));
     }
 }

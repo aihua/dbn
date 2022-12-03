@@ -13,16 +13,17 @@ import com.dci.intellij.dbn.common.consumer.CancellableConsumer;
 import com.dci.intellij.dbn.common.consumer.ListCollector;
 import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
-import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
-import com.dci.intellij.dbn.common.dispose.Checks;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.filter.Filter;
+import com.dci.intellij.dbn.common.routine.Consumer;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.ui.tree.TreeEventType;
-import com.dci.intellij.dbn.common.util.*;
+import com.dci.intellij.dbn.common.util.Commons;
+import com.dci.intellij.dbn.common.util.Strings;
+import com.dci.intellij.dbn.common.util.Unsafe;
 import com.dci.intellij.dbn.connection.*;
 import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
 import com.dci.intellij.dbn.connection.jdbc.DBNCallableStatement;
@@ -37,6 +38,7 @@ import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.DBUser;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
+import com.dci.intellij.dbn.object.common.list.DBObjectListVisitor;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationList;
 import com.dci.intellij.dbn.object.common.operation.DBOperationExecutor;
 import com.dci.intellij.dbn.object.common.operation.DBOperationNotSupportedException;
@@ -61,14 +63,13 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
 import static com.dci.intellij.dbn.browser.DatabaseBrowserUtils.treeVisibilityChanged;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.nd;
 import static com.dci.intellij.dbn.common.util.Compactables.compact;
 import static com.dci.intellij.dbn.common.util.Lists.filter;
+import static com.dci.intellij.dbn.common.util.Unsafe.cast;
 
 public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTreeNodeBase implements DBObject, ToolTipProvider {
 
@@ -185,7 +186,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
     @Nullable
     @Override
     public <E extends DatabaseEntity> E getParentEntity() {
-        return Unsafe.cast(getParentObject());
+        return cast(getParentObject());
     }
 
     @Override
@@ -287,7 +288,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
         ConnectionHandler connection = this.getConnection();
         ttb.append(true, getQualifiedName(), false);
         ttb.append(true, "Connection: ", null, null, false );
-        ttb.append(false, connection.getPresentableText(), false);
+        ttb.append(false, connection.getName(), false);
     }
 
     @Override
@@ -325,6 +326,11 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
         return childObjects;
     }
 
+    public void visitChildObjects(DBObjectListVisitor visitor, boolean visitInternal) {
+        if (childObjects != null) childObjects.visit(visitor, visitInternal);
+    }
+
+
     @Override
     public void initChildren() {
         if (childObjects != null) childObjects.loadObjects();
@@ -354,8 +360,8 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
     }
 
     @Override
-    public DBObject getChildObject(DBObjectType objectType, String name, boolean lookupHidden) {
-        return getChildObject(objectType, name, (short) 0, lookupHidden);
+    public <T extends DBObject> T  getChildObject(DBObjectType objectType, String name, boolean lookupHidden) {
+        return cast(getChildObject(objectType, name, (short) 0, lookupHidden));
     }
 
     @Override
@@ -375,7 +381,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
     }
 
     @Override
-    public DBObject getChildObject(DBObjectType objectType, String name, short overload, boolean lookupHidden) {
+    public <T extends DBObject> T  getChildObject(DBObjectType objectType, String name, short overload, boolean lookupHidden) {
         if (childObjects == null) {
             return null;
         } else {
@@ -383,7 +389,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
             if (object == null && lookupHidden) {
                 object = childObjects.getInternalObject(objectType, name, overload);
             }
-            return object;
+            return Unsafe.cast(object);
         }
     }
 
@@ -418,29 +424,26 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
 
     @Override
     public void collectChildObjects(DBObjectType objectType, Consumer<? super DBObject> consumer) {
-        if (objectType.getFamilyTypes().size() > 1) {
-            for (DBObjectType childObjectType : objectType.getFamilyTypes()) {
+        if (childObjects == null) return;
+
+        Set<DBObjectType> familyTypes = objectType.getFamilyTypes();
+        if (familyTypes.size() > 1) {
+            for (DBObjectType familyType : familyTypes) {
                 CancellableConsumer.checkCancelled(consumer);
-                if (objectType != childObjectType) {
-                    collectChildObjects(childObjectType, consumer);
+                if (objectType != familyType) {
+                    if (getObjectType().isParentOf(familyType)) {
+                        collectChildObjects(familyType, consumer);
+                    }
                 } else {
-                    DBObjectList<?> objectList = childObjects == null ? null : childObjects.getObjectList(objectType);
+                    DBObjectList<?> objectList = childObjects.getObjectList(objectType);
                     if (objectList != null) {
                         objectList.collectObjects(consumer);
                     }
                 }
             }
-        } else if (childObjects != null) {
+        } else {
             if (objectType == DBObjectType.ANY) {
-                DBObjectList<?>[] elements = childObjects.getObjects();
-                if (elements != null) {
-                    for (DBObjectList<?> objectList : elements) {
-                        CancellableConsumer.checkCancelled(consumer);
-                        if (!objectList.isInternal() && Checks.isValid(objectList)) {
-                            objectList.collectObjects(consumer);
-                        }
-                    }
-                }
+                childObjects.visit(o -> o.collectObjects(consumer), false);
             } else {
                 DBObjectList<?> objectList = Commons.coalesce(
                         () -> childObjects.getObjectList(objectType, false),
@@ -492,7 +495,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
     public String extractDDL() throws SQLException {
         // TODO move to database interface (ORACLE)
         ConnectionHandler connection = getConnection();
-        return PooledConnection.call(connection.createInterfaceContext(), conn -> {
+        return PooledConnection.call(connection.createConnectionContext(), conn -> {
             DBNCallableStatement statement = null;
             try {
                 DBObjectType objectType = getObjectType();
@@ -629,19 +632,16 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
     public BrowserTreeNode getParent() {
         DBObjectType objectType = getObjectType();
         if (parentObjectRef != null){
-            DBObject object = parentObjectRef.get();
-            if (object != null) {
-                DBObjectListContainer childObjects = object.getChildObjects();
-                if (childObjects != null) {
-                    DBObjectList parentObjectList = childObjects.getObjectList(objectType);
-                    return Failsafe.nn(parentObjectList);
-                }
-            }
+            DBObject object = parentObjectRef.ensure();
+
+            DBObjectListContainer childObjects = nd(object.getChildObjects());
+            DBObjectList parentObjectList = childObjects.getObjectList(objectType);
+            return nd(parentObjectList);
+
         } else {
             DBObjectList<?> parentObjectList = getObjectBundle().getObjectList(objectType);
-            return Failsafe.nn(parentObjectList);
+            return nd(parentObjectList);
         }
-        throw AlreadyDisposedException.INSTANCE;
     }
 
 
@@ -746,7 +746,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
 
     @Override
     public boolean isLeaf() {
-        return Guarded.call(true, () -> {
+        return Failsafe.guarded(true, () -> {
             if (visibleTreeChildren == null) {
                 ConnectionHandler connection = this.getConnection();
                 Filter<BrowserTreeNode> filter = connection.getObjectTypeFilter();
@@ -874,7 +874,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
 
     @Override
     public void disposeInner() {
-        SafeDisposer.dispose(childObjects, false);
+        Disposer.dispose(childObjects, false);
         nullify();
     }
 }

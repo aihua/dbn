@@ -31,7 +31,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
-import static com.dci.intellij.dbn.common.dispose.SafeDisposer.replace;
+import static com.dci.intellij.dbn.common.dispose.Disposer.replace;
 import static com.dci.intellij.dbn.database.DatabaseFeature.DATABASE_LOGGING;
 
 @Getter
@@ -49,7 +49,7 @@ public class StatementExecutionInput extends LocalExecutionInput {
         if (isNotValid(connection)) return null;
 
         SchemaId currentSchema = getTargetSchemaId();
-        return Read.conditional(() -> {
+        return Read.call(() -> {
             DBLanguagePsiFile psiFile = executionProcessor.getPsiFile();
             if (isNotValid(psiFile)) return null;
 

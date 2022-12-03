@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.browser.DatabaseBrowserManager;
 import com.dci.intellij.dbn.browser.DatabaseBrowserUtils;
 import com.dci.intellij.dbn.browser.TreeNavigationHistory;
 import com.dci.intellij.dbn.browser.model.*;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.thread.Background;
@@ -18,6 +19,7 @@ import com.dci.intellij.dbn.connection.ConnectionBundle;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionManager;
 import com.dci.intellij.dbn.connection.action.ConnectionActionGroup;
+import com.dci.intellij.dbn.editor.DatabaseFileEditorManager;
 import com.dci.intellij.dbn.object.DBConsole;
 import com.dci.intellij.dbn.object.action.ObjectActionGroup;
 import com.dci.intellij.dbn.object.common.DBObject;
@@ -26,12 +28,10 @@ import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.action.ObjectListActionGroup;
 import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
-import com.dci.intellij.dbn.vfs.DatabaseFileSystem;
 import com.intellij.openapi.actionSystem.ActionGroup;
 import com.intellij.openapi.actionSystem.ActionPopupMenu;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.util.ui.tree.TreeUtil;
 import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
@@ -240,7 +240,7 @@ public final class DatabaseBrowserTree extends DBNTree {
 
         if (lastPathEntity instanceof DBObject) {
             DBObject object = (DBObject) lastPathEntity;
-            DatabaseFileSystem databaseFileSystem = DatabaseFileSystem.getInstance();
+            DatabaseFileEditorManager editorManager = DatabaseFileEditorManager.getInstance(getProject());
             Project project = ensureProject();
             if (object instanceof DBConsole) {
                 DBConsole console = (DBConsole) object;
@@ -249,21 +249,24 @@ public final class DatabaseBrowserTree extends DBNTree {
                 event.consume();
             } else if (object.is(DBObjectProperty.EDITABLE)) {
                 DBSchemaObject schemaObject = (DBSchemaObject) object;
-                databaseFileSystem.connectAndOpenEditor(schemaObject, null, false, deliberate);
+                editorManager.connectAndOpenEditor(schemaObject, null, false, deliberate);
                 event.consume();
 
             } else if (object.is(DBObjectProperty.NAVIGABLE)) {
-                databaseFileSystem.connectAndOpenEditor(object, null, false, deliberate);
+                editorManager.connectAndOpenEditor(object, null, false, deliberate);
                 event.consume();
 
             } else if (deliberate) {
-                Progress.prompt(project, "Loading object reference", true, progress -> {
-                    DBObject navigationObject = object.getDefaultNavigationObject();
-                    if (navigationObject != null) {
-                        Progress.check(progress);
-                        Dispatch.run(() -> navigationObject.navigate(true));
-                    }
-                });
+                Progress.prompt(project, object, true,
+                        "Loading object references",
+                        "Loading references of " + object.getQualifiedNameWithType(),
+                        progress -> {
+                            DBObject navigationObject = object.getDefaultNavigationObject();
+                            if (navigationObject != null) {
+                                progress.checkCanceled();
+                                Dispatch.run(() -> navigationObject.navigate(true));
+                            }
+                        });
             }
         } else if (lastPathEntity instanceof DBObjectBundle) {
             DBObjectBundle objectBundle = (DBObjectBundle) lastPathEntity;

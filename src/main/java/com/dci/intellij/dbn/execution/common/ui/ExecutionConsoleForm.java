@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.execution.common.ui;
 
 import com.dci.intellij.dbn.common.Icons;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
 import com.dci.intellij.dbn.common.environment.options.EnvironmentVisibilitySettings;
@@ -14,7 +15,6 @@ import com.dci.intellij.dbn.common.ui.tab.TabbedPane;
 import com.dci.intellij.dbn.common.ui.util.Mouse;
 import com.dci.intellij.dbn.common.ui.util.UserInterface;
 import com.dci.intellij.dbn.common.util.Documents;
-import com.dci.intellij.dbn.common.util.Guarded;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -41,7 +41,6 @@ import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.impl.PsiDocumentTransactionListener;
@@ -62,6 +61,7 @@ import java.util.List;
 import java.util.Objects;
 
 import static com.dci.intellij.dbn.common.dispose.Checks.isValid;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
 import static com.dci.intellij.dbn.common.navigation.NavigationInstruction.*;
 
 public class ExecutionConsoleForm extends DBNFormBase {
@@ -115,7 +115,7 @@ public class ExecutionConsoleForm extends DBNFormBase {
 
             @Override
             public void transactionCompleted(@NotNull Document document, @NotNull PsiFile file) {
-                Guarded.run(() -> {
+                guarded(() -> {
                     TabbedPane resultTabs = getResultTabs();
                     for (TabInfo tabInfo : resultTabs.getTabs()) {
                         ExecutionResult<?> executionResult = getExecutionResult(tabInfo);

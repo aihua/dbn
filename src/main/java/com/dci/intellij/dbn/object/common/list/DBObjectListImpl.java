@@ -21,7 +21,6 @@ import com.dci.intellij.dbn.common.search.SearchAdapter;
 import com.dci.intellij.dbn.common.string.StringDeBuilder;
 import com.dci.intellij.dbn.common.ui.tree.TreeEventType;
 import com.dci.intellij.dbn.common.util.Commons;
-import com.dci.intellij.dbn.common.util.Guarded;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.DatabaseEntity;
 import com.dci.intellij.dbn.connection.config.ConnectionFilterSettings;
@@ -42,6 +41,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiDirectory;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -52,6 +52,7 @@ import java.util.function.Consumer;
 
 import static com.dci.intellij.dbn.common.content.DynamicContentProperty.*;
 import static com.dci.intellij.dbn.common.dispose.Checks.isValid;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
 import static com.dci.intellij.dbn.common.list.FilteredList.unwrap;
 import static com.dci.intellij.dbn.common.search.Search.binarySearch;
 import static com.dci.intellij.dbn.common.search.Search.comboSearch;
@@ -60,6 +61,7 @@ import static com.dci.intellij.dbn.object.common.DBObjectSearchAdapters.binary;
 import static com.dci.intellij.dbn.object.common.DBObjectSearchAdapters.linear;
 import static com.dci.intellij.dbn.object.type.DBObjectType.*;
 
+@Slf4j
 @Getter
 @Setter
 public class DBObjectListImpl<T extends DBObject> extends DynamicContentBase<T> implements DBObjectList<T> {
@@ -305,7 +307,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentBase<T> 
 
     @Override
     public void notifyChangeListeners() {
-        Guarded.run(() -> {
+        guarded(() -> {
             Project project = getProject();
             BrowserTreeNode treeParent = getParent();
             if (!isInternal() && isTouched() && isValid(project) && treeParent.isTreeStructureLoaded()) {
@@ -385,7 +387,7 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentBase<T> 
 
     @Override
     public List<? extends BrowserTreeNode> getChildren() {
-        return Guarded.call(elements, () -> {
+        return guarded(elements, () -> {
             boolean wasUntouched = !isTouched();
             getElements();
             if (wasUntouched && isLoaded()) {
@@ -571,19 +573,28 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentBase<T> 
         }
 
         public List<T> getChildElements(DatabaseEntity entity) {
+            // "touch" elements first for ranges to become available (fragile...)
             List<T> elements = getAllElements();
-            if (ranges != null && entity instanceof DBObject) {
-                DBObject object = (DBObject) entity;
-                Range range = ranges.get(object.ref());
-                if (range != null) {
-                    return elements.subList(range.getLeft(), range.getRight() + 1);
-                }
+            if (ranges == null || !entity.isObject()) return Collections.emptyList();
+
+            DBObject object = (DBObject) entity;
+            Range range = ranges.get(object.ref());
+            if (range == null) return Collections.emptyList();
+
+            int fromIndex = range.getLeft();
+            int toIndex = range.getRight() + 1;
+            int size = elements.size();
+            if (toIndex > size) {
+                log.error("invalid range {} for elements size {}", range, elements.size(),
+                        new IllegalArgumentException("Invalid range capture"));
+                toIndex = size;
             }
-            return Collections.emptyList();
+            return elements.subList(fromIndex, toIndex);
         }
 
         @Override
         public T getElement(String name, short overload) {
+            // "touch" elements first for ranges to become available (fragile...)
             getElements();
             if (ranges == null) return null;
 

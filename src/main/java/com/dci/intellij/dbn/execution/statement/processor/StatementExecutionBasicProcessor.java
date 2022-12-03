@@ -15,6 +15,7 @@ import com.dci.intellij.dbn.common.thread.CancellableDatabaseCall;
 import com.dci.intellij.dbn.common.thread.Progress;
 import com.dci.intellij.dbn.common.thread.Read;
 import com.dci.intellij.dbn.common.util.Documents;
+import com.dci.intellij.dbn.common.util.Safe;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.*;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
@@ -147,7 +148,7 @@ public class StatementExecutionBasicProcessor extends StatefulDisposable.Base im
 
     @Override
     public boolean isDirty(){
-        return Read.conditional(() -> {
+        return Read.call(() -> {
             if (getPsiFile() == null ||
                     getConnection() != executionInput.getConnection() || // connection changed since execution
                     getTargetSchema() != executionInput.getTargetSchemaId()) { // current schema changed since execution)
@@ -162,7 +163,7 @@ public class StatementExecutionBasicProcessor extends StatefulDisposable.Base im
                                 !cachedExecutable.isValid() ||
                                 !cachedExecutable.matches(executablePsiElement, BasePsiElement.MatchType.STRONG);
             }
-        }, true);
+        });
     }
 
     @Override
@@ -432,7 +433,7 @@ public class StatementExecutionBasicProcessor extends StatefulDisposable.Base im
         statement.setQueryTimeout(timeout);
         assertNotCancelled();
 
-        databaseCall = new CancellableDatabaseCall<StatementExecutionResult>(connection, conn, timeout, TimeUnit.SECONDS) {
+        databaseCall = new CancellableDatabaseCall<>(connection, conn, timeout, TimeUnit.SECONDS) {
             @Override
             public StatementExecutionResult execute() throws Exception {
                 try {
@@ -444,7 +445,7 @@ public class StatementExecutionBasicProcessor extends StatefulDisposable.Base im
             }
 
             @Override
-            public void cancel(){
+            public void cancel() {
                 try {
                     context.set(CANCELLED, true);
                     Resources.cancel(statement);
@@ -467,13 +468,13 @@ public class StatementExecutionBasicProcessor extends StatefulDisposable.Base im
         ConnectionId connectionId = executionInput.getConnectionId();
         StatementExecutionQueue queue = Failsafe.nn(executionManager.getExecutionQueue(connectionId, sessionId));
         queue.cancelExecution(this);
-        CancellableDatabaseCall<StatementExecutionResult> databaseCall = this.databaseCall;
-        if (databaseCall != null) {
-            Progress.background(
-                    getProject(),
-                    "Cancelling statement execution", false,
-                    progress -> databaseCall.cancelSilently());
-        }
+        Progress.background(
+                getProject(),
+                getConnection(),
+                false,
+                "Cancelling execution",
+                "Cancelling statement execution",
+                progress -> Safe.run(databaseCall, call -> call.cancelSilently()));
     }
 
     private void consumeLoggerOutput(ExecutionContext context) {
@@ -644,7 +645,7 @@ public class StatementExecutionBasicProcessor extends StatefulDisposable.Base im
                         return compilerResult.hasErrors();
                     }
                     return false;
-                }, false);
+                });
             }
         }
 
@@ -773,26 +774,28 @@ public class StatementExecutionBasicProcessor extends StatefulDisposable.Base im
 
     @Nullable
     private DBSchemaObject getAffectedObject() {
-        if (isDataDefinitionStatement()) {
-            IdentifierPsiElement subjectPsiElement = getSubjectPsiElement();
-            if (subjectPsiElement != null) {
-                SchemaId targetSchema = getTargetSchema();
-                ConnectionHandler connection = getConnection();
-                if (targetSchema != null && connection != null) {
-                    DBObject schemaObject = connection.getSchema(targetSchema);
-                    if (schemaObject != null) {
-                        DBObjectListContainer childObjects = schemaObject.getChildObjects();
-                        if (childObjects != null) {
-                            DBObjectList objectList = childObjects.getObjectList(subjectPsiElement.getObjectType());
-                            if (objectList != null) {
-                                return (DBSchemaObject) objectList.getObject(subjectPsiElement.getText());
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return null;
+        if (!isDataDefinitionStatement()) return null;
+
+        IdentifierPsiElement subjectPsiElement = getSubjectPsiElement();
+        if (subjectPsiElement == null) return null;
+
+        SchemaId targetSchema = getTargetSchema();
+        if (targetSchema == null) return null;
+
+        ConnectionHandler connection = getConnection();
+        if (connection == null) return null;
+
+        DBObject schemaObject = connection.getSchema(targetSchema);
+        if (schemaObject == null) return null;
+
+        DBObjectListContainer childObjects = schemaObject.getChildObjects();
+        if (childObjects == null) return null;
+
+        DBObjectType objectType = subjectPsiElement.getObjectType();
+        DBObjectList objectList = childObjects.getObjectList(objectType);
+        if (objectList == null) return null;
+
+        return (DBSchemaObject) objectList.getObject(subjectPsiElement.getText());
     }
 
     @Nullable

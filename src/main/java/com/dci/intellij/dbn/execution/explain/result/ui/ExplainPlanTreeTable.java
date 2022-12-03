@@ -1,12 +1,12 @@
 package com.dci.intellij.dbn.execution.explain.result.ui;
 
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.project.ProjectRef;
 import com.dci.intellij.dbn.common.ui.form.DBNForm;
 import com.dci.intellij.dbn.common.ui.tree.TreeUtil;
 import com.dci.intellij.dbn.common.ui.util.Borders;
 import com.dci.intellij.dbn.common.ui.util.Mouse;
-import com.dci.intellij.dbn.common.util.Guarded;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.data.editor.ui.UserValueHolder;
 import com.dci.intellij.dbn.data.editor.ui.UserValueHolderImpl;
@@ -24,7 +24,6 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.popup.JBPopup;
 import com.intellij.openapi.ui.popup.JBPopupAdapter;
 import com.intellij.openapi.ui.popup.LightweightWindowEvent;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.ColoredTableCellRenderer;
 import com.intellij.ui.ColoredTreeCellRenderer;
 import com.intellij.ui.SimpleTextAttributes;
@@ -47,6 +46,8 @@ import java.awt.font.FontRenderContext;
 import java.awt.font.LineMetrics;
 import java.math.BigDecimal;
 import java.util.Objects;
+
+import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
 
 public class ExplainPlanTreeTable extends TreeTable implements StatefulDisposable {
     private static final int MAX_TREE_COLUMN_WIDTH = 900;
@@ -115,7 +116,7 @@ public class ExplainPlanTreeTable extends TreeTable implements StatefulDisposabl
 
         @Override
         public void customizeCellRenderer(@NotNull JTree tree, Object value, boolean selected, boolean expanded, boolean leaf, int row, boolean hasFocus) {
-            Guarded.run(() -> {
+            guarded(() -> {
                 ExplainPlanEntry entry = (ExplainPlanEntry) value;
 
                 DBObjectRef<?> objectRef = entry.getObjectRef();

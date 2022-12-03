@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.editor.data.ui.table;
 
 import com.dci.intellij.dbn.common.Pair;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.property.PropertyHolder;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.Dispatch;
@@ -23,6 +24,7 @@ import com.dci.intellij.dbn.data.sorting.SortDirection;
 import com.dci.intellij.dbn.data.value.ArrayValue;
 import com.dci.intellij.dbn.data.value.LargeObjectValue;
 import com.dci.intellij.dbn.data.value.ValueAdapter;
+import com.dci.intellij.dbn.editor.DatabaseFileEditorManager;
 import com.dci.intellij.dbn.editor.EditorProviderId;
 import com.dci.intellij.dbn.editor.data.DatasetEditor;
 import com.dci.intellij.dbn.editor.data.DatasetLoadInstructions;
@@ -42,10 +44,8 @@ import com.dci.intellij.dbn.editor.data.ui.table.renderer.DatasetEditorTableHead
 import com.dci.intellij.dbn.language.common.WeakRef;
 import com.dci.intellij.dbn.object.DBColumn;
 import com.dci.intellij.dbn.object.DBDataset;
-import com.dci.intellij.dbn.vfs.DatabaseFileSystem;
 import com.intellij.openapi.actionSystem.ActionGroup;
 import com.intellij.openapi.actionSystem.ActionPopupMenu;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.awt.RelativePoint;
 import lombok.Getter;
 import lombok.Setter;
@@ -220,8 +220,8 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
 
             if (!isShowing()) {
                 DBDataset dataset = getDataset();
-                DatabaseFileSystem databaseFileSystem = DatabaseFileSystem.getInstance();
-                databaseFileSystem.connectAndOpenEditor(dataset, EditorProviderId.DATA, false, true);
+                DatabaseFileEditorManager editorManager = DatabaseFileEditorManager.getInstance(getProject());
+                editorManager.connectAndOpenEditor(dataset, EditorProviderId.DATA, false, true);
             }
             if (cell.getError() != null) {
                 DatasetEditorErrorForm errorForm = new DatasetEditorErrorForm(cell);
@@ -326,7 +326,11 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
 
     @Override
     public int getColumnWidthBuffer() {
-        return 30;
+        return isReadonly() || getModel().isReadonly() ? 22 : 36;
+    }
+
+    private boolean isReadonly() {
+        return datasetEditor != null && getDatasetEditor().isReadonly();
     }
 
     @Override
@@ -451,7 +455,7 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             DatasetEditorModelCell cell = (DatasetEditorModelCell) getCellAtMouseLocation();
             if (cell != null) {
-                DBColumn column = cell.getColumnInfo().getColumn();
+                DBColumn column = cell.getColumn();
                 DBColumn foreignKeyColumn = column.getForeignKeyColumn();
                 if (foreignKeyColumn != null) {
                     setToolTipText("<html>Show referenced <b>" + foreignKeyColumn.getDataset().getQualifiedName() + "</b> record<html>");
@@ -480,13 +484,17 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
             if (model.is(INSERTING)) {
                 int insertRowIndex = getModel().getInsertRowIndex();
                 if (insertRowIndex != -1 && (insertRowIndex == e.getFirstIndex() || insertRowIndex == e.getLastIndex()) && getSelectedRow() != insertRowIndex) {
-                    Progress.prompt(getProject(), "Refreshing data", false, progress -> {
-                        try {
-                            model.postInsertRecord(false, true, false);
-                        } catch (SQLException e1) {
-                            Messages.showErrorDialog(getProject(), "Could not create row in " + getDataset().getQualifiedNameWithType() + ".", e1);
-                        }
-                    });
+                    DBDataset dataset = getDataset();
+                    Progress.prompt(getProject(), dataset, false,
+                            "Refreshing data",
+                            "Refreshing data for " + dataset.getQualifiedNameWithType(),
+                            progress -> {
+                                try {
+                                    model.postInsertRecord(false, true, false);
+                                } catch (SQLException e1) {
+                                    Messages.showErrorDialog(getProject(), "Could not create row in " + dataset.getQualifiedNameWithType() + ".", e1);
+                                }
+                            });
                 }
             }
             startCellEditing(e);
@@ -537,22 +545,26 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
             DatasetEditorModelCell cell,
             ColumnInfo columnInfo) {
 
-        Progress.modal(getProject(), "Loading column information", true, progress -> {
-            ActionGroup actionGroup = new DatasetEditorTableActionGroup(getDatasetEditor(), cell, columnInfo);
-            Progress.check(progress);
+        DBColumn column = cell.getColumn();
+        Progress.modal(getProject(), column, true,
+                "Loading column information",
+                "Loading details of " + column.getQualifiedNameWithType(),
+                progress -> {
+                    ActionGroup actionGroup = new DatasetEditorTableActionGroup(getDatasetEditor(), cell, columnInfo);
+                    progress.checkCanceled();
 
-            ActionPopupMenu actionPopupMenu = Actions.createActionPopupMenu(DatasetEditorTable.this, "", actionGroup);
-            JPopupMenu popupMenu = actionPopupMenu.getComponent();
-            Dispatch.run(() -> {
-                Component component = (Component) e.getSource();
-                if (component.isShowing()) {
-                    int x = e.getX();
-                    int y = e.getY();
-                    if (x >= 0 && x < component.getWidth() && y >= 0 && y < component.getHeight()) {
-                        popupMenu.show(component, x, y);
-                    }
-                }
-            });
-        });
+                    ActionPopupMenu actionPopupMenu = Actions.createActionPopupMenu(DatasetEditorTable.this, "", actionGroup);
+                    JPopupMenu popupMenu = actionPopupMenu.getComponent();
+                    Dispatch.run(() -> {
+                        Component component = (Component) e.getSource();
+                        if (component.isShowing()) {
+                            int x = e.getX();
+                            int y = e.getY();
+                            if (x >= 0 && x < component.getWidth() && y >= 0 && y < component.getHeight()) {
+                                popupMenu.show(component, x, y);
+                            }
+                        }
+                    });
+                });
     }
 }

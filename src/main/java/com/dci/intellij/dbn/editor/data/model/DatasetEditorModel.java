@@ -1,12 +1,11 @@
 package com.dci.intellij.dbn.editor.data.model;
 
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.environment.EnvironmentManager;
 import com.dci.intellij.dbn.common.thread.CancellableDatabaseCall;
 import com.dci.intellij.dbn.common.thread.Progress;
-import com.dci.intellij.dbn.common.util.Guarded;
 import com.dci.intellij.dbn.common.util.Messages;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionProperties;
@@ -32,7 +31,6 @@ import com.dci.intellij.dbn.object.DBConstraint;
 import com.dci.intellij.dbn.object.DBDataset;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -47,6 +45,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
 import static com.dci.intellij.dbn.connection.ConnectionProperty.RS_TYPE_FORWARD_ONLY;
 import static com.dci.intellij.dbn.connection.ConnectionProperty.RS_TYPE_SCROLL_INSENSITIVE;
 import static com.dci.intellij.dbn.editor.data.model.RecordStatus.*;
@@ -128,7 +127,7 @@ public class DatasetEditorModel
         super.setResultSet(resultSet);
 
         ConnectionHandler connection = getConnection();
-        resultSetAdapter = SafeDisposer.replace(resultSetAdapter,
+        resultSetAdapter = Disposer.replace(resultSetAdapter,
                 DatabaseFeature.UPDATABLE_RESULT_SETS.isSupported(connection) ?
                     new EditableResultSetAdapter(this, resultSet) :
                     new ReadonlyResultSetAdapter(this, resultSet), false);
@@ -268,7 +267,7 @@ public class DatasetEditorModel
     @NotNull
     @Override
     public DatasetEditorState getState() {
-        return Guarded.call(DatasetEditorState.VOID, () -> getDatasetEditor().getEditorState());
+        return guarded(DatasetEditorState.VOID, () -> getDatasetEditor().getEditorState());
     }
 
     private boolean hasChanges() {
@@ -317,7 +316,7 @@ public class DatasetEditorModel
 
     @Nullable
     public DatasetFilterInput resolveForeignKeyRecord(DatasetEditorModelCell cell) {
-        DBColumn column = cell.getColumnInfo().getColumn();
+        DBColumn column = cell.getColumn();
         if (!column.isForeignKey()) return null;
 
         for (DBConstraint constraint : column.getConstraints()) {
@@ -356,7 +355,11 @@ public class DatasetEditorModel
     public void deleteRecords(int[] rowIndexes) {
         DatasetEditorTable editorTable = getEditorTable();
         editorTable.fireEditingCancel();
-        Progress.prompt(getProject(), "Deleting records", true, progress -> {
+        DBDataset dataset = getDataset();
+        Progress.prompt(getProject(), dataset, true,
+                "Deleting records",
+                "Deleting records from " + dataset.getQualifiedNameWithType(),
+                progress -> {
             progress.setIndeterminate(false);
             for (int index : rowIndexes) {
                 progress.setFraction(Progress.progressOf(index, rowIndexes.length));
@@ -373,7 +376,6 @@ public class DatasetEditorModel
                 }
                 set(MODIFIED, true);
             }
-            DBDataset dataset = getDataset();
             DBNConnection connection = getResultConnection();
             connection.notifyDataChanges(dataset.getVirtualFile());
         });

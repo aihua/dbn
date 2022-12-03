@@ -2,8 +2,8 @@ package com.dci.intellij.dbn.execution.statement.result.ui;
 
 import com.dci.intellij.dbn.common.action.DataProviders;
 import com.dci.intellij.dbn.common.color.Colors;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Read;
@@ -23,17 +23,11 @@ import com.dci.intellij.dbn.execution.common.result.ui.ExecutionResultFormBase;
 import com.dci.intellij.dbn.execution.statement.result.StatementExecutionCursorResult;
 import com.intellij.openapi.actionSystem.ActionToolbar;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.ui.IdeBorderFactory;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JScrollBar;
-import javax.swing.JScrollPane;
-import java.awt.BorderLayout;
+import javax.swing.*;
+import java.awt.*;
 
 public class StatementExecutionResultForm extends ExecutionResultFormBase<StatementExecutionCursorResult> implements SearchableDataComponent {
     private JScrollPane resultScrollPane;
@@ -46,9 +40,7 @@ public class StatementExecutionResultForm extends ExecutionResultFormBase<Statem
     private ResultSetTable<?> resultTable;
     private final RecordViewInfo recordViewInfo;
 
-    @ToString.Exclude
-    @EqualsAndHashCode.Exclude
-    private final Latent<DataSearchComponent> dataSearchComponent = Latent.basic(() -> {
+    private transient final Latent<DataSearchComponent> dataSearchComponent = Latent.basic(() -> {
         DataSearchComponent dataSearchComponent = new DataSearchComponent(StatementExecutionResultForm.this);
         searchPanel.add(dataSearchComponent.getComponent(), BorderLayout.CENTER);
         DataProviders.register(dataSearchComponent.getSearchField(), this);
@@ -84,7 +76,7 @@ public class StatementExecutionResultForm extends ExecutionResultFormBase<Statem
             JScrollBar horizontalScrollBar = resultScrollPane.getHorizontalScrollBar();
             int horizontalScrolling = horizontalScrollBar.getValue();
             ResultSetTable<?> newResultSetTable = new ResultSetTable<>(this, executionResult.getTableModel(), true, recordViewInfo);
-            resultTable = SafeDisposer.replace(resultTable, newResultSetTable, false);
+            resultTable = Disposer.replace(resultTable, newResultSetTable, false);
             resultScrollPane.setViewportView(resultTable);
             resultTable.initTableGutter();
             resultTable.setName(getExecutionResult().getName());
@@ -102,7 +94,7 @@ public class StatementExecutionResultForm extends ExecutionResultFormBase<Statem
             StatementExecutionCursorResult executionResult = getExecutionResult();
             ResultSetDataModel<?, ?> dataModel = executionResult.getTableModel();
             ConnectionHandler connection = executionResult.getConnection();
-            String connectionName = connection.getPresentableText();
+            String connectionName = connection.getName();
             SessionId sessionId = executionResult.getExecutionInput().getTargetSessionId();
             String connectionType =
                     sessionId == SessionId.MAIN ? " (main)" :

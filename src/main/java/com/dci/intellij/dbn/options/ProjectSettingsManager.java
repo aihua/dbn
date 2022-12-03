@@ -7,7 +7,6 @@ import com.dci.intellij.dbn.common.action.UserDataKeys;
 import com.dci.intellij.dbn.common.component.Components;
 import com.dci.intellij.dbn.common.component.PersistentState;
 import com.dci.intellij.dbn.common.component.ProjectComponentBase;
-import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.util.Messages;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -21,7 +20,7 @@ import com.dci.intellij.dbn.connection.console.DatabaseConsoleManager;
 import com.dci.intellij.dbn.connection.operation.options.OperationSettings;
 import com.dci.intellij.dbn.data.grid.options.DataGridSettings;
 import com.dci.intellij.dbn.ddl.options.DDLFileSettings;
-import com.dci.intellij.dbn.editor.EditorStateManager;
+import com.dci.intellij.dbn.editor.DatabaseEditorStateManager;
 import com.dci.intellij.dbn.editor.code.SourceCodeManager;
 import com.dci.intellij.dbn.editor.data.DatasetEditorManager;
 import com.dci.intellij.dbn.editor.data.options.DataEditorSettings;
@@ -43,6 +42,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
+import static com.dci.intellij.dbn.common.dispose.Failsafe.nd;
 import static com.dci.intellij.dbn.common.message.MessageCallback.when;
 
 @State(
@@ -76,7 +76,7 @@ public class ProjectSettingsManager extends ProjectComponentBase implements Pers
     }
 
     public ProjectSettings getProjectSettings() {
-        return Failsafe.nd(projectSettings);
+        return nd(projectSettings);
     }
 
     public GeneralProjectSettings getGeneralSettings() {
@@ -185,7 +185,7 @@ public class ProjectSettingsManager extends ProjectComponentBase implements Pers
 
         Project project = getProject();
         DatabaseConsoleManager.getInstance(project);
-        EditorStateManager.getInstance(project);
+        DatabaseEditorStateManager.getInstance(project);
         SourceCodeManager.getInstance(project);
         DatasetEditorManager.getInstance(project);
         DatabaseLoaderManager.getInstance(project);

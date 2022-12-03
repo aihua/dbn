@@ -56,6 +56,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.dci.intellij.dbn.common.component.Components.projectService;
 import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.nd;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.*;
 
 @State(
@@ -88,7 +90,7 @@ public class StatementExecutionManager extends ProjectComponentBase implements P
 
             @Override
             public void transactionCompleted(@NotNull Document document, @NotNull PsiFile file) {
-                Guarded.run(() -> {
+                guarded(() -> {
                     Project project = file.getProject();
                     VirtualFile virtualFile = file.getVirtualFile();
                     if (virtualFile.isInLocalFileSystem()) {
@@ -114,7 +116,7 @@ public class StatementExecutionManager extends ProjectComponentBase implements P
     @Nullable
     public StatementExecutionQueue getExecutionQueue(ConnectionId connectionId, SessionId sessionId) {
         ConnectionManager connectionManager = ConnectionManager.getInstance(getProject());
-        ConnectionHandler connection = Failsafe.nd(connectionManager.getConnection(connectionId));
+        ConnectionHandler connection = nd(connectionManager.getConnection(connectionId));
         return connection.isVirtual() ? null : connection.getExecutionQueue(sessionId);
     }
 
@@ -222,7 +224,7 @@ public class StatementExecutionManager extends ProjectComponentBase implements P
     private void executeStatements(@Nullable VirtualFile virtualFile, List<StatementExecutionProcessor> executionProcessors, DataContext dataContext) {
         if (isNotValid(virtualFile) || executionProcessors.isEmpty()) return;
 
-        Guarded.run(() -> {
+        guarded(() -> {
             FileConnectionContextManager contextManager = FileConnectionContextManager.getInstance(getProject());
             contextManager.selectConnectionAndSchema(
                     virtualFile,
@@ -244,7 +246,9 @@ public class StatementExecutionManager extends ProjectComponentBase implements P
             ConnectionId connectionId = executionInput.getConnectionId();
             if (context.isNot(EXECUTING) && context.isNot(QUEUED)) {
                 if (sessionId == SessionId.POOL) {
-                    Progress.background(getProject(), "Executing statement", true,
+                    Progress.background(getProject(), executionInput, true,
+                            "Executing statement",
+                            "Executing " + executionInput.getStatementDescription(),
                             progress -> process(executionProcessor));
                 } else {
                     StatementExecutionQueue queue = getExecutionQueue(connectionId, sessionId);

@@ -2,11 +2,10 @@ package com.dci.intellij.dbn.navigation.object;
 
 import com.dci.intellij.dbn.common.consumer.ConcurrentSetCollector;
 import com.dci.intellij.dbn.common.consumer.SetCollector;
-import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
+import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.project.ProjectRef;
-import com.dci.intellij.dbn.common.util.Guarded;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionRef;
 import com.dci.intellij.dbn.navigation.options.ObjectsLookupSettings;
@@ -16,7 +15,6 @@ import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.options.ProjectSettingsManager;
 import com.intellij.ide.util.gotoByName.ChooseByNameModel;
-import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.project.Project;
 import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
@@ -26,7 +24,7 @@ import javax.swing.*;
 import java.util.Comparator;
 import java.util.Objects;
 
-import static com.dci.intellij.dbn.common.load.ProgressMonitor.getProgressIndicator;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
 
 public class DBObjectLookupModel extends StatefulDisposable.Base implements ChooseByNameModel {
     private static final Object[] EMPTY_ARRAY = new Object[0];
@@ -37,9 +35,6 @@ public class DBObjectLookupModel extends StatefulDisposable.Base implements Choo
     private final DBObjectRef<DBSchema> selectedSchema;
     private final ObjectsLookupSettings settings;
     private final @Getter SetCollector<DBObject> data = ConcurrentSetCollector.create();
-
-    private final ProgressIndicator progressIndicator = getProgressIndicator();
-
 
     public DBObjectLookupModel(@NotNull Project project, @Nullable ConnectionHandler selectedConnection, DBSchema selectedSchema) {
         this.project = ProjectRef.of(project);
@@ -116,7 +111,7 @@ public class DBObjectLookupModel extends StatefulDisposable.Base implements Choo
     @Override
     @NotNull
     public String[] getNames(boolean checkBoxState) {
-        return Guarded.call(EMPTY_STRING_ARRAY, () -> {
+        return guarded(EMPTY_STRING_ARRAY, () -> {
             boolean databaseLoadActive = getSettings().getForceDatabaseLoad().value();
             boolean forceLoad = checkBoxState && databaseLoadActive;
 
@@ -146,7 +141,7 @@ public class DBObjectLookupModel extends StatefulDisposable.Base implements Choo
     @Override
     @NotNull
     public Object[] getElementsByName(@NotNull String name, boolean checkBoxState, @NotNull String pattern) {
-        return Guarded.call(EMPTY_ARRAY, () -> data.elements().
+        return guarded(EMPTY_ARRAY, () -> data.elements().
                 stream().
                 filter(object -> Objects.equals(object.getName(), name)).
                 sorted(Comparator.comparing(DBObject::getQualifiedName)).
@@ -207,8 +202,6 @@ public class DBObjectLookupModel extends StatefulDisposable.Base implements Choo
 
     public void checkCancelled() {
         checkDisposed();
-        if (progressIndicator != null && progressIndicator.isCanceled()) {
-            throw AlreadyDisposedException.INSTANCE;
-        }
+        ProgressMonitor.checkCancelled();
     }
 }

@@ -1,9 +1,7 @@
 package com.dci.intellij.dbn.common.event;
 
-import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.project.Projects;
-import com.dci.intellij.dbn.common.routine.ParametricRunnable;
-import com.dci.intellij.dbn.common.util.Guarded;
+import com.dci.intellij.dbn.common.routine.Consumer;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
@@ -15,19 +13,21 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.nd;
 
 
 public final class ProjectEvents {
     private ProjectEvents() {}
 
     public static <T> void subscribe(@NotNull Project project, @Nullable Disposable parentDisposable, Topic<T> topic, T handler) {
-        Guarded.run(() -> {
+        guarded(() -> {
             if (isNotValid(project) || project.isDefault()) return;
 
             MessageBus messageBus = messageBus(project);
             MessageBusConnection connection = parentDisposable == null ?
                     messageBus.connect() :
-                    messageBus.connect(Failsafe.nd(parentDisposable));
+                    messageBus.connect(nd(parentDisposable));
 
             connection.subscribe(topic, handler);
         });
@@ -46,11 +46,11 @@ public final class ProjectEvents {
 
     }
 
-    public static <T> void notify(@Nullable Project project, Topic<T> topic, ParametricRunnable.Basic<T> callback) {
-        Guarded.run(() -> {
+    public static <T> void notify(@Nullable Project project, Topic<T> topic, Consumer<T> consumer) {
+        guarded(() -> {
             if (isNotValid(project) || project.isDefault()) return;
             T publisher = publisher(project, topic);
-            callback.run(publisher);
+            consumer.accept(publisher);
         });
     }
 
@@ -62,6 +62,6 @@ public final class ProjectEvents {
 
     @NotNull
     private static MessageBus messageBus(@Nullable Project project) {
-        return Failsafe.nd(project).getMessageBus();
+        return nd(project).getMessageBus();
     }
 }

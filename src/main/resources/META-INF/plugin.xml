@@ -2,7 +2,7 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.3.3100.1</version>
+    <version>3.3.4510.1</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
@@ -31,7 +31,13 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
-            <li><b>3.3.3100</b>
+            <li><b>3.3.4510</b>
+            <ul>
+                <li>Architectural changes (background services rework)
+                <li>Bug fixes and performance improvements
+                <li>Probably a whole set of brand new bugs...
+            </ul>
+            <li><b>3.3.3100 - UNSTABLE</b>
             <ul>
                 <li>Architectural changes (components - move to services)
                 <li>Resources allocation redesign (background operations optimisation)
@@ -230,7 +236,6 @@
     <extensions defaultExtensionNs="com.intellij">
         <applicationService serviceImplementation="com.dci.intellij.dbn.DatabaseNavigator"/>
         <applicationService serviceImplementation="com.dci.intellij.dbn.driver.DatabaseDriverManager"/>
-        <applicationService serviceImplementation="com.dci.intellij.dbn.editor.EditorManager"/>
         <applicationService serviceImplementation="com.dci.intellij.dbn.connection.ssh.SshTunnelManager"/>
         <applicationService serviceImplementation="com.dci.intellij.dbn.connection.ssl.SslConnectionManager"/>
         <applicationService serviceImplementation="com.dci.intellij.dbn.options.DefaultProjectSettingsManager"/>
@@ -257,7 +262,8 @@
         <projectService serviceImplementation="com.dci.intellij.dbn.debugger.DatabaseDebuggerManager"/>
         <projectService serviceImplementation="com.dci.intellij.dbn.ddl.DDLFileManager"/>
         <projectService serviceImplementation="com.dci.intellij.dbn.ddl.DDLFileAttachmentManager"/>
-        <projectService serviceImplementation="com.dci.intellij.dbn.editor.EditorStateManager"/>
+        <projectService serviceImplementation="com.dci.intellij.dbn.editor.DatabaseFileEditorManager"/>
+        <projectService serviceImplementation="com.dci.intellij.dbn.editor.DatabaseEditorStateManager"/>
         <projectService serviceImplementation="com.dci.intellij.dbn.editor.code.SourceCodeManager"/>
         <projectService serviceImplementation="com.dci.intellij.dbn.editor.code.diff.SourceCodeDiffManager"/>
         <projectService serviceImplementation="com.dci.intellij.dbn.editor.data.DatasetEditorManager"/>

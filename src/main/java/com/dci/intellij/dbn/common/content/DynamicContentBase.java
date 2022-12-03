@@ -4,8 +4,8 @@ import com.dci.intellij.dbn.common.collections.CompactArrayList;
 import com.dci.intellij.dbn.common.content.dependency.ContentDependencyAdapter;
 import com.dci.intellij.dbn.common.content.dependency.VoidContentDependencyAdapter;
 import com.dci.intellij.dbn.common.content.loader.DynamicContentLoader;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.filter.FilterDelegate;
 import com.dci.intellij.dbn.common.list.FilteredList;
 import com.dci.intellij.dbn.common.notification.NotificationGroup;
@@ -171,6 +171,16 @@ public abstract class DynamicContentBase<T extends DynamicContentElement>
         return false;
     }
 
+    private boolean shouldRefresh() {
+        if (shouldReload()) {
+            if (isDirty()) return false;
+
+            return true;
+        }
+
+        return false;
+    }
+
     @Override
     public void load() {
         if (shouldLoad()) {
@@ -197,28 +207,28 @@ public abstract class DynamicContentBase<T extends DynamicContentElement>
         if (shouldReload()) {
             markDirty();
             ensureLoaded(true);
-
-            for (T element : elements) {
-                checkDisposed();
-                element.refresh();
-            }
+            refreshElements();
         }
     }
 
     @Override
     public void refresh() {
-        if (shouldReload()) {
+        if (shouldRefresh()) {
             markDirty();
-            dependencyAdapter.refreshSources();
+            refreshSources();
             if (!is(INTERNAL)){
-                for (T element : elements) {
-                    checkDisposed();
-                    element.refresh();
-                }
+                refreshElements();
             }
         }
     }
 
+    private void refreshSources() {
+        dependencyAdapter.refreshSources();
+    }
+
+    private void refreshElements() {
+        elements.forEach(e -> e.refresh());
+    }
 
     /**
      * Synchronised block making sure the content is loaded before the thread is released
@@ -323,7 +333,7 @@ public abstract class DynamicContentBase<T extends DynamicContentElement>
             notifyChangeListeners();
         }
         if (is(MASTER)) {
-            SafeDisposer.disposeCollection(oldElements);
+            Disposer.disposeCollection(oldElements);
         }
     }
 
@@ -386,7 +396,7 @@ public abstract class DynamicContentBase<T extends DynamicContentElement>
     public void disposeInner() {
         if (elements != EMPTY_CONTENT && elements != EMPTY_UNTOUCHED_CONTENT) {
             if (!isSubContent()) {
-                SafeDisposer.disposeCollection(elements);
+                Disposer.disposeCollection(elements);
             }
             elements = cast(EMPTY_DISPOSED_CONTENT);
         }

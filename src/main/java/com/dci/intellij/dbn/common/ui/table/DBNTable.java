@@ -1,8 +1,8 @@
 package com.dci.intellij.dbn.common.ui.table;
 
 import com.dci.intellij.dbn.common.color.Colors;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.thread.Dispatch;
@@ -35,8 +35,8 @@ import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import static com.dci.intellij.dbn.common.dispose.Disposer.replace;
 import static com.dci.intellij.dbn.common.dispose.Failsafe.nd;
-import static com.dci.intellij.dbn.common.dispose.SafeDisposer.replace;
 
 public abstract class DBNTable<T extends DBNTableModel> extends JTable implements StatefulDisposable, UserDataHolder {
     private static final int MAX_COLUMN_WIDTH = 300;
@@ -44,13 +44,13 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
 
     private final WeakRef<DBNComponent> parentComponent;
 
-    private DBNTableGutter<?> tableGutter;
     private int rowVerticalPadding;
     private double scrollDistance;
     private KeyFMap userData = KeyFMap.EMPTY_MAP;
 
     private Timer scrollTimer;
     private final Latent<JBScrollPane> scrollPane = Latent.weak(() -> UIUtil.getParentOfType(JBScrollPane.class, DBNTable.this));
+    private final Latent<DBNTableGutter<?>> tableGutter = Latent.weak(() -> createTableGutter());
     private final FontMetrics metricsCache = new FontMetrics(this);
 
     public DBNTable(DBNComponent parent, T tableModel, boolean showHeader) {
@@ -86,7 +86,7 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
 
             tableHeader.addMouseListener(Mouse.listener().onRelease(e -> {
                 if (scrollTimer != null) {
-                    SafeDisposer.dispose(scrollTimer);
+                    Disposer.dispose(scrollTimer);
                     scrollTimer = null;
                 }
             }));
@@ -95,8 +95,8 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
         setSelectionBackground(Colors.getTableSelectionBackground(true));
         setSelectionForeground(Colors.getTableSelectionForeground(true));
 
-        SafeDisposer.register(parent, this);
-        SafeDisposer.register(this, tableModel);
+        Disposer.register(parent, this);
+        Disposer.register(this, tableModel);
     }
 
     public JBScrollPane getScrollPane() {
@@ -337,20 +337,22 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
     }
 
     public final DBNTableGutter<?> getTableGutter() {
-        if (tableGutter == null) {
-            tableGutter = createTableGutter();
-        }
-        return tableGutter;
+        return tableGutter.get();
     }
 
     public final void initTableGutter() {
         DBNTableGutter tableGutter = getTableGutter();
-        if (tableGutter != null){
-            JScrollPane scrollPane = UIUtil.getParentOfType(JScrollPane.class, this);
-            if (scrollPane != null) {
-                scrollPane.setRowHeaderView(tableGutter);
-            }
-        }
+        if (tableGutter == null) return;
+
+        JScrollPane scrollPane = UIUtil.getParentOfType(JScrollPane.class, this);
+        if (scrollPane == null) return;
+
+        scrollPane.setRowHeaderView(tableGutter);
+    }
+
+    protected void resetTableGutter() {
+        tableGutter.reset();
+        initTableGutter();
     }
 
     public void stopCellEditing() {
@@ -443,7 +445,7 @@ public abstract class DBNTable<T extends DBNTableModel> extends JTable implement
     public void dispose(){
         if (!disposed) {
             disposed = true;
-            SafeDisposer.dispose(super.getModel(), false);
+            Disposer.dispose(super.getModel(), false);
             listenerList = new EventListenerList();
             columnModel = new DefaultTableColumnModel();
             selectionModel = new DefaultListSelectionModel();

@@ -39,7 +39,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static com.dci.intellij.dbn.common.util.Exceptions.unsupported;
+import static com.dci.intellij.dbn.common.exception.Exceptions.unsupported;
 
 @Getter
 public class VirtualConnectionHandler extends StatefulDisposable.Base implements ConnectionHandler {
@@ -130,13 +130,8 @@ public class VirtualConnectionHandler extends StatefulDisposable.Base implements
     }
 
     @Override
-    public String getPresentableText() {
-        return name;
-    }
-
-    @Override
     public String getQualifiedName() {
-        return name;
+        return "virtual " + ConnectionHandler.super.getQualifiedName();
     }
 
     @Override

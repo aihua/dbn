@@ -6,8 +6,8 @@ import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.path.Node;
 import com.dci.intellij.dbn.common.path.NodeBase;
+import com.dci.intellij.dbn.common.routine.Consumer;
 import com.dci.intellij.dbn.common.thread.Read;
-import com.dci.intellij.dbn.common.util.Consumer;
 import com.dci.intellij.dbn.common.util.Documents;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -50,6 +50,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static com.dci.intellij.dbn.common.content.DynamicContentProperty.*;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.nd;
 import static com.dci.intellij.dbn.object.common.sorting.DBObjectComparator.compareName;
 import static com.dci.intellij.dbn.object.common.sorting.DBObjectComparator.compareType;
 
@@ -76,7 +77,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
     private final DBObjectPsiCache psiCache;
     private final Map<String, ObjectLookupItemBuilder> lookupItemBuilder = new ConcurrentHashMap<>();
 
-    private final Latent<Boolean> valid = Latent.basic(() -> Read.conditional(() -> {
+    private final Latent<Boolean> valid = Latent.basic(() -> Read.call(() -> {
         BasePsiElement underlyingPsiElement = getUnderlyingPsiElement();
         if (underlyingPsiElement != null && underlyingPsiElement.isValid()) {
             DBObjectType objectType = getObjectType();
@@ -93,7 +94,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
             }
         }
         return false;
-    }, false));
+    }));
 
     public DBVirtualObject(@NotNull DBObjectType objectType, @NotNull BasePsiElement psiElement) {
         super(psiElement.getConnection(), objectType, psiElement.getText());
@@ -336,7 +337,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
     @Override
     @NotNull
     public ConnectionHandler getConnection() {
-        BasePsiElement underlyingPsiElement = Failsafe.nd(getUnderlyingPsiElement());
+        BasePsiElement underlyingPsiElement = nd(getUnderlyingPsiElement());
         DBLanguagePsiFile file = underlyingPsiElement.getFile();
         ConnectionHandler connection = file.getConnection();
         if (connection == null) {

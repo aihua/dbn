@@ -1,10 +1,8 @@
 package com.dci.intellij.dbn.common.action;
 
 import com.dci.intellij.dbn.common.util.Commons;
-import com.intellij.openapi.actionSystem.ActionUpdateThread;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.UpdateInBackground;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -15,7 +13,7 @@ import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
 import static com.dci.intellij.dbn.common.dispose.Checks.isValid;
 import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
 
-public abstract class ProjectAction extends AnAction implements UpdateInBackground{
+public abstract class ProjectAction extends AnAction{
 
     public ProjectAction() {
     }
@@ -61,9 +59,5 @@ public abstract class ProjectAction extends AnAction implements UpdateInBackgrou
 
     protected abstract void actionPerformed(@NotNull AnActionEvent e, @NotNull Project project);
 
-    @NotNull
-    public ActionUpdateThread getActionUpdateThread() {
-        return ActionUpdateThread.BGT;
-    }
 }
 

@@ -8,7 +8,6 @@ import com.dci.intellij.dbn.common.ui.form.DBNFormBase;
 import com.dci.intellij.dbn.common.ui.form.DBNHeaderForm;
 import com.dci.intellij.dbn.common.ui.util.UserInterface;
 import com.dci.intellij.dbn.common.util.Actions;
-import com.dci.intellij.dbn.common.util.Guarded;
 import com.dci.intellij.dbn.data.grid.ui.table.resultSet.ResultSetTable;
 import com.dci.intellij.dbn.data.model.ColumnInfo;
 import com.dci.intellij.dbn.data.model.resultSet.ResultSetDataModel;
@@ -28,6 +27,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.Comparator;
 import java.util.List;
+
+import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
 
 public class ResultSetRecordViewerForm extends DBNFormBase {
     private JPanel actionsPanel;
@@ -165,8 +166,8 @@ public class ResultSetRecordViewerForm extends DBNFormBase {
     };
 
     private static final Comparator<ResultSetRecordViewerColumnForm> INDEXED_COMPARATOR = (columnPanel1, columnPanel2) -> {
-        int index1 = columnPanel1.getCell().getColumnInfo().getColumnIndex();
-        int index2 = columnPanel2.getCell().getColumnInfo().getColumnIndex();
+        int index1 = columnPanel1.getCell().getColumnInfo().getIndex();
+        int index2 = columnPanel2.getCell().getColumnInfo().getIndex();
         return index1-index2;
     };
 
@@ -314,14 +315,14 @@ public class ResultSetRecordViewerForm extends DBNFormBase {
 
 
     private int getRowIndex() {
-        return Guarded.call(-1, () -> {
+        return guarded(-1, () -> {
             ResultSetDataModelRow<?, ?> row = getRow();
             return row.getIndex();
         });
     }
 
     private int getRowCount() {
-        return Guarded.call(0, () -> {
+        return guarded(0, () -> {
             ResultSetDataModelRow<?, ?> row = getRow();
             return row.getModel().getRowCount();
         });

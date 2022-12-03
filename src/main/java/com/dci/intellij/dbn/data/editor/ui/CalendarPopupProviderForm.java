@@ -2,7 +2,6 @@ package com.dci.intellij.dbn.data.editor.ui;
 
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.color.Colors;
-import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.locale.Formatter;
 import com.dci.intellij.dbn.common.ui.util.*;
 import com.dci.intellij.dbn.common.util.Actions;
@@ -35,6 +34,8 @@ import java.awt.event.MouseEvent;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.util.*;
+
+import static com.dci.intellij.dbn.common.dispose.Failsafe.nd;
 
 public class CalendarPopupProviderForm extends TextFieldPopupProviderForm implements TableModelListener {
     private static final TableCellRenderer CELL_RENDERER = new CalendarTableCellRenderer();
@@ -112,7 +113,7 @@ public class CalendarPopupProviderForm extends TextFieldPopupProviderForm implem
     }
 
     private void updateComponentColors() {
-        Failsafe.nd(this);
+        nd(this);
         Color panelBackground = Colors.getPanelBackground();
         Color labelForeground = Colors.getLabelForeground();
         Color tableBackground = Colors.getTableBackground();

@@ -8,16 +8,17 @@ import com.dci.intellij.dbn.common.content.DynamicContentType;
 import com.dci.intellij.dbn.common.environment.EnvironmentTypeProvider;
 import com.dci.intellij.dbn.common.path.Node;
 import com.dci.intellij.dbn.common.property.PropertyHolder;
+import com.dci.intellij.dbn.common.routine.Consumer;
 import com.dci.intellij.dbn.common.ui.Presentable;
-import com.dci.intellij.dbn.common.util.Consumer;
+import com.dci.intellij.dbn.connection.ConnectionContext;
 import com.dci.intellij.dbn.connection.ConnectionId;
-import com.dci.intellij.dbn.database.interfaces.DatabaseInterfaceContext;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.language.common.DBLanguage;
 import com.dci.intellij.dbn.language.common.DBLanguageDialect;
 import com.dci.intellij.dbn.object.DBUser;
 import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
+import com.dci.intellij.dbn.object.common.list.DBObjectListVisitor;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationList;
 import com.dci.intellij.dbn.object.common.operation.DBOperationExecutor;
 import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
@@ -85,9 +86,9 @@ public interface DBObject extends
     @Nullable
     DBObjectList<? extends DBObject> getChildObjectList(DBObjectType objectType);
 
-    DBObject getChildObject(DBObjectType objectType, String name, boolean lookupHidden);
+    <T extends DBObject> T getChildObject(DBObjectType objectType, String name, boolean lookupHidden);
 
-    DBObject getChildObject(DBObjectType objectType, String name, short overload, boolean lookupHidden);
+    <T extends DBObject> T  getChildObject(DBObjectType objectType, String name, short overload, boolean lookupHidden);
 
     @Nullable
     DBObject getChildObject(String name, boolean lookupHidden);
@@ -108,6 +109,8 @@ public interface DBObject extends
 
     @Nullable
     DBObjectListContainer getChildObjects();
+
+    void visitChildObjects(DBObjectListVisitor visitor, boolean visitInternal);
 
     @Nullable
     String extractDDL() throws SQLException;
@@ -136,7 +139,8 @@ public interface DBObject extends
         return getObjectType();
     }
 
-    default DatabaseInterfaceContext createInterfaceContext() {
-        return DatabaseInterfaceContext.create(getConnection(), getSchemaId(), true);
+    @Deprecated // do not use schema aware context
+    default ConnectionContext createConnectionContext() {
+        return new ConnectionContext(getConnectionId(), getSchemaId());
     }
 }

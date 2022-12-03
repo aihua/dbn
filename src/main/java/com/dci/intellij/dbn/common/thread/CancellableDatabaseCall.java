@@ -1,11 +1,11 @@
 package com.dci.intellij.dbn.common.thread;
 
-import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.Savepoints;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
 import com.dci.intellij.dbn.database.DatabaseFeature;
+import com.dci.intellij.dbn.database.interfaces.queue.InterfaceTaskCancelledException;
 import com.intellij.openapi.progress.ProgressIndicator;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
@@ -22,7 +22,6 @@ public abstract class CancellableDatabaseCall<T> implements Callable<T> {
 
     private final long startTimestamp = System.currentTimeMillis();
     private final ThreadInfo invoker = ThreadMonitor.current();
-    private final ProgressIndicator progressIndicator = ProgressMonitor.getProgressIndicator();
 
     private final DBNConnection connection;
     private final int timeout;
@@ -47,7 +46,7 @@ public abstract class CancellableDatabaseCall<T> implements Callable<T> {
 
     @Override
     public T call() throws Exception {
-        return ThreadMonitor.call(
+        return ThreadMonitor.surround(
                 invoker,
                 ThreadProperty.CANCELABLE,
                 null,
@@ -82,7 +81,7 @@ public abstract class CancellableDatabaseCall<T> implements Callable<T> {
     public abstract void cancel() throws Exception;
 
     public boolean isCancelRequested() {
-        return cancelRequested || (progressIndicator != null && progressIndicator.isCanceled());
+        return cancelRequested || ProgressMonitor.isCancelled();
     }
 
 
@@ -102,9 +101,9 @@ public abstract class CancellableDatabaseCall<T> implements Callable<T> {
                         }
                         cancelCheckTimer.cancel();
                     } else {
-                        ProgressIndicator progressIndicator = CancellableDatabaseCall.this.progressIndicator;
-                        if (progressIndicator != null && timeout > 0) {
-                            String text = progressIndicator.getText();
+                        ProgressIndicator progress = ProgressMonitor.getProgressIndicator();
+                        if (progress != null && timeout > 0) {
+                            String text = progress.getText();
                             int index = text.indexOf(" (timing out in ");
                             if (index > -1) {
                                 text = text.substring(0, index);
@@ -118,7 +117,7 @@ public abstract class CancellableDatabaseCall<T> implements Callable<T> {
                                 text = text + " (timing out in " + TimeUnit.SECONDS.toMinutes(timingOutIn) + " minutes) ";
 
 
-                            progressIndicator.setText(text);
+                            progress.setText(text);
                         }
                     }
                 }
@@ -138,7 +137,7 @@ public abstract class CancellableDatabaseCall<T> implements Callable<T> {
             }
 
         } catch (CancellationException | InterruptedException e) {
-            throw AlreadyDisposedException.INSTANCE;
+            throw InterfaceTaskCancelledException.INSTANCE;
 
         } catch (ExecutionException e) {
             Throwable cause = e.getCause();
@@ -156,7 +155,7 @@ public abstract class CancellableDatabaseCall<T> implements Callable<T> {
 
     public void handleTimeout() throws SQLTimeoutException {
         if (cancelled) {
-            throw AlreadyDisposedException.INSTANCE;
+            throw InterfaceTaskCancelledException.INSTANCE;
         }
         try {
             cancel();

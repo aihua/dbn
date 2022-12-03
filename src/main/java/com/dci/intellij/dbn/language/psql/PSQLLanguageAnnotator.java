@@ -32,7 +32,7 @@ public class PSQLLanguageAnnotator implements Annotator {
 
     @Override
     public void annotate(@NotNull final PsiElement psiElement, @NotNull final AnnotationHolder holder) {
-        ThreadMonitor.run(null,
+        ThreadMonitor.surround(null,
                 ThreadProperty.CODE_ANNOTATING,
                 () -> {
                     if (psiElement instanceof BasePsiElement) {

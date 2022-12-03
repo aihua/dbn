@@ -1,17 +1,19 @@
 package com.dci.intellij.dbn.object.dependency.ui;
 
 import com.dci.intellij.dbn.common.Icons;
+import com.dci.intellij.dbn.common.action.DumbAwareProjectAction;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.load.LoadInProgressRegistry;
 import com.dci.intellij.dbn.common.thread.Dispatch;
-import com.dci.intellij.dbn.common.ui.util.UserInterface;
-import com.dci.intellij.dbn.common.ui.util.Mouse;
 import com.dci.intellij.dbn.common.ui.component.DBNComponent;
 import com.dci.intellij.dbn.common.ui.tree.DBNTree;
+import com.dci.intellij.dbn.common.ui.util.Mouse;
+import com.dci.intellij.dbn.common.ui.util.UserInterface;
 import com.dci.intellij.dbn.common.util.Actions;
 import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.common.util.TimeUtil;
+import com.dci.intellij.dbn.editor.DatabaseFileEditorManager;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBObjectSelectionHistory;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
@@ -19,23 +21,21 @@ import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
 import com.dci.intellij.dbn.object.dependency.ObjectDependencyManager;
 import com.dci.intellij.dbn.object.dependency.ObjectDependencyType;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
-import com.dci.intellij.dbn.vfs.DatabaseFileSystem;
 import com.intellij.openapi.actionSystem.ActionPopupMenu;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.DefaultActionGroup;
 import com.intellij.openapi.actionSystem.Presentation;
 import com.intellij.openapi.project.DumbAwareAction;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Disposer;
 import com.intellij.util.ui.tree.TreeUtil;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.JPopupMenu;
+import javax.swing.*;
 import javax.swing.event.TreeSelectionEvent;
 import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
-import java.awt.Cursor;
+import java.awt.*;
 import java.awt.event.MouseEvent;
 
 public class ObjectDependencyTree extends DBNTree{
@@ -128,8 +128,9 @@ public class ObjectDependencyTree extends DBNTree{
                     if (object instanceof DBSchemaObject) {
                         DBSchemaObject schemaObject = (DBSchemaObject) object;
                         if (schemaObject.is(DBObjectProperty.EDITABLE)) {
-                            DatabaseFileSystem databaseFileSystem = DatabaseFileSystem.getInstance();
-                            databaseFileSystem.connectAndOpenEditor(schemaObject, null, true, true);
+                            Project project = object.getProject();
+                            DatabaseFileEditorManager editorManager = DatabaseFileEditorManager.getInstance(project);
+                            editorManager.connectAndOpenEditor(schemaObject, null, true, true);
                         }
                     }
 
@@ -189,25 +190,26 @@ public class ObjectDependencyTree extends DBNTree{
         }
     }
 
-    public class EditObjectAction extends DumbAwareAction {
-        private final DBObjectRef<DBSchemaObject> objectRef;
+    public static class EditObjectAction extends DumbAwareProjectAction {
+        private final DBObjectRef<DBSchemaObject> object;
 
         EditObjectAction(DBSchemaObject object) {
             super("Edit", null, Icons.ACTION_EDIT);
-            objectRef = DBObjectRef.of(object);
+            this.object = DBObjectRef.of(object);
+        }
+
+
+        @Override
+        protected void actionPerformed(@NotNull AnActionEvent e, @NotNull Project project) {
+            DBSchemaObject schemaObject = DBObjectRef.get(object);
+            if (schemaObject == null) return;
+
+            DatabaseFileEditorManager editorManager = DatabaseFileEditorManager.getInstance(project);
+            editorManager.connectAndOpenEditor(schemaObject, null, true, true);
         }
 
         @Override
-        public void actionPerformed(@NotNull AnActionEvent e) {
-            DBSchemaObject schemaObject = DBObjectRef.get(objectRef);
-            if (schemaObject != null) {
-                DatabaseFileSystem databaseFileSystem = DatabaseFileSystem.getInstance();
-                databaseFileSystem.connectAndOpenEditor(schemaObject, null, true, true);
-            }
-        }
-
-        @Override
-        public void update(@NotNull AnActionEvent e) {
+        protected void update(@NotNull AnActionEvent e, @NotNull Project project) {
             Presentation presentation = e.getPresentation();
             presentation.setText("Edit");
             presentation.setIcon(Icons.ACTION_EDIT);
@@ -247,7 +249,7 @@ public class ObjectDependencyTree extends DBNTree{
         DBSchemaObject object = oldModel.getObject();
         if (object != null) {
             setModel(new ObjectDependencyTreeModel(object, dependencyType));
-            SafeDisposer.dispose(oldModel, false);
+            Disposer.dispose(oldModel, false);
         }
     }
 
@@ -259,14 +261,14 @@ public class ObjectDependencyTree extends DBNTree{
 
         ObjectDependencyType dependencyType = oldModel.getDependencyType();
         setModel(new ObjectDependencyTreeModel(object, dependencyType));
-        SafeDisposer.dispose(oldModel, false);
+        Disposer.dispose(oldModel, false);
     }
 
     @Override
     public void disposeInner() {
         Disposer.dispose(selectionHistory, false);
         Disposer.dispose(speedSearch, false);
-        SafeDisposer.dispose(getModel(), false);
+        Disposer.dispose(getModel(), false);
         super.disposeInner();
     }
 }

@@ -8,12 +8,12 @@ import com.dci.intellij.dbn.common.database.DatabaseInfo;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.environment.EnvironmentType;
+import com.dci.intellij.dbn.common.exception.Exceptions;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.latent.Latent;
 import com.dci.intellij.dbn.common.notification.NotificationGroup;
 import com.dci.intellij.dbn.common.notification.NotificationSupport;
 import com.dci.intellij.dbn.common.util.Commons;
-import com.dci.intellij.dbn.common.util.Exceptions;
 import com.dci.intellij.dbn.common.util.TimeUtil;
 import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionDetailSettings;
@@ -309,7 +309,7 @@ public class ConnectionHandlerImpl extends StatefulDisposable.Base implements Co
     }
 
     public String toString() {
-        return getPresentableText();
+        return getName();
     }
 
     @Override
@@ -356,7 +356,7 @@ public class ConnectionHandlerImpl extends StatefulDisposable.Base implements Co
     @Override
     public boolean hasPendingTransactions(@NotNull DBNConnection conn) {
         try {
-            return ConnectionLocalContext.surround(createInterfaceContext(), () -> getMetadataInterface().hasPendingTransactions(conn));
+            return ConnectionContext.surround(createConnectionContext(), () -> getMetadataInterface().hasPendingTransactions(conn));
         } catch (SQLException e) {
             sendErrorNotification(
                     NotificationGroup.TRANSACTION,
@@ -523,7 +523,7 @@ public class ConnectionHandlerImpl extends StatefulDisposable.Base implements Co
         if (!DatabaseFeature.CURRENT_SCHEMA.isSupported(this)) return;
         if (Objects.equals(schema, conn.getCurrentSchema())) return;
 
-        ConnectionLocalContext.surround(createInterfaceContext(), () -> {
+        ConnectionContext.surround(createConnectionContext(), () -> {
             String schemaName = schema.getName();
 
             DatabaseCompatibilityInterface compatibility = getCompatibilityInterface();
@@ -614,10 +614,6 @@ public class ConnectionHandlerImpl extends StatefulDisposable.Base implements Co
     /*********************************************************
      *                       TreeElement                     *
      *********************************************************/
-    @Override
-    public String getQualifiedName() {
-        return getPresentableText();
-    }
 
     @Override
     @NotNull
@@ -628,11 +624,6 @@ public class ConnectionHandlerImpl extends StatefulDisposable.Base implements Co
     @Override
     public String getDescription() {
         return getSettings().getDatabaseSettings().getDescription();
-    }
-
-    @Override
-    public String getPresentableText(){
-        return getSettings().getDatabaseSettings().getName();
     }
 
     @Override

@@ -26,8 +26,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
-import static com.dci.intellij.dbn.common.dispose.SafeDisposer.replace;
+import static com.dci.intellij.dbn.common.dispose.Disposer.replace;
 
 @Getter
 @Setter
@@ -62,7 +63,7 @@ public class MethodExecutionHistory implements PersistentStateElement, Connectio
 
     public void connectionRemoved(ConnectionId connectionId) {
         executionInputs.removeIf(executionInput -> connectionId.equals(executionInput.getConnectionId()));
-        if (selection != null && selection.getConnectionId().equals(connectionId)) {
+        if (selection != null && Objects.equals(selection.getConnectionId(), connectionId)) {
             selection = null;
         }
     }

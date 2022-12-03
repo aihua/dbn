@@ -2,9 +2,9 @@ package com.dci.intellij.dbn.common.content.dependency;
 
 import com.dci.intellij.dbn.common.content.DynamicContent;
 import com.dci.intellij.dbn.common.content.DynamicContentType;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.connection.DatabaseEntity;
 import com.dci.intellij.dbn.database.interfaces.DatabaseInterfaceQueue;
-import com.intellij.openapi.util.Disposer;
 import org.jetbrains.annotations.NotNull;
 
 class SubcontentDependencyAdapterImpl extends BasicDependencyAdapter implements SubcontentDependencyAdapter {
@@ -32,7 +32,7 @@ class SubcontentDependencyAdapterImpl extends BasicDependencyAdapter implements 
         DynamicContent sourceContent = getSourceContent();
         DatabaseInterfaceQueue interfaceQueue = sourceContent.getConnection().getInterfaceQueue();
         int maxActiveTasks = interfaceQueue.maxActiveTasks();
-        int count = interfaceQueue.size() + interfaceQueue.counters().running().get();
+        int count = interfaceQueue.size() + interfaceQueue.counters().active();
 
         //ThreadInfo thread = ThreadMonitor.current();
         if (count > maxActiveTasks /* || thread.is(ThreadProperty.CODE_ANNOTATING) || ThreadMonitor.getProcessCount(ThreadProperty.PROGRESS) > 20*/ ) {

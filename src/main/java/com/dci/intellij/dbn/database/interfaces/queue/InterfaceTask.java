@@ -1,8 +1,9 @@
 package com.dci.intellij.dbn.database.interfaces.queue;
 
+import com.dci.intellij.dbn.common.exception.Exceptions;
 import com.dci.intellij.dbn.common.routine.ThrowableCallable;
 import com.dci.intellij.dbn.common.thread.ThreadMonitor;
-import com.dci.intellij.dbn.common.util.Exceptions;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.common.util.TimeAware;
 import lombok.Getter;
 import lombok.experimental.Delegate;
@@ -10,7 +11,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.sql.SQLException;
 import java.util.Comparator;
-import java.util.Stack;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.LockSupport;
@@ -20,56 +20,52 @@ import static com.dci.intellij.dbn.database.interfaces.queue.InterfaceTaskStatus
 @Slf4j
 @Getter
 class InterfaceTask<R> implements TimeAware {
-    public static final Comparator<InterfaceTask<?>> COMPARATOR = (t1, t2) -> t2.info.getPriority().compareTo(t1.info.getPriority());
+    public static final Comparator<InterfaceTask<?>> COMPARATOR = (t1, t2) -> t2.request.getPriority().compareTo(t1.request.getPriority());
     private static final long TEN_SECONDS = TimeUnit.SECONDS.toNanos(10);
     private static final long ONE_SECOND = TimeUnit.SECONDS.toNanos(1);
 
     @Delegate
-    private final InterfaceTaskDefinition info;
-    private final boolean synchronous;
+    private final InterfaceTaskRequest request;
+    private final InterfaceTaskSource source;
     private final ThrowableCallable<R, SQLException> executor;
-    private final Thread thread = Thread.currentThread();
-    private final long timestamp = System.currentTimeMillis();
-    private final Stack<InterfaceTaskStatus> statusHistory = new Stack<>();
+    private final StatusHolder<InterfaceTaskStatus> status = new StatusHolder<>(NEW);
 
     private R response;
     private Throwable exception;
-    private volatile InterfaceTaskStatus status = InterfaceTaskStatus.NEW;
 
-    InterfaceTask(InterfaceTaskDefinition info, boolean synchronous, ThrowableCallable<R, SQLException> executor) {
-        this.info = info;
+    InterfaceTask(InterfaceTaskRequest request, boolean synchronous, ThrowableCallable<R, SQLException> executor) {
+        this.request = request;
         this.executor = executor;
-        this.synchronous = synchronous;
+        this.source = new InterfaceTaskSource(synchronous);
     }
 
-    void changeStatus(InterfaceTaskStatus status) {
-        statusHistory.push(this.status);
-        this.status = status;
+    @Override
+    public long getTimestamp() {
+        return source.getTimestamp();
     }
 
     final R execute() {
         try {
-            changeStatus(STARTED);
+            status.change(STARTED);
             this.response = executor.call();
         } catch (Throwable exception) {
             this.exception = exception;
         } finally {
-            changeStatus(FINISHED);
-            LockSupport.unpark(thread);
+            status.change(FINISHED);
+            LockSupport.unpark(source.getThread());
         }
         return this.response;
     }
 
     final void awaitCompletion() throws SQLException {
-        if (!synchronous) {
-            changeStatus(RELEASED);
+        if (!source.isWaiting()) {
             return;
         }
 
         boolean dispatchThread = ThreadMonitor.isDispatchThread();
-        while (status.compareTo(FINISHED) < 0) {
-            if (isOlderThan(5, TimeUnit.MINUTES))  break;
-            LockSupport.parkNanos(dispatchThread ? ONE_SECOND : TEN_SECONDS);
+        boolean modalProcess = ThreadMonitor.isModalProcess();
+        while (status.isBefore(FINISHED)) {
+            LockSupport.parkNanos(this, dispatchThread ? ONE_SECOND : TEN_SECONDS);
 
             if (dispatchThread) {
                 log.error("Interface loads not allowed from event dispatch thread",
@@ -84,9 +80,20 @@ class InterfaceTask<R> implements TimeAware {
             }
         }
 
-        changeStatus(RELEASED);
         if (exception == null) return;
 
         throw Exceptions.toSqlException(exception);
+    }
+
+    public boolean is(InterfaceTaskStatus status) {
+        return this.status.is(status);
+    }
+
+    public boolean changeStatus(InterfaceTaskStatus status) {
+        return this.status.change(status);
+    }
+
+    public boolean isProgress() {
+        return Strings.isNotEmpty(getTitle());
     }
 }

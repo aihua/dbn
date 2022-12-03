@@ -7,12 +7,11 @@ import com.dci.intellij.dbn.common.content.dependency.BasicDependencyAdapter;
 import com.dci.intellij.dbn.common.content.dependency.ContentDependencyAdapter;
 import com.dci.intellij.dbn.common.content.dependency.DualContentDependencyAdapter;
 import com.dci.intellij.dbn.common.content.dependency.SubcontentDependencyAdapter;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.dispose.SafeDisposer;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.load.ProgressMonitor;
 import com.dci.intellij.dbn.common.util.Commons;
-import com.dci.intellij.dbn.common.util.Guarded;
 import com.dci.intellij.dbn.connection.DatabaseEntity;
 import com.dci.intellij.dbn.connection.DatabaseType;
 import com.dci.intellij.dbn.object.common.DBObject;
@@ -32,6 +31,8 @@ import static com.dci.intellij.dbn.common.Direction.DOWN;
 import static com.dci.intellij.dbn.common.Direction.UP;
 import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
 import static com.dci.intellij.dbn.common.dispose.Checks.isValid;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.nd;
 import static com.dci.intellij.dbn.common.util.Unsafe.cast;
 import static com.dci.intellij.dbn.object.type.DBObjectType.ANY;
 import static java.util.Collections.emptyList;
@@ -57,26 +58,24 @@ public final class DBObjectListContainer implements StatefulDisposable {
         return Failsafe.nn(owner);
     }
 
-    public void visitObjects(@NotNull DBObjectListVisitor visitor, boolean visitInternal) {
+    public void visit(DBObjectListVisitor visitor, boolean visitInternal) {
         if (objects == null) return;
-
-        Guarded.run(() -> {
+        guarded(() -> {
             if (isNotValid(visitor)) return;
-            for (DBObjectList<?> objectList : objects) {
-                if (isNotValid(objectList)) continue;;
+            for (DBObjectList<?> list : objects) {
+                if (list.isInternal() && !visitInternal) continue;
+                if (isNotValid(list)) continue;
                 if (isNotValid(visitor)) return;
 
-                if (objectList.isInternal() && !visitInternal) continue;
-
                 ProgressMonitor.checkCancelled();
-                visitor.visit(objectList);
+                visitor.visit(list);
             }
         });
     }
 
     private void checkDisposed(DBObjectListVisitor visitor) {
-        Failsafe.nd(this);
-        Failsafe.nd(visitor);
+        nd(this);
+        nd(visitor);
     }
 
     @NotNull
@@ -188,16 +187,16 @@ public final class DBObjectListContainer implements StatefulDisposable {
         if (objects == null) return null;
 
         for (DBObjectList<?> objectList : objects) {
-            DBObjectType objectType = objectList.getObjectType();
-
             if (isNotValid(objectList) || objectList.isHidden() || objectList.isDependency()) continue;
             if (objectList.isInternal() && !lookupInternal) continue;
+
+            DBObjectType objectType = objectList.getObjectType();
             if (!parentObjectType.isParentOf(objectType)) continue;
 
             DBObject object = objectList.getObject(name, overload);
-            if (object != null) {
-                return object;
-            }
+            if (isNotValid(object)) continue;
+
+            return object;
         }
 
         return null;
@@ -215,17 +214,17 @@ public final class DBObjectListContainer implements StatefulDisposable {
             if (isNotValid(objectList) || !objectList.isLoaded() || objectList.isDirty())  continue;
 
             DBObject object = objectList.getObject(name, overload);
-            if (object != null) {
-                DatabaseEntity owner = getOwner();
-                if (owner.isObjectBundle()) {
-                    return object;
-                }
+            if (isNotValid(object)) continue;
 
-                if (owner.isObject()) {
-                    DBObject ownerObject = (DBObject) owner;
-                    if (ownerObject.isParentOf(object)) {
-                        return object;
-                    }
+            DatabaseEntity owner = getOwner();
+            if (owner.isObjectBundle()) {
+                return object;
+            }
+
+            if (owner.isObject()) {
+                DBObject ownerObject = (DBObject) owner;
+                if (ownerObject.isParentOf(object)) {
+                    return object;
                 }
             }
         }
@@ -301,32 +300,16 @@ public final class DBObjectListContainer implements StatefulDisposable {
         }
     }
 
+    public void loadObjects() {
+        visit(o -> o.load(), false);
+    }
+
     public void reloadObjects() {
-        if (objects == null) return;
-        for (DBObjectList<?> objectList : objects) {
-            objectList.reload();
-            checkDisposed();
-        }
+        visit(o -> o.reload(), true);
     }
 
     public void refreshObjects() {
-        if (objects == null)  return;
-        for (DBObjectList<?> objectList : objects) {
-            if (isValid(objectList)) {
-                objectList.refresh();
-                checkDisposed();
-            }
-        }
-    }
-
-    public void loadObjects() {
-        if (objects == null) return;
-        for (DBObjectList<?> objectList : objects) {
-            if (!objectList.isInternal()) {
-                objectList.load();
-            }
-            checkDisposed();
-        }
+        visit(o -> o.refresh(), true);
     }
 
     public void loadObjects(DBObjectType objectType) {
@@ -397,6 +380,8 @@ public final class DBObjectListContainer implements StatefulDisposable {
     }
 
     private void addObjects(DBObjectList objects) {
+        if (objects == null) return;
+
         int index = objectsIndex(objects.getObjectType());
         int length = index + 1;
 
@@ -457,8 +442,8 @@ public final class DBObjectListContainer implements StatefulDisposable {
     @Override
     public void dispose() {
         if (!isDisposed()) {
-            this.objects = SafeDisposer.replace(this.objects, DISPOSED_OBJECTS, false);
-            this.relations = SafeDisposer.replace(this.relations, DISPOSED_RELATIONS, false);
+            this.objects = Disposer.replace(this.objects, DISPOSED_OBJECTS, false);
+            this.relations = Disposer.replace(this.relations, DISPOSED_RELATIONS, false);
             this.owner = null;
         }
     }

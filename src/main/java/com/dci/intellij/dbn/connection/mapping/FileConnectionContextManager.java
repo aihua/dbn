@@ -4,7 +4,7 @@ import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.common.action.UserDataKeys;
 import com.dci.intellij.dbn.common.component.PersistentState;
 import com.dci.intellij.dbn.common.component.ProjectComponentBase;
-import com.dci.intellij.dbn.common.dispose.SafeDisposer;
+import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
@@ -76,7 +76,7 @@ public class FileConnectionContextManager extends ProjectComponentBase implement
     private FileConnectionContextManager(@NotNull Project project) {
         super(project, COMPONENT_NAME);
         this.registry = new FileConnectionContextRegistry(project);
-        SafeDisposer.register(this, this.registry);
+        Disposer.register(this, this.registry);
         //VirtualFileManager.getInstance().addVirtualFileListener(virtualFileListener);
         ProjectEvents.subscribe(project, this, VirtualFileManager.VFS_CHANGES, bulkFileListener);
         ProjectEvents.subscribe(project, this, SessionManagerListener.TOPIC, sessionManagerListener);
@@ -175,12 +175,11 @@ public class FileConnectionContextManager extends ProjectComponentBase implement
     }
 
     public boolean setDatabaseSession(VirtualFile file, DatabaseSession session) {
-        if (isSessionSelectable(file)) {
-            return notifiedChange(
-                    () -> registry.setDatabaseSession(file, session),
-                    handler -> handler.sessionChanged(getProject(), file, session));
-        }
-        return false;
+        if (!isSessionSelectable(file)) return false;
+
+        return notifiedChange(
+                () -> registry.setDatabaseSession(file, session),
+                handler -> handler.sessionChanged(getProject(), file, session));
     }
 
     public void setDatabaseSession(@NotNull Editor editor, DatabaseSession session) {
@@ -216,23 +215,24 @@ public class FileConnectionContextManager extends ProjectComponentBase implement
 
     public boolean isSchemaSelectable(VirtualFile file) {
         if (isNotValid(file)) return false;
-        if (isLocalFileSystem(file)) return true;
         if (!isDbLanguageFile(file)) return false;
+        if (isLocalFileSystem(file)) return true;
 
-        if (file instanceof DBConsoleVirtualFile) {
-            return true;
+        if (file instanceof DBConsoleVirtualFile) return true;
+        if (file instanceof LightVirtualFile) return hasConnectivityContext(file);
 
-        } else if (file instanceof LightVirtualFile) {
-            return hasConnectivityContext(file);
-        }
         return false;
     }
 
     public boolean isSessionSelectable(VirtualFile file) {
         if (isNotValid(file)) return false;
         if (!isDbLanguageFile(file)) return false;
+        if (isLocalFileSystem(file)) return true;
 
-        return file instanceof LightVirtualFile || file instanceof DBConsoleVirtualFile;
+        if (file instanceof DBConsoleVirtualFile) return true;
+        if (file instanceof LightVirtualFile) return hasConnectivityContext(file);
+
+        return false;
     }
 
 
@@ -354,14 +354,16 @@ public class FileConnectionContextManager extends ProjectComponentBase implement
      ***************************************************/
     public void promptSchemaSelector(VirtualFile file, DataContext dataContext, Runnable callback) throws IncorrectOperationException {
         Project project = getProject();
-        ConnectionAction.invoke(
-                "selecting the current schema", true,
-                getConnection(file),
-                action -> Progress.prompt(project, "Loading schemas", true,
+        ConnectionHandler connection = getConnection(file);
+        if (connection == null) return;
+
+        ConnectionAction.invoke("selecting the current schema", true, connection,
+                action -> Progress.prompt(project, connection, true,
+                        "Loading schemas",
+                        "Loading schemas for connection " + connection.getName(),
                         progress -> {
                             DefaultActionGroup actionGroup = new DefaultActionGroup();
 
-                            ConnectionHandler connection = action.getConnection();
                             if (isValid(connection) && !connection.isVirtual()) {
                                 List<DBSchema> schemas = connection.getObjectBundle().getSchemas();
                                 for (DBSchema schema : schemas) {

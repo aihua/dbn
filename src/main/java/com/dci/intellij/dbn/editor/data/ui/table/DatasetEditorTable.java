@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.editor.data.ui.table;
 import com.dci.intellij.dbn.common.Pair;
 import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.property.PropertyHolder;
+import com.dci.intellij.dbn.common.ref.WeakRef;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
@@ -41,7 +42,6 @@ import com.dci.intellij.dbn.editor.data.ui.table.listener.DatasetEditorKeyListen
 import com.dci.intellij.dbn.editor.data.ui.table.listener.DatasetEditorMouseListener;
 import com.dci.intellij.dbn.editor.data.ui.table.renderer.DatasetEditorTableCellRenderer;
 import com.dci.intellij.dbn.editor.data.ui.table.renderer.DatasetEditorTableHeaderRenderer;
-import com.dci.intellij.dbn.language.common.WeakRef;
 import com.dci.intellij.dbn.object.DBColumn;
 import com.dci.intellij.dbn.object.DBDataset;
 import com.intellij.openapi.actionSystem.ActionGroup;
@@ -188,7 +188,7 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
         PropertyHolder<RecordStatus> scope = getUpdateScope(rowIndex, columnIndex);
         if (scope != null) {
             scope.set(UPDATING, true);
-            Background.run(() -> {
+            Background.run(getProject(), () -> {
                 try {
                     runnable.run();
                 } finally {
@@ -545,8 +545,9 @@ public class DatasetEditorTable extends ResultSetTable<DatasetEditorModel> {
             DatasetEditorModelCell cell,
             ColumnInfo columnInfo) {
 
-        DBColumn column = cell.getColumn();
-        Progress.modal(getProject(), column, true,
+        DBDataset dataset = getDataset();
+        DBColumn column = dataset.getColumn(columnInfo.getName());
+        Progress.modal(getProject(), dataset, true,
                 "Loading column information",
                 "Loading details of " + column.getQualifiedNameWithType(),
                 progress -> {

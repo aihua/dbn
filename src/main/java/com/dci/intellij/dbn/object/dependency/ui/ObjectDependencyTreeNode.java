@@ -3,11 +3,13 @@ package com.dci.intellij.dbn.object.dependency.ui;
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
 import com.dci.intellij.dbn.common.dispose.Disposed;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
+import com.dci.intellij.dbn.common.dispose.StatefulDisposableBase;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.dependency.ObjectDependencyType;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
+import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
@@ -16,7 +18,7 @@ import java.util.List;
 import static com.dci.intellij.dbn.common.dispose.Disposer.replace;
 import static java.util.Collections.emptyList;
 
-public class ObjectDependencyTreeNode extends StatefulDisposable.Base implements StatefulDisposable {
+public class ObjectDependencyTreeNode extends StatefulDisposableBase implements StatefulDisposable {
     private final DBObjectRef<DBObject> object;
 
     private List<ObjectDependencyTreeNode> dependencies;
@@ -39,6 +41,11 @@ public class ObjectDependencyTreeNode extends StatefulDisposable.Base implements
     @Nullable
     DBObject getObject() {
         return DBObjectRef.get(object);
+    }
+
+    Project getProject() {
+        DBObject object = getObject();
+        return object == null ? null : object.getProject();
     }
 
     public ObjectDependencyTreeModel getModel() {
@@ -79,7 +86,7 @@ public class ObjectDependencyTreeNode extends StatefulDisposable.Base implements
             if (loaderCount < 10) {
                 shouldLoad = false;
                 loaderCount++;
-                Background.run(() -> {
+                Background.run(getProject(), () -> {
                     try {
                         DBObject object = getObject();
                         if (object instanceof DBSchemaObject) {

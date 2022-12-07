@@ -1,6 +1,6 @@
 package com.dci.intellij.dbn.database.interfaces.queue;
 
-import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
+import com.dci.intellij.dbn.common.dispose.StatefulDisposableBase;
 import com.dci.intellij.dbn.common.routine.Consumer;
 import com.dci.intellij.dbn.common.routine.ThrowableCallable;
 import com.dci.intellij.dbn.common.routine.ThrowableRunnable;
@@ -24,14 +24,15 @@ import static com.dci.intellij.dbn.database.interfaces.queue.InterfaceTask.COMPA
 import static com.dci.intellij.dbn.database.interfaces.queue.InterfaceTaskStatus.*;
 
 @Slf4j
-public class InterfaceQueue extends StatefulDisposable.Base implements DatabaseInterfaceQueue {
+public class InterfaceQueue extends StatefulDisposableBase implements DatabaseInterfaceQueue {
     private static final ExecutorService MONITORS = Threads.newCachedThreadPool("DBN - Database Interface Monitor", true);
 
     private final BlockingQueue<InterfaceTask<?>> queue = new PriorityBlockingQueue<>(11, COMPARATOR);
     private final Consumer<InterfaceTask<?>> consumer;
-    private final Counters counters = new Counters();
+    private final InterfaceCounters counters = new InterfaceCounters();
     private final ConnectionRef connection;
     private volatile boolean stopped;
+    private volatile Thread monitor;
 
 
     public InterfaceQueue(ConnectionHandler connection) {
@@ -41,13 +42,13 @@ public class InterfaceQueue extends StatefulDisposable.Base implements DatabaseI
     InterfaceQueue(@Nullable ConnectionHandler connection, Consumer<InterfaceTask<?>> consumer) {
         this.connection = ConnectionRef.of(connection);
         this.consumer = consumer == null ? new InterfaceQueueConsumer(this) : consumer;
-        this.counters.running.addListener(value -> warnTaskLimits(value));
+        this.counters.running().addListener(value -> warnTaskLimits());
 
         MONITORS.submit(() -> monitorQueue());
     }
 
-    private void warnTaskLimits(int value) {
-        if (counters.running() > maxActiveTasks()) {
+    private void warnTaskLimits() {
+        if (counters.running().get() > maxActiveTasks()) {
             log.warn("Active task limit exceeded: {} (expected max {})", counters.running(), maxActiveTasks());
         }
     }
@@ -64,12 +65,12 @@ public class InterfaceQueue extends StatefulDisposable.Base implements DatabaseI
     }
 
     @Override
-    public Counters counters() {
+    public InterfaceCounters counters() {
         return counters;
     }
 
     private boolean maxActiveTasksExceeded() {
-        return counters.running() >= maxActiveTasks();
+        return counters.running().get() >= maxActiveTasks();
     }
 
     @Override
@@ -98,7 +99,7 @@ public class InterfaceQueue extends StatefulDisposable.Base implements DatabaseI
         InterfaceTask<T> task = new InterfaceTask<>(request, synchronous, callable);
         try {
             queue.add(task);
-            counters.queued.increment();
+            counters.queued().increment();
             task.changeStatus(QUEUED);
 
             task.awaitCompletion();
@@ -113,46 +114,46 @@ public class InterfaceQueue extends StatefulDisposable.Base implements DatabaseI
      */
     @SneakyThrows
     private void monitorQueue() {
-        Thread monitor = Thread.currentThread();
-        counters.running.addListener(value -> unparkMonitor(monitor));
+        monitor = Thread.currentThread();
 
         while (!stopped) {
             checkDisposed();
-            boolean parked = parkMonitor();
-            if (parked) continue;
+            parkMonitor();
 
             InterfaceTask<?> task = queue.take();
 
-            counters.queued.decrement();
+            counters.queued().decrement();
             task.changeStatus(DEQUEUED);
 
             consumer.accept(task);
-            counters.running.increment();
+            counters.running().increment();
             task.changeStatus(SCHEDULED);
         }
-    }
-
-    private boolean parkMonitor() {
-        if (!maxActiveTasksExceeded()) return false;
-
-        LockSupport.park(counters);
-        return true;
-    }
-
-    private boolean unparkMonitor(Thread monitor) {
-        if (maxActiveTasksExceeded()) return false;
-
-        LockSupport.unpark(monitor);
-        return true;
     }
 
     void executeTask(InterfaceTask<?> task) {
         try {
             task.execute();
         } finally {
-            counters.running.decrement();
-            counters.finished.increment();
+            counters.running().decrement();
+            counters.finished().increment();
             task.changeStatus(FINISHED);
+            unparkMonitor();
+        }
+    }
+
+    private void parkMonitor() {
+        // monitor thread parking itself
+        if (maxActiveTasksExceeded()) {
+            LockSupport.park();
+        }
+
+    }
+
+    private void unparkMonitor() {
+        // background thread unparking the monitor
+        if (!maxActiveTasksExceeded()) {
+            LockSupport.unpark(monitor);
         }
     }
 
@@ -160,7 +161,7 @@ public class InterfaceQueue extends StatefulDisposable.Base implements DatabaseI
     protected void disposeInner() {
         stopped = true;
         queue.clear();
-        counters.queued.reset();
+        counters.queued().reset();
     }
 
     public Project getProject() {

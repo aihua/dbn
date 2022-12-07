@@ -1,11 +1,11 @@
 package com.dci.intellij.dbn.connection.jdbc;
 
 import com.dci.intellij.dbn.common.exception.Exceptions;
+import com.dci.intellij.dbn.common.ref.WeakRef;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.ThreadMonitor;
 import com.dci.intellij.dbn.common.thread.Timeout;
 import com.dci.intellij.dbn.common.util.TimeUtil;
-import com.dci.intellij.dbn.language.common.WeakRef;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -106,7 +106,7 @@ public abstract class ResourceStatusAdapterImpl<T extends Resource> implements R
         set(evaluating, true);
 
         if (ThreadMonitor.isDispatchThread()) {
-            Background.run(() -> evaluate());
+            Background.run(null, () -> evaluate());
             return;
         }
 
@@ -142,7 +142,7 @@ public abstract class ResourceStatusAdapterImpl<T extends Resource> implements R
         set(changing, true);
 
         if (ThreadMonitor.isDispatchThread()) {
-            Background.run(() -> change(value));
+            Background.run(null, () -> change(value));
             return;
         }
 

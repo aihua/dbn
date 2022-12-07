@@ -167,7 +167,7 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
         if (!databaseFile.isContentLoaded()) return;
 
         if (startInBackground) {
-            Background.run(() -> reloadAndUpdateEditors(databaseFile));
+            Background.run(getProject(), () -> reloadAndUpdateEditors(databaseFile));
         } else {
             DBSchemaObject object = databaseFile.getObject();
             Progress.prompt(getProject(), object, false,
@@ -307,6 +307,7 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
         String sourceCode = DatabaseInterfaceInvoker.load(HIGH,
                 "Loading source code",
                 "Loading source code of " + object.getQualifiedNameWithType(),
+                object.getProject(),
                 object.getConnectionId(),
                 conn -> loadSourceFromDatabase(object, contentType, conn));
 
@@ -439,6 +440,7 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
         Timestamp timestamp = DatabaseInterfaceInvoker.load(HIGHEST,
                 "Loading object details",
                 "Loading change timestamp for " + object.getQualifiedNameWithType(),
+                object.getProject(),
                 object.getConnectionId(),
                 conn -> {
                     ResultSet resultSet = null;
@@ -636,7 +638,7 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
 
     public void loadSourceCode(@NotNull DBSourceCodeVirtualFile sourceCodeFile, boolean force) {
         ConnectionAction.invoke("loading the source code", false, sourceCodeFile,
-                action -> Background.run(() -> loadSourceFromDatabase(sourceCodeFile, force, false)));
+                action -> Background.run(getProject(), () -> loadSourceFromDatabase(sourceCodeFile, force, false)));
     }
 
     public void saveSourceCode(@NotNull DBSourceCodeVirtualFile sourceCodeFile, @Nullable SourceCodeEditor fileEditor, Runnable successCallback) {

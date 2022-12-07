@@ -7,6 +7,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
 
+import static com.dci.intellij.dbn.common.dispose.Checks.isValid;
+
 public interface ProjectManagerListener {
     Project getProject();
 
@@ -44,7 +46,7 @@ public interface ProjectManagerListener {
                 }
 
                 private boolean isSupported(@NotNull Project project) {
-                    return !project.isDefault() && Objects.equals(project, listener.getProject());
+                    return isValid(project) && !project.isDefault() && Objects.equals(project, listener.getProject());
                 }
 
                 @Override

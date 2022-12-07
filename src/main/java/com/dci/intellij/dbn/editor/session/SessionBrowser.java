@@ -6,6 +6,7 @@ import com.dci.intellij.dbn.common.dispose.DisposableUserDataHolderBase;
 import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
+import com.dci.intellij.dbn.common.ref.WeakRef;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.ui.util.UserInterface;
@@ -20,7 +21,6 @@ import com.dci.intellij.dbn.editor.session.options.SessionBrowserSettings;
 import com.dci.intellij.dbn.editor.session.ui.SessionBrowserDetailsForm;
 import com.dci.intellij.dbn.editor.session.ui.SessionBrowserForm;
 import com.dci.intellij.dbn.editor.session.ui.table.SessionBrowserTable;
-import com.dci.intellij.dbn.language.common.WeakRef;
 import com.dci.intellij.dbn.vfs.file.DBSessionBrowserVirtualFile;
 import com.intellij.codeHighlighting.BackgroundEditorHighlighter;
 import com.intellij.ide.structureView.StructureViewBuilder;
@@ -90,18 +90,19 @@ public class SessionBrowser extends DisposableUserDataHolderBase implements File
     public void loadSessions(boolean force) {
         if (!canLoad(force)) return;
 
+        Project project = getProject();
         ConnectionAction.invoke("loading the sessions", false, this,
-                action -> Background.run(() -> {
+                action -> Background.run(project, () -> {
                     if (!canLoad(force)) return;
 
                     DBSessionBrowserVirtualFile databaseFile = getDatabaseFile();
                     try {
                         setLoading(true);
-                        SessionBrowserManager sessionBrowserManager = SessionBrowserManager.getInstance(getProject());
+                        SessionBrowserManager sessionBrowserManager = SessionBrowserManager.getInstance(project);
                         SessionBrowserModel model = sessionBrowserManager.loadSessions(databaseFile);
                         replaceModel(model);
                     } finally {
-                        ProjectEvents.notify(getProject(),
+                        ProjectEvents.notify(project,
                                 SessionBrowserLoadListener.TOPIC,
                                 (listener) -> listener.sessionsLoaded(databaseFile));
                         setLoading(false);
@@ -191,6 +192,7 @@ public class SessionBrowser extends DisposableUserDataHolderBase implements File
         return databaseFile.ensure();
     }
 
+    @NotNull
     public Project getProject() {
         return getDatabaseFile().getProject();
     }

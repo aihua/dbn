@@ -91,7 +91,7 @@ public class DatabaseObjectFactory extends ProjectComponentBase {
     }
 
     private void createMethod(MethodFactoryInput factoryInput, Callback callback) {
-        callback.background(() -> {
+        callback.background(getProject(), () -> {
             DBObjectType objectType = factoryInput.isFunction() ? DBObjectType.FUNCTION : DBObjectType.PROCEDURE;
             String objectTypeName = objectType.getName();
             String objectName = factoryInput.getObjectName();
@@ -100,6 +100,7 @@ public class DatabaseObjectFactory extends ProjectComponentBase {
             DatabaseInterfaceInvoker.execute(HIGHEST,
                     "Creating " + objectTypeName,
                     "Creating " + objectTypeName + " " + objectName,
+                    schema.getProject(),
                     schema.getConnectionId(),
                     schema.getSchemaId(),
                     conn -> {
@@ -145,6 +146,7 @@ public class DatabaseObjectFactory extends ProjectComponentBase {
             DatabaseInterfaceInvoker.execute(HIGHEST,
                     "Dropping database object",
                     "Dropping " + object.getQualifiedNameWithType(),
+                    object.getProject(),
                     object.getConnectionId(),
                     conn -> {
                         DBContentType contentType = object.getContentType();

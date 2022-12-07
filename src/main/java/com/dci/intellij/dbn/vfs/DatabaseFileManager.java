@@ -13,7 +13,6 @@ import com.dci.intellij.dbn.common.util.Lists;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
-import com.dci.intellij.dbn.connection.ConnectionManager;
 import com.dci.intellij.dbn.connection.config.ConnectionConfigListener;
 import com.dci.intellij.dbn.connection.config.ConnectionDetailSettings;
 import com.dci.intellij.dbn.editor.DatabaseFileEditorManager;
@@ -248,11 +247,9 @@ public class DatabaseFileManager extends ProjectComponentBase implements Persist
         val pendingOpenFiles = this.pendingOpenFiles;
         this.pendingOpenFiles = null;
 
-        Project project = getProject();
-        ConnectionManager connectionManager = ConnectionManager.getInstance(project);
         for (val entry : pendingOpenFiles.entrySet()) {
             ConnectionId connectionId = entry.getKey();
-            ConnectionHandler connection = connectionManager.getConnection(connectionId);
+            ConnectionHandler connection = ConnectionHandler.get(connectionId);
             if (connection == null) continue;
 
             ConnectionDetailSettings connectionDetailSettings = connection.getSettings().getDetailSettings();
@@ -276,11 +273,10 @@ public class DatabaseFileManager extends ProjectComponentBase implements Persist
                                 if (progress.isCanceled()) continue;
                                 if (!connection.canConnect()) continue;
 
-                                DBSchemaObject object = objectRef.get(project);
+                                DBSchemaObject object = objectRef.get();
                                 if (object == null) continue;
 
                                 progress.setText2(connection.getName() + " - " + objectRef.getQualifiedNameWithType());
-                                object.makeEditorReady();
                                 editorManager.openEditor(object, null, false, false);
                             }
                         }));

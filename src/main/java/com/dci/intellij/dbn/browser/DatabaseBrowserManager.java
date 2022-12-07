@@ -45,6 +45,7 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.tree.TreePath;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import static com.dci.intellij.dbn.common.component.Components.projectService;
 import static com.dci.intellij.dbn.common.dispose.Failsafe.nn;
@@ -84,7 +85,8 @@ public class DatabaseBrowserManager extends ProjectComponentBase implements Pers
 
     @Nullable
     public DatabaseBrowserTree getActiveBrowserTree() {
-        return getToolWindowForm().getActiveBrowserTree();
+        BrowserToolWindowForm toolWindowForm = this.toolWindowForm.value();
+        return toolWindowForm == null ? null : toolWindowForm.getActiveBrowserTree();
     }
 
     @Nullable
@@ -194,7 +196,7 @@ public class DatabaseBrowserManager extends ProjectComponentBase implements Pers
             @Override
             public void typeFiltersChanged(ConnectionId connectionId) {
                 if (toolWindowForm.loaded()) {
-                    ConnectionHandler connection = getConnection(connectionId);
+                    ConnectionHandler connection = ConnectionHandler.get(connectionId);
                     if (connection == null) {
                         getBrowserForm().rebuildTree();
                     } else {
@@ -205,7 +207,7 @@ public class DatabaseBrowserManager extends ProjectComponentBase implements Pers
 
             @Override
             public void nameFiltersChanged(ConnectionId connectionId, @NotNull DBObjectType... objectTypes) {
-                ConnectionHandler connection = getConnection(connectionId);
+                ConnectionHandler connection = ConnectionHandler.get(connectionId);
                 if (toolWindowForm.loaded() && connection != null && objectTypes.length > 0) {
                     connection.getObjectBundle().refreshTreeChildren(objectTypes);
                 }
@@ -213,11 +215,6 @@ public class DatabaseBrowserManager extends ProjectComponentBase implements Pers
         };
     }
 
-    @Nullable
-    private ConnectionHandler getConnection(ConnectionId connectionId) {
-        ConnectionManager connectionManager = ConnectionManager.getInstance(getProject());
-        return connectionManager.getConnection(connectionId);
-    }
 
     public Filter<BrowserTreeNode> getObjectTypeFilter() {
         DatabaseBrowserSettings browserSettings = DatabaseBrowserSettings.getInstance(getProject());
@@ -229,47 +226,47 @@ public class DatabaseBrowserManager extends ProjectComponentBase implements Pers
         return new FileEditorManagerListener() {
             @Override
             public void fileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
-                if (scroll()) {
-                    if (file instanceof DBVirtualFile) {
-                        DBVirtualFile databaseVirtualFile = (DBVirtualFile) file;
-                        DBObject object = databaseVirtualFile.getObject();
-                        if (object != null) {
-                            navigateToElement(object, true);
-                        } else {
-                            ConnectionHandler connection = databaseVirtualFile.getConnection();
-                            navigateToElement(connection.getObjectBundle(), false);
-                        }
+                if (!scroll()) return;
+
+                if (file instanceof DBVirtualFile) {
+                    DBVirtualFile databaseVirtualFile = (DBVirtualFile) file;
+                    DBObject object = databaseVirtualFile.getObject();
+                    if (object != null) {
+                        navigateToElement(object, true);
+                    } else {
+                        ConnectionHandler connection = databaseVirtualFile.ensureConnection();
+                        navigateToElement(connection.getObjectBundle(), false);
                     }
                 }
             }
 
             @Override
             public void selectionChanged(@NotNull FileEditorManagerEvent event) {
-                if (scroll()) {
-                    VirtualFile oldFile = event.getOldFile();
-                    VirtualFile newFile = event.getNewFile();
+                if (!scroll()) return;
 
-                    if (oldFile == null || !oldFile.equals(newFile)) {
-                        if (newFile instanceof DBVirtualFile) {
-                            DBVirtualFile virtualFile = (DBVirtualFile) newFile;
-                            DBObject object = virtualFile.getObject();
-                            if (object != null) {
-                                navigateToElement(object, true);
-                            } else {
-                                ConnectionHandler connection = virtualFile.getConnection();
-                                FileEditor oldEditor = event.getOldEditor();
-                                SchemaId schemaId = virtualFile.getSchemaId();
-                                boolean scroll = oldEditor != null && oldEditor.isValid();
+                VirtualFile oldFile = event.getOldFile();
+                VirtualFile newFile = event.getNewFile();
 
-                                Background.run(() -> {
-                                    BrowserTreeNode treeNode = schemaId == null ?
-                                            connection.getObjectBundle() :
-                                            connection.getSchema(schemaId);
+                if (Objects.equals(oldFile, newFile)) return;
 
-                                    navigateToElement(treeNode, scroll);
-                                });
-                            }
-                        }
+                if (newFile instanceof DBVirtualFile) {
+                    DBVirtualFile virtualFile = (DBVirtualFile) newFile;
+                    DBObject object = virtualFile.getObject();
+                    if (object != null) {
+                        navigateToElement(object, true);
+                    } else {
+                        ConnectionHandler connection = virtualFile.ensureConnection();
+                        FileEditor oldEditor = event.getOldEditor();
+                        SchemaId schemaId = virtualFile.getSchemaId();
+                        boolean scroll = oldEditor != null && oldEditor.isValid();
+
+                        Background.run(getProject(), () -> {
+                            BrowserTreeNode treeNode = schemaId == null ?
+                                    connection.getObjectBundle() :
+                                    connection.getSchema(schemaId);
+
+                            navigateToElement(treeNode, scroll);
+                        });
                     }
                 }
             }
@@ -372,11 +369,10 @@ public class DatabaseBrowserManager extends ProjectComponentBase implements Pers
 
         Project project = getProject();
         List<Element> connectionElements = nodesElement.getChildren();
-        ConnectionManager connectionManager = ConnectionManager.getInstance(project);
 
         for (Element connectionElement : connectionElements) {
             ConnectionId connectionId = connectionIdAttribute(connectionElement, "connection-id");
-            ConnectionHandler connection = connectionManager.getConnection(connectionId);
+            ConnectionHandler connection = ConnectionHandler.get(connectionId);
             if (connection == null) continue;
 
             ConnectionDetailSettings settings = connection.getSettings().getDetailSettings();
@@ -391,7 +387,7 @@ public class DatabaseBrowserManager extends ProjectComponentBase implements Pers
                 DBSchema schema = objectBundle.getSchema(schemaName);
                 if (schema == null) continue;
 
-                Background.run(() -> {
+                Background.run(project, () -> {
                     String objectTypesAttr = stringAttribute(schemaElement, "object-types");
                     List<DBObjectType> objectTypes = DBObjectType.fromCsv(objectTypesAttr);
 

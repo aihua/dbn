@@ -1,10 +1,14 @@
 package com.dci.intellij.dbn.common.exception;
 
-import com.dci.intellij.dbn.common.util.Commons;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.SQLException;
 import java.sql.SQLNonTransientConnectionException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+import static com.dci.intellij.dbn.common.util.Commons.nvl;
 
 public class Exceptions {
     public static final SQLNonTransientConnectionException DBN_NOT_CONNECTED_EXCEPTION = new SQLNonTransientConnectionException("Not connected to database");
@@ -16,7 +20,7 @@ public class Exceptions {
         if (e instanceof SQLException) {
             return (SQLException) e;
         } else {
-            return new SQLException(Commons.nvl(e.getMessage(), e.getClass().getSimpleName()), e);
+            return new SQLException(nvl(e.getMessage(), e.getClass().getSimpleName()), e);
         }
     }
 
@@ -38,5 +42,13 @@ public class Exceptions {
 
     public static <T> T unsupported() {
         throw new UnsupportedOperationException();
+    }
+
+    public static TimeoutException timeoutException(long time, TimeUnit timeUnit) {
+        return new TimeoutException("Operation timed out after " + time + " " + timeUnit.name().toLowerCase());
+    }
+
+    public static Throwable causeOf(ExecutionException e) {
+        return nvl(e.getCause(), e);
     }
 }

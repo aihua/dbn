@@ -1,8 +1,7 @@
 package com.dci.intellij.dbn.menu.action;
 
 import com.dci.intellij.dbn.common.Icons;
-import com.dci.intellij.dbn.common.action.DumbAwareProjectAction;
-import com.dci.intellij.dbn.common.util.Messages;
+import com.dci.intellij.dbn.common.action.ProjectAction;
 import com.dci.intellij.dbn.connection.ConnectionBundle;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionManager;
@@ -15,7 +14,9 @@ import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.ui.popup.ListPopup;
 import org.jetbrains.annotations.NotNull;
 
-public class SessionBrowserOpenAction extends DumbAwareProjectAction {
+import java.util.List;
+
+public class SessionBrowserOpenAction extends ProjectAction {
     public SessionBrowserOpenAction() {
         super("Open Session Browser...", null, Icons.FILE_SESSION_BROWSER);
     }
@@ -25,43 +26,38 @@ public class SessionBrowserOpenAction extends DumbAwareProjectAction {
         //FeatureUsageTracker.getInstance().triggerFeatureUsed("navigation.popup.file");
         ConnectionManager connectionManager = ConnectionManager.getInstance(project);
         ConnectionBundle connectionBundle = connectionManager.getConnectionBundle();
+        List<ConnectionHandler> connections = connectionBundle.getConnections();
+        if (connections.size() == 0) {
+            connectionManager.promptMissingConnection();
+            return;
+        }
 
-        ConnectionHandler singleConnectionHandler = null;
+        if (connections.size() == 1) {
+            openSessionBrowser(connections.get(0));
+            return;
+        }
+
         DefaultActionGroup actionGroup = new DefaultActionGroup();
-        if (connectionBundle.getConnections().size() > 0) {
-            actionGroup.addSeparator();
-            for (ConnectionHandler connection : connectionBundle.getConnections()) {
-                SelectConnectionAction connectionAction = new SelectConnectionAction(connection);
-                actionGroup.add(connectionAction);
-                singleConnectionHandler = connection;
-            }
+        actionGroup.addSeparator();
+        for (ConnectionHandler connection : connections) {
+            actionGroup.add(new SelectConnectionAction(connection));
         }
 
-        if (actionGroup.getChildrenCount() > 1) {
-            ListPopup popupBuilder = JBPopupFactory.getInstance().createActionGroupPopup(
-                    "Select Session Browser Connection",
-                    actionGroup,
-                    e.getDataContext(),
-                    //JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
-                    false,
-                    true,
-                    true,
-                    null,
-                    actionGroup.getChildrenCount(), null);
+        ListPopup popupBuilder = JBPopupFactory.getInstance().createActionGroupPopup(
+                "Select Session Browser Connection",
+                actionGroup,
+                e.getDataContext(),
+                //JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
+                false,
+                true,
+                true,
+                null,
+                actionGroup.getChildrenCount(), null);
 
-            popupBuilder.showCenteredInCurrentWindow(project);
-        } else {
-            if (singleConnectionHandler != null) {
-                openSessionBrowser(singleConnectionHandler);
-            } else {
-                Messages.showInfoDialog(project, "No connections available.", "No database connections found. Please setup a connection first");
-            }
-
-        }
-
+        popupBuilder.showCenteredInCurrentWindow(project);
     }
 
-    private class SelectConnectionAction extends AbstractConnectionAction{
+    private static class SelectConnectionAction extends AbstractConnectionAction{
 
         SelectConnectionAction(ConnectionHandler connection) {
             super(connection.getName(), connection.getIcon(), connection);

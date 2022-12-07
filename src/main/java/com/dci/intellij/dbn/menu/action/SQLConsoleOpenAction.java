@@ -1,25 +1,18 @@
 package com.dci.intellij.dbn.menu.action;
 
 import com.dci.intellij.dbn.common.Icons;
-import com.dci.intellij.dbn.common.action.DumbAwareProjectAction;
+import com.dci.intellij.dbn.common.action.ProjectAction;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.util.Actions;
-import com.dci.intellij.dbn.common.util.Messages;
 import com.dci.intellij.dbn.connection.ConnectionBundle;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.connection.ConnectionRef;
 import com.dci.intellij.dbn.connection.ConnectionManager;
+import com.dci.intellij.dbn.connection.ConnectionRef;
 import com.dci.intellij.dbn.connection.console.DatabaseConsoleManager;
 import com.dci.intellij.dbn.database.DatabaseFeature;
 import com.dci.intellij.dbn.object.DBConsole;
-import com.dci.intellij.dbn.options.ConfigId;
-import com.dci.intellij.dbn.options.ProjectSettingsManager;
 import com.dci.intellij.dbn.vfs.DBConsoleType;
-import com.intellij.openapi.actionSystem.ActionGroup;
-import com.intellij.openapi.actionSystem.AnAction;
-import com.intellij.openapi.actionSystem.AnActionEvent;
-import com.intellij.openapi.actionSystem.DefaultActionGroup;
-import com.intellij.openapi.actionSystem.Separator;
+import com.intellij.openapi.actionSystem.*;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.popup.JBPopupFactory;
@@ -30,9 +23,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import static com.dci.intellij.dbn.common.message.MessageCallback.when;
-
-public class SQLConsoleOpenAction extends DumbAwareProjectAction {
+public class SQLConsoleOpenAction extends ProjectAction {
     public SQLConsoleOpenAction() {
         super("Open SQL console...", null, Icons.FILE_SQL_CONSOLE);
     }
@@ -42,58 +33,47 @@ public class SQLConsoleOpenAction extends DumbAwareProjectAction {
         //FeatureUsageTracker.getInstance().triggerFeatureUsed("navigation.popup.file");
         ConnectionManager connectionManager = ConnectionManager.getInstance(project);
         ConnectionBundle connectionBundle = connectionManager.getConnectionBundle();
-
-
-        ConnectionHandler singleConnectionHandler = null;
-        DefaultActionGroup actionGroup = new DefaultActionGroup();
-        if (connectionBundle.getConnections().size() > 0) {
-            actionGroup.addSeparator();
-            for (ConnectionHandler connection : connectionBundle.getConnections()) {
-                SelectConnectionAction connectionAction = new SelectConnectionAction(connection);
-                actionGroup.add(connectionAction);
-                singleConnectionHandler = connection;
-            }
+        List<ConnectionHandler> connections = connectionBundle.getConnections();
+        if (connections.size() == 0) {
+            connectionManager.promptMissingConnection();
+            return;
         }
 
-        if (actionGroup.getChildrenCount() > 1) {
-            ListPopup popupBuilder = JBPopupFactory.getInstance().createActionGroupPopup(
-                    "Select Console Connection",
-                    actionGroup,
-                    e.getDataContext(),
-                    //JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
-                    false,
-                    true,
-                    true,
-                    null,
-                    actionGroup.getChildrenCount(),
-                    preselect -> {
+        if (connections.size() == 1) {
+            openSQLConsole(connections.get(0));
+            return;
+        }
+
+        DefaultActionGroup actionGroup = new DefaultActionGroup();
+        actionGroup.addSeparator();
+        for (ConnectionHandler connection : connections) {
+            actionGroup.add(new SelectConnectionAction(connection));
+        }
+
+        ListPopup popupBuilder = JBPopupFactory.getInstance().createActionGroupPopup(
+                "Select Console Connection",
+                actionGroup,
+                e.getDataContext(),
+                //JBPopupFactory.ActionSelectionAid.SPEEDSEARCH,
+                false,
+                true,
+                true,
+                null,
+                actionGroup.getChildrenCount(),
+                preselect -> {
 /*
                         SelectConsoleAction selectConnectionAction = (SelectConsoleAction) action;
                         return latestSelection == selectConnectionAction.connection;
 */
-                        return true;
-                    });
+                    return true;
+                });
 
-            popupBuilder.showCenteredInCurrentWindow(project);
-        } else {
-            if (singleConnectionHandler != null) {
-                openSQLConsole(singleConnectionHandler);
-            } else {
-                Messages.showInfoDialog(
-                        project, "No connections available.", "No database connections found. Please setup a connection first",
-                        new String[]{"Setup Connection", "Cancel"}, 0,
-                        option -> when(option == 0, () -> {
-                            ProjectSettingsManager settingsManager = ProjectSettingsManager.getInstance(project);
-                            settingsManager.openProjectSettings(ConfigId.CONNECTIONS);
-                        }));
-            }
-
-        }
+        popupBuilder.showCenteredInCurrentWindow(project);
 
     }
 
-    private class SelectConnectionAction extends ActionGroup {
-        private ConnectionRef connection;
+    private static class SelectConnectionAction extends ActionGroup {
+        private final ConnectionRef connection;
 
         private SelectConnectionAction(ConnectionHandler connection) {
             super(connection.getName(), null, connection.getIcon());

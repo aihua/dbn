@@ -23,7 +23,6 @@ import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.ui.tree.TreeEventType;
 import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.common.util.Strings;
-import com.dci.intellij.dbn.common.util.Unsafe;
 import com.dci.intellij.dbn.connection.*;
 import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
 import com.dci.intellij.dbn.connection.jdbc.DBNCallableStatement;
@@ -168,8 +167,8 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
     }
 
     @Override
-    public DBObject getParentObject() {
-        return DBObjectRef.get(parentObjectRef);
+    public <T extends DBObject> T getParentObject() {
+        return cast(DBObjectRef.get(parentObjectRef));
     }
 
     @Override
@@ -397,7 +396,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
             if (object == null && lookupHidden) {
                 object = childObjects.getInternalObject(objectType, name, overload);
             }
-            return Unsafe.cast(object);
+            return cast(object);
         }
     }
 
@@ -684,7 +683,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
                     visibleTreeChildren = new ArrayList<>();
                     visibleTreeChildren.add(new LoadInProgressTreeNode(this));
 
-                    Background.run(() -> buildTreeChildren());
+                    Background.run(getProject(), () -> buildTreeChildren());
                 }
             }
         }
@@ -700,7 +699,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends BrowserTr
         treeChildren = Commons.nvl(treeChildren, Collections.emptyList());
 
         for (BrowserTreeNode objectList : treeChildren) {
-            Background.run(() -> objectList.initTreeElement());
+            Background.run(getProject(), () -> objectList.initTreeElement());
             checkDisposed();
         }
 

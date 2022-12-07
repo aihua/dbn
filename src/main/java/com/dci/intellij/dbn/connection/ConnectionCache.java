@@ -1,51 +1,71 @@
 package com.dci.intellij.dbn.connection;
 
 import com.dci.intellij.dbn.common.project.Projects;
-import com.dci.intellij.dbn.language.common.WeakRef;
+import com.dci.intellij.dbn.common.ref.WeakRef;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
 import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
+import static com.dci.intellij.dbn.common.dispose.Checks.isValid;
 
 final class ConnectionCache {
     private static Wrapper[] data = new Wrapper[50];
+    private static final Lock lock = new ReentrantLock();
 
     private ConnectionCache() {}
 
     @Nullable
     public static ConnectionHandler resolve(@Nullable ConnectionId connectionId) {
         if (connectionId == null) return null;
+        ensure(connectionId);
 
+        Wrapper wrapper = data[connectionId.index()];
+        return wrapper == null ? null : wrapper.get();
+    }
+
+    private static void ensure(ConnectionId connectionId) {
         int index = connectionId.index();
+        if (found(index)) return;
 
-        if (data.length <= index || data[index] == null) {
-            synchronized (ConnectionCache.class) {
-                if (data.length <= index || data[index] == null) {
+        try {
+            lock.lock();
+            if (found(index)) return;
 
-                    // ensure capacity
-                    if (data.length <= index) {
-                        Wrapper[] oldCache = data;
-                        data = new Wrapper[data.length * 2];
-                        System.arraycopy(oldCache, 0, data, 0, oldCache.length);
-                    }
-
-                    // ensure entry
-                    for (Project project : Projects.getOpenProjects()) {
-                        ConnectionManager connectionManager = ConnectionManager.getInstance(project);
-                        ConnectionHandler connection = connectionManager.getConnection(connectionId);
-
-                        // cache as null if disposed
-                        if (isNotValid(connection)) connection = null;
-
-                        data[index] = new Wrapper(connection);
-                    }
+            // ensure capacity
+            if (data.length <= index) {
+                Wrapper[] oldData = data;
+                Wrapper[] newData = new Wrapper[oldData.length * 2];
+                System.arraycopy(oldData, 0, newData, 0, oldData.length);
+                data = newData;
+            } else {
+                if (data[index] != null && isNotValid(data[index].get())) {
+                    data[index] = null;
                 }
             }
-        }
 
-        Wrapper wrapper = data[index];
-        return wrapper == null ? null : wrapper.get();
+            // ensure entry
+            for (Project project : Projects.getOpenProjects()) {
+                ConnectionManager connectionManager = ConnectionManager.getInstance(project);
+                ConnectionHandler connection = connectionManager.getConnection(connectionId);
+
+                // cache as null if disposed
+                if (isNotValid(connection)) connection = null;
+
+                data[index] = new Wrapper(connection);
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    private static boolean found(int index) {
+        return data.length > index &&
+                data[index] != null &&
+                isValid(data[index].get());
     }
 
     public static void releaseCache(@NotNull Project project) {

@@ -1,12 +1,14 @@
 package com.dci.intellij.dbn.common.thread;
 
-import com.intellij.openapi.progress.ProcessCanceledException;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
+
+import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
 
 @Slf4j
 public final class Threads {
@@ -31,8 +33,7 @@ public final class Threads {
             log.info("Creating thread \"" + indexedName + "\"");
             Thread thread = new Thread(() -> {
                     try {
-                        runnable.run();
-                    } catch (ProcessCanceledException ignore) {
+                        guarded(() -> runnable.run());
                     } catch (Throwable t) {
                         log.error(name + " - Execution failed: " + t.getMessage(), t);
                     }
@@ -51,6 +52,7 @@ public final class Threads {
     private static ExecutorService newThreadPool(String name, boolean daemon, int corePoolSize, int maximumPoolSize) {
         ThreadFactory threadFactory = createThreadFactory(name, daemon);
         SynchronousQueue<Runnable> queue = new SynchronousQueue<>();
+        //BlockingQueue<Runnable> queue = new LinkedBlockingDeque<>();
         return new ThreadPoolExecutor(corePoolSize, maximumPoolSize, 1L, TimeUnit.MINUTES, queue, threadFactory);
     }
 
@@ -81,5 +83,9 @@ public final class Threads {
 
     public static ExecutorService objectLookupExecutor() {
         return OBJECT_LOOKUP_EXECUTOR;
+    }
+
+    static void delay(Object sync) {
+        LockSupport.parkNanos(sync, 1_000_000);
     }
 }

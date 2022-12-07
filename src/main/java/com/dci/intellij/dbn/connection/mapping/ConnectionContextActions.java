@@ -4,13 +4,13 @@ import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.action.ProjectAction;
 import com.dci.intellij.dbn.common.file.VirtualFileRef;
 import com.dci.intellij.dbn.common.project.ProjectRef;
+import com.dci.intellij.dbn.common.ref.WeakRef;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionRef;
 import com.dci.intellij.dbn.connection.SchemaId;
 import com.dci.intellij.dbn.connection.action.AbstractConnectionAction;
 import com.dci.intellij.dbn.connection.session.DatabaseSession;
 import com.dci.intellij.dbn.connection.session.DatabaseSessionManager;
-import com.dci.intellij.dbn.language.common.WeakRef;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.action.AnObjectAction;
 import com.dci.intellij.dbn.options.ConfigId;
@@ -22,6 +22,8 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Objects;
 
 public class ConnectionContextActions {
     static class ConnectionSelectAction extends AbstractConnectionAction {
@@ -63,7 +65,7 @@ public class ConnectionContextActions {
             if (file != null) {
                 FileConnectionContextManager manager = getContextManager(getProject());
                 ConnectionHandler connection = manager.getConnection(file);
-                return connection != null && connection.getConnectionId().equals(getConnectionId());
+                return connection != null && Objects.equals(connection.getConnectionId(), getConnectionId());
             }
             return false;
         }
@@ -85,7 +87,7 @@ public class ConnectionContextActions {
 
         @Nullable
         @Override
-        protected Project getProject() {
+        public Project getProject() {
             return project.get();
         }
     }

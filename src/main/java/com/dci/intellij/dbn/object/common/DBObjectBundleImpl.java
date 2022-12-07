@@ -79,7 +79,6 @@ import static com.dci.intellij.dbn.object.type.DBObjectType.*;
 
 public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectBundle, NotificationSupport {
     private final ConnectionRef connection;
-    private final BrowserTreeNode treeParent;
     private final List<BrowserTreeNode> allPossibleTreeChildren;
     private volatile List<BrowserTreeNode> visibleTreeChildren;
     private boolean treeChildrenLoaded;
@@ -108,10 +107,9 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
     private final Latent<List<DBSchema>> publicSchemas;
 
-    public DBObjectBundleImpl(ConnectionHandler connection, BrowserTreeNode treeParent) {
+    public DBObjectBundleImpl(ConnectionHandler connection) {
         this.connection = ConnectionRef.of(connection);
         this.dataTypes = new DBDataTypeBundle(connection);
-        this.treeParent = treeParent;
         this.configSignature = connection.getSettings().getDatabaseSettings().getSignature();
 
         this.objectLists = new DBObjectListContainer(this);
@@ -172,7 +170,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
             @Override
             public void sourceCodeSaved(@NotNull DBSourceCodeVirtualFile sourceCodeFile, @Nullable SourceCodeEditor fileEditor) {
                 if (sourceCodeFile.getConnectionId() == getConnectionId()) {
-                    Background.run(() -> sourceCodeFile.getObject().refresh());
+                    Background.run(getProject(), () -> sourceCodeFile.getObject().refresh());
                 }
             }
         };
@@ -364,7 +362,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
     @Override
     public int getTreeDepth() {
-        return treeParent == null ? 0 : treeParent.getTreeDepth() + 1;
+        return 2;
     }
 
     @Override
@@ -375,7 +373,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     @Override
     @Nullable
     public BrowserTreeNode getParent() {
-        return treeParent;
+        return getConnection().getConnectionBundle();
     }
 
     @Override
@@ -386,7 +384,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
                     visibleTreeChildren = new ArrayList<>();
                     visibleTreeChildren.add(new LoadInProgressTreeNode(this));
 
-                    Background.run(() -> buildTreeChildren());
+                    Background.run(getProject(), () -> buildTreeChildren());
                 }
             }
         }
@@ -401,8 +399,9 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
         List<BrowserTreeNode> treeChildren = Lists.filter(allPossibleTreeChildren, objectTypeFilter);
         treeChildren = nvl(treeChildren, Collections.emptyList());
 
+        Project project = getProject();
         for (BrowserTreeNode objectList : treeChildren) {
-            Background.run(() -> objectList.initTreeElement());
+            Background.run(project, () -> objectList.initTreeElement());
             checkDisposed();
         }
 
@@ -413,7 +412,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
         visibleTreeChildren = treeChildren;
         treeChildrenLoaded = true;
 
-        ProjectEvents.notify(getProject(),
+        ProjectEvents.notify(project,
                 BrowserTreeEventListener.TOPIC,
                 (listener) -> listener.nodeChanged(this, TreeEventType.STRUCTURE_CHANGED));
 
@@ -664,7 +663,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
         ConnectionHandler connection = getConnection();
         if (!OBJECT_INVALIDATION.isSupported(connection)) return;
 
-        Background.run(() -> {
+        Background.run(getProject(), () -> {
             try {
                 List<DBSchema> schemas = requester == null ? getSchemas() : requester.getReferencingSchemas();
 

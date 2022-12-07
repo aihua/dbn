@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.data.find;
 
 import com.dci.intellij.dbn.common.dispose.AlreadyDisposedException;
+import com.dci.intellij.dbn.common.ref.WeakRef;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.ui.util.UserInterface;
@@ -9,7 +10,6 @@ import com.dci.intellij.dbn.data.model.DataModel;
 import com.dci.intellij.dbn.data.model.DataModelCell;
 import com.dci.intellij.dbn.data.model.DataModelRow;
 import com.dci.intellij.dbn.data.model.basic.BasicDataModel;
-import com.dci.intellij.dbn.language.common.WeakRef;
 import com.intellij.find.FindManager;
 import com.intellij.find.FindResult;
 import com.intellij.openapi.util.text.StringUtil;
@@ -76,7 +76,7 @@ public class DataSearchResultController {
     }
 
     void updateResult(DataFindModel findModel) {
-        Background.run(searchHandle, () -> {
+        Background.run(null, searchHandle, () -> {
             BasicTable table = getSearchableComponent().getTable();
             DataModel dataModel = table.getModel();
             DataSearchResult searchResult = dataModel.getSearchResult();

@@ -1,20 +1,25 @@
 package com.dci.intellij.dbn.connection;
 
+import com.dci.intellij.dbn.common.project.ProjectRef;
 import com.dci.intellij.dbn.database.interfaces.DatabaseInterface;
 import com.dci.intellij.dbn.database.interfaces.DatabaseInterface.Callable;
 import com.dci.intellij.dbn.database.interfaces.DatabaseInterface.Runnable;
+import com.intellij.openapi.project.Project;
 import lombok.Data;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.sql.SQLException;
 import java.util.Objects;
 
 @Data
 public class ConnectionContext {
+    private ProjectRef project;
     private final ConnectionId connectionId;
     private final SchemaId schemaId;
 
-    public ConnectionContext(ConnectionId connectionId, SchemaId schemaId) {
+    public ConnectionContext(Project project, ConnectionId connectionId, SchemaId schemaId) {
+        this.project = ProjectRef.of(project);
         this.connectionId = connectionId;
         this.schemaId = schemaId;
     }
@@ -22,6 +27,11 @@ public class ConnectionContext {
     @NotNull
     public ConnectionHandler getConnection() {
         return ConnectionHandler.ensure(connectionId);
+    }
+
+    @Nullable
+    public Project getProject() {
+        return ProjectRef.get(project);
     }
 
     public static <T> T surround(ConnectionContext context, Callable<T> callable) throws SQLException {

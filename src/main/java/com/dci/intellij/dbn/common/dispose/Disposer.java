@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.ref.Reference;
 import java.util.*;
 
 import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
@@ -35,6 +36,12 @@ public final class Disposer {
     public static void register(@Nullable Disposable parent, @NotNull Disposable disposable) {
         if (parent == null) return;
 
+        if (disposable instanceof UnlistedDisposable) {
+            log.error("Unlisted disposable {} should not be registered",
+                    disposable.getClass().getName(),
+                    new IllegalArgumentException("Unlisted disposable"));
+        }
+
         if (Checks.isValid(parent)) {
             com.intellij.openapi.util.Disposer.register(parent, disposable);
         } else {
@@ -43,49 +50,39 @@ public final class Disposer {
         }
     }
 
-    public static void dispose(@Nullable Object object) {
-        if (object instanceof Disposable) {
-            Disposable disposable = (Disposable) object;
-            dispose(disposable);
-        }
-    }
-
     public static void dispose(@Nullable Disposable disposable) {
-        dispose(disposable, true);
-    }
-
-    public static void dispose(@Nullable Disposable disposable, boolean registered) {
         try {
             guarded(() -> {
                 if (isNotValid(disposable)) return;
 
                 if (isDispatchCandidate(disposable) && !isDispatchThread()) {
-                    Dispatch.run(() -> dispose(disposable, registered));
+                    Dispatch.run(() -> dispose(disposable));
                     return;
                 }
 
-                if (registered) {
-                    com.intellij.openapi.util.Disposer.dispose(disposable);
-                } else {
+                if (disposable instanceof UnlistedDisposable) {
                     disposable.dispose();
+                } else {
+                    com.intellij.openapi.util.Disposer.dispose(disposable);
                 }
+
             });
         } catch (Throwable e) {
             log.warn("Failed to dispose entity {}", disposable, e);
         }
     }
 
-    public static <T> T replace(T oldElement, T newElement, boolean registered) {
-        dispose(oldElement, registered);
+    public static <T> T replace(T oldElement, T newElement) {
+        dispose(oldElement);
         return newElement;
     }
 
-    public static void dispose(@Nullable Object object, boolean registered) {
+    public static void dispose(@Nullable Object object) {
         if (object == null) return;
 
         if (object instanceof Disposable) {
             Disposable disposable = (Disposable) object;
-            BackgroundDisposer.queue(() -> dispose(disposable, registered));
+            BackgroundDisposer.queue(() -> dispose(disposable));
 
         } else if (object instanceof Collection) {
             BackgroundDisposer.queue(() -> disposeCollection((Collection<?>) object));
@@ -95,6 +92,10 @@ public final class Disposer {
 
         } else if (object.getClass().isArray()) {
             BackgroundDisposer.queue(() -> disposeArray((Object[]) object));
+
+        } else if (object instanceof Reference) {
+            Reference reference = (Reference) object;
+            dispose(reference.get());
         }
     }
 
@@ -111,7 +112,7 @@ public final class Disposer {
         for (Object object : collection) {
             if (object instanceof Disposable) {
                 Disposable disposable = (Disposable) object;
-                dispose(disposable, false);
+                dispose(disposable);
             }
         }
         Nullifier.clearCollection(collection);
@@ -124,7 +125,7 @@ public final class Disposer {
             Object object = array[i];
             if (object instanceof Disposable) {
                 Disposable disposable = (Disposable) object;
-                dispose(disposable, false);
+                dispose(disposable);
             }
             array[i] = null;
         }
@@ -136,7 +137,7 @@ public final class Disposer {
         for (Object object : map.values()) {
             if (object instanceof Disposable) {
                 Disposable disposable = (Disposable) object;
-                dispose(disposable, false);
+                dispose(disposable);
             }
         }
         Nullifier.clearMap(map);

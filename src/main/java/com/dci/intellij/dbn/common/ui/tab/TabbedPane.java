@@ -12,6 +12,7 @@ import com.intellij.ui.tabs.impl.JBTabsImpl;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
+import java.util.Objects;
 
 public class TabbedPane extends JBTabsImpl implements StatefulDisposable {
     private boolean disposed;
@@ -62,6 +63,24 @@ public class TabbedPane extends JBTabsImpl implements StatefulDisposable {
             tabInfo.setObject(null);
         }
         return actionCallback;
+    }
+
+    public void selectTab(String tabName) {
+        if (tabName == null) return;
+
+        for (TabInfo tabInfo : getTabs()) {
+            if (Objects.equals(tabInfo.getText(), tabName)) {
+                select(tabInfo, false);
+                return;
+            }
+        }
+    }
+
+    public String getSelectedTabName() {
+        TabInfo selectedInfo = getSelectedInfo();
+        if (selectedInfo == null) return null;
+
+        return selectedInfo.getText();
     }
 
     @Override

@@ -24,9 +24,9 @@ final class PseudoConstantRegistry {
         return data.get(id);
     }
 
-    public static <T extends PseudoConstant<T>> int register(T constant) {
-        Class<T> clazz = cast(constant.getClass());
-        PseudoConstantData<T> data = get(clazz);
+    static int register(PseudoConstant constant) {
+        Class<PseudoConstant> clazz = cast(constant.getClass());
+        PseudoConstantData data = get(clazz);
         return data.register(constant);
     }
 

@@ -99,7 +99,7 @@ public class ExecutionManager extends ProjectComponentBase implements Persistent
     }
 
     @Nullable
-    ExecutionResultForm getExecutionResultForm(ExecutionResult executionResult) {
+    <T extends ExecutionResultForm> T getExecutionResultForm(ExecutionResult executionResult) {
         return getExecutionConsoleForm().getExecutionResultForm(executionResult);
     }
 
@@ -121,11 +121,11 @@ public class ExecutionManager extends ProjectComponentBase implements Persistent
 
     public void writeLogOutput(@NotNull LogOutputContext context, LogOutput output) {
         Dispatch.run(() -> {
-            if (!context.isClosed()) {
-                showExecutionConsole();
-                ExecutionConsoleForm executionConsoleForm = getExecutionConsoleForm();
-                executionConsoleForm.displayLogOutput(context, output);
-            }
+            if (context.isClosed()) return;
+
+            showExecutionConsole();
+            ExecutionConsoleForm executionConsoleForm = getExecutionConsoleForm();
+            executionConsoleForm.displayLogOutput(context, output);
         });
     }
 
@@ -212,7 +212,9 @@ public class ExecutionManager extends ProjectComponentBase implements Persistent
 
     @Nullable
     public ExecutionResult getSelectedExecutionResult() {
-        return executionConsoleForm.loaded() ? getExecutionConsoleForm().getSelectedExecutionResult() : null;
+        if (!executionConsoleForm.loaded()) return null;
+        return Dispatch.call(true, () ->
+                getExecutionConsoleForm().getSelectedExecutionResult());
     }
 
     /*********************************************

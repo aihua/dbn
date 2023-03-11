@@ -27,7 +27,7 @@ public class ProjectSettingsProvider extends ConfigurableProvider{
     public static void init(Project project) {
         for (ConfigurableEP<Configurable> extension : Configurable.PROJECT_CONFIGURABLE.getExtensions(project)) {
             if (ProjectSettingsProvider.class.getName().equals(extension.providerClass)) {
-                ConfigurableWrapper.wrapConfigurable(extension, true);
+                ConfigurableWrapper.wrapConfigurable(extension);
             }
         }
     }

@@ -2,6 +2,7 @@ package com.dci.intellij.dbn.editor.console;
 
 import com.dci.intellij.dbn.editor.console.ui.SQLConsoleEditorToolbarForm;
 import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NotNull;
@@ -11,7 +12,7 @@ import java.awt.*;
 import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
 import static com.dci.intellij.dbn.common.util.Files.isDbConsoleFile;
 
-public class SQLConsoleEditorListener implements FileEditorManagerListener{
+public class SQLConsoleEditorListener extends FileEditorManagerAdapter implements FileEditorManagerListener{
     @Override
     public void fileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
         if (isNotValid(file)) return;

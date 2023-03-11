@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.language.editor;
 import com.dci.intellij.dbn.language.editor.ui.DBLanguageFileEditorToolbarForm;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NotNull;
@@ -13,7 +14,7 @@ import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
 import static com.dci.intellij.dbn.common.util.Files.isDbLanguageFile;
 import static com.dci.intellij.dbn.common.util.Files.isLightVirtualFile;
 
-public class DBLanguageFileEditorListener implements FileEditorManagerListener{
+public class DBLanguageFileEditorListener extends FileEditorManagerAdapter implements FileEditorManagerListener{
     @Override
     public void fileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
         if (isNotValid(file)) return;

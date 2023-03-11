@@ -295,6 +295,7 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
 
     @NotNull
     public VirtualFile getOriginFile() {
-        return getMainDatabaseFile();
+        // DBN-536 TODO check why below was needed
+        return this;//getMainDatabaseFile();
     }
 }

@@ -17,6 +17,7 @@ import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.filter.CompoundFilter;
 import com.dci.intellij.dbn.common.filter.Filter;
 import com.dci.intellij.dbn.common.range.Range;
+import com.dci.intellij.dbn.common.ref.WeakRefCache;
 import com.dci.intellij.dbn.common.search.SearchAdapter;
 import com.dci.intellij.dbn.common.string.StringDeBuilder;
 import com.dci.intellij.dbn.common.ui.tree.TreeEventType;
@@ -25,6 +26,7 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.DatabaseEntity;
 import com.dci.intellij.dbn.connection.config.ConnectionFilterSettings;
 import com.dci.intellij.dbn.database.common.metadata.DBObjectMetadata;
+import com.dci.intellij.dbn.navigation.psi.DBObjectListPsiDirectory;
 import com.dci.intellij.dbn.object.DBColumn;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBObject;
@@ -65,8 +67,9 @@ import static com.dci.intellij.dbn.object.type.DBObjectType.*;
 @Getter
 @Setter
 public class DBObjectListImpl<T extends DBObject> extends DynamicContentBase<T> implements DBObjectList<T> {
+    private static final WeakRefCache<DBObjectList, ObjectQuickFilter> quickFilterCache = WeakRefCache.build();
+
     private final DBObjectType objectType;
-    private ObjectQuickFilter<T> quickFilter;
 
     DBObjectListImpl(
             @NotNull DBObjectType objectType,
@@ -111,15 +114,23 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentBase<T> 
     @Override
     public Filter<T> getFilter() {
         Filter<T> configFilter = getConfigFilter();
-        if (configFilter != null && this.quickFilter != null) {
-            return CompoundFilter.of(configFilter, this.quickFilter);
+        ObjectQuickFilter<T> quickFilter = getQuickFilter();
 
-        } else if (configFilter != null) {
-            return configFilter;
+        if (configFilter != null && quickFilter != null) return CompoundFilter.of(configFilter, quickFilter);
+        if (configFilter != null) return configFilter;
+        return quickFilter;
+    }
 
-        } else {
-            return this.quickFilter;
-        }
+    @Nullable
+    @Override
+    public ObjectQuickFilter<T> getQuickFilter() {
+        return quickFilterCache.get(this);
+    }
+
+    @Override
+    public void setQuickFilter(@Nullable ObjectQuickFilter<T> quickFilter) {
+        quickFilterCache.set(this, quickFilter);
+
     }
 
     @Override
@@ -302,20 +313,19 @@ public class DBObjectListImpl<T extends DBObject> extends DynamicContentBase<T> 
 
     @Override
     public PsiDirectory getPsiDirectory() {
-        return getObjectBundle().getObjectListPsiDirectory(this);
+        return DBObjectListPsiDirectory.of(this);
     }
 
     @Override
     public void notifyChangeListeners() {
-        guarded(() -> {
-            Project project = getProject();
-            BrowserTreeNode treeParent = getParent();
-            if (!isInternal() && isTouched() && isValid(project) && treeParent.isTreeStructureLoaded()) {
+        guarded(this, l -> {
+            Project project = l.getProject();
+            BrowserTreeNode treeParent = l.getParent();
+            if (!l.isInternal() && l.isTouched() && isValid(project) && treeParent.isTreeStructureLoaded()) {
                 ProjectEvents.notify(project,
                         BrowserTreeEventListener.TOPIC,
-                        (listener) -> listener.nodeChanged(this, TreeEventType.STRUCTURE_CHANGED));
-            }
-        });
+                        (listener) -> listener.nodeChanged(l, TreeEventType.STRUCTURE_CHANGED));
+            }        });
     }
 
     /*********************************************************

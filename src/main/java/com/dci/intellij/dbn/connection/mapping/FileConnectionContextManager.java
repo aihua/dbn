@@ -192,7 +192,7 @@ public class FileConnectionContextManager extends ProjectComponentBase implement
 
     @Nullable
     public FileConnectionContext getMapping(@NotNull VirtualFile file) {
-        return registry.getFileConnectionMapping(file);
+        return registry.getFileConnectionContext(file);
     }
 
 
@@ -215,8 +215,8 @@ public class FileConnectionContextManager extends ProjectComponentBase implement
 
     public boolean isSchemaSelectable(VirtualFile file) {
         if (isNotValid(file)) return false;
+        if (isLocalFileSystem(file)) return hasConnectivityContext(file);
         if (!isDbLanguageFile(file)) return false;
-        if (isLocalFileSystem(file)) return true;
 
         if (file instanceof DBConsoleVirtualFile) return true;
         if (file instanceof LightVirtualFile) return hasConnectivityContext(file);
@@ -498,6 +498,7 @@ public class FileConnectionContextManager extends ProjectComponentBase implement
     @Nullable
     @Override
     public Element getComponentState() {
+        registry.cleanup();
         Element element = new Element("state");
         Map<String, FileConnectionContext> mappings = registry.getMappings();
         for (FileConnectionContext mapping : mappings.values()) {

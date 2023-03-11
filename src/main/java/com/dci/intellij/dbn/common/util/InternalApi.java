@@ -2,7 +2,6 @@ package com.dci.intellij.dbn.common.util;
 
 import com.dci.intellij.dbn.common.compatibility.Compatibility;
 import com.dci.intellij.dbn.common.compatibility.Workaround;
-import com.intellij.diagnostic.LoadingState;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.application.impl.ApplicationImpl;
 import com.intellij.openapi.util.objectTree.ThrowableInterner;

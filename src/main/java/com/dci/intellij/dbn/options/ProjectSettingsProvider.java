@@ -3,8 +3,6 @@ package com.dci.intellij.dbn.options;
 import com.dci.intellij.dbn.common.compatibility.Workaround;
 import com.dci.intellij.dbn.common.project.ProjectRef;
 import com.dci.intellij.dbn.common.util.Unsafe;
-import com.intellij.openapi.extensions.ExtensionPoint;
-import com.intellij.openapi.extensions.ExtensionsArea;
 import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.options.ConfigurableEP;
 import com.intellij.openapi.options.ConfigurableProvider;
@@ -30,9 +28,7 @@ public class ProjectSettingsProvider extends ConfigurableProvider{
     @Workaround // https://youtrack.jetbrains.com/issue/IDEA-313711
     public static void init(Project project) {
         Unsafe.silent(() -> {
-            ExtensionsArea extensionArea = project.getExtensionArea();
-            ExtensionPoint<ConfigurableEP<?>> projectConfigEP = extensionArea.getExtensionPoint(PROJECT_CONFIGURABLE);
-            ConfigurableEP<?>[] extensions = projectConfigEP.getExtensions();
+            ConfigurableEP<?>[] extensions = Configurable.PROJECT_CONFIGURABLE.getExtensions(project);
             for (ConfigurableEP<?> extension : extensions) {
                 if (ProjectSettingsProvider.class.getName().equals(extension.providerClass)) {
                     ConfigurableWrapper.wrapConfigurable(extension, true);

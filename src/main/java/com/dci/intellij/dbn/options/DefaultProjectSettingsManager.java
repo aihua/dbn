@@ -21,11 +21,14 @@ import static com.dci.intellij.dbn.common.component.Components.applicationServic
 )
 public class DefaultProjectSettingsManager extends ApplicationComponentBase implements PersistentState {
 
-    private final Latent<ProjectSettings> defaultProjectSettings = Latent.basic(() ->  {
+    private final Latent<ProjectSettings> defaultProjectSettings = Latent.basic(() -> createProjectSettings());
+
+    @NotNull
+    private ProjectSettings createProjectSettings() {
         ProjectManager projectManager = ProjectManager.getInstance();
         Project defaultProject = projectManager.getDefaultProject();
         return new ProjectSettings(defaultProject);
-    });
+    }
 
     private DefaultProjectSettingsManager() {
         super("DBNavigator.Application.TemplateProjectSettings");

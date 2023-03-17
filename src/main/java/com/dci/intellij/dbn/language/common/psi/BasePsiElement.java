@@ -6,7 +6,6 @@ import com.dci.intellij.dbn.code.common.style.formatting.FormattingProviderPsiEl
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.editor.BasicTextEditor;
 import com.dci.intellij.dbn.common.navigation.NavigationInstructions;
-import com.dci.intellij.dbn.common.ref.WeakRef;
 import com.dci.intellij.dbn.common.ref.WeakRefCache;
 import com.dci.intellij.dbn.common.thread.Read;
 import com.dci.intellij.dbn.common.util.Editors;
@@ -39,7 +38,7 @@ import com.dci.intellij.dbn.vfs.file.DBConsoleVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBSessionStatementVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBSourceCodeVirtualFile;
-import com.intellij.extapi.psi.ASTDelegatePsiElement;
+import com.intellij.extapi.psi.ASTWrapperPsiElement;
 import com.intellij.ide.util.EditSourceUtil;
 import com.intellij.lang.ASTNode;
 import com.intellij.navigation.ItemPresentation;
@@ -65,14 +64,12 @@ import java.util.function.Consumer;
 
 @Getter
 @Setter
-public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDelegatePsiElement implements DatabaseContextBase, ItemPresentation, FormattingProviderPsiElement {
-    private static final WeakRefCache<BasePsiElement, DBVirtualObject> underlyingObjectCache = WeakRefCache.build();
-    private static final WeakRefCache<BasePsiElement, FormattingAttributes> formattingAttributesCache = WeakRefCache.build();
+public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTWrapperPsiElement implements DatabaseContextBase, ItemPresentation, FormattingProviderPsiElement {
+    private static final WeakRefCache<BasePsiElement, DBVirtualObject> underlyingObjectCache = WeakRefCache.weakKey();
+    private static final WeakRefCache<BasePsiElement, FormattingAttributes> formattingAttributesCache = WeakRefCache.weakKey();
+    private static final WeakRefCache<BasePsiElement, BasePsiElement> enclosingScopePsiElements = WeakRefCache.weakKeyValue();
 
-    public final ASTNode node;
     private T elementType;
-
-    private transient WeakRef<BasePsiElement> enclosingScopePsiElement;
 
     public enum MatchType {
         STRONG,
@@ -81,13 +78,13 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
     }
 
     protected BasePsiElement(ASTNode node, T elementType) {
-        this.node = node;
+        super(node);
         this.elementType = elementType;
     }
 
     @Override
     public PsiElement getParent() {
-        ASTNode parentNode = node.getTreeParent();
+        ASTNode parentNode = getNode().getTreeParent();
         return parentNode == null ? null : parentNode.getPsi();
     }
 
@@ -115,18 +112,18 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
     }
 
     public boolean containsLineBreaks() {
-        return Strings.containsLineBreak(node.getChars());
+        return Strings.containsLineBreak(getNode().getChars());
     }
 
     @Override
     public PsiElement getFirstChild() {
-        ASTNode firstChildNode = node.getFirstChildNode();
+        ASTNode firstChildNode = getNode().getFirstChildNode();
         return firstChildNode == null ? null : firstChildNode.getPsi();
     }
 
     @Override
     public PsiElement getNextSibling() {
-        ASTNode treeNext = node.getTreeNext();
+        ASTNode treeNext = getNode().getTreeNext();
         return treeNext == null ? null : treeNext.getPsi();
     }
 
@@ -179,8 +176,8 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
 
     @NotNull
     public DBLanguagePsiFile getFile() {
-        DBLanguagePsiFile file = Read.call(() -> {
-            PsiElement parent = getParent();
+        DBLanguagePsiFile file = Read.call(this, e -> {
+            PsiElement parent = e.getParent();
             while (parent != null) {
                 if (parent instanceof DBLanguagePsiFile) return (DBLanguagePsiFile) parent;
                 parent = parent.getParent();
@@ -246,7 +243,11 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
 
     @Override
     public String getText() {
-        return Read.call(() -> BasePsiElement.super.getText());
+        return Read.call(this, e -> e.getSuperText());
+    }
+
+    private String getSuperText() {
+        return super.getText();
     }
 
 
@@ -572,13 +573,7 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
 
     @Nullable
     public BasePsiElement getEnclosingScopePsiElement() {
-        BasePsiElement psiElement = WeakRef.get(enclosingScopePsiElement);
-        if (psiElement == null) {
-            psiElement = findEnclosingScopePsiElement();
-            enclosingScopePsiElement = WeakRef.of(psiElement);
-        }
-
-        return psiElement;
+        return enclosingScopePsiElements.computeIfAbsent(this, e -> e.findEnclosingScopePsiElement());
     }
 
     @Nullable
@@ -731,9 +726,7 @@ public abstract class BasePsiElement<T extends ElementTypeBase> extends ASTDeleg
 
         return underlyingObjectCache.compute(this, (k, v) -> {
             if (v != null && v.isValid()) return v;
-
-            DBObjectType virtualObjectType = k.getElementType().getVirtualObjectType();
-            return new DBVirtualObject(virtualObjectType, this);
+            return new DBVirtualObject(k);
         });
     }
 

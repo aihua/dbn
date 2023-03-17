@@ -28,8 +28,9 @@ public abstract class DBLanguageParserDefinition implements ParserDefinition {
         IElementType et = astNode.getElementType();
         if(et instanceof ElementType) {
             ElementType elementType = (ElementType) et;
-            //SQLFile file = lookupFile(astNode);
-            return elementType.createPsiElement(astNode);
+            PsiElement psiElement = elementType.createPsiElement(astNode);
+            //return WeakPsiDelegate.wrap(psiElement);
+            return psiElement;
         }
         return new ASTWrapperPsiElement(astNode);
     }

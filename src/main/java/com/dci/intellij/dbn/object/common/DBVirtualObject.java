@@ -57,7 +57,7 @@ import static com.dci.intellij.dbn.common.dispose.Failsafe.nd;
 import static com.dci.intellij.dbn.object.common.sorting.DBObjectComparator.compareName;
 import static com.dci.intellij.dbn.object.common.sorting.DBObjectComparator.compareType;
 
-public class DBVirtualObject extends DBObjectImpl implements PsiReference {
+public class DBVirtualObject extends DBRootObjectImpl implements PsiReference {
     private static final PsiLookupAdapter CHR_STAR_LOOKUP_ADAPTER = new PsiLookupAdapter() {
         @Override
         public boolean matches(BasePsiElement element) {
@@ -92,7 +92,7 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
         BasePsiElement underlyingPsiElement = getUnderlyingPsiElement();
         if (underlyingPsiElement == null) return false;
 
-        boolean psiElementValid = Read.call(() -> underlyingPsiElement.isValid());
+        boolean psiElementValid = Read.call(underlyingPsiElement, e -> e.isValid());
         if (!psiElementValid) return false;
 
         DBObjectType objectType = getObjectType();
@@ -109,17 +109,17 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
 
     }
 
-    private void terminate() {
-
-    }
-
-    public DBVirtualObject(@NotNull DBObjectType objectType, @NotNull BasePsiElement psiElement) {
-        super(psiElement.getConnection(), objectType, psiElement.getText());
+    public DBVirtualObject(@NotNull BasePsiElement psiElement) {
+        super(
+            psiElement.getConnection(),
+            psiElement.getElementType().getVirtualObjectType(),
+            psiElement.getText());
 
         psiCache = new DBObjectPsiCache(psiElement);
         relevantPsiElement = PsiElementRef.of(psiElement);
         String name = "";
 
+        DBObjectType objectType = getObjectType();
         if (objectType == DBObjectType.COLUMN) {
             PsiLookupAdapter lookupAdapter = LookupAdapterCache.ALIAS_DEFINITION.get(objectType);
             BasePsiElement relevantPsiElement = lookupAdapter.findInElement(psiElement);
@@ -408,8 +408,8 @@ public class DBVirtualObject extends DBObjectImpl implements PsiReference {
     
     @Override
     public PsiFile getContainingFile() throws PsiInvalidElementAccessException {
-        return Read.call(() -> {
-            BasePsiElement relevantPsiElement = getRelevantPsiElement();
+        return Read.call(this, o -> {
+            BasePsiElement relevantPsiElement = o.getRelevantPsiElement();
             return relevantPsiElement.isValid() ? relevantPsiElement.getContainingFile() : null;
         });
     }

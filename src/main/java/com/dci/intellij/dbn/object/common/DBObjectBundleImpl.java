@@ -111,7 +111,7 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
 
         Project project = connection.getProject();
         PsiFileFactory psiFileFactory = PsiFileFactory.getInstance(project);
-        this.fakeObjectFile = Read.call(() -> psiFileFactory.createFileFromText("object", SQLLanguage.INSTANCE, ""));
+        this.fakeObjectFile = Read.call(psiFileFactory, f -> f.createFileFromText("object", SQLLanguage.INSTANCE, ""));
 
 
         this.publicSchemas = Latent.mutable(
@@ -639,7 +639,6 @@ public class DBObjectBundleImpl extends BrowserTreeNodeBase implements DBObjectB
     }
 
     @Override
-    @NotNull
     public DBObjectListContainer getObjectLists() {
         return Failsafe.nn(objectLists);
     }

@@ -10,10 +10,10 @@ import com.dci.intellij.dbn.data.export.DataExportInstructions;
 import com.dci.intellij.dbn.data.export.DataExportModel;
 import com.intellij.openapi.project.Project;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.poi.hssf.usermodel.HSSFFont;
 import org.apache.poi.hssf.usermodel.HSSFRichTextString;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.streaming.SXSSFSheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 
 import java.io.File;
@@ -56,6 +56,10 @@ public class ExcelDataExportProcessor extends DataExportProcessor{
             workbook = createWorkbook();
             String sheetName = model.getTableName();
             Sheet sheet = createSheet(workbook, sheetName);
+            if (sheet instanceof SXSSFSheet) {
+                SXSSFSheet sxssfSheet = (SXSSFSheet) sheet;
+                sxssfSheet.trackAllColumnsForAutoSizing();
+            }
 
             createHeader(model, instructions, workbook, sheet);
             sheet.createFreezePane(0, 1);
@@ -76,7 +80,8 @@ public class ExcelDataExportProcessor extends DataExportProcessor{
             createFile(workbook, instructions);
         } catch (DataExportException e) {
             throw e;
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            log.warn("Failed to export data", e);
             throw new DataExportException("Failed to export data. Cause: " + e.getMessage());
         } finally {
             if (workbook instanceof SXSSFWorkbook) {
@@ -92,7 +97,7 @@ public class ExcelDataExportProcessor extends DataExportProcessor{
         try (FileOutputStream fileOutputStream = new FileOutputStream(file)){
             workbook.write(fileOutputStream);
             fileOutputStream.flush();
-        } catch (Exception e) {
+        } catch (Throwable e) {
             log.warn("Failed to export data", e);
             throw new DataExportException("Could not write file " + file.getPath() + ".\nCause: " + e.getMessage());
         }
@@ -126,6 +131,11 @@ public class ExcelDataExportProcessor extends DataExportProcessor{
                     cellStyleCache.getDateStyle());
         } else {
             String stringValue = formatValue(formatter, value);
+            if (stringValue.length() > 32767) {
+                stringValue = stringValue.substring(0, 32767);
+                model.addWarning("Some values exceed the maximum cell limit of 32767 characters and were truncated during export");
+            }
+
             cell.setCellValue(stringValue);
         }
     }
@@ -143,7 +153,7 @@ public class ExcelDataExportProcessor extends DataExportProcessor{
 
             CellStyle cellStyle = workbook.createCellStyle();
             Font tableHeadingFont = workbook.createFont();
-            tableHeadingFont.setBoldweight(HSSFFont.BOLDWEIGHT_BOLD);
+            tableHeadingFont.setBold(true);
             cellStyle.setFillBackgroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
             cellStyle.setFont(tableHeadingFont);
             cell.setCellStyle(cellStyle);

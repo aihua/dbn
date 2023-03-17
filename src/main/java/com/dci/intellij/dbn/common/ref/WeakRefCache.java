@@ -1,27 +1,26 @@
 package com.dci.intellij.dbn.common.ref;
 
-import lombok.SneakyThrows;
-
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
 public interface WeakRefCache<K, V> {
     V get(K key);
 
-    @SneakyThrows
     V get(K key, Function<K, V> loader);
 
-    V compute(K key, BiFunction<K, V, V> computer);
+    V compute(K key, BiFunction<K, V, V> loader);
+
+    V computeIfAbsent(K key, Function<? super K, ? extends V> loader);
 
     void set(K key, V value);
 
-    void remove(K key);
+    V remove(K key);
 
-    static <K, V> WeakRefCache<K, V> build() {
-        return new WeakRefCacheBasicImpl<>();
+    static <K, V> WeakRefCache<K, V> weakKey() {
+        return new WeakRefCacheKeyImpl<>();
     }
 
-    static <K, V> WeakRefCache<K, V> build(int maxSize) {
-        return new WeakRefCacheGuavaImpl<>(maxSize);
+    static <K, V> WeakRefCache<K, V> weakKeyValue() {
+        return new WeakRefCacheKeyValueImpl<>();
     }
 }

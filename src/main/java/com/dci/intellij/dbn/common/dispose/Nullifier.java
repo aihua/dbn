@@ -49,15 +49,15 @@ public final class Nullifier {
 
     public static void clearCollection(Collection<?> collection) {
         if (collection != null && !collection.isEmpty()) {
-            boolean cleared = silent(() -> collection.clear());
+            boolean cleared = silent(collection, c -> c.clear());
             if (!cleared && collection instanceof List) {
-                silent(() -> nullify((List<?>) collection));
+                silent(collection, c -> nullify((List<?>) c));
             }
         }
     }
 
     public static void clearMap(Map<?, ?> map) {
-        silent(() -> map.clear());
+        silent(map, m -> m.clear());
     }
 
     private static void nullify(List<?> collection) {

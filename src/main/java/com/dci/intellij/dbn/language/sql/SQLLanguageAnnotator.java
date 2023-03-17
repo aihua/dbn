@@ -12,7 +12,6 @@ import com.dci.intellij.dbn.language.common.psi.*;
 import com.intellij.lang.annotation.Annotation;
 import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.Annotator;
-import com.intellij.lang.annotation.HighlightSeverity;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
@@ -111,7 +110,7 @@ public class SQLLanguageAnnotator implements Annotator {
             PsiElement reference = objectReference.resolve();
             if (reference == null && objectReference.getResolveAttempts() > 3 && checkConnection(objectReference)) {
                 if (!objectReference.getLanguageDialect().getParserTokenTypes().isFunction(objectReference.getText())) {
-                    Annotation annotation = holder.createWarningAnnotation(objectReference.node,
+                    Annotation annotation = holder.createWarningAnnotation(objectReference.getNode(),
                             "Unknown identifier");
                     annotation.setTextAttributes(SQLTextAttributesKeys.UNKNOWN_IDENTIFIER);
                 }

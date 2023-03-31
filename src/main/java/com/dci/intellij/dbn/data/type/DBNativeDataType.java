@@ -8,11 +8,15 @@ import com.dci.intellij.dbn.connection.jdbc.DBNCallableStatement;
 import com.dci.intellij.dbn.data.value.ValueAdapter;
 import com.dci.intellij.dbn.database.common.util.DataTypeParseAdapter;
 import lombok.Getter;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.math.BigDecimal;
 import java.sql.*;
+
+import static com.dci.intellij.dbn.common.util.Unsafe.silent;
 
 @Slf4j
 @Getter
@@ -45,23 +49,9 @@ public class DBNativeDataType extends StatefulDisposableBase implements DynamicC
         // FIXME: add support for stream updatable types
 
         GenericDataType genericDataType = definition.getGenericDataType();
-        if (ValueAdapter.supports(genericDataType)) {
-            try {
-                return ValueAdapter.create(genericDataType, resultSet, columnIndex);
-            } catch (Throwable e) {
-                return null;
-            }
-
-        }
-
-/*
-        if (genericDataType == GenericDataType.BLOB) return new BlobValue(resultSet, columnIndex);
-        if (genericDataType == GenericDataType.CLOB) return new ClobValue(resultSet, columnIndex);
-        if (genericDataType == GenericDataType.XMLTYPE) return new XmlTypeValue((OracleResultSet) resultSet, columnIndex);
-        if (genericDataType == GenericDataType.ARRAY) return new ArrayValue(resultSet, columnIndex);
-*/
         if (genericDataType == GenericDataType.ROWID) return "[ROWID]";
         if (genericDataType == GenericDataType.FILE) return "[FILE]";
+        if (ValueAdapter.supports(genericDataType)) return createValueAdapter(resultSet, columnIndex, genericDataType);
 
         Class<?> clazz = definition.getTypeClass();
         try {
@@ -73,7 +63,8 @@ public class DBNativeDataType extends StatefulDisposableBase implements DynamicC
 
             DataTypeParseAdapter parseAdapter = definition.getParseAdapter();
             if (parseAdapter != null) {
-                return parseAdapter.parse(resultSet.getString(columnIndex));
+                String stringValue = resultSet.getString(columnIndex);
+                return parseAdapter.parse(stringValue);
             }
 
             return
@@ -92,30 +83,50 @@ public class DBNativeDataType extends StatefulDisposableBase implements DynamicC
                     //clazz == Array.class ? resultSet.getArray(columnIndex) :
                             resultSet.getObject(columnIndex);
         } catch (Throwable e) {
-            try {
+            return silent(null, () -> resolveConversionFailure(resultSet, columnIndex, clazz, e));
+        }
+    }
+
+    @Nullable
+    private Object createValueAdapter(ResultSet resultSet, int columnIndex, GenericDataType genericDataType) {
+        try {
+            return ValueAdapter.create(genericDataType, resultSet, columnIndex);
+        } catch (Throwable e) {
+            return silent(null, () -> {
                 Object object = resultSet.getObject(columnIndex);
-                String objectClass = object == null ? "" : object.getClass().getName();
-                // TODO odd values resolvers
-                if (object instanceof String && Strings.isEmpty((String) object)) {
-                    return null;
-                } else if (object instanceof Long && Integer.class.isAssignableFrom(clazz)) {
-                    // odd jdbc implementations allowing long for data type int java.sql.Types.INTEGER
-                    return object;
-                } else if (object instanceof Number && java.util.Date.class.isAssignableFrom(clazz)) {
-                    // fallback for dates stored as milliseconds (sqlite?)
-                    Number number = (Number) object;
-                    long longValue = number.longValue();
-                    return
-                        clazz == Date.class ? new Date(longValue) :
-                        clazz == Time.class ? new Time(longValue) :
-                        clazz == Timestamp.class ? new Timestamp(longValue) : null;
-                } else {
-                    log.error("Error resolving result-set value for {} '{}'. (data type definition {})", objectClass, object, definition, e);
-                    return object;
-                }
-            } catch (Throwable e1) {
+                log.error("Error creating result-set value for {} '{}'. (data type definition {})", genericDataType, object, definition, e);
                 return null;
-            }
+            });
+        }
+    }
+
+    @Nullable
+    @SneakyThrows
+    private Object resolveConversionFailure(ResultSet resultSet, int columnIndex, Class<?> expectedClass, Throwable err) {
+        Object object = resultSet.getObject(columnIndex);
+        // TODO odd values resolvers
+        if (object instanceof String && Strings.isEmpty((String) object)) {
+            return null;
+        } else if (object instanceof Double && ((Double) object).isNaN()) {
+            // DBNE-4151
+            return null;
+        } else if (object instanceof Long && Integer.class.isAssignableFrom(expectedClass)) {
+            // odd jdbc implementations allowing long for data type int java.sql.Types.INTEGER
+            return object;
+        } else if (object instanceof Timestamp && Long.class.isAssignableFrom(expectedClass)) {
+            // DBNE-432
+            return ((Timestamp) object).getTime();
+        } else if (object instanceof Number && java.util.Date.class.isAssignableFrom(expectedClass)) {
+            // fallback for dates stored as milliseconds (sqlite?)
+            Number number = (Number) object;
+            long longValue = number.longValue();
+            return expectedClass == Date.class ? new Date(longValue) :
+                    expectedClass == Time.class ? new Time(longValue) :
+                    expectedClass == Timestamp.class ? new Timestamp(longValue) : null;
+        } else {
+            String objectClass = object == null ? "" : object.getClass().getName();
+            log.error("Error resolving result-set value for {} '{}'. (data type definition {})", objectClass, object, definition, err);
+            return object;
         }
     }
 
@@ -159,12 +170,6 @@ public class DBNativeDataType extends StatefulDisposableBase implements DynamicC
         if (ValueAdapter.supports(genericDataType)) {
             return ValueAdapter.create(genericDataType, callableStatement, parameterIndex);
         }
-/*
-        if (genericDataType == GenericDataType.BLOB) return new BlobValue(callableStatement, parameterIndex);
-        if (genericDataType == GenericDataType.CLOB) return new ClobValue(callableStatement, parameterIndex);
-        if (genericDataType == GenericDataType.XMLTYPE) return new XmlTypeValue((OracleCallableStatement) callableStatement, parameterIndex);
-*/
-
         return callableStatement.getObject(parameterIndex);
     }
 

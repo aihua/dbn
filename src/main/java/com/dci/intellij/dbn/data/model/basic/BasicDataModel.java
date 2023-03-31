@@ -199,12 +199,17 @@ public class BasicDataModel<
 
     @Nullable
     public C getCellAt(int rowIndex, int columnIndex) {
+        checkRowBounds(rowIndex);
+        checkColumnBounds(columnIndex);
+
         R row = getRowAtIndex(rowIndex);
         return row == null ? null : row.getCellAtIndex(columnIndex);
     }
 
     @Override
     public ColumnInfo getColumnInfo(int columnIndex) {
+        checkColumnBounds(columnIndex);
+
         return getHeader().getColumnInfo(columnIndex);
     }
 
@@ -259,8 +264,9 @@ public class BasicDataModel<
     protected void notifyListeners(@Nullable ListDataEvent listDataEvent, @Nullable TableModelEvent modelEvent) {
         Dispatch.run(() -> {
             if (listDataEvent != null) {
-                if (listModel.loaded()) {
-                    listModel.get().notifyListeners(listDataEvent);
+                BasicDataGutterModel gutterModel = listModel.value();
+                if (gutterModel != null) {
+                    gutterModel.notifyListeners(listDataEvent);
                 }
             }
 

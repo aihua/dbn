@@ -22,6 +22,7 @@ dependencies {
   implementation("com.oracle.database.jdbc:ojdbc8:21.9.0.0")
   implementation("com.oracle.database.xml:xdb:21.9.0.0")
   implementation("com.oracle.database.xml:xmlparserv2:21.9.0.0")
+  implementation("com.oracle.database.nls:orai18n:21.9.0.0")
 
 }
 

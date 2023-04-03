@@ -19,7 +19,7 @@ dependencies {
   implementation("org.apache.poi:poi-ooxml:5.2.3")
   implementation("org.apache.poi:poi-ooxml-schemas:4.1.2")
   implementation("com.jcraft:jsch:0.1.55")
-  implementation("com.oracle.database.jdbc:ojdbc10:19.18.0.0")
+  implementation("com.oracle.database.jdbc:ojdbc8:21.9.0.0")
   implementation("com.oracle.database.xml:xdb:21.9.0.0")
   implementation("com.oracle.database.xml:xmlparserv2:21.9.0.0")
 
@@ -30,6 +30,10 @@ sourceSets{
     resources {
       srcDir("src/main/java")
       include("**/*.xml")
+    }
+    resources{
+      srcDir("lib/ext/")
+      include("**/*.jar")
     }
     resources {
       include(

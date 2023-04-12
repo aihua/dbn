@@ -8,7 +8,6 @@ import com.dci.intellij.dbn.object.DBConstraint;
 import com.dci.intellij.dbn.object.DBDataset;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBSchemaObjectImpl;
-import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationList;
 import com.dci.intellij.dbn.object.common.list.DBObjectRelationList;
@@ -27,7 +26,6 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.sql.SQLException;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -100,6 +98,12 @@ public class DBConstraintImpl extends DBSchemaObjectImpl<DBConstraintMetadata> i
         properties.set(DISABLEABLE, true);
     }
 
+    @NotNull
+    @Override
+    public String getQualifiedName() {
+        return getSchemaName() + '.' + getName();
+    }
+
     @Nullable
     @Override
     public Icon getIcon() {
@@ -144,8 +148,7 @@ public class DBConstraintImpl extends DBSchemaObjectImpl<DBConstraintMetadata> i
 
     @Override
     public List<DBColumn> getColumns() {
-        DBObjectList<DBColumn> columns = getChildObjectList(COLUMN);
-        return columns == null ? Collections.emptyList() : columns.getObjects();
+        return getChildObjects(COLUMN);
     }
 
     @Override

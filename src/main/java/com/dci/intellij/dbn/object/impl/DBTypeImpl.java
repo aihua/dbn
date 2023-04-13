@@ -17,7 +17,6 @@ import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.object.*;
 import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
-import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationList;
 import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
@@ -33,18 +32,15 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Objects;
 
 import static com.dci.intellij.dbn.object.type.DBObjectType.*;
 
 public class DBTypeImpl
-        extends DBProgramImpl<DBTypeMetadata, DBTypeProcedure, DBTypeFunction>
+        extends DBProgramImpl<DBTypeMetadata, DBTypeProcedure, DBTypeFunction, DBType>
         implements DBType {
-
-    private static final List<DBTypeAttribute> EMPTY_ATTRIBUTE_LIST = Collections.unmodifiableList(new ArrayList<>(0));
-
-    protected DBObjectList<DBTypeAttribute> attributes;
-    protected DBObjectList<DBType> subTypes;
 
     private String superTypeOwner;
     private String superTypeName;
@@ -90,11 +86,26 @@ public class DBTypeImpl
         if (!isCollection()) {
             DBObjectListContainer childObjects = ensureChildObjects();
             DBSchema schema = getSchema();
-            attributes = childObjects.createSubcontentObjectList(TYPE_ATTRIBUTE, this, schema);
-            procedures = childObjects.createSubcontentObjectList(TYPE_PROCEDURE, this, schema);
-            functions =  childObjects.createSubcontentObjectList(TYPE_FUNCTION, this, schema);
-            subTypes =   childObjects.createSubcontentObjectList(TYPE, this, schema);
+            childObjects.createSubcontentObjectList(TYPE_ATTRIBUTE, this, schema);
+            childObjects.createSubcontentObjectList(TYPE_PROCEDURE, this, schema);
+            childObjects.createSubcontentObjectList(TYPE_FUNCTION, this, schema);
+            childObjects.createSubcontentObjectList(TYPE_TYPE, this, schema);
         }
+    }
+
+    @Override
+    protected DBObjectType getFunctionObjectType() {
+        return TYPE_FUNCTION;
+    }
+
+    @Override
+    protected DBObjectType getProcedureObjectType() {
+        return TYPE_PROCEDURE;
+    }
+
+    @Override
+    protected DBObjectType getTypeObjectType() {
+        return TYPE_TYPE;
     }
 
     @NotNull
@@ -124,7 +135,7 @@ public class DBTypeImpl
 
     @Override
     public List<DBTypeAttribute> getAttributes() {
-        return attributes == null ? EMPTY_ATTRIBUTE_LIST : attributes.getObjects();
+        return getChildObjects(TYPE_ATTRIBUTE);
     }
 
     @Override
@@ -172,11 +183,6 @@ public class DBTypeImpl
     }
 
     @Override
-    public List<DBType> getSubTypes() {
-        return subTypes.getObjects();
-    }
-
-    @Override
     public DBNativeDataType getNativeDataType() {
         return nativeDataType;
     }
@@ -201,7 +207,11 @@ public class DBTypeImpl
     public List<BrowserTreeNode> buildPossibleTreeChildren() {
         return isCollection() ?
                 EMPTY_TREE_NODE_LIST :
-                DatabaseBrowserUtils.createList(attributes, procedures, functions);
+                DatabaseBrowserUtils.createList(
+                        getChildObjectList(TYPE_ATTRIBUTE),
+                        getChildObjectList(TYPE_PROCEDURE),
+                        getChildObjectList(TYPE_FUNCTION),
+                        getChildObjectList(TYPE_TYPE));
     }
 
     @Override
@@ -310,8 +320,9 @@ public class DBTypeImpl
         if (superType != null) {
             navigationLists.add(DBObjectNavigationList.create("Super Type", superType));
         }
-        if (subTypes != null && subTypes.size() > 0) {
-            navigationLists.add(DBObjectNavigationList.create("Sub Types", subTypes.getObjects()));
+        List<DBObject> types = getChildObjects(TYPE_TYPE);
+        if (!types.isEmpty()) {
+            navigationLists.add(DBObjectNavigationList.create("Sub Types", types));
         }
         if (isCollection()) {
             DBDataType dataType = getCollectionElementType();

@@ -9,7 +9,6 @@ import com.dci.intellij.dbn.object.DBPrivilege;
 import com.dci.intellij.dbn.object.DBRole;
 import com.dci.intellij.dbn.object.DBUser;
 import com.dci.intellij.dbn.object.common.DBRootObjectImpl;
-import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.list.DBObjectListContainer;
 import com.dci.intellij.dbn.object.common.list.DBObjectNavigationList;
 import org.jetbrains.annotations.Nullable;
@@ -19,11 +18,10 @@ import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
+import static com.dci.intellij.dbn.common.content.DynamicContentProperty.MASTER;
 import static com.dci.intellij.dbn.object.type.DBObjectType.*;
 
 public abstract class DBPrivilegeImpl<M extends DBPrivilegeMetadata> extends DBRootObjectImpl<M> implements DBPrivilege {
-    private DBObjectList<DBUser> userGrantees;
-    private DBObjectList<DBRole> roleGrantees;
 
     DBPrivilegeImpl(ConnectionHandler connection, M metadata) throws SQLException {
         super(connection, metadata);
@@ -37,17 +35,17 @@ public abstract class DBPrivilegeImpl<M extends DBPrivilegeMetadata> extends DBR
     @Override
     protected void initLists() {
         DBObjectListContainer childObjects = ensureChildObjects();
-        userGrantees = childObjects.createSubcontentObjectList(USER, this, getObjectBundle(), USER);
-        roleGrantees = childObjects.createSubcontentObjectList(ROLE, this, getObjectBundle(), ROLE);
+        childObjects.createSubcontentObjectList(USER, this, getObjectBundle(), USER);
+        childObjects.createSubcontentObjectList(ROLE, this, getObjectBundle(), ROLE);
     }
 
     @Override
     public List<DBUser> getUserGrantees() {
-        return userGrantees.getObjects();
+        return getChildObjects(USER);
     }
 
     public List<DBRole> getRoleGrantees() {
-        return roleGrantees.getObjects();
+        return getChildObjects(ROLE);
     }
 
     @Override
@@ -86,6 +84,7 @@ public abstract class DBPrivilegeImpl<M extends DBPrivilegeMetadata> extends DBR
                     }
                 }
                 content.setElements(grantees);
+                content.set(MASTER, false);
             }
         };
 
@@ -104,6 +103,7 @@ public abstract class DBPrivilegeImpl<M extends DBPrivilegeMetadata> extends DBR
                     }
                 }
                 content.setElements(grantees);
+                content.set(MASTER, false);
             }
         };
     }

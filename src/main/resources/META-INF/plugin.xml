@@ -2,7 +2,7 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.3.7530.1</version>
+    <version>3.3.7711.1</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
@@ -11,10 +11,9 @@
     <idea-version since-build="181.0001" until-build="199.*"/>
     <description><![CDATA[
             <b>Database development, scripting and navigation tool</b><br>
-            This product adds extensive database development and maintenance capabilities to the IntelliJ IDEA development environment and related products.
-            Along with a qualified and IDE-compliant SQL and PL/SQL editor, it provides advanced database connection management,
-            script execution support, database objects browsing, data and code editor, support for database compiler operations, method execution and debugging,
-            database objects factory, as well as various navigation capabilities between all its components.<br>
+            This software solution enhances the capabilities of the IntelliJ IDEA development environment and its associated products by providing comprehensive features for database development and maintenance.
+            It includes a robust SQL and PL/SQL editor that adheres to the IDE standards, along with advanced functionality for managing database connections, executing scripts, browsing database objects, editing data and code, supporting database compiler operations, executing and debugging methods, and facilitating the creation of database objects.
+            Additionally, it offers diverse navigation capabilities that seamlessly integrate across all its components, providing a powerful toolset for efficient and effective database development and management.<br>
             <!--See features overview on the <a href="https://plugins.jetbrains.com/plugin/1800-database-navigator" target="new">support page</a>.<br>--><br>
 
             <b>Supported Databases:</b>
@@ -31,7 +30,7 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
-            <li><b>3.3.7530</b>
+            <li><b>3.3.7711</b>
             <ul>
                 <li>Bug fixes
                 <li>Memory optimisation

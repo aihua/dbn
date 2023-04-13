@@ -2,30 +2,21 @@ package com.dci.intellij.dbn.object.impl;
 
 import com.dci.intellij.dbn.database.common.metadata.def.DBProgramMetadata;
 import com.dci.intellij.dbn.editor.DBContentType;
-import com.dci.intellij.dbn.object.DBFunction;
-import com.dci.intellij.dbn.object.DBMethod;
-import com.dci.intellij.dbn.object.DBProcedure;
-import com.dci.intellij.dbn.object.DBProgram;
-import com.dci.intellij.dbn.object.DBSchema;
+import com.dci.intellij.dbn.object.*;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.common.DBSchemaObjectImpl;
-import com.dci.intellij.dbn.object.common.list.DBObjectList;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatus;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatusHolder;
+import com.dci.intellij.dbn.object.type.DBObjectType;
 
 import java.sql.SQLException;
-import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.*;
 
-public abstract class DBProgramImpl<M extends DBProgramMetadata, P extends DBProcedure, F extends DBFunction>
-        extends DBSchemaObjectImpl<M> implements DBProgram<P, F> {
-
-    protected DBObjectList<P> procedures;
-    protected DBObjectList<F> functions;
-
+public abstract class DBProgramImpl<M extends DBProgramMetadata, P extends DBProcedure, F extends DBFunction, T extends DBType>
+        extends DBSchemaObjectImpl<M> implements DBProgram<P, F, T> {
 
     DBProgramImpl(DBSchemaObject parent, M metadata) throws SQLException {
         super(parent, metadata);
@@ -71,30 +62,38 @@ public abstract class DBProgramImpl<M extends DBProgramMetadata, P extends DBPro
 
     }
 
+    protected abstract DBObjectType getFunctionObjectType();
+    protected abstract DBObjectType getProcedureObjectType();
+    protected abstract DBObjectType getTypeObjectType();
+
     @Override
     public List<F> getFunctions() {
-        return functions == null ? Collections.emptyList() : functions.getObjects();
+        return getChildObjects(getFunctionObjectType());
     }
 
     @Override
     public List<P> getProcedures() {
-        return procedures == null ? Collections.emptyList() : procedures.getObjects();
+        return getChildObjects(getProcedureObjectType());
+    }
+
+    @Override
+    public List<T> getTypes() {
+        return getChildObjects(getTypeObjectType());
     }
 
     @Override
     public F getFunction(String name, short overload) {
-        if (functions != null) {
-            return functions.getObject(name, overload);
-        }
-        return null;
+        return getChildObject(getFunctionObjectType(), name, overload);
     }
 
     @Override
     public P getProcedure(String name, short overload) {
-        if (procedures != null) {
-            return procedures.getObject(name, overload);
-        }
-        return null;
+        return getChildObject(getProcedureObjectType(), name, overload);
+    }
+
+    @Override
+    public T getType(String name) {
+        return getChildObject(getTypeObjectType(), name);
     }
 
     @Override

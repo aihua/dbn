@@ -75,4 +75,13 @@ tasks {
   publishPlugin {
     token.set(System.getenv("PUBLISH_TOKEN"))
   }
+
+  runIde {
+        systemProperties["idea.auto.reload.plugins"] = true
+        jvmArgs = listOf(
+            "-Xms512m",
+            "-Xmx2048m",
+            "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=1044",
+        )
+   }
 }

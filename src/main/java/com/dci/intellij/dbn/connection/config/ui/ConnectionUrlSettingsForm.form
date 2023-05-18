@@ -98,9 +98,11 @@
           <text value="&amp;URL"/>
         </properties>
       </component>
-      <component id="36015" class="com.intellij.ui.components.fields.ExpandableTextField" binding="urlTextField">
+      <component id="9a277" class="javax.swing.JTextField" binding="urlTextField">
         <constraints>
-          <grid row="5" column="1" row-span="1" col-span="4" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
+          <grid row="5" column="1" row-span="1" col-span="4" vsize-policy="0" hsize-policy="6" anchor="8" fill="1" indent="0" use-parent-layout="false">
+            <preferred-size width="150" height="-1"/>
+          </grid>
         </constraints>
         <properties/>
       </component>
@@ -151,13 +153,10 @@
         </constraints>
         <properties/>
       </component>
-      <component id="cf336" class="com.dci.intellij.dbn.common.ui.misc.DBNComboBox" binding="tnsProfileComboBox">
+      <component id="8f30c" class="com.dci.intellij.dbn.common.ui.misc.DBNComboBox" binding="tnsProfileComboBox">
         <constraints>
-          <grid row="4" column="1" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="1" indent="0" use-parent-layout="false">
-            <preferred-size width="180" height="-1"/>
-          </grid>
+          <grid row="4" column="1" row-span="1" col-span="1" vsize-policy="3" hsize-policy="3" anchor="0" fill="3" indent="0" use-parent-layout="false"/>
         </constraints>
-        <properties/>
       </component>
     </children>
   </grid>

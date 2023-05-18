@@ -18,7 +18,6 @@ import com.dci.intellij.dbn.connection.config.tns.TnsNamesParser;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
-import com.intellij.ui.components.fields.ExpandableTextField;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
@@ -49,8 +48,8 @@ public class ConnectionUrlSettingsForm extends DBNFormBase {
     private JTextField hostTextField;
     private JTextField portTextField;
     private JTextField databaseTextField;
+    private JTextField urlTextField;
     private TextFieldWithBrowseButton tnsFolderTextField;
-    private ExpandableTextField urlTextField;
     private JPanel mainPanel;
 
     private final DatabaseFileSettingsForm databaseFileSettingsForm;

@@ -1,23 +1,30 @@
 package com.dci.intellij.dbn.connection.config.tns;
 
 
+import lombok.Getter;
+import lombok.Setter;
 import org.jetbrains.annotations.NotNull;
 
+@Getter
+@Setter
 public class TnsName implements Comparable<TnsName> {
+    private final String descriptor;
 
-    private String name;
-    private String protocol;
-    private String host;
-    private String port;
-    private String server;
-    private String sid;
-    private String serviceName;
-    private String globalName;
-    private String failover;
-    private String failoverType;
-    private String failoverMethod;
+    private final String profile;
+    private final String protocol;
+    private final String host;
+    private final String port;
+    private final String server;
+    private final String sid;
+    private final String serviceName;
+    private final String globalName;
+    private final String failover;
+    private final String failoverType;
+    private final String failoverMethod;
+    private boolean selected;
 
     TnsName(
+            String descriptor,
             String name,
             String protocol,
             String host,
@@ -29,7 +36,9 @@ public class TnsName implements Comparable<TnsName> {
             String failover,
             String failoverType,
             String failoverMethod) {
-        this.name = name;
+        this.descriptor = descriptor;
+
+        this.profile = name;
         this.protocol = protocol;
         this.host = host;
         this.port = port;
@@ -42,56 +51,12 @@ public class TnsName implements Comparable<TnsName> {
         this.failoverMethod = failoverMethod;
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public String getProtocol() {
-        return protocol;
-    }
-
-    public String getHost() {
-        return host;
-    }
-
-    public String getPort() {
-        return port;
-    }
-
-    public String getServer() {
-        return server;
-    }
-
-    public String getSid() {
-        return sid;
-    }
-
-    public String getServiceName() {
-        return serviceName;
-    }
-
-    public String getGlobalName() {
-        return globalName;
-    }
-
-    public String getFailover() {
-        return failover;
-    }
-
-    public String getFailoverType() {
-        return failoverType;
-    }
-
-    public String getFailoverMethod() {
-        return failoverMethod;
-    }
-
     public String toString() {
-        return name;
+        return profile;
     }
 
     @Override
     public int compareTo(@NotNull TnsName o) {
-        return name.compareTo(o.name);
+        return profile.compareTo(o.profile);
     }
 }

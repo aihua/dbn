@@ -76,7 +76,7 @@ public class Icons {
     public static final Icon FOLDER_SCHEMA_ASSOCIATION = load("/img/action/FolderSchemaLink.png");
 
 
-    public static final Icon DATABASE_NAVIGATOR = load("/img/project/DatabaseNavigator.png");
+    public static final Icon DATABASE_NAVIGATOR = load("/img/project/DatabaseNavigator.svg");
     public static final Icon DATABASE_MODULE = load("/img/project/DatabaseModule.png");
     public static final Icon DATABASE_MODULE_SMALL_OPEN = load("/img/project/DatabaseModuleOpen.png");
     public static final Icon DATABASE_MODULE_SMALL_CLOSED = load("/img/project/DatabaseModuleClosed.png");
@@ -106,6 +106,7 @@ public class Icons {
     public static final Icon METHOD_EXECUTION_DEBUG   = load("/img/action/DebugMethod.png");
     public static final Icon METHOD_EXECUTION_RERUN   = load("/img/RerunMethodExecution.png");
     public static final Icon METHOD_EXECUTION_DIALOG  = load("/img/ExecuteMethodDialog.png");
+    public static final Icon METHOD_EXECUTION_STOP    = load("/img/action/ExecutionStop.png");
     public static final Icon METHOD_EXECUTION_HISTORY = load("/img/MethodExecutionHistory.png");
     public static final Icon METHOD_LOOKUP            = load("/img/MethodLookup.png");
     public static final Icon METHOD_CALL              = load("METHOD_CALL", "/img/MethodCall.png");

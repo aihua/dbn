@@ -5,6 +5,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
 public interface Presentable extends Named {
     @NotNull
@@ -35,4 +39,32 @@ public interface Presentable extends Named {
             return null;
         }
     };
+
+    static Presentable basic(String name) {
+        return new Presentable() {
+            @NotNull
+            @Override
+            public String getName() {
+                return name;
+            }
+
+            @Override
+            public String toString() {
+                return name;
+            }
+
+            @Override
+            public boolean equals(Object obj) {
+                if (obj instanceof Presentable) {
+                    Presentable presentable = (Presentable) obj;
+                    return Objects.equals(name, presentable.getName());
+                }
+                return false;
+            }
+        };
+    }
+
+    static List<Presentable> basic(Collection<String> names) {
+        return names.stream().map(n -> basic(n)).collect(Collectors.toList());
+    }
 }

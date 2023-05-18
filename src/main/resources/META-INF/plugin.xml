@@ -2,12 +2,12 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.3.7711.2</version>
+    <version>3.3.8310.2</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
     <depends optional="true" config-file="dbn-java-support.xml">com.intellij.modules.java</depends>
-    <vendor email="dancioca@bluewin.ch" logo="/img/project/DatabaseNavigator.png">Dan Cioca</vendor>
+    <vendor email="dancioca@bluewin.ch">Dan Cioca</vendor>
     <idea-version since-build="172.0001" until-build="173.*"/>
     <description><![CDATA[
             <b>Database development, scripting and navigation tool</b><br>
@@ -30,6 +30,13 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
+            <li><b>3.3.8310</b>
+            <ul>
+                <li>Connection configuration rework
+                <li>Oracle TNS import options
+                <li>Support for latest IDE EAP versions
+                <li>Bug fixes
+            </ul>
             <li><b>3.3.7711</b>
             <ul>
                 <li>Bug fixes
@@ -461,6 +468,7 @@
             <action id="DBNavigator.Actions.MethodExecutionResult.EditMethod" class="com.dci.intellij.dbn.execution.method.result.action.MethodEditAction" text="Method Execution Result - Edit Method" icon="/img/EditSource.png"/>
             <action id="DBNavigator.Actions.MethodExecutionResult.ExecuteAgain" class="com.dci.intellij.dbn.execution.method.result.action.MethodExecutionStartAction" text="Method Execution Result - Execute Again" icon="/img/RerunMethodExecution.png"/>
             <action id="DBNavigator.Actions.MethodExecutionResult.OpenExecutionDialog" class="com.dci.intellij.dbn.execution.method.result.action.MethodExecutionPromptAction" text="Method Execution Result - Open Execution Dialog" icon="/img/ExecuteMethodDialog.png"/>
+            <action id="DBNavigator.Actions.MethodExecutionResult.StopExecution" class="com.dci.intellij.dbn.execution.method.result.action.MethodExecutionStopAction" text="Method Execution Result - Stop Execution" icon="/img/action/ExecutionStop.png"/>
             <separator/>
             <action id="DBNavigator.Actions.MethodExecutionResult.Settings" class="com.dci.intellij.dbn.execution.method.result.action.ExecutionEngineSettingsAction" text="Method Execution Result - Open Execution Dialog" icon="/img/action/Options.png"/>
         </group>

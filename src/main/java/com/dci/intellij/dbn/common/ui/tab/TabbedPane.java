@@ -3,22 +3,21 @@ package com.dci.intellij.dbn.common.ui.tab;
 import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.ui.form.DBNForm;
-import com.intellij.openapi.Disposable;
-import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.util.ActionCallback;
-import com.intellij.openapi.wm.IdeFocusManager;
 import com.intellij.ui.tabs.TabInfo;
 import com.intellij.ui.tabs.impl.JBTabsImpl;
+import lombok.Getter;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import java.util.Objects;
 
 public class TabbedPane extends JBTabsImpl implements StatefulDisposable {
+    @Getter
     private boolean disposed;
 
     public TabbedPane(@NotNull DBNForm form) {
-        super(form.getProject(), ActionManager.getInstance(), IdeFocusManager.findInstance(), form);
+        super(form.ensureProject());
         setTabDraggingEnabled(true);
         Disposer.register(form, () -> customDispose());
     }
@@ -85,7 +84,7 @@ public class TabbedPane extends JBTabsImpl implements StatefulDisposable {
     }
 
     private void customDispose() {
-        if (disposed && !super.isDisposed()) return;
+        if (disposed) return;
 
         disposed = true;
         for (TabInfo tabInfo : myInfo2Label.keySet()) {

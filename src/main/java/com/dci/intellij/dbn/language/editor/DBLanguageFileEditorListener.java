@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.language.editor;
 
+import com.dci.intellij.dbn.common.util.Editors;
 import com.dci.intellij.dbn.language.editor.ui.DBLanguageFileEditorToolbarForm;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
@@ -7,8 +8,6 @@ import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NotNull;
-
-import java.awt.*;
 
 import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
 import static com.dci.intellij.dbn.common.util.Files.isDbLanguageFile;
@@ -25,6 +24,6 @@ public class DBLanguageFileEditorListener extends FileEditorManagerAdapter imple
         if (isNotValid(fileEditor)) return;
 
         DBLanguageFileEditorToolbarForm toolbarForm = new DBLanguageFileEditorToolbarForm(fileEditor, source.getProject(), file);
-        fileEditor.getComponent().getParent().add(toolbarForm.getComponent(), BorderLayout.NORTH);
+        Editors.addEditorToolbar(fileEditor, toolbarForm);
     }
 }

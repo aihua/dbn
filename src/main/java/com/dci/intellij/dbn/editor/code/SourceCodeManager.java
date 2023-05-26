@@ -77,6 +77,7 @@ import static com.dci.intellij.dbn.common.util.Messages.*;
 import static com.dci.intellij.dbn.common.util.Naming.unquote;
 import static com.dci.intellij.dbn.database.DatabaseFeature.OBJECT_CHANGE_MONITORING;
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.*;
+import static com.intellij.openapi.fileEditor.FileEditorManagerListener.FILE_EDITOR_MANAGER;
 
 @State(
     name = SourceCodeManager.COMPONENT_NAME,
@@ -95,9 +96,10 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
 
         ProjectEvents.subscribe(project, this, DataDefinitionChangeListener.TOPIC, dataDefinitionChangeListener());
         ProjectEvents.subscribe(project, this, EnvironmentManagerListener.TOPIC, environmentManagerListener());
-        ProjectEvents.subscribe(project, this, FileEditorManagerListener.FILE_EDITOR_MANAGER, fileEditorManagerListener());
-        ProjectEvents.subscribe(project, this, FileEditorManagerListener.FILE_EDITOR_MANAGER, new DBLanguageFileEditorListener());
-        ProjectEvents.subscribe(project, this, FileEditorManagerListener.FILE_EDITOR_MANAGER, new SQLConsoleEditorListener());
+        ProjectEvents.subscribe(project, this, FILE_EDITOR_MANAGER, fileEditorManagerListener());
+        ProjectEvents.subscribe(project, this, FILE_EDITOR_MANAGER, new DBLanguageFileEditorListener());
+        ProjectEvents.subscribe(project, this, FILE_EDITOR_MANAGER, new SQLConsoleEditorListener());
+        ProjectEvents.subscribe(project, this, FILE_EDITOR_MANAGER, new SourceCodeEditorListener());
     }
 
 

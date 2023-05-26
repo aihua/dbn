@@ -1,7 +1,9 @@
 package com.dci.intellij.dbn.connection.config.tns;
 
+import com.dci.intellij.dbn.common.util.FileContentCache;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
+import lombok.SneakyThrows;
 
 import java.io.File;
 import java.nio.file.Files;
@@ -20,8 +22,20 @@ public class TnsNamesParser {
             withDescription("Select a valid Oracle tnsnames.ora file").
             withFileFilter(virtualFile -> Objects.equals(virtualFile.getExtension(), "ora"));
 
+    private static final FileContentCache<TnsNamesBundle> cache = new FileContentCache<TnsNamesBundle>() {
+        @Override
+        protected TnsNamesBundle load(File file) {
+            return parse(file);
+        }
+    };
 
-    public static List<TnsName> parse(File file) throws Exception {
+    public static TnsNamesBundle get(File file) throws Exception {
+        return cache.get(file);
+    }
+
+
+    @SneakyThrows
+    public static TnsNamesBundle parse(File file) {
         List<TnsName> tnsNames = new ArrayList<>();
         String tnsContent = new String(Files.readAllBytes(Paths.get(file.getPath())));
 
@@ -30,7 +44,8 @@ public class TnsNamesParser {
 
         int start = 0;
         while (matcher.find(start)) {
-            String schema         = matcher.group("schema");
+            String descriptor = matcher.group("descriptor");
+            String schema = matcher.group("schema");
             String protocol = coalesce(
                     () -> matcher.group("protocol1"),
                     () -> matcher.group("protocol2"),
@@ -57,6 +72,7 @@ public class TnsNamesParser {
 
             if (Strings.isNotEmpty(schema)) {
                 TnsName tnsName = new TnsName(
+                        descriptor,
                         schema,
                         protocol,
                         host,
@@ -70,7 +86,7 @@ public class TnsNamesParser {
                         failoverMethod);
                 tnsNames.add(tnsName);
             }
-       }
-        return tnsNames;
+        }
+        return new TnsNamesBundle(file, tnsNames);
     }
 }

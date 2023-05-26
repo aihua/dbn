@@ -3,10 +3,11 @@ package com.dci.intellij.dbn.connection.config;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.database.DatabaseInfo;
 import com.dci.intellij.dbn.common.options.BasicConfiguration;
+import com.dci.intellij.dbn.common.util.Commons;
 import com.dci.intellij.dbn.common.util.Files;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.*;
-import com.dci.intellij.dbn.connection.config.file.DatabaseFiles;
+import com.dci.intellij.dbn.connection.config.file.DatabaseFileBundle;
 import com.dci.intellij.dbn.connection.config.ui.ConnectionDatabaseSettingsForm;
 import com.dci.intellij.dbn.driver.DriverSource;
 import com.intellij.openapi.options.ConfigurationException;
@@ -130,31 +131,32 @@ public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSet
         DatabaseInfo databaseInfo = getDatabaseInfo();
         if (databaseInfo.getUrlType() == DatabaseUrlType.FILE) {
             // only for file based databases
-            String file = databaseInfo.getMainFile();
-            return Strings.isNotEmpty(file) && new File(file).exists();
+            DatabaseFileBundle fileBundle = databaseInfo.getFileBundle();
+            return fileBundle != null && fileBundle.isValid();
         }
         return true;
     }
 
     public String getConnectionUrl() {
-        return configType == ConnectionConfigType.BASIC ?
-                urlPattern.getUrl(databaseInfo) :
-                databaseInfo.getUrl();
+        return databaseInfo.isCustomUrl() ?
+                databaseInfo.getUrl() :
+                urlPattern.buildUrl(databaseInfo);
     }
 
     public String getConnectionUrl(String host, String port) {
-        if (configType == ConnectionConfigType.BASIC) {
-            return urlPattern.getUrl(
+        if (databaseInfo.isCustomUrl()) {
+            return databaseInfo.getUrl();
+        } else {
+            return urlPattern.buildUrl(
                     databaseInfo.getVendor(),
                     host,
                     port,
                     databaseInfo.getDatabase(),
-                    databaseInfo.getMainFile());
-        } else {
-            return databaseInfo.getUrl();
+                    databaseInfo.getMainFilePath(),
+                    databaseInfo.getTnsFolder(),
+                    databaseInfo.getTnsProfile());
         }
     }
-
 
     public void updateSignature() {
         signature = hashCode();
@@ -180,11 +182,12 @@ public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSet
 
         String connectionUrl = getConnectionUrl();
         if (Strings.isEmpty(connectionUrl)) {
-            errors.add(configType == ConnectionConfigType.BASIC ?
-                    "Database information not provided (host, port, database)" :
-                    "Database connection url not provided");
+            errors.add(databaseInfo.isCustomUrl() ?
+                    "Database connection url not provided" :
+                    "Database information not provided (host, port, database, file)"
+            );
         } else {
-            if (configType == ConnectionConfigType.BASIC && !urlPattern.isValid(connectionUrl)) {
+            if (!databaseInfo.isCustomUrl() && !urlPattern.isValid(connectionUrl)) {
                 errors.add("Database information incomplete or invalid (host, port, database, file)");
             }
         }
@@ -231,47 +234,40 @@ public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSet
 
         name             = getString(element, "name", name);
         description      = getString(element, "description", description);
-
         databaseType     = getEnum(element, "database-type", databaseType);
-
-        // TODO temporary backward compatibility
-        if (databaseType == DatabaseType.UNKNOWN) databaseType = DatabaseType.GENERIC;
-
-
         configType       = getEnum(element, "config-type", configType);
         databaseVersion  = getDouble(element, "database-version", databaseVersion);
 
-        if (configType == ConnectionConfigType.BASIC) {
+        String url = getString(element, "url", databaseInfo.getUrl());
+        DatabaseUrlType defaultUrlType =
+                Strings.isEmptyOrSpaces(url) ?
+                        databaseType.getDefaultUrlPattern().getUrlType() :
+                        DatabaseUrlType.CUSTOM;
+
+        DatabaseUrlType urlType = getEnum(element, "url-type", defaultUrlType);
+        databaseInfo.setUrlType(urlType);
+        databaseInfo.setUrl(url);
+
+        if (urlType == DatabaseUrlType.CUSTOM) {
+            urlPattern = Commons.nvl(databaseType.resolveUrlPattern(url), DatabaseUrlPattern.GENERIC);
+            databaseInfo.initializeDetails(urlPattern);
+        } else {
             databaseInfo.setHost(getString(element, "host", null));
             databaseInfo.setPort(getString(element, "port", null));
             databaseInfo.setDatabase(getString(element, "database", null));
+            databaseInfo.setTnsFolder(getString(element, "tns-folder", null));
+            databaseInfo.setTnsProfile(getString(element, "tns-profile", null));
 
-            DatabaseUrlType urlType = getEnum(element, "url-type", databaseType.getDefaultUrlPattern().getUrlType());
-            databaseInfo.setUrlType(urlType);
             urlPattern = DatabaseUrlPattern.get(databaseType, urlType);
 
             if (urlType == DatabaseUrlType.FILE) {
                 Element filesElement = element.getChild("files");
-                DatabaseFiles databaseFiles = new DatabaseFiles();
-                databaseFiles.readConfiguration(filesElement);
-                databaseInfo.setFiles(databaseFiles);
+                DatabaseFileBundle fileBundle = new DatabaseFileBundle();
+                fileBundle.readConfiguration(filesElement);
+                databaseInfo.setFileBundle(fileBundle);
             }
-        } else if (configType == ConnectionConfigType.CUSTOM){
-            String url = getString(element, "url", databaseInfo.getUrl());
-            databaseInfo.setUrl(url);
-            if (databaseType != DatabaseType.GENERIC) {
-                urlPattern = databaseType.resolveUrlPattern(url);
-                databaseInfo.setUrlType(urlPattern.getUrlType());
-                databaseInfo.setHost(urlPattern.resolveHost(url));
-                databaseInfo.setPort(urlPattern.resolvePort(url));
-                databaseInfo.setDatabase(urlPattern.resolveDatabase(url));
 
-                String file = urlPattern.resolveFile(url);
-                if (Strings.isNotEmptyOrSpaces(file)) {
-                    databaseInfo.setMainFile(file);
-                }
-
-            }
+            databaseInfo.initializeUrl(urlPattern);
         }
 
         driverSource  = getEnum(element, "driver-source", driverSource);
@@ -279,7 +275,7 @@ public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSet
         if (driverSource == DriverSource.BUILTIN) driverSource = DriverSource.BUNDLED;
 
         driverLibrary = Files.convertToAbsolutePath(getProject(), getString(element, "driver-library", driverLibrary));
-        driver        = getString(element, "driver", driver);
+        driver = getString(element, "driver", driver);
 
         authenticationInfo.readConfiguration(element);
 
@@ -317,20 +313,23 @@ public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSet
         setEnum(element, "driver-source", driverSource);
         setString(element, "driver-library", nvl(driverLibrary));
         setString(element, "driver", nvl(driver));
+        setEnum(element, "url-type", databaseInfo.getUrlType());
 
-        if (configType == ConnectionConfigType.BASIC) {
-            setEnum(element, "url-type", databaseInfo.getUrlType());
+        if (databaseInfo.isCustomUrl()) {
+            setString(element, "url", nvl(databaseInfo.getUrl()));
+        } else {
             setString(element, "host", nvl(databaseInfo.getHost()));
             setString(element, "port", nvl(databaseInfo.getPort()));
             setString(element, "database", nvl(databaseInfo.getDatabase()));
-            DatabaseFiles files = databaseInfo.getFiles();
-            if (files != null) {
+            setString(element, "tns-folder", nvl(databaseInfo.getTnsFolder()));
+            setString(element, "tns-profile", nvl(databaseInfo.getTnsProfile()));
+            DatabaseFileBundle fileBundle = databaseInfo.getFileBundle();
+            if (fileBundle != null) {
                 Element filesElement = new Element("files");
                 element.addContent(filesElement);
-                files.writeConfiguration(filesElement);
+                fileBundle.writeConfiguration(filesElement);
             }
-        } else if (configType == ConnectionConfigType.CUSTOM) {
-            setString(element, "url", nvl(databaseInfo.getUrl()));
+
         }
 
         authenticationInfo.writeConfiguration(element);

@@ -3,7 +3,6 @@ package com.dci.intellij.dbn.common.about.ui;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.ui.form.DBNFormBase;
 import com.dci.intellij.dbn.common.ui.listener.PopupCloseListener;
-import com.dci.intellij.dbn.common.ui.util.Borders;
 import com.dci.intellij.dbn.common.ui.util.Mouse;
 import com.intellij.ide.BrowserUtil;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
@@ -22,8 +21,7 @@ import java.awt.*;
 public class AboutComponent extends DBNFormBase {
     public static final String PAYPAL_URL = "https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=3QAPZFCCARA4J";
     private JPanel mainPanel;
-    private JLabel splashLabel;
-    private JLabel donateLabel;
+    private JLabel logoLabel;
     private JLabel downloadPageLinkLabel;
     private JLabel supportPageLinkLabel;
     private JLabel requestTrackerPageLinkLabel;
@@ -34,18 +32,9 @@ public class AboutComponent extends DBNFormBase {
         super(null, project);
         Cursor handCursor = Cursor.getPredefinedCursor(Cursor.HAND_CURSOR);
 
-        splashLabel.setIcon(Icons.DATABASE_NAVIGATOR);
-        splashLabel.setText("");
-        linksPanel.setBorder(Borders.BOTTOM_LINE_BORDER);
-
-        donateLabel.setIcon(Icons.DONATE_DISABLED);
-        donateLabel.setText("");
-        donateLabel.setCursor(handCursor);
-
-        donateLabel.addMouseListener(Mouse.listener().
-                onClick(e -> BrowserUtil.browse(PAYPAL_URL)).
-                onEnter(e -> donateLabel.setIcon(Icons.DONATE)).
-                onExit(e -> donateLabel.setIcon(Icons.DONATE_DISABLED)));
+        logoLabel.setIcon(Icons.DATABASE_NAVIGATOR);
+        logoLabel.setText("");
+        //linksPanel.setBorder(Borders.BOTTOM_LINE_BORDER);
 
         downloadPageLinkLabel.setForeground(CodeInsightColors.HYPERLINK_ATTRIBUTES.getDefaultAttributes().getForegroundColor());
         downloadPageLinkLabel.setCursor(handCursor);

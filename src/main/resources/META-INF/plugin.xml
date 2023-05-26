@@ -2,13 +2,13 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.3.7711.0</version>
+    <version>3.3.8411.0</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
     <depends optional="true" config-file="dbn-java-support.xml">com.intellij.modules.java</depends>
-    <vendor email="dancioca@bluewin.ch" logo="/img/project/DatabaseNavigator.png">Dan Cioca</vendor>
-    <idea-version since-build="200.0001" until-build="231.*"/>
+    <vendor email="dancioca@bluewin.ch">Dan Cioca</vendor>
+    <idea-version since-build="200.0001" until-build="232.*"/>
     <description><![CDATA[
             <b>Database development, scripting and navigation tool</b><br>
             This software solution enhances the capabilities of the IntelliJ IDEA development environment and its associated products by providing comprehensive features for database development and maintenance.
@@ -30,6 +30,13 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
+            <li><b>3.3.8411</b>
+            <ul>
+                <li>Connection configuration rework
+                <li>Oracle TNS import options
+                <li>Support for latest IDE EAP versions
+                <li>Bug fixes
+            </ul>
             <li><b>3.3.7711</b>
             <ul>
                 <li>Bug fixes

@@ -1,9 +1,9 @@
 package com.dci.intellij.dbn.object.filter.quick.ui;
 
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.ui.form.DBNFormBase;
 import com.dci.intellij.dbn.common.ui.listener.ComboBoxSelectionKeyListener;
 import com.dci.intellij.dbn.common.ui.misc.DBNComboBox;
-import com.dci.intellij.dbn.common.ui.form.DBNFormBase;
 import com.dci.intellij.dbn.common.util.Actions;
 import com.dci.intellij.dbn.object.filter.ConditionOperator;
 import com.dci.intellij.dbn.object.filter.quick.ObjectQuickFilter;
@@ -14,15 +14,12 @@ import com.dci.intellij.dbn.object.filter.quick.action.EnableDisableQuickFilterC
 import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.openapi.actionSystem.ActionToolbar;
 import com.intellij.openapi.project.Project;
-import com.intellij.ui.DocumentAdapter;
 import org.jetbrains.annotations.NotNull;
 
-import javax.swing.JComponent;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.JTextField;
-import javax.swing.event.DocumentEvent;
-import java.awt.BorderLayout;
+import javax.swing.*;
+import java.awt.*;
+
+import static com.dci.intellij.dbn.common.ui.util.TextFields.onTextChange;
 
 public class ObjectQuickFilterConditionForm extends DBNFormBase {
     private JPanel mainPanel;
@@ -54,12 +51,7 @@ public class ObjectQuickFilterConditionForm extends DBNFormBase {
 
         patternTextField.setToolTipText("<html>press <b>Up/Down</b> keys to change the operator</html>");
         patternTextField.addKeyListener(ComboBoxSelectionKeyListener.create(operatorComboBox, false));
-        patternTextField.getDocument().addDocumentListener(new DocumentAdapter() {
-            @Override
-            protected void textChanged(@NotNull DocumentEvent e) {
-                condition.setPattern(patternTextField.getText().trim());
-            }
-        });
+        onTextChange(patternTextField, e -> condition.setPattern(patternTextField.getText().trim()));
 
         ActionToolbar actionToolbar = Actions.createActionToolbar(actionsPanel,
                 "DBNavigator.DataEditor.SimpleFilter.Condition", true,
@@ -70,7 +62,7 @@ public class ObjectQuickFilterConditionForm extends DBNFormBase {
 
     @NotNull
     public ObjectQuickFilterForm getParentForm() {
-        return ensureParent();
+        return ensureParentComponent();
     }
 
     @Override

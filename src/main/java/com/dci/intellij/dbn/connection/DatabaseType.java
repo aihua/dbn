@@ -5,7 +5,9 @@ import com.dci.intellij.dbn.common.constant.Constant;
 import com.dci.intellij.dbn.common.constant.ConstantUtil;
 import com.dci.intellij.dbn.common.ui.Presentable;
 import lombok.Getter;
+import org.apache.logging.log4j.util.Strings;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.util.Arrays;
@@ -20,7 +22,7 @@ public enum DatabaseType implements Constant<DatabaseType>, Presentable{
             Icons.DB_ORACLE_LARGE,
             "oracle.jdbc.driver.OracleDriver",
             AuthenticationType.values(),
-            array(DatabaseUrlPattern.ORACLE_SID, DatabaseUrlPattern.ORACLE_SERVICE)),
+            array(DatabaseUrlPattern.ORACLE_SERVICE, DatabaseUrlPattern.ORACLE_SID, DatabaseUrlPattern.ORACLE_TNS, DatabaseUrlPattern.GENERIC)),
 
     MYSQL(
             "MySQL",
@@ -28,7 +30,7 @@ public enum DatabaseType implements Constant<DatabaseType>, Presentable{
             Icons.DB_MYSQL_LARGE,
             "com.mysql.cj.jdbc.Driver",
             AuthenticationType.values(),
-            array(DatabaseUrlPattern.MYSQL),
+            array(DatabaseUrlPattern.MYSQL_DB, DatabaseUrlPattern.GENERIC),
             array("MARIADB", "PERCONA", "OURDELTA", "DRIZZLE", "MAXDB")),
 
     POSTGRES(
@@ -37,7 +39,7 @@ public enum DatabaseType implements Constant<DatabaseType>, Presentable{
             Icons.DB_POSTGRESQL_LARGE,
             "org.postgresql.Driver",
             AuthenticationType.values(),
-            array(DatabaseUrlPattern.POSTGRES),
+            array(DatabaseUrlPattern.POSTGRES_DB, DatabaseUrlPattern.GENERIC),
             array("REDSHIFT", "BITNINE", "NCLUSTER", "GREENPLUM", "HADOOPDB", "NETEZZA", "PARACCEL", "PGPOOL", "REDHAT", "TORODB", "TERADATA", "YUGABYTE")),
 
     SQLITE(
@@ -46,7 +48,7 @@ public enum DatabaseType implements Constant<DatabaseType>, Presentable{
             Icons.DB_SQLITE_LARGE,
             "org.sqlite.JDBC",
             array(AuthenticationType.NONE),
-            array(DatabaseUrlPattern.SQLITE)),
+            array(DatabaseUrlPattern.SQLITE_FILE, DatabaseUrlPattern.GENERIC)),
 
     GENERIC(
             "Generic",
@@ -106,13 +108,22 @@ public enum DatabaseType implements Constant<DatabaseType>, Presentable{
         return Arrays.stream(derivedDbs).anyMatch(s -> identifier.contains(s));
     }
 
-    public boolean hasUrlPattern(DatabaseUrlPattern pattern) {
+    public boolean supportsUrlType(DatabaseUrlType urlType) {
+        return getUrlPattern(urlType) != null;
+    }
+
+    public boolean supportsUrlPattern(DatabaseUrlPattern pattern) {
         for (DatabaseUrlPattern urlPattern : urlPatterns) {
             if (urlPattern == pattern) {
                 return true;
             }
         }
         return false;
+    }
+
+    @Nullable
+    public DatabaseUrlPattern getUrlPattern(DatabaseUrlType urlType) {
+        return Arrays.stream(urlPatterns).filter(p -> p.getUrlType() == urlType).findFirst().orElse(null);
     }
 
     public DatabaseUrlType[] getUrlTypes() {
@@ -128,19 +139,29 @@ public enum DatabaseType implements Constant<DatabaseType>, Presentable{
         return urlPatterns[0];
     }
 
-    @NotNull
+    @Nullable
     public DatabaseUrlPattern resolveUrlPattern(String url) {
+        if (Strings.isEmpty(url)) return null;
+
         for (DatabaseUrlPattern urlPattern : urlPatterns) {
             if (urlPattern.matches(url)) {
                 return urlPattern;
             }
         }
-        return DatabaseUrlPattern.GENERIC;
+        return null;
     }
 
     @NotNull
     public static DatabaseType get(String id) {
         return ConstantUtil.get(values(), id, GENERIC);
+    }
+
+    public static DatabaseType infer(String url) {
+        return Arrays
+                .stream(DatabaseType.values())
+                .filter(dt -> dt.resolveUrlPattern(url) != null)
+                .findFirst()
+                .orElse(GENERIC);
     }
 
     @NotNull
@@ -157,12 +178,12 @@ public enum DatabaseType implements Constant<DatabaseType>, Presentable{
 
     public static DatabaseType derive(String ... identifiers) {
         DatabaseType databaseType = resolve(identifiers);
-        if (databaseType == GENERIC) {
-            for (String identifier : identifiers) {
-                databaseType = softMatch(identifier);
-                if (databaseType != GENERIC) {
-                    return databaseType;
-                }
+        if (databaseType != GENERIC) return GENERIC;
+
+        for (String identifier : identifiers) {
+            databaseType = softMatch(identifier);
+            if (databaseType != GENERIC) {
+                return databaseType;
             }
         }
         return GENERIC;
@@ -191,5 +212,7 @@ public enum DatabaseType implements Constant<DatabaseType>, Presentable{
         return GENERIC;
     }
 
-
+    public boolean supportsAuthentication() {
+        return authTypes.length > 1 || authTypes[0] != AuthenticationType.NONE;
+    }
 }

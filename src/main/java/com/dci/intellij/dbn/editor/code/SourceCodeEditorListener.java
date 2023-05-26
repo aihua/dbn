@@ -5,6 +5,7 @@ import com.dci.intellij.dbn.common.util.Files;
 import com.dci.intellij.dbn.editor.code.ui.SourceCodeEditorActionsPanel;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
 import com.intellij.openapi.fileEditor.FileEditorManagerListener;
 import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NotNull;
@@ -13,7 +14,7 @@ import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
 import static com.dci.intellij.dbn.common.file.util.VirtualFiles.isLocalFileSystem;
 import static com.dci.intellij.dbn.common.util.Files.isDbConsoleFile;
 
-public class SourceCodeEditorListener implements FileEditorManagerListener{
+public class SourceCodeEditorListener extends FileEditorManagerAdapter implements FileEditorManagerListener{
     @Override
     public void fileOpened(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
         if (isNotValid(file)) return;

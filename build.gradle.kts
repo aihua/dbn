@@ -5,7 +5,7 @@ plugins {
 }
 
 group = "com.dci"
-version = "3.3.7711.0"
+version = "3.3.8801.0"
 
 repositories {
   mavenCentral()
@@ -62,7 +62,7 @@ tasks {
   }
 
   patchPluginXml {
-    sinceBuild.set("222")
+    sinceBuild.set("200.0001")
     untilBuild.set("232.*")
   }
 

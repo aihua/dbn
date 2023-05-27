@@ -19,8 +19,9 @@ import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import java.net.InetAddress;
 
-import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.integerAttribute;
-import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.setIntegerAttribute;
+import java.net.InetAddress;
+
+import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.*;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.setStringAttribute;
 

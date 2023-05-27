@@ -53,7 +53,6 @@ import com.sun.jdi.Location;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.net.Inet4Address;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Objects;

@@ -33,6 +33,8 @@ import java.net.UnknownHostException;
 
 import javax.swing.*;
 import java.awt.*;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 import static com.dci.intellij.dbn.common.dispose.Disposer.replace;
 

@@ -73,10 +73,11 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput>
     private final String declaredBlockIdentifier;
     protected DBNConnection targetConnection;
     private int localTcpPort = 4000;
+    private final String hostname;
 
     private transient XSuspendContext lastSuspendContext;
 
-    protected DBJdwpDebugProcess(@NotNull final XDebugSession session, DebuggerSession debuggerSession, ConnectionHandler connection, int tcpPort) {
+    protected DBJdwpDebugProcess(@NotNull final XDebugSession session, DebuggerSession debuggerSession, ConnectionHandler connection, String hostname, int tcpPort) {
         super(session, debuggerSession);
         this.console = new DBDebugConsoleLogger(session);
         this.connection = ConnectionRef.of(connection);
@@ -88,6 +89,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput>
         DBJdwpBreakpointHandler breakpointHandler = new DBJdwpBreakpointHandler(session, this);
         breakpointHandlers = new DBBreakpointHandler[]{breakpointHandler};
         localTcpPort = tcpPort;
+        this.hostname = hostname;
         debuggerSession.getProcess().putUserData(KEY, this);
 
         DatabaseDebuggerInterface debuggerInterface = connection.getDebuggerInterface();
@@ -244,7 +246,7 @@ public abstract class DBJdwpDebugProcess<T extends ExecutionInput>
                     targetConnection = connection.getDebugConnection(schemaId);
                     targetConnection.setAutoCommit(false);
                     DatabaseDebuggerInterface debuggerInterface = getDebuggerInterface();
-                    debuggerInterface.initializeJdwpSession(targetConnection, Inet4Address.getLocalHost().getHostAddress(), String.valueOf(localTcpPort));
+                    debuggerInterface.initializeJdwpSession(targetConnection, hostname, String.valueOf(localTcpPort));
                     console.system("Debug session initialized (JDWP)");
                     set(BREAKPOINT_SETTING_ALLOWED, true);
 

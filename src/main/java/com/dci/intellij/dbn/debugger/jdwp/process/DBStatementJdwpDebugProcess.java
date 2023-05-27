@@ -19,8 +19,8 @@ import java.sql.SQLException;
 import java.util.Objects;
 
 public class DBStatementJdwpDebugProcess extends DBJdwpDebugProcess<StatementExecutionInput> {
-    DBStatementJdwpDebugProcess(@NotNull XDebugSession session, @NotNull DebuggerSession debuggerSession, ConnectionHandler connection, int tcpPort) {
-        super(session, debuggerSession, connection, tcpPort);
+    DBStatementJdwpDebugProcess(@NotNull XDebugSession session, @NotNull DebuggerSession debuggerSession, ConnectionHandler connection, String hostname, int tcpPort) {
+        super(session, debuggerSession, connection, hostname, tcpPort);
     }
 
     @Override

@@ -4,23 +4,23 @@ import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.ui.form.DBNForm;
 import com.intellij.openapi.util.ActionCallback;
-import com.intellij.openapi.wm.IdeFocusManager;
 import com.intellij.ui.tabs.TabInfo;
 import com.intellij.ui.tabs.impl.JBTabsImpl;
-import lombok.Getter;
+import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
+import java.util.Map;
 import java.util.Objects;
 
 public class TabbedPane extends JBTabsImpl implements StatefulDisposable {
-    @Getter
     private boolean disposed;
+    private final Map<TabInfo, String> tabInfos = ContainerUtil.createConcurrentWeakMap();
 
     public TabbedPane(@NotNull DBNForm form) {
-        super(form.getProject(), IdeFocusManager.findInstance(), form);
+        super(form.ensureProject());
         setTabDraggingEnabled(true);
-        Disposer.register(form, this);
+        Disposer.register(form, () -> customDispose());
     }
 
     public void select(JComponent component, boolean requestFocus) {
@@ -33,21 +33,26 @@ public class TabbedPane extends JBTabsImpl implements StatefulDisposable {
     @NotNull
     @Override
     public TabInfo addTab(TabInfo info, int index) {
-        checkDisposed();
+        acknowledgeTab(info);
         return super.addTab(info, index);
     }
 
     @Override
     public TabInfo addTabSilently(TabInfo info, int index) {
-        checkDisposed();
+        acknowledgeTab(info);
         return super.addTabSilently(info, index);
     }
 
     @NotNull
     @Override
     public TabInfo addTab(TabInfo info) {
-        checkDisposed();
+        acknowledgeTab(info);
         return super.addTab(info);
+    }
+
+    private void acknowledgeTab(TabInfo info) {
+        checkDisposed();
+        tabInfos.put(info, info.getText());
     }
 
     @NotNull
@@ -56,12 +61,13 @@ public class TabbedPane extends JBTabsImpl implements StatefulDisposable {
         return removeTab(tabInfo, true);
     }
 
-    public ActionCallback removeTab(TabInfo tabInfo, boolean disposeComponent) {
-        Object object = tabInfo.getObject();
-        ActionCallback actionCallback = super.removeTab(tabInfo);
+    public ActionCallback removeTab(TabInfo info, boolean disposeComponent) {
+        tabInfos.remove(info);
+        Object object = info.getObject();
+        ActionCallback actionCallback = super.removeTab(info);
         if (disposeComponent) {
             Disposer.dispose(object);
-            tabInfo.setObject(null);
+            info.setObject(null);
         }
         return actionCallback;
     }
@@ -84,12 +90,11 @@ public class TabbedPane extends JBTabsImpl implements StatefulDisposable {
         return selectedInfo.getText();
     }
 
-    @Override
-    public void dispose() {
+    private void customDispose() {
         if (disposed) return;
 
         disposed = true;
-        for (TabInfo tabInfo : myInfo2Label.keySet()) {
+        for (TabInfo tabInfo : tabInfos.keySet()) {
             Object object = tabInfo.getObject();
             tabInfo.setObject(null);
             Disposer.dispose(object);

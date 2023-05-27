@@ -2,13 +2,13 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.3.7711.0</version>
+    <version>3.3.8801.0</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
     <depends optional="true" config-file="dbn-java-support.xml">com.intellij.modules.java</depends>
     <vendor email="dancioca@bluewin.ch">Dan Cioca</vendor>
-    <idea-version since-build="200.0001" until-build="231.*"/>
+    <idea-version since-build="200.0001" until-build="232.*"/>
     <description><![CDATA[
             <b>Database development, scripting and navigation tool</b><br>
             This software solution enhances the capabilities of the IntelliJ IDEA development environment and its associated products by providing comprehensive features for database development and maintenance.
@@ -30,6 +30,13 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
+            <li><b>3.3.8801</b>
+            <ul>
+                <li>Connection configuration rework
+                <li>Oracle TNS import filter / options
+                <li>Support for latest IDE EAP versions
+                <li>Bug fixes
+            </ul>
             <li><b>3.3.7711</b>
             <ul>
                 <li>Bug fixes
@@ -544,7 +551,7 @@
         <projectConfigurable provider="com.dci.intellij.dbn.options.ProjectSettingsProvider" groupId="tools" dynamic="true" id="DBNavigator.Settings"/>
 
         <toolWindow id="DB Browser" icon="/img/window/DatabaseBrowser.png" anchor="left" factoryClass="com.dci.intellij.dbn.browser.DatabaseBrowserToolWindowFactory"/>
-        <toolWindow id="DB Diagnostics" icon="/img/window/DatabaseDiagnostics.png" anchor="bottom" factoryClass="com.dci.intellij.dbn.diagnostics.DiagnosticsToolWindowFactory" />
+        <toolWindow id="DB Diagnostics" icon="/img/window/DatabaseDiagnostics.png" anchor="bottom" factoryClass="com.dci.intellij.dbn.diagnostics.DiagnosticsToolWindowFactory" canCloseContents="true"/>
         <toolWindow id="DB Execution Console" icon="/img/window/ExecutionConsole.png" anchor="bottom" factoryClass="com.dci.intellij.dbn.execution.ExecutionConsoleToolWindowFactory" />
 
         <fileType name="DBN-SQL" language="DBN-SQL" implementationClass="com.dci.intellij.dbn.language.sql.SQLFileType" fieldName="INSTANCE" extensions="sql;vw"/>

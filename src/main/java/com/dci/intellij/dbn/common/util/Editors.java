@@ -6,6 +6,7 @@ import com.dci.intellij.dbn.common.editor.BasicTextEditor;
 import com.dci.intellij.dbn.common.navigation.NavigationInstructions;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Read;
+import com.dci.intellij.dbn.common.ui.form.DBNForm;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.data.editor.text.TextContentType;
 import com.dci.intellij.dbn.ddl.DDLFileAttachmentManager;
@@ -50,6 +51,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import static com.dci.intellij.dbn.common.dispose.Checks.isValid;
 
@@ -164,8 +166,8 @@ public class Editors {
     }
 
     @Nullable
-    public static BasicTextEditor<?> getTextEditor(DBSourceCodeVirtualFile sourceCodeVirtualFile) {
-        DBEditableObjectVirtualFile databaseFile = sourceCodeVirtualFile.getMainDatabaseFile();
+    public static BasicTextEditor<?> getTextEditor(DBSourceCodeVirtualFile sourceCodeFile) {
+        DBEditableObjectVirtualFile databaseFile = sourceCodeFile.getMainDatabaseFile();
         Project project = databaseFile.getProject();
         FileEditorManager editorManager = FileEditorManager.getInstance(project);
         FileEditor[] fileEditors = editorManager.getEditors(databaseFile);
@@ -173,7 +175,7 @@ public class Editors {
             if (fileEditor instanceof BasicTextEditor) {
                 BasicTextEditor<?> basicTextEditor = (BasicTextEditor<?>) fileEditor;
                 VirtualFile file = FileDocumentManager.getInstance().getFile(basicTextEditor.getEditor().getDocument());
-                if (file!= null && file.equals(sourceCodeVirtualFile)) {
+                if (Objects.equals(file, sourceCodeFile)) {
                     return basicTextEditor;
                 }
             }
@@ -461,5 +463,9 @@ public class Editors {
 
     public static boolean isMainEditor(Editor editor) {
         return getFileEditor(editor) != null;
+    }
+
+    public static void addEditorToolbar(@NotNull FileEditor fileEditor, DBNForm toolbarForm) {
+        fileEditor.getComponent().getParent().add(toolbarForm.getComponent(), BorderLayout.NORTH);
     }
 }

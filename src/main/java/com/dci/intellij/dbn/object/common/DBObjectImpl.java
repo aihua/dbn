@@ -288,7 +288,7 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends DBObjectT
     @NotNull
     @Override
     public ConnectionId getConnectionId() {
-        return connection.getConnectionId();
+        return getConnection().getConnectionId();
     }
 
     @Override
@@ -601,19 +601,26 @@ public abstract class DBObjectImpl<M extends DBObjectMetadata> extends DBObjectT
     }
 
 
+    // TODO review the need of equals / hashCode
+    //    Current issue: weak ref caches cleanup on background disposal
+    //     caches may be refreshed before disposer cleans up the data -> refreshed items are disposed
     @Override
     public boolean equals(Object obj) {
+        return super.equals(obj);
+/*
         if (obj == this) return true;
         if (obj instanceof DBObject) {
             DBObject object = (DBObject) obj;
             return objectRef.equals(object.ref());
         }
         return false;
+*/
     }
 
 
     public int hashCode() {
-        return objectRef.hashCode();
+        return super.hashCode();
+        //return objectRef.hashCode();
     }
 
     @Override

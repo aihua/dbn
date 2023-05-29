@@ -1,7 +1,9 @@
 package com.dci.intellij.dbn.debugger.jdwp.process;
 
 import com.dci.intellij.dbn.common.dispose.Failsafe;
+import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
+import com.dci.intellij.dbn.debugger.DBDebugConsoleLogger;
 import com.dci.intellij.dbn.debugger.common.config.DBRunConfig;
 import com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStarter;
 import com.dci.intellij.dbn.debugger.jdwp.config.DBJdwpRunConfig;
@@ -17,15 +19,22 @@ import com.intellij.execution.configurations.RunProfileState;
 import com.intellij.execution.executors.DefaultDebugExecutor;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder;
+import com.intellij.execution.ui.ConsoleView;
+import com.intellij.execution.ui.ConsoleViewContentType;
 import com.intellij.openapi.util.Key;
 import com.intellij.util.Range;
 import com.intellij.xdebugger.XDebugProcess;
 import com.intellij.xdebugger.XDebugSession;
+import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.net.ServerSocket;
+import java.net.UnknownHostException;
 
+@Slf4j
 public abstract class DBJdwpProcessStarter extends DBDebugProcessStarter {
 
     public static final Key<Integer> JDWP_DEBUGGER_PORT = new Key<>("JDWP_DEBUGGER_PORT");
@@ -36,10 +45,8 @@ public abstract class DBJdwpProcessStarter extends DBDebugProcessStarter {
 
     private static int findFreePort(int minPortNumber, int maxPortNumber) throws ExecutionException {
         for (int portNumber = minPortNumber; portNumber < maxPortNumber; portNumber++) {
-            try {
-                try (ServerSocket ignored = new ServerSocket(portNumber)) {
-                    return portNumber;
-                }
+            try (ServerSocket ignored = new ServerSocket(portNumber)) {
+                return portNumber;
             } catch (Exception ignore) {}
         }
         throw new ExecutionException("Could not find free port in the range " + minPortNumber + " - " + maxPortNumber);
@@ -59,8 +66,12 @@ public abstract class DBJdwpProcessStarter extends DBDebugProcessStarter {
         ExecutionEnvironment environment = ExecutionEnvironmentBuilder.create(session.getProject(), executor, runProfile).build();
         DBJdwpRunConfig jdwpRunConfig = (DBJdwpRunConfig) runProfile;
         Range<Integer> portRange = jdwpRunConfig.getTcpPortRange();
-        int freePort = findFreePort(portRange.getFrom(), portRange.getTo());
-        RemoteConnection remoteConnection = new RemoteConnection(true, "localhost", Integer.toString(freePort), true);
+        int tcpPort = findFreePort(portRange.getFrom(), portRange.getTo());
+        String tcpHost = resolveTcpHost(jdwpRunConfig);
+
+
+        RemoteConnection remoteConnection = new RemoteConnection(true, tcpHost, Integer.toString(tcpPort), true);
+
         RunProfileState state = Failsafe.nn(runProfile.getState(executor, environment));
 
         DebugEnvironment debugEnvironment = new DefaultDebugEnvironment(environment, state, remoteConnection, true);
@@ -68,10 +79,26 @@ public abstract class DBJdwpProcessStarter extends DBDebugProcessStarter {
         DebuggerSession debuggerSession = debuggerManagerEx.attachVirtualMachine(debugEnvironment);
         assertNotNull(debuggerSession, "Could not initialize JDWP listener");
 
-        return createDebugProcess(session, debuggerSession, freePort);
+        return createDebugProcess(session, debuggerSession, tcpHost, tcpPort);
     }
 
-    protected abstract DBJdwpDebugProcess createDebugProcess(@NotNull XDebugSession session, DebuggerSession debuggerSession, int tcpPort);
+    private static String resolveTcpHost(DBJdwpRunConfig jdwpRunConfig) {
+        String tcpHost = jdwpRunConfig.getTcpHostAddress();
+        try {
+            tcpHost = Strings.isEmptyOrSpaces(tcpHost) ?
+                    Inet4Address.getLocalHost().getHostAddress() :
+                    InetAddress.getAllByName(tcpHost)[0].getHostAddress();
+
+        } catch (UnknownHostException e) {
+            // TODO log to the debugger console instead
+            log.warn("Failed to resolve TCP host address '{}'. Using 'localhost'", tcpHost, e);
+            tcpHost =  "localhost";
+
+        }
+        return tcpHost;
+    }
+
+    protected abstract DBJdwpDebugProcess createDebugProcess(@NotNull XDebugSession session, DebuggerSession debuggerSession, String hostname, int tcpPort);
 
     private @NotNull <T> T assertNotNull(@Nullable T object, String message) throws ExecutionException {
         if (object == null) {

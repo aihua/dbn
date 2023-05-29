@@ -2,22 +2,21 @@ package com.dci.intellij.dbn.editor.code;
 
 import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
-import com.dci.intellij.dbn.common.editor.BasicTextEditor;
 import com.dci.intellij.dbn.common.editor.BasicTextEditorProvider;
 import com.dci.intellij.dbn.common.environment.EnvironmentManager;
 import com.dci.intellij.dbn.common.exception.ProcessDeferredException;
 import com.dci.intellij.dbn.common.util.Editors;
+import com.dci.intellij.dbn.common.util.Traces;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.editor.DatabaseFileEditorManager;
 import com.dci.intellij.dbn.editor.EditorProviderId;
-import com.dci.intellij.dbn.editor.code.ui.SourceCodeEditorActionsPanel;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBSourceCodeVirtualFile;
+import com.intellij.ide.impl.StructureViewWrapperImpl;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.FileEditor;
-import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.DumbAware;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -25,7 +24,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
-import java.awt.*;
 
 abstract class SourceCodeEditorProviderBase extends BasicTextEditorProvider implements DumbAware {
     public boolean accept(@NotNull Project project, @NotNull VirtualFile virtualFile) {
@@ -44,16 +42,19 @@ abstract class SourceCodeEditorProviderBase extends BasicTextEditorProvider impl
     @NotNull
     public FileEditor createEditor(@NotNull Project project, @NotNull VirtualFile file) {
         DBEditableObjectVirtualFile databaseFile;
+        boolean temporary = false;
 
         EditorProviderId editorProviderId = getEditorProviderId();
         if (file instanceof DBSourceCodeVirtualFile) {
             DBSourceCodeVirtualFile sourceCodeFile = (DBSourceCodeVirtualFile) file;
             databaseFile = sourceCodeFile.getMainDatabaseFile();
-            DBSchemaObject object = databaseFile.getObject();
 
-            DatabaseFileEditorManager editorManager = DatabaseFileEditorManager.getInstance(project);
-            editorManager.connectAndOpenEditor(object, editorProviderId, false, true);
-            throw new ProcessDeferredException();
+            temporary = Traces.isCalledThrough(StructureViewWrapperImpl.class);
+            if (!temporary) {
+                // trigger main file editor and cancel the original request
+                // (prevent creation of editor if invoked for the source code file -  e.g. debugger navigation / file bookmarks)
+                openMainFileEditor(databaseFile);
+            }
         } else {
             databaseFile = (DBEditableObjectVirtualFile) file;
         }
@@ -66,25 +67,36 @@ abstract class SourceCodeEditorProviderBase extends BasicTextEditorProvider impl
                 new SourceCodeMainEditor(project, sourceCodeFile, editorName, editorProviderId) :
                 new SourceCodeEditor(project, sourceCodeFile, editorName, editorProviderId);
 
-        updateEditorActions(sourceCodeEditor);
-        Document document = sourceCodeEditor.getEditor().getDocument();
+        if (temporary) {
+            Editor editor = sourceCodeEditor.getEditor();
+            Document document = editor.getDocument();
 
-        EnvironmentManager environmentManager = EnvironmentManager.getInstance(project);
-        if (environmentManager.isReadonly(sourceCodeFile) || !sourceCodeFile.isLoaded()) {
-            Editors.setEditorReadonly(sourceCodeEditor.getEditor(), true);
+            EnvironmentManager environmentManager = EnvironmentManager.getInstance(project);
+            if (environmentManager.isReadonly(sourceCodeFile) || !sourceCodeFile.isLoaded()) {
+                Editors.setEditorReadonly(editor, true);
+            }
+
+            int documentSignature = document.hashCode();
+            if (document.hashCode() != sourceCodeFile.getDocumentSignature()) {
+                document.addDocumentListener(sourceCodeFile);
+                sourceCodeFile.setDocumentSignature(documentSignature);
+            }
+
+            Icon icon = getIcon();
+            if (icon != null) {
+                updateTabIcon(databaseFile, sourceCodeEditor, icon);
+            }
         }
 
-        int documentSignature = document.hashCode();
-        if (document.hashCode() != sourceCodeFile.getDocumentSignature()) {
-            document.addDocumentListener(sourceCodeFile);
-            sourceCodeFile.setDocumentSignature(documentSignature);
-        }
-
-        Icon icon = getIcon();
-        if (icon != null) {
-            updateTabIcon(databaseFile, sourceCodeEditor, icon);
-        }
         return sourceCodeEditor;
+    }
+
+    private void openMainFileEditor(DBEditableObjectVirtualFile databaseFile) {
+        Project project = databaseFile.getProject();
+        DBSchemaObject object = databaseFile.getObject();
+        DatabaseFileEditorManager editorManager = DatabaseFileEditorManager.getInstance(project);
+        editorManager.connectAndOpenEditor(object, getEditorProviderId(), false, true);
+        throw new ProcessDeferredException();
     }
 
     @Override
@@ -94,21 +106,6 @@ abstract class SourceCodeEditorProviderBase extends BasicTextEditorProvider impl
             return objectVirtualFile.getContentFile(getContentType());
         }
         return super.getContentVirtualFile(virtualFile);
-    }
-
-    private BasicTextEditor lookupExistingEditor(Project project, DBEditableObjectVirtualFile databaseFile) {
-        FileEditor[] fileEditors = FileEditorManager.getInstance(project).getEditors(databaseFile);
-        if (fileEditors.length > 0) {
-            for (FileEditor fileEditor : fileEditors) {
-                if (fileEditor instanceof SourceCodeEditor) {
-                    SourceCodeEditor sourceCodeEditor = (SourceCodeEditor) fileEditor;
-                    if (sourceCodeEditor.getVirtualFile().getContentType() == getContentType()) {
-                        return sourceCodeEditor;
-                    }
-                }
-            }
-        }
-        return null;
     }
 
     @Nullable
@@ -121,13 +118,6 @@ abstract class SourceCodeEditorProviderBase extends BasicTextEditorProvider impl
     public abstract String getName();
 
     public abstract Icon getIcon();
-
-    private static void updateEditorActions(@NotNull SourceCodeEditor sourceCodeEditor) {
-        Editor editor = sourceCodeEditor.getEditor();
-        JComponent editorComponent = editor.getComponent();
-        SourceCodeEditorActionsPanel actionsPanel = new SourceCodeEditorActionsPanel(sourceCodeEditor);
-        editorComponent.getParent().add(actionsPanel.getComponent(), BorderLayout.NORTH);
-    }
 
     @Override
     public void disposeEditor(@NotNull FileEditor editor) {

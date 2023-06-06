@@ -94,9 +94,6 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
         ProjectEvents.subscribe(project, this, DataDefinitionChangeListener.TOPIC, dataDefinitionChangeListener());
         ProjectEvents.subscribe(project, this, EnvironmentManagerListener.TOPIC, environmentManagerListener());
         ProjectEvents.subscribe(project, this, FILE_EDITOR_MANAGER, fileEditorManagerListener());
-        //ProjectEvents.subscribe(project, this, FILE_EDITOR_MANAGER, new DBLanguageFileEditorListener());
-        //ProjectEvents.subscribe(project, this, FILE_EDITOR_MANAGER, new SQLConsoleEditorListener());
-        //ProjectEvents.subscribe(project, this, FILE_EDITOR_MANAGER, new SourceCodeEditorListener());
     }
 
 

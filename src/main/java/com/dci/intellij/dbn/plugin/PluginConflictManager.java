@@ -7,7 +7,7 @@ import com.dci.intellij.dbn.common.file.FileTypeService;
 import com.dci.intellij.dbn.language.psql.PSQLFileType;
 import com.dci.intellij.dbn.language.sql.SQLFileType;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
-import com.intellij.ide.plugins.PluginManagerCore;
+import com.intellij.ide.plugins.PluginManager;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.extensions.PluginId;
@@ -55,11 +55,12 @@ public class PluginConflictManager extends ApplicationComponentBase implements P
     @Override
     public void loadComponentState(@NotNull Element element) {
         fileTypesClaimed = getBoolean(element, "file-types-claimed", false);
+        initializeComponent();
     }
 
     @SneakyThrows
     public boolean isJetbrainsDbPluginInstalled() {
-        IdeaPluginDescriptor pluginDescriptor = PluginManagerCore.getPlugin(JETBRAINS_DB_PLUGIN_ID);
+        IdeaPluginDescriptor pluginDescriptor = PluginManager.getPlugin(JETBRAINS_DB_PLUGIN_ID);
         if (pluginDescriptor == null) return false;
 
         try {
@@ -74,7 +75,6 @@ public class PluginConflictManager extends ApplicationComponentBase implements P
         return false;
     }
 
-    @Override
     public void initializeComponent() {
         // TODO prompt
         if (fileTypesClaimed) return;

@@ -535,11 +535,6 @@
             <action id="DBNavigator.Actions.Browser.OpenSettings" class="com.dci.intellij.dbn.browser.action.BrowserOptionsAction" text="Browser - Options"/>
         </group>
     </actions>
-    <projectListeners>
-        <listener topic="com.intellij.openapi.fileEditor.FileEditorManagerListener" class="com.dci.intellij.dbn.editor.code.SourceCodeEditorListener"/>
-        <listener topic="com.intellij.openapi.fileEditor.FileEditorManagerListener" class="com.dci.intellij.dbn.editor.console.SQLConsoleEditorListener"/>
-        <listener topic="com.intellij.openapi.fileEditor.FileEditorManagerListener" class="com.dci.intellij.dbn.language.editor.DBLanguageFileEditorListener"/>
-    </projectListeners>
     <extensions defaultExtensionNs="com.intellij">
         <notificationGroup id="DBNavigator.NotificationGroup" displayType="BALLOON" key="DBNavigator"/>
         <postStartupActivity implementation="com.dci.intellij.dbn.project.ProjectWorkspaceInitializer" order="last"/>

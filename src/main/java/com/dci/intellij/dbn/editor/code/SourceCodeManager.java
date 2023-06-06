@@ -46,11 +46,7 @@ import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.editor.actionSystem.EditorActionManager;
-import com.intellij.openapi.fileEditor.FileEditor;
-import com.intellij.openapi.fileEditor.FileEditorManager;
-import com.intellij.openapi.fileEditor.FileEditorManagerAdapter;
-import com.intellij.openapi.fileEditor.FileEditorManagerEvent;
-import com.intellij.openapi.fileEditor.FileEditorManagerListener;
+import com.intellij.openapi.fileEditor.*;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
@@ -95,9 +91,6 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
         ProjectEvents.subscribe(project, this, DataDefinitionChangeListener.TOPIC, dataDefinitionChangeListener());
         ProjectEvents.subscribe(project, this, EnvironmentManagerListener.TOPIC, environmentManagerListener());
         ProjectEvents.subscribe(project, this, FILE_EDITOR_MANAGER, fileEditorManagerListener());
-        //ProjectEvents.subscribe(project, this, FILE_EDITOR_MANAGER, new DBLanguageFileEditorListener());
-        //ProjectEvents.subscribe(project, this, FILE_EDITOR_MANAGER, new SQLConsoleEditorListener());
-        //ProjectEvents.subscribe(project, this, FILE_EDITOR_MANAGER, new SourceCodeEditorListener());
     }
 
 

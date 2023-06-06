@@ -133,7 +133,7 @@ public class ExecutionConfigManager extends ProjectComponentBase implements Pers
         for (RunnerAndConfigurationSettings runConfiguration : runConfigurations) {
             RunConfiguration configuration = runConfiguration.getConfiguration();
             if (configuration instanceof DBRunConfig) {
-                runManager.removeConfiguration(runConfiguration);
+                //runManager.removeConfiguration(runConfiguration);
             }
         }
     }

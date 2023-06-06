@@ -2,11 +2,15 @@ package com.dci.intellij.dbn;
 
 import com.dci.intellij.dbn.common.component.ApplicationComponentBase;
 import com.dci.intellij.dbn.common.component.PersistentState;
+import com.dci.intellij.dbn.common.event.ApplicationEvents;
 import com.dci.intellij.dbn.common.file.FileTypeService;
 import com.dci.intellij.dbn.diagnostics.Diagnostics;
+import com.dci.intellij.dbn.editor.code.SourceCodeEditorListener;
+import com.dci.intellij.dbn.editor.console.SQLConsoleEditorListener;
+import com.dci.intellij.dbn.language.editor.DBLanguageFileEditorListener;
 import com.dci.intellij.dbn.plugin.DBNPluginStateListener;
 import com.dci.intellij.dbn.plugin.PluginConflictManager;
-import com.intellij.ide.plugins.PluginStateManager;
+import com.intellij.ide.plugins.PluginInstaller;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.extensions.PluginId;
@@ -17,6 +21,7 @@ import org.jetbrains.annotations.Nullable;
 import static com.dci.intellij.dbn.common.component.Components.applicationService;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.getBoolean;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.setBoolean;
+import static com.intellij.openapi.fileEditor.FileEditorManagerListener.FILE_EDITOR_MANAGER;
 
 @State(
     name = DatabaseNavigator.COMPONENT_NAME,
@@ -38,12 +43,14 @@ public class DatabaseNavigator extends ApplicationComponentBase implements Persi
 
     public DatabaseNavigator() {
         super(COMPONENT_NAME);
-        PluginStateManager.addStateListener(new DBNPluginStateListener());
+        PluginInstaller.addStateListener(new DBNPluginStateListener());
         //new NotificationGroup("Database Navigator", NotificationDisplayType.TOOL_WINDOW, true, ExecutionManager.TOOL_WINDOW_ID);
 
         PluginConflictManager.getInstance();
         FileTypeService.getInstance();
-
+        ApplicationEvents.subscribe(this, FILE_EDITOR_MANAGER, new DBLanguageFileEditorListener());
+        ApplicationEvents.subscribe(this, FILE_EDITOR_MANAGER, new SQLConsoleEditorListener());
+        ApplicationEvents.subscribe(this, FILE_EDITOR_MANAGER, new SourceCodeEditorListener());
     }
 
 /*

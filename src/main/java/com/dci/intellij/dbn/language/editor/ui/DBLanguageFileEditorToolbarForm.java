@@ -46,7 +46,7 @@ public class DBLanguageFileEditorToolbarForm extends DBNToolbarForm {
         FileEditor fileEditor = ensureParentComponent();
         if (fileEditor instanceof TextEditor) {
             TextEditor textEditor = (TextEditor) fileEditor;
-            if (PlatformDataKeys.VIRTUAL_FILE.is(dataId)) return textEditor.getFile();
+            //if (PlatformDataKeys.VIRTUAL_FILE.is(dataId)) return textEditor.getFile();
             if (PlatformDataKeys.FILE_EDITOR.is(dataId))  return textEditor;
             if (PlatformDataKeys.EDITOR.is(dataId)) return textEditor.getEditor();
         }

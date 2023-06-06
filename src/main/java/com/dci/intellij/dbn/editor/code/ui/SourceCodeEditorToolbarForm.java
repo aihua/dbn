@@ -4,7 +4,7 @@ import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.ref.WeakRef;
 import com.dci.intellij.dbn.common.thread.Dispatch;
-import com.dci.intellij.dbn.common.ui.form.DBNFormBase;
+import com.dci.intellij.dbn.common.ui.form.DBNToolbarForm;
 import com.dci.intellij.dbn.common.ui.util.Borders;
 import com.dci.intellij.dbn.common.util.Actions;
 import com.dci.intellij.dbn.editor.code.SourceCodeEditor;
@@ -19,7 +19,7 @@ import org.jetbrains.annotations.NotNull;
 import javax.swing.*;
 import java.awt.*;
 
-public class SourceCodeEditorActionsPanel extends DBNFormBase {
+public class SourceCodeEditorToolbarForm extends DBNToolbarForm {
     private JPanel mainPanel;
     private JPanel actionsPanel;
     private JPanel loadingDataPanel;
@@ -28,7 +28,7 @@ public class SourceCodeEditorActionsPanel extends DBNFormBase {
 
     private final WeakRef<SourceCodeEditor> sourceCodeEditor;
 
-    public SourceCodeEditorActionsPanel(@NotNull SourceCodeEditor sourceCodeEditor) {
+    public SourceCodeEditorToolbarForm(@NotNull SourceCodeEditor sourceCodeEditor) {
         super(sourceCodeEditor, sourceCodeEditor.getProject());
         this.mainPanel.setBorder(Borders.insetBorder(2));
         this.sourceCodeEditor = WeakRef.of(sourceCodeEditor);
@@ -81,10 +81,11 @@ public class SourceCodeEditorActionsPanel extends DBNFormBase {
     }
 
     public Object getData(@NotNull String dataId) {
-        if (PlatformDataKeys.VIRTUAL_FILE.is(dataId)) {
-            return getSourceCodeEditor().getVirtualFile();
-        }
-        return super.getData(dataId);
+        if (PlatformDataKeys.VIRTUAL_FILE.is(dataId)) return getSourceCodeEditor().getVirtualFile();
+        if (PlatformDataKeys.FILE_EDITOR.is(dataId))  return getSourceCodeEditor();
+        if (PlatformDataKeys.EDITOR.is(dataId)) return getSourceCodeEditor().getEditor();
+
+        return null;
     }
 
 }

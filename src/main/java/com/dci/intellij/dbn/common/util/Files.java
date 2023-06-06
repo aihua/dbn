@@ -19,6 +19,10 @@ import java.io.File;
 import java.util.Objects;
 
 public final class Files {
+    // keep in sync with file type definitions in  plugin.xml
+    public static final String[] SQL_FILE_EXTENSIONS = {"sql", "ddl", "vw"};
+    public static final String[] PSQL_FILE_EXTENSIONS = {"psql", "plsql", "trg", "prc", "fnc", "pkg", "pks", "pkb", "tpe", "tps", "tpb"};
+
     private Files() {}
 
     public static File createFileByRelativePath(@NotNull final File absoluteBase, @NotNull final String relativeTail) {
@@ -28,8 +32,8 @@ public final class Files {
         final String[] parts = relativeTail.replace('\\', '/').split("/");
         // do not validate, just apply rules
         for (String part : parts) {
-            final String trimmed = part.trim();
-            if (trimmed.length() == 0) continue;
+            String trimmed = part.trim();
+            if (trimmed.isEmpty()) continue;
             if (Objects.equals(trimmed, ".")) continue;
             if (Objects.equals(trimmed, "..")) {
                 point = point.getParentFile();

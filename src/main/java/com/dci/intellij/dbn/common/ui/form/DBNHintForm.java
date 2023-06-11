@@ -3,79 +3,101 @@ package com.dci.intellij.dbn.common.ui.form;
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.color.Colors;
 import com.dci.intellij.dbn.common.message.MessageType;
+import com.dci.intellij.dbn.common.text.MimeType;
+import com.dci.intellij.dbn.common.text.TextContent;
+import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.ui.util.Fonts;
+import com.dci.intellij.dbn.common.ui.util.LookAndFeel;
+import com.dci.intellij.dbn.common.ui.util.UserInterface;
 import com.intellij.ui.HyperlinkLabel;
 import com.intellij.ui.RoundedLineBorder;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.util.ui.JBUI;
-import com.intellij.util.ui.UIUtil;
+import lombok.SneakyThrows;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.*;
 
 public class DBNHintForm extends DBNFormBase {
     private JPanel mainPanel;
+    private JPanel contentPanel;
     private JLabel hintLabel;
     private JTextPane hintTextPane;
-    private HyperlinkLabel reloadDriversLink;
+    private HyperlinkLabel actionLink;
 
     private final boolean boxed;
 
-    public DBNHintForm(DBNForm parent, String hintText, MessageType messageType, boolean boxed) {
-        this(parent, hintText, messageType, boxed, null, null);
+    public DBNHintForm(DBNForm parent, @Nullable TextContent hintContent, MessageType messageType, boolean boxed) {
+        this(parent, hintContent, messageType, boxed, null, null);
     }
 
-    public DBNHintForm(DBNForm parent, String hintText, MessageType messageType, boolean boxed, String actionText, Runnable action) {
+    public DBNHintForm(DBNForm parent, @Nullable TextContent hintContent, MessageType messageType, boolean boxed, String actionText, Runnable action) {
         super(parent);
         this.boxed = boxed;
         hintLabel.setText("");
-        if (messageType != null) {
-            Icon icon = Icons.COMMON_INFO;
-            switch (messageType) {
-                case INFO: icon = Icons.COMMON_INFO; break;
-                case WARNING: icon = Icons.COMMON_WARNING; break;
-                case ERROR: icon = Icons.COMMON_ERROR; break;
-
-            }
-            hintLabel.setIcon(icon);
-        } else {
-            hintLabel.setVisible(false);
-        }
+        setMessageType(messageType);
+        setHintContent(hintContent);
 
         Color background = getBackground();
 
-        mainPanel.setBackground(background);
         hintTextPane.setBackground(background);
-        hintTextPane.setText(hintText);
         hintTextPane.setFont(Fonts.getLabelFont());
-        hintTextPane.setForeground(boxed ? Colors.lafBrighter(Colors.getLabelForeground(), 1) : Colors.HINT_COLOR);
+        contentPanel.setBackground(background);
+        contentPanel.setForeground(boxed ? Colors.lafBrighter(Colors.getLabelForeground(), 1) : Colors.HINT_COLOR);
         if (boxed) {
-            mainPanel.setBorder(new RoundedLineBorder(UIUtil.getBoundsColor(), 4));
+            mainPanel.setBorder(new RoundedLineBorder(Colors.getOutlineColor(), 2));
+            //mainPanel.setBorder(new RoundedLineBorder(UIManager.getColor("TextField.borderColor"), 3));
+            //mainPanel.setBorder(UIUtil.getTextFieldBorder());
         } else {
-            GridLayoutManager gridLayoutManager = (GridLayoutManager) mainPanel.getLayout();
+            GridLayoutManager gridLayoutManager = (GridLayoutManager) contentPanel.getLayout();
             gridLayoutManager.setMargin(JBUI.emptyInsets());
         }
 
         if (actionText != null) {
-            reloadDriversLink.setVisible(true);
-            reloadDriversLink.setHyperlinkText(actionText);
-            reloadDriversLink.addHyperlinkListener(e -> action.run());
+            actionLink.setVisible(true);
+            actionLink.setHyperlinkText(actionText);
+            actionLink.addHyperlinkListener(e -> action.run());
         } else {
-            reloadDriversLink.setVisible(false);
+            actionLink.setVisible(false);
         }
 
 
     }
 
+    @SneakyThrows
+    private void resizeTextPane() {
+        Dispatch.run(() -> {
+            Dimension preferredSize = hintTextPane.getPreferredSize();
+            hintTextPane.revalidate();
+
+            Dimension contentPreferredSize = contentPanel.getPreferredSize();
+            mainPanel.setPreferredSize(UserInterface.adjust(contentPreferredSize, 0, 10));
+            mainPanel.revalidate();
+
+        Dimension contentSize = UserInterface.adjust(preferredSize, 4, 4);
+        if (!preferredSize.equals(contentSize)) {
+            hintTextPane.setPreferredSize(contentSize);
+            hintTextPane.revalidate();
+        }
+        });
+    }
+
     @NotNull
     private Color getBackground() {
-        return boxed ? Colors.lafBrighter(Colors.getPanelBackground(), 1) : Colors.getPanelBackground();
+        if (boxed) {
+            return LookAndFeel.isDarkMode() ?
+                    Colors.lafDarker(Colors.getPanelBackground(), 1) :
+                    Colors.lafBrighter(Colors.getPanelBackground(), 1);
+        }
+
+        return Colors.getPanelBackground();
     }
 
     public void setHighlighted(boolean highlighted) {
         Color background = highlighted ? Colors.getTextFieldBackground() : getBackground();
-        mainPanel.setBackground(background);
+        contentPanel.setBackground(background);
         hintTextPane.setBackground(background);
     }
 
@@ -83,5 +105,36 @@ public class DBNHintForm extends DBNFormBase {
     @Override
     public JPanel getMainComponent() {
         return mainPanel;
+    }
+
+    public void setHintContent(@Nullable TextContent content) {
+        if (content == null) {
+            hintTextPane.setContentType(MimeType.TEXT_PLAIN.id());
+            hintTextPane.setText("");
+        } else {
+            hintTextPane.setContentType(content.getTypeId());
+            hintTextPane.setText(content.getText());
+        }
+
+        Dispatch.run(() -> resizeTextPane());
+    }
+
+    public void setMessageType(MessageType messageType) {
+        if (messageType == null) {
+            hintLabel.setVisible(false);
+            return;
+        }
+
+        Icon icon = getIcon(messageType);
+        hintLabel.setIcon(icon);
+    }
+
+    private static Icon getIcon(MessageType messageType) {
+        switch (messageType) {
+            case INFO: return Icons.COMMON_INFO;
+            case WARNING: return Icons.COMMON_WARNING;
+            case ERROR: return Icons.COMMON_ERROR;
+            default: return null;
+        }
     }
 }

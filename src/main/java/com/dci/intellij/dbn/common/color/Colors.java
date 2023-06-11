@@ -9,6 +9,7 @@ import com.intellij.openapi.editor.HighlighterColors;
 import com.intellij.openapi.editor.colors.EditorColors;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.editor.colors.EditorColorsScheme;
+import com.intellij.ui.Gray;
 import com.intellij.ui.JBColor;
 import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
@@ -22,6 +23,7 @@ import static com.dci.intellij.dbn.common.color.ColorCache.cached;
 import static com.dci.intellij.dbn.common.color.ColorSchemes.background;
 import static com.dci.intellij.dbn.common.color.ColorSchemes.foreground;
 import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
+import static com.dci.intellij.dbn.common.util.Commons.nvl;
 
 public final class Colors {
     private Colors() {}
@@ -161,9 +163,8 @@ public final class Colors {
     }
 
     public static Color getOutlineColor() {
-        return cached(30, () -> DarculaUIUtil.getOutlineColor(true, false));
+        return cached(30, () -> nvl(UIManager.getColor("Outline.color"), Gray.xBF));
     }
-
 
     @NotNull
     public static EditorColorsScheme getGlobalScheme() {

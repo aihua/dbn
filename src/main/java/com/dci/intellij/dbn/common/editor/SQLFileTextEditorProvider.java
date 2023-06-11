@@ -47,6 +47,7 @@ public class SQLFileTextEditorProvider extends BasicTextEditorProvider{
         return PLACE_AFTER_DEFAULT_EDITOR;
     }
 
+
     @NotNull
     @Override
     public String getComponentName() {

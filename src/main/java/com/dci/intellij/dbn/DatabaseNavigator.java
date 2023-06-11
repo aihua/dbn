@@ -10,6 +10,8 @@ import com.dci.intellij.dbn.editor.console.SQLConsoleEditorListener;
 import com.dci.intellij.dbn.language.editor.DBLanguageFileEditorListener;
 import com.dci.intellij.dbn.plugin.DBNPluginStateListener;
 import com.dci.intellij.dbn.plugin.PluginConflictManager;
+import com.intellij.ide.plugins.IdeaPluginDescriptor;
+import com.intellij.ide.plugins.PluginManager;
 import com.intellij.ide.plugins.PluginInstaller;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
@@ -17,6 +19,8 @@ import com.intellij.openapi.extensions.PluginId;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Objects;
 
 import static com.dci.intellij.dbn.common.component.Components.applicationService;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.getBoolean;
@@ -32,6 +36,7 @@ public class DatabaseNavigator extends ApplicationComponentBase implements Persi
     public static final String STORAGE_FILE = "dbnavigator.xml";
 
     private static final String SQL_PLUGIN_ID = "com.intellij.sql";
+    public static final PluginId DB_PLUGIN_ID = PluginId.getId("com.intellij.database");
     public static final PluginId DBN_PLUGIN_ID = PluginId.getId("DBN");
     /*static {
         Extensions.getRootArea().
@@ -66,6 +71,11 @@ public class DatabaseNavigator extends ApplicationComponentBase implements Persi
 
     public static DatabaseNavigator getInstance() {
         return applicationService(DatabaseNavigator.class);
+    }
+
+    @NotNull
+    public static IdeaPluginDescriptor getPluginDescriptor() {
+        return Objects.requireNonNull(PluginManager.getPlugin(DBN_PLUGIN_ID));
     }
 
     public String getName() {

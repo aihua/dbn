@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.common.color;
 import com.dci.intellij.dbn.common.event.ApplicationEvents;
 import com.dci.intellij.dbn.common.ui.util.LookAndFeel;
 import com.dci.intellij.dbn.data.grid.color.DataGridTextAttributesKeys;
+import com.intellij.ide.ui.laf.darcula.DarculaUIUtil;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.editor.HighlighterColors;
 import com.intellij.openapi.editor.colors.EditorColors;
@@ -26,8 +27,6 @@ public final class Colors {
     private Colors() {}
 
     public static Color LIGHT_BLUE = new JBColor(new Color(235, 244, 254), new Color(0x2D3548));
-    public static Color BUTTON_BORDER_COLOR = new JBColor(new Color(0x8C8C8C), new Color(0x606060));
-    public static Color COMPONENT_BORDER_COLOR = new JBColor(new Color(0x8C8C8C), new Color(0x656565));
     public static Color HINT_COLOR = new JBColor(new Color(-12029286), new Color(-10058060));
 
     public static Color FAILURE_COLOR = new JBColor(new Color(0xFF0000), new Color(0xBC3F3C));
@@ -159,6 +158,10 @@ public final class Colors {
 
     public static Color getDarkPanelBackground() {
         return cached(29, () -> new JBColor(() -> Colors.lafDarker(UIUtil.getPanelBackground(), 2)));
+    }
+
+    public static Color getOutlineColor() {
+        return cached(30, () -> DarculaUIUtil.getOutlineColor(true, false));
     }
 
 

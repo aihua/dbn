@@ -9,33 +9,33 @@ import org.jdom.Element;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.*;
 
 public final class Diagnostics {
-    private static boolean developerMode = false;
+    private static final DeveloperMode developerMode = new DeveloperMode();
     private static final DebugLogging debugLogging = new DebugLogging();
     private static final DatabaseLag databaseLag = new DatabaseLag();
     private static final Miscellaneous miscellaneous = new Miscellaneous();
 
     public static boolean isDialogSizingReset() {
-        return developerMode && miscellaneous.dialogSizingReset;
+        return isDeveloperMode() && miscellaneous.dialogSizingReset;
     }
 
     public static boolean isBulkActionsEnabled() {
-        return developerMode && miscellaneous.bulkActionsEnabled;
-    }
-
-    public static boolean isFailsafeLoggingEnabled() {
-        return developerMode && miscellaneous.failsafeLoggingEnabled;
+        return isDeveloperMode() && miscellaneous.bulkActionsEnabled;
     }
 
     public static boolean isBackgroundDisposerDisabled() {
-        return developerMode && miscellaneous.backgroundDisposerDisabled;
+        return isDeveloperMode() && miscellaneous.backgroundDisposerDisabled;
+    }
+
+    public static boolean isFailsafeLoggingEnabled() {
+        return isDeveloperMode() && debugLogging.failsafeErrors;
     }
 
     public static boolean isDatabaseAccessDebug() {
-        return developerMode && debugLogging.databaseAccess;
+        return isDeveloperMode() && debugLogging.databaseAccess;
     }
 
     public static boolean isDatabaseResourceDebug() {
-        return developerMode && debugLogging.databaseResource;
+        return isDeveloperMode() && debugLogging.databaseResource;
     }
 
     public static int getConnectivityLag() {
@@ -51,11 +51,11 @@ public final class Diagnostics {
     }
 
     public static boolean isDeveloperMode() {
-        return developerMode;
+        return developerMode.isEnabled();
     }
 
-    public static void setDeveloperMode(boolean developerMode) {
-        Diagnostics.developerMode = developerMode;
+    public static DeveloperMode getDeveloperMode() {
+        return developerMode;
     }
 
     public static DebugLogging getDebugLogging() {
@@ -70,6 +70,27 @@ public final class Diagnostics {
         return miscellaneous;
     }
 
+    public static boolean hasEnabledFeatures() {
+        return miscellaneous.hasEnabledFeatures() ||
+                debugLogging.hasEnabledFeatures() ||
+                databaseLag.enabled;
+    }
+
+    public static void readState(Element element) {
+        if (element == null) return;
+
+        developerMode.setTimeout(getInteger(element, "developer-mode-timeout", developerMode.getTimeout()));
+        debugLogging.readState(element);
+        databaseLag.readState(element);
+        miscellaneous.readState(element);
+    }
+
+    public static void writeState(Element element) {
+        setInteger(element, "developer-mode-timeout", developerMode.getTimeout());
+        debugLogging.writeState(element);
+        databaseLag.writeState(element);
+        miscellaneous.writeState(element);
+    }
 
     @Getter
     @Setter
@@ -103,13 +124,19 @@ public final class Diagnostics {
     @Getter
     @Setter
     public static final class DebugLogging implements PersistentStateElement{
+        private boolean failsafeErrors = false;
         private boolean databaseAccess = false;
         private boolean databaseResource = false;
+
+        public boolean hasEnabledFeatures() {
+            return failsafeErrors || databaseAccess || databaseResource;
+        }
 
         @Override
         public void readState(Element element) {
             Element debugMode = element.getChild("debug-logging");
             if (debugMode != null) {
+                failsafeErrors = booleanAttribute(debugMode, "failsafe-errors", failsafeErrors);
                 databaseAccess = booleanAttribute(debugMode, "database-access", databaseAccess);
                 databaseResource = booleanAttribute(debugMode, "database-resource", databaseResource);
             }
@@ -119,6 +146,7 @@ public final class Diagnostics {
         public void writeState(Element element) {
             Element debugMode = new Element("debug-logging");
             element.addContent(debugMode);
+            setBooleanAttribute(debugMode, "failsafe-errors", failsafeErrors);
             setBooleanAttribute(debugMode, "database-access", databaseAccess);
             setBooleanAttribute(debugMode, "database-resource", databaseResource);
         }
@@ -129,8 +157,13 @@ public final class Diagnostics {
     public static final class Miscellaneous implements PersistentStateElement{
         private boolean dialogSizingReset = false;
         private boolean bulkActionsEnabled = false;
-        private boolean failsafeLoggingEnabled = false;
         private boolean backgroundDisposerDisabled = false;
+
+        public boolean hasEnabledFeatures() {
+            return dialogSizingReset ||
+                    bulkActionsEnabled ||
+                    backgroundDisposerDisabled;
+        }
 
         @Override
         public void readState(Element element) {
@@ -138,7 +171,6 @@ public final class Diagnostics {
             if (miscellaneous != null) {
                 dialogSizingReset = booleanAttribute(miscellaneous, "dialog-sizing-reset", dialogSizingReset);
                 bulkActionsEnabled = booleanAttribute(miscellaneous, "bulk-actions-enabled", bulkActionsEnabled);
-                failsafeLoggingEnabled = booleanAttribute(miscellaneous, "failsafe-logging-enabled", failsafeLoggingEnabled);
                 backgroundDisposerDisabled = booleanAttribute(miscellaneous, "background-disposer-disabled", backgroundDisposerDisabled);
             }
         }
@@ -149,14 +181,13 @@ public final class Diagnostics {
             element.addContent(miscellaneous);
             setBooleanAttribute(miscellaneous, "dialog-sizing-reset", dialogSizingReset);
             setBooleanAttribute(miscellaneous, "bulk-actions-enabled", bulkActionsEnabled);
-            setBooleanAttribute(miscellaneous, "failsafe-logging-enabled", failsafeLoggingEnabled);
             setBooleanAttribute(miscellaneous, "background-disposer-disabled", backgroundDisposerDisabled);
         }
     }
 
 
     public static void introduceDatabaseLag(int millis) {
-        if (Diagnostics.developerMode && Diagnostics.databaseLag.enabled) {
+        if (Diagnostics.isDeveloperMode() && Diagnostics.databaseLag.enabled) {
             Unsafe.silent(() -> Thread.sleep(millis));
         }
     }

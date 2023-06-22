@@ -103,7 +103,7 @@ public class DatasetEditorForm extends DBNFormBase implements SearchableDataComp
 
         if (dataset.isEditable(DBContentType.DATA)) {
             ConnectionHandler connection = getConnectionHandler();
-            autoCommitLabel.init(getProject(), datasetEditor.getDatabaseFile(), connection, SessionId.MAIN);
+            autoCommitLabel.init(getProject(), datasetEditor.getFile(), connection, SessionId.MAIN);
         }
 
         Disposer.register(datasetEditor, this);

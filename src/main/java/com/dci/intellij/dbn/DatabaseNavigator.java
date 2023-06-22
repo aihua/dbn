@@ -2,13 +2,21 @@ package com.dci.intellij.dbn;
 
 import com.dci.intellij.dbn.common.component.ApplicationComponentBase;
 import com.dci.intellij.dbn.common.component.PersistentState;
+import com.dci.intellij.dbn.common.file.FileTypeService;
 import com.dci.intellij.dbn.diagnostics.Diagnostics;
+import com.dci.intellij.dbn.plugin.DBNPluginStateListener;
+import com.dci.intellij.dbn.plugin.PluginConflictManager;
+import com.intellij.ide.plugins.IdeaPluginDescriptor;
+import com.intellij.ide.plugins.PluginManager;
+import com.intellij.ide.plugins.PluginStateManager;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.extensions.PluginId;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.Objects;
 
 import static com.dci.intellij.dbn.common.component.Components.applicationService;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.getBoolean;
@@ -23,6 +31,7 @@ public class DatabaseNavigator extends ApplicationComponentBase implements Persi
     public static final String STORAGE_FILE = "dbnavigator.xml";
 
     private static final String SQL_PLUGIN_ID = "com.intellij.sql";
+    public static final PluginId DB_PLUGIN_ID = PluginId.getId("com.intellij.database");
     public static final PluginId DBN_PLUGIN_ID = PluginId.getId("DBN");
     /*static {
         Extensions.getRootArea().
@@ -34,7 +43,12 @@ public class DatabaseNavigator extends ApplicationComponentBase implements Persi
 
     public DatabaseNavigator() {
         super(COMPONENT_NAME);
+        PluginStateManager.addStateListener(new DBNPluginStateListener());
         //new NotificationGroup("Database Navigator", NotificationDisplayType.TOOL_WINDOW, true, ExecutionManager.TOOL_WINDOW_ID);
+
+        PluginConflictManager.getInstance();
+        FileTypeService.getInstance();
+
     }
 
 /*
@@ -50,6 +64,11 @@ public class DatabaseNavigator extends ApplicationComponentBase implements Persi
 
     public static DatabaseNavigator getInstance() {
         return applicationService(DatabaseNavigator.class);
+    }
+
+    @NotNull
+    public static IdeaPluginDescriptor getPluginDescriptor() {
+        return Objects.requireNonNull(PluginManager.getPlugin(DBN_PLUGIN_ID));
     }
 
     public String getName() {

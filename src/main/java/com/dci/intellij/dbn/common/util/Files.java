@@ -1,13 +1,12 @@
 package com.dci.intellij.dbn.common.util;
 
+import com.dci.intellij.dbn.DatabaseNavigator;
 import com.dci.intellij.dbn.language.common.DBLanguageFileType;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.vfs.DatabaseFileSystem;
 import com.dci.intellij.dbn.vfs.file.DBConsoleVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
-import com.intellij.ide.plugins.PluginManagerCore;
-import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.LocalFileSystem;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -19,6 +18,10 @@ import java.io.File;
 import java.util.Objects;
 
 public final class Files {
+    // keep in sync with file type definitions in  plugin.xml
+    public static final String[] SQL_FILE_EXTENSIONS = {"sql", "ddl", "vw"};
+    public static final String[] PSQL_FILE_EXTENSIONS = {"psql", "plsql", "trg", "prc", "fnc", "pkg", "pks", "pkb", "tpe", "tps", "tpb"};
+
     private Files() {}
 
     public static File createFileByRelativePath(@NotNull final File absoluteBase, @NotNull final String relativeTail) {
@@ -28,8 +31,8 @@ public final class Files {
         final String[] parts = relativeTail.replace('\\', '/').split("/");
         // do not validate, just apply rules
         for (String part : parts) {
-            final String trimmed = part.trim();
-            if (trimmed.length() == 0) continue;
+            String trimmed = part.trim();
+            if (trimmed.isEmpty()) continue;
             if (Objects.equals(trimmed, ".")) continue;
             if (Objects.equals(trimmed, "..")) {
                 point = point.getParentFile();
@@ -112,8 +115,8 @@ public final class Files {
     }
 
     public static File getPluginDeploymentRoot() {
-        IdeaPluginDescriptor pluginDescriptor = PluginManagerCore.getPlugin(PluginId.getId("DBN"));
-        return Objects.requireNonNull(pluginDescriptor).getPath();
+        IdeaPluginDescriptor pluginDescriptor = DatabaseNavigator.getPluginDescriptor();
+        return pluginDescriptor.getPath();
     }
 
     public static boolean isLightVirtualFile(VirtualFile file) {

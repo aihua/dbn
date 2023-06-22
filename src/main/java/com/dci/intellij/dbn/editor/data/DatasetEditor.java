@@ -43,7 +43,6 @@ import com.intellij.ide.structureView.TreeBasedStructureViewBuilder;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.actionSystem.DataProvider;
-import com.intellij.openapi.actionSystem.PlatformDataKeys;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.fileEditor.*;
 import com.intellij.openapi.progress.ProcessCanceledException;
@@ -59,8 +58,7 @@ import java.beans.PropertyChangeListener;
 import java.sql.SQLException;
 import java.util.List;
 
-import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
-import static com.dci.intellij.dbn.common.dispose.Failsafe.nd;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.*;
 import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.*;
 import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.*;
 import static com.dci.intellij.dbn.editor.data.model.RecordStatus.INSERTING;
@@ -312,8 +310,8 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
                                     }
                                 }
                                 dataLoadError = null;
-                            } catch (ProcessCanceledException ignore) {
-
+                            } catch (ProcessCanceledException e) {
+                                conditionallyLog(e);
                             } catch (SQLException e) {
                                 dataLoadError = e.getMessage();
                                 handleLoadError(e, instructions);
@@ -645,7 +643,7 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
     public static DatasetEditor get(DataContext dataContext) {
         DatasetEditor datasetEditor = DataKeys.DATASET_EDITOR.getData(dataContext);
         if (datasetEditor == null) {
-            FileEditor fileEditor = PlatformDataKeys.FILE_EDITOR.getData(dataContext);
+            FileEditor fileEditor = Lookups.getFileEditor(dataContext);
             if (fileEditor instanceof DatasetEditor) {
                 return (DatasetEditor) fileEditor;
             }

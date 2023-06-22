@@ -1,17 +1,21 @@
 package com.dci.intellij.dbn.connection.config.ui;
 
 import com.dci.intellij.dbn.common.action.DataKeys;
-import com.dci.intellij.dbn.common.action.DataProviders;
+import com.dci.intellij.dbn.common.clipboard.Clipboard;
 import com.dci.intellij.dbn.common.color.Colors;
 import com.dci.intellij.dbn.common.database.DatabaseInfo;
 import com.dci.intellij.dbn.common.dispose.DisposableContainers;
 import com.dci.intellij.dbn.common.options.ui.ConfigurationEditorForm;
 import com.dci.intellij.dbn.common.ui.util.Fonts;
-import com.dci.intellij.dbn.common.util.*;
+import com.dci.intellij.dbn.common.util.Actions;
+import com.dci.intellij.dbn.common.util.Messages;
+import com.dci.intellij.dbn.common.util.Naming;
+import com.dci.intellij.dbn.common.util.XmlContents;
 import com.dci.intellij.dbn.connection.ConnectionId;
 import com.dci.intellij.dbn.connection.DatabaseType;
 import com.dci.intellij.dbn.connection.DatabaseUrlType;
 import com.dci.intellij.dbn.connection.config.*;
+import com.dci.intellij.dbn.connection.config.tns.TnsImportData;
 import com.dci.intellij.dbn.connection.config.tns.TnsImportType;
 import com.dci.intellij.dbn.connection.config.tns.TnsNames;
 import com.dci.intellij.dbn.connection.config.tns.TnsProfile;
@@ -78,14 +82,14 @@ public class ConnectionBundleSettingsForm extends ConfigurationEditorForm<Connec
         connectionListScrollPane.setViewportView(connectionsList);
 
         List<ConnectionSettings> connections = configuration.getConnections();
-        if (connections.size() > 0) {
+        if (!connections.isEmpty()) {
             selectConnection(connections.get(0).getConnectionId());
         }
         JPanel emptyPanel = new JPanel();
         connectionSetupPanel.setPreferredSize(new Dimension(500, -1));
         connectionSetupPanel.add(emptyPanel, BLANK_PANEL_ID);
 
-        DataProviders.register(mainPanel, this);
+        //DataProviders.register(mainPanel, this);
     }
 
     @NotNull
@@ -122,17 +126,17 @@ public class ConnectionBundleSettingsForm extends ConfigurationEditorForm<Connec
     }
 
     public void selectConnection(@Nullable ConnectionId connectionId) {
-        if (connectionId != null) {
-            ConnectionListModel model = (ConnectionListModel) connectionsList.getModel();
-            for (int i=0; i<model.size(); i++) {
-                ConnectionSettings connectionSettings = model.getElementAt(i);
-                if (connectionSettings.getConnectionId() == connectionId) {
-                    connectionsList.setSelectedValue(connectionSettings, true);
-                    break;
-                }
-            }
+        if (connectionId == null) return;
 
+        ConnectionListModel model = (ConnectionListModel) connectionsList.getModel();
+        for (int i=0; i<model.size(); i++) {
+            ConnectionSettings connectionSettings = model.getElementAt(i);
+            if (connectionSettings.getConnectionId() == connectionId) {
+                connectionsList.setSelectedValue(connectionSettings, true);
+                break;
+            }
         }
+
     }
 
     @Override
@@ -314,13 +318,14 @@ public class ConnectionBundleSettingsForm extends ConfigurationEditorForm<Connec
         }
     }
 
-    public void importTnsNames(TnsNames tnsNames, TnsImportType importType, boolean selected) {
+    public void importTnsNames(TnsImportData importData) {
         ConnectionBundleSettings connectionBundleSettings = getConfiguration();
         ConnectionListModel model = (ConnectionListModel) connectionsList.getModel();
         int index = connectionsList.getModel().getSize();
         List<Integer> selectedIndexes = new ArrayList<>();
 
-        List<TnsProfile> tnsProfiles = selected ? tnsNames.getSelectedProfiles() : tnsNames.getProfiles();
+        TnsNames tnsNames = importData.getTnsNames();
+        List<TnsProfile> tnsProfiles = importData.isSelectedOnly() ? tnsNames.getSelectedProfiles() : tnsNames.getProfiles();
         for (TnsProfile tnsProfile : tnsProfiles) {
             ConnectionSettings connectionSettings = new ConnectionSettings(connectionBundleSettings, DatabaseType.ORACLE, ConnectionConfigType.BASIC);
             connectionSettings.setNew(true);
@@ -330,7 +335,7 @@ public class ConnectionBundleSettingsForm extends ConfigurationEditorForm<Connec
 
             ConnectionDatabaseSettings databaseSettings = connectionSettings.getDatabaseSettings();
             DatabaseInfo databaseInfo = databaseSettings.getDatabaseInfo();
-            importTnsData(databaseInfo, tnsProfile, tnsNames, importType);
+            importTnsData(databaseInfo, tnsProfile, tnsNames, importData.getImportType());
 
             String name = tnsProfile.getProfile();
             while (model.getConnectionConfig(name) != null) {

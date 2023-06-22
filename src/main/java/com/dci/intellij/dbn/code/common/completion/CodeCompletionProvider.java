@@ -9,7 +9,10 @@ import com.dci.intellij.dbn.language.common.element.ElementType;
 import com.dci.intellij.dbn.language.common.element.ElementTypeBundle;
 import com.dci.intellij.dbn.language.common.element.cache.ElementLookupContext;
 import com.dci.intellij.dbn.language.common.element.cache.ElementTypeLookupCache;
-import com.dci.intellij.dbn.language.common.element.impl.*;
+import com.dci.intellij.dbn.language.common.element.impl.IdentifierElementType;
+import com.dci.intellij.dbn.language.common.element.impl.LeafElementType;
+import com.dci.intellij.dbn.language.common.element.impl.QualifiedIdentifierVariant;
+import com.dci.intellij.dbn.language.common.element.impl.TokenElementType;
 import com.dci.intellij.dbn.language.common.element.parser.Branch;
 import com.dci.intellij.dbn.language.common.element.path.AstNode;
 import com.dci.intellij.dbn.language.common.element.util.ElementTypeAttribute;
@@ -138,7 +141,7 @@ public class CodeCompletionProvider extends CompletionProvider<CompletionParamet
             }
         } else if (parent instanceof BasePsiElement) {
             BasePsiElement basePsiElement = (BasePsiElement) parent;
-            ElementTypeBase elementType = basePsiElement.getElementType();
+            ElementType elementType = basePsiElement.getElementType();
             if (elementType.isWrappingBegin((LeafElementType) element.getElementType())) {
                 Set<LeafElementType> candidates = elementType.getLookupCache().getFirstPossibleLeafs();
                 for (LeafElementType candidate : candidates) {
@@ -234,7 +237,7 @@ public class CodeCompletionProvider extends CompletionProvider<CompletionParamet
             }
         });
 
-        BasePsiElement scope = element.getEnclosingScopePsiElement();
+        BasePsiElement scope = element.getEnclosingScopeElement();
         if (scope != null) {
             collectObjectMatchingScope(consumer, identifierElementType, filterSettings, scope, context);
         }
@@ -278,7 +281,7 @@ public class CodeCompletionProvider extends CompletionProvider<CompletionParamet
             if (unquotedText.length() > 0) {
                 String[] aliasNames = Naming.createAliasNames(unquotedText);
 
-                BasePsiElement scope = aliasElement.getEnclosingScopePsiElement();
+                BasePsiElement scope = aliasElement.getEnclosingScopeElement();
 
                 for (int i = 0; i< aliasNames.length; i++) {
                     while (true) {

@@ -42,6 +42,7 @@ import static com.dci.intellij.dbn.common.message.MessageCallback.when;
 import static com.dci.intellij.dbn.common.util.Messages.options;
 import static com.dci.intellij.dbn.common.util.Messages.showWarningDialog;
 import static com.dci.intellij.dbn.common.util.Unsafe.cast;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 import static com.intellij.openapi.ui.DialogWrapper.OK_EXIT_CODE;
 
 public abstract class DBProgramRunner<T extends ExecutionInput> extends GenericProgramRunner {
@@ -254,6 +255,7 @@ public abstract class DBProgramRunner<T extends ExecutionInput> extends GenericP
             }
 
         } catch (ExecutionException e) {
+            conditionallyLog(e);
             NotificationSupport.sendErrorNotification(
                     project,
                     NotificationGroup.DEBUGGER,

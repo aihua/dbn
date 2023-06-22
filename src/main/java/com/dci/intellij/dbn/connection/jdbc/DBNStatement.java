@@ -5,6 +5,7 @@ import com.dci.intellij.dbn.common.ref.WeakRef;
 import com.dci.intellij.dbn.common.routine.ThrowableCallable;
 import com.dci.intellij.dbn.common.util.Unsafe;
 import com.dci.intellij.dbn.connection.Resources;
+import com.dci.intellij.dbn.diagnostics.Diagnostics;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -15,6 +16,7 @@ import java.sql.Statement;
 import java.util.concurrent.atomic.AtomicLong;
 
 import static com.dci.intellij.dbn.connection.jdbc.ResourceStatus.ACTIVE;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 @Getter
 @Setter
@@ -123,6 +125,7 @@ public class DBNStatement<T extends Statement> extends DBNResource<T> implements
                 executeDuration.set(System.currentTimeMillis() - init);
             }
         } catch (SQLException e) {
+            conditionallyLog(e);
             Resources.close(DBNStatement.this);
             connection.reevaluateStatus();
             throw e;
@@ -222,8 +225,10 @@ public class DBNStatement<T extends Statement> extends DBNResource<T> implements
     @Override
     public void setQueryTimeout(int seconds) throws SQLException {
         try {
+            seconds = Diagnostics.timeoutAdjustment(seconds);
             inner.setQueryTimeout(seconds);
-        } catch (Throwable ignore) {
+        } catch (Throwable e) {
+            conditionallyLog(e);
             // catch throwable (capture e.g. java.lang.AbstractMethodError)
             // not all databases support it, as this is used on DBN start connection, we must control exception
         }

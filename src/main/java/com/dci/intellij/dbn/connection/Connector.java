@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.connection;
 import com.dci.intellij.dbn.common.database.AuthenticationInfo;
 import com.dci.intellij.dbn.common.notification.NotificationGroup;
 import com.dci.intellij.dbn.common.notification.NotificationSupport;
+import com.dci.intellij.dbn.common.util.Classes;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.config.ConnectionDatabaseSettings;
 import com.dci.intellij.dbn.connection.config.ConnectionSettings;
@@ -27,6 +28,8 @@ import java.util.Properties;
 
 import static com.dci.intellij.dbn.common.exception.Exceptions.toSqlException;
 import static com.dci.intellij.dbn.common.util.Commons.nvl;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
+import static com.dci.intellij.dbn.diagnostics.data.Activity.CONNECT;
 
 class Connector {
     private interface Property {
@@ -150,11 +153,11 @@ class Connector {
                     connectionUrl = databaseSettings.getConnectionUrl(localHost, localPort);
                 }
             }
-            Diagnostics.introduceDatabaseLag(Diagnostics.getConnectivityLag());
+            Diagnostics.databaseLag(CONNECT);
 
-            Connection connection = driver.connect(connectionUrl, properties);
+            Connection connection = connect(driver, connectionUrl, properties);
             if (connection == null) {
-                throw new SQLException("Driver failed to create connection for this configuration. No failure information provided by jdbc vendor.");
+                throw new SQLException("Driver failed to create connection " + connectionUrl + ". No failure information provided by jdbc vendor.");
             }
 
             if (connectionStatus != null) {
@@ -171,6 +174,7 @@ class Connector {
                     try {
                         databaseAttachmentHandler.attachDatabase(connection, filePath, databaseFile.getSchema());
                     } catch (Exception e) {
+                        conditionallyLog(e);
                         NotificationSupport.sendErrorNotification(
                                 project,
                                 NotificationGroup.CONNECTION,
@@ -196,6 +200,7 @@ class Connector {
             return conn;
 
         } catch (Throwable e) {
+            conditionallyLog(e);
             String message = nvl(e.getMessage(), e.getClass().getSimpleName());
             if (connectionSettings.isSigned()) {
                 // DBN-524 strongly asserted property names
@@ -215,5 +220,9 @@ class Connector {
             exception = toSqlException(e, "Connection error: " + message);
         }
         return null;
+    }
+
+    private static Connection connect(Driver driver, String url, Properties properties) throws SQLException {
+        return Classes.withClassLoader(driver, d -> d.connect(url, properties));
     }
 }

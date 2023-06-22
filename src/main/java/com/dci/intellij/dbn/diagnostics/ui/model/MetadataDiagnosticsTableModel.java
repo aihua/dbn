@@ -16,15 +16,15 @@ public class MetadataDiagnosticsTableModel extends AbstractDiagnosticsTableModel
             "Invocations",
             "Failures",
             "Timeouts",
-            "Best query (ms)",
-            "Worst query (ms)",
-            "Average query (ms)",
-            "Total query (ms)",
-            "Best load (ms)",
-            "Worst load (ms)",
-            "Average load (ms)",
-            "Total load (ms)",
-            "Fetch block size"};
+            "Best Query (ms)",
+            "Best Load (ms)",
+            "Worst Query (ms)",
+            "Worst Load (ms)",
+            "Average Query (ms)",
+            "Average Load (ms)",
+            "Total Query (ms)",
+            "Total Load (ms)",
+            "Fetch Block Size"};
 
     public MetadataDiagnosticsTableModel(ConnectionHandler connection) {
         super(connection.getProject());
@@ -46,21 +46,21 @@ public class MetadataDiagnosticsTableModel extends AbstractDiagnosticsTableModel
 
     @Override
     public Object getValue(DiagnosticEntry<String> entry, int column) {
-        DiagnosticEntry<String> query = entry.getDetail("QUERY");
-        DiagnosticEntry<String> load = entry.getDetail("LOAD");
+        DiagnosticEntry<String> q = entry.getDetail("QUERY");
+        DiagnosticEntry<String> l = entry.getDetail("LOAD");
         switch (column) {
-            case 0: return query.getIdentifier();
-            case 1: return query.getInvocations();
-            case 2: return query.getFailures();
-            case 3: return query.getTimeouts();
-            case 4: return query.getBest();
-            case 5: return query.getWorst();
-            case 6: return query.getAverage();
-            case 7: return query.getTotal();
-            case 8: return load.getBest();
-            case 9: return load.getWorst();
-            case 10: return load.getAverage();
-            case 11: return load.getTotal();
+            case 0: return q.getIdentifier();
+            case 1: return q.getInvocations();
+            case 2: return q.getFailures();
+            case 3: return q.getTimeouts();
+            case 4: return q.getBest();
+            case 5: return l.getBest();
+            case 6: return q.getWorst();
+            case 7: return l.getWorst();
+            case 8: return q.getAverage();
+            case 9: return l.getAverage();
+            case 10: return q.getTotal();
+            case 11: return l.getTotal();
             case 12: return entry.getDetail("FETCH_BLOCK").getAverage();
         }
         return "";

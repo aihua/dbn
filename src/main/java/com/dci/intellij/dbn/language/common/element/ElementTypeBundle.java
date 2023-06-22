@@ -28,6 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 @Slf4j
 public class ElementTypeBundle {
@@ -122,6 +123,7 @@ public class ElementTypeBundle {
 
             //warnAmbiguousBranches();
         } catch (Exception e) {
+            conditionallyLog(e);
             log.error("[DBN] Failed to build element-type bundle for " + languageDialect.getID(), e);
         }
     }
@@ -165,8 +167,8 @@ public class ElementTypeBundle {
         return value;
     }
 
-    public ElementTypeBase resolveElementDefinition(Element def, String type, ElementTypeBase parent) throws ElementTypeDefinitionException {
-        ElementTypeBase result;
+    public ElementType resolveElementDefinition(Element def, String type, ElementType parent) throws ElementTypeDefinitionException {
+        ElementType result;
         if (ElementTypeDefinition.SEQUENCE.is(type)){
             result = new SequenceElementType(this, parent, createId(), def);
 
@@ -233,7 +235,7 @@ public class ElementTypeBundle {
         return elementType;
     }*/
 
-    private NamedElementType getNamedElementType(String id, ElementTypeBase parent) {
+    private NamedElementType getNamedElementType(String id, ElementType parent) {
         NamedElementType elementType = namedElementTypes.computeIfAbsent(id, i -> {
             NamedElementType namedElementType = new NamedElementType(this, i);
             builder.allElementTypes.add(namedElementType);

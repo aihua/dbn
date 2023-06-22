@@ -32,6 +32,7 @@ import static com.dci.intellij.dbn.common.util.Commons.coalesce;
 import static com.dci.intellij.dbn.common.util.Commons.nvl;
 import static com.dci.intellij.dbn.connection.DatabaseUrlType.CUSTOM;
 import static com.dci.intellij.dbn.connection.DatabaseUrlType.FILE;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 public class ConnectionUrlSettingsForm extends DBNFormBase {
     private JLabel urlTypeLabel;
@@ -160,6 +161,7 @@ public class ConnectionUrlSettingsForm extends DBNFormBase {
             TnsNames tnsNames = TnsNamesParser.get(tnsnamesOraFile);
             return tnsNames.getProfileNames();
         } catch (Exception e) {
+            conditionallyLog(e);
             //ErrorHandler.logErrorStack("Error occurred while reading tnsnames.ora file for database: " + adbInstance.getDbName(), e);
         }
         return Collections.emptyList();

@@ -47,6 +47,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.dci.intellij.dbn.common.util.Commons.nvl;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 import static com.intellij.openapi.util.text.StringUtil.isNotEmpty;
 
 @Slf4j
@@ -218,6 +219,7 @@ public class ConnectionBundleSettingsForm extends ConfigurationEditorForm<Connec
                     model.add(selectedIndex, duplicate);
                     connectionsList.setSelectedIndex(selectedIndex);
                 } catch (ConfigurationException e) {
+                    conditionallyLog(e);
                     Messages.showErrorDialog(getProject(), e.getMessage());
                 }
             }
@@ -263,6 +265,7 @@ public class ConnectionBundleSettingsForm extends ConfigurationEditorForm<Connec
             copyPasteManager.setContents(new StringSelection(xmlString));
             Messages.showInfoDialog(project, "Config Export", "Configuration for selected connections exported to clipboard.");
         } catch (Exception e) {
+            conditionallyLog(e);
             Messages.showErrorDialog(project,
                     "Connection Export Failed",
                     "Failed to export connection setup to clipboard.", e);
@@ -311,6 +314,7 @@ public class ConnectionBundleSettingsForm extends ConfigurationEditorForm<Connec
                 }
 
             } catch (Exception e) {
+                conditionallyLog(e);
                 Messages.showErrorDialog(getProject(),
                         "Connection Import Failed",
                         "The clipboard content was not recognized as valid connection setup.", e);

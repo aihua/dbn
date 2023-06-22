@@ -11,6 +11,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 import static com.dci.intellij.dbn.common.util.Unsafe.cast;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 @Slf4j
 public abstract class ValueAdapter<T> {
@@ -43,6 +44,7 @@ public abstract class ValueAdapter<T> {
             Class<ValueAdapter<T>> valueAdapterClass = get(genericDataType);
             return valueAdapterClass.getDeclaredConstructor().newInstance();
         } catch (Throwable e) {
+            conditionallyLog(e);
             handleException(e, genericDataType);
         }
         return null;
@@ -54,6 +56,7 @@ public abstract class ValueAdapter<T> {
             Constructor<ValueAdapter<T>> constructor = valueAdapterClass.getConstructor(ResultSet.class, int.class);
             return constructor.newInstance(resultSet, columnIndex);
         } catch (Throwable e) {
+            conditionallyLog(e);
             handleException(e, genericDataType);
         }
         return null;
@@ -65,6 +68,7 @@ public abstract class ValueAdapter<T> {
             Constructor<ValueAdapter<T>> constructor = valueAdapterClass.getConstructor(CallableStatement.class, int.class);
             return constructor.newInstance(callableStatement, parameterIndex);
         } catch (Throwable e) {
+            conditionallyLog(e);
             handleException(e, genericDataType);
             return null;
         }

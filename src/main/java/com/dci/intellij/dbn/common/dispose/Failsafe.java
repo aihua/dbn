@@ -4,7 +4,6 @@ import com.dci.intellij.dbn.common.routine.ParametricCallable;
 import com.dci.intellij.dbn.common.routine.ParametricRunnable;
 import com.dci.intellij.dbn.common.routine.ThrowableCallable;
 import com.dci.intellij.dbn.common.routine.ThrowableRunnable;
-import com.dci.intellij.dbn.diagnostics.Diagnostics;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +11,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 @Slf4j
 public class Failsafe {
@@ -37,6 +37,7 @@ public class Failsafe {
             conditionallyLog(e);
             return defaultValue;
         } catch (Exception e) {
+            conditionallyLog(e);
             throwExecutionException(e);
             return defaultValue;
 
@@ -50,6 +51,7 @@ public class Failsafe {
             conditionallyLog(e);
             return defaultValue;
         } catch (Exception e) {
+            conditionallyLog(e);
             throwExecutionException(e);
             return defaultValue;
 
@@ -63,6 +65,7 @@ public class Failsafe {
         } catch (ProcessCanceledException | IllegalStateException | AbstractMethodError e /*| UnsupportedOperationException*/){
             conditionallyLog(e);
         } catch (Exception e) {
+            conditionallyLog(e);
             throwExecutionException(e);
         }
     }
@@ -73,12 +76,9 @@ public class Failsafe {
         } catch (ProcessCanceledException | IllegalStateException | AbstractMethodError e /*| UnsupportedOperationException*/){
             conditionallyLog(e);
         } catch (Exception e) {
+            conditionallyLog(e);
             throwExecutionException(e);
         }
-    }
-
-    public static void conditionallyLog(Throwable exception) {
-        if (Diagnostics.isFailsafeLoggingEnabled()) log.warn("Failsafe process failed", exception);
     }
 
     @SneakyThrows

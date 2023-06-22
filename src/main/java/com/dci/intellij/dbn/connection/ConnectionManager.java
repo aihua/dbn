@@ -60,6 +60,7 @@ import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
 import static com.dci.intellij.dbn.common.message.MessageCallback.when;
 import static com.dci.intellij.dbn.common.util.Messages.*;
 import static com.dci.intellij.dbn.connection.transaction.TransactionAction.actions;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 @State(
     name = ConnectionManager.COMPONENT_NAME,
@@ -161,11 +162,13 @@ public class ConnectionManager extends ProjectComponentBase implements Persisten
                             showSuccessfulConnectionMessage(project, connectionName);
                         }
                     } catch (ConfigurationException e) {
+                        conditionallyLog(e);
                         if (showErrorMessage) {
                             showInvalidConfigMessage(project, e);
 
                         }
                     } catch (Exception e) {
+                        conditionallyLog(e);
                         if (showErrorMessage) {
                             showErrorConnectionMessage(project, connectionName, e);
                         }
@@ -200,6 +203,7 @@ public class ConnectionManager extends ProjectComponentBase implements Persisten
 
 
         } catch (ConfigurationException e) {
+            conditionallyLog(e);
             showInvalidConfigMessage(project, e);
         }
     }
@@ -221,6 +225,7 @@ public class ConnectionManager extends ProjectComponentBase implements Persisten
                     showSuccessfulConnectionMessage(project, connectionName);
                 }
             } catch (Exception e) {
+                conditionallyLog(e);
                 databaseSettings.setConnectivityStatus(ConnectivityStatus.INVALID);
                 if (showMessageDialog) {
                     showErrorConnectionMessage(project, connectionName, e);
@@ -247,11 +252,13 @@ public class ConnectionManager extends ProjectComponentBase implements Persisten
                                     Resources.close(connection);
                                     showConnectionInfoDialog(connectionInfo, connectionName, environmentType);
                                 } catch (Exception e) {
+                                    conditionallyLog(e);
                                     showErrorConnectionMessage(project, connectionName, e);
                                 }
                             }));
 
         } catch (ConfigurationException e) {
+            conditionallyLog(e);
             showInvalidConfigMessage(project, e);
         }
     }
@@ -444,6 +451,7 @@ public class ConnectionManager extends ProjectComponentBase implements Persisten
                     resolveIdleStatus(connection);
                 }
             } catch (Exception e){
+                conditionallyLog(e);
                 log.error("Failed to release idle connections", e);
             }
         }

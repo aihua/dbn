@@ -19,6 +19,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 @Slf4j
 public abstract class TokenTypeBundleBase {
@@ -92,6 +93,7 @@ public abstract class TokenTypeBundleBase {
             });
 
         } catch (Exception e) {
+            conditionallyLog(e);
             log.error("[DBN] Failed to build token-type bundle for " + language.getID(), e);
         }
     }

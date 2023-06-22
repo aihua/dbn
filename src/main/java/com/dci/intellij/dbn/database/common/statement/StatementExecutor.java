@@ -8,6 +8,7 @@ import java.sql.SQLException;
 import java.util.concurrent.*;
 
 import static com.dci.intellij.dbn.common.exception.Exceptions.*;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 public final class StatementExecutor {
     private StatementExecutor() {}
@@ -24,17 +25,20 @@ public final class StatementExecutor {
             return result;
 
         } catch (TimeoutException | InterruptedException | RejectedExecutionException e) {
+            conditionallyLog(e);
             context.log("QUERY", false, true, millisSince(start));
             Resources.close(context.getStatement());
             throw toSqlTimeoutException(e, "Operation timed out (timeout = " + timeout + "s)");
 
         } catch (ExecutionException e) {
+            conditionallyLog(e);
             context.log("QUERY", true, false, millisSince(start));
             Resources.close(context.getStatement());
             Throwable cause = causeOf(e);
             throw toSqlException(cause, "Error processing request: " + cause.getMessage());
 
         } catch (Throwable e) {
+            conditionallyLog(e);
             context.log("QUERY", true, false, millisSince(start));
             Resources.close(context.getStatement());
             throw toSqlException(e, "Error processing request: " + e.getMessage());

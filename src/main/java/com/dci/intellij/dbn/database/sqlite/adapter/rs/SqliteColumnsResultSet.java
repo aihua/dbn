@@ -10,6 +10,7 @@ import java.util.Objects;
 import static com.dci.intellij.dbn.common.cache.CacheKey.key;
 import static com.dci.intellij.dbn.database.sqlite.adapter.SqliteRawMetaData.RawForeignKeyInfo;
 import static com.dci.intellij.dbn.database.sqlite.adapter.SqliteRawMetaData.RawTableInfo;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 /**
  * COLUMN_NAME
@@ -65,8 +66,8 @@ public abstract class SqliteColumnsResultSet extends SqliteDatasetInfoResultSetS
                 Column column = row(datasetName + "." + columnName);
                 column.foreignKey = true;
             }
-        } catch (SQLException ignore) {
-
+        } catch (SQLException e) {
+            conditionallyLog(e);
         }
     }
 

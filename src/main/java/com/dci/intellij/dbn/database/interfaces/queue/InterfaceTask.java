@@ -16,6 +16,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.LockSupport;
 
 import static com.dci.intellij.dbn.database.interfaces.queue.InterfaceTaskStatus.*;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 @Slf4j
 @Getter
@@ -48,8 +49,9 @@ class InterfaceTask<R> implements TimeAware {
         try {
             status.change(STARTED);
             this.response = executor.call();
-        } catch (Throwable exception) {
-            this.exception = exception;
+        } catch (Throwable e) {
+            conditionallyLog(e);
+            this.exception = e;
         } finally {
             status.change(FINISHED);
             LockSupport.unpark(source.getThread());

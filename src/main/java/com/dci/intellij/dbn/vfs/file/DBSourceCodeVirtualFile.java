@@ -38,6 +38,7 @@ import org.jetbrains.annotations.Nullable;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.LATEST;
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MERGED;
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
@@ -136,6 +137,7 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
                 }
 
             } catch (SQLException e) {
+                conditionallyLog(e);
                 log.warn("Error refreshing source content state", e);
             } finally {
                 set(REFRESHING, false);

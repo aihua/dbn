@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static com.dci.intellij.dbn.common.dispose.Failsafe.nn;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 public abstract class MethodExecutionProcessorImpl implements MethodExecutionProcessor {
     private final DBObjectRef<DBMethod> method;
@@ -91,6 +92,7 @@ public abstract class MethodExecutionProcessorImpl implements MethodExecutionPro
 
             execute(context);
         } catch (SQLException e) {
+            conditionallyLog(e);
             Resources.cancel(context.getStatement());
             throw e;
         } finally {
@@ -264,8 +266,10 @@ public abstract class MethodExecutionProcessorImpl implements MethodExecutionPro
             dataType.setValueToPreparedStatement(preparedStatement, parameterIndex, value);
 
         } catch (SQLException e) {
+            conditionallyLog(e);
             throw e;
         }  catch (Exception e) {
+            conditionallyLog(e);
             throw new SQLException("Invalid value for data type " + dataType.getName() + " provided: \"" + stringValue + "\"");
         }
     }

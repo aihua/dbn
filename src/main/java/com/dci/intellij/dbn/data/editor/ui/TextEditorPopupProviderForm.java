@@ -32,6 +32,7 @@ import java.awt.event.KeyEvent;
 import java.sql.SQLException;
 
 import static com.dci.intellij.dbn.common.ui.util.TextFields.onTextChange;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 public class TextEditorPopupProviderForm extends TextFieldPopupProviderForm {
     private JPanel mainPanel;
@@ -109,6 +110,7 @@ public class TextEditorPopupProviderForm extends TextFieldPopupProviderForm {
                 try {
                     text = Commons.nvl(largeObjectValue.read(), "");
                 } catch (SQLException e) {
+                    conditionallyLog(e);
                     Messages.showErrorDialog(getProject(), e.getMessage(), e);
                     return null;
                 }

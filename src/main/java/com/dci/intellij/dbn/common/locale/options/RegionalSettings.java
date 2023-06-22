@@ -21,6 +21,7 @@ import java.util.Locale;
 import java.util.Objects;
 
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.*;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 @Getter
 @Setter
@@ -53,8 +54,10 @@ public class RegionalSettings extends BasicProjectConfiguration<GeneralProjectSe
             signature = hashCode();
             baseFormatter = createFormatter();
         } catch (ConfigurationException e) {
+            conditionallyLog(e);
             throw e;
         } catch (Exception e) {
+            conditionallyLog(e);
             throw new ConfigurationException(e.getMessage(), "Invalid configuration");
         }
     }

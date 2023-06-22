@@ -39,6 +39,7 @@ import java.util.Objects;
 import java.util.regex.Pattern;
 
 import static com.dci.intellij.dbn.common.ui.util.TextFields.onTextChange;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 public class DataSearchComponent extends DBNFormBase implements SelectionListener, DataSearchResultListener, DataModelListener {
     private static final int MATCHES_LIMIT = 10000;
@@ -397,6 +398,7 @@ public class DataSearchComponent extends DBNFormBase implements SelectionListene
                 try {
                     Pattern.compile(text);
                 } catch (Exception e) {
+                    conditionallyLog(e);
                     setNotFoundBackground();
                     matchesLabel.setText("Incorrect regular expression");
                     boldMatchInfo();

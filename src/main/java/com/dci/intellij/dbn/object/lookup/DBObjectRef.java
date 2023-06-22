@@ -36,6 +36,7 @@ import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.connec
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
 import static com.dci.intellij.dbn.common.util.Commons.nvl;
 import static com.dci.intellij.dbn.common.util.Unsafe.cast;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.PS;
 import static com.dci.intellij.dbn.vfs.DatabaseFileSystem.PSS;
 
@@ -133,7 +134,8 @@ public class DBObjectRef<T extends DBObject> implements Comparable<DBObjectRef<?
                 DBObjectRef<T> objectRef = new DBObjectRef<>();
                 objectRef.readState(element);
                 return objectRef;
-            } catch (Exception ignore) {
+            } catch (Exception e) {
+                conditionallyLog(e);
                 // deserialization exception already logged
             }
         }
@@ -189,6 +191,7 @@ public class DBObjectRef<T extends DBObject> implements Comparable<DBObjectRef<?
                 }
             }
         } catch (Exception e) {
+            conditionallyLog(e);
             log.error("Failed to deserialize object {}", objectIdentifier, e);
             throw e;
         }
@@ -369,6 +372,7 @@ public class DBObjectRef<T extends DBObject> implements Comparable<DBObjectRef<?
             }
             return object;
         } catch (Exception e) {
+            conditionallyLog(e);
             return null;
         }
     }

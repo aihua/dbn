@@ -73,6 +73,7 @@ import static com.dci.intellij.dbn.common.util.Commons.list;
 import static com.dci.intellij.dbn.common.util.Messages.*;
 import static com.dci.intellij.dbn.common.util.Naming.unquote;
 import static com.dci.intellij.dbn.database.DatabaseFeature.OBJECT_CHANGE_MONITORING;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 import static com.dci.intellij.dbn.vfs.VirtualFileStatus.*;
 import static com.intellij.openapi.fileEditor.FileEditorManagerListener.FILE_EDITOR_MANAGER;
 
@@ -206,6 +207,7 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
             try {
                 sourceCodeFile.loadSourceFromDatabase();
             } catch (SQLException e) {
+                conditionallyLog(e);
                 sourceCodeFile.setSourceLoadError(e.getMessage());
                 sourceCodeFile.set(MODIFIED, false);
                 if (notifyError) {
@@ -267,8 +269,9 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
                 storeSourceToDatabase(sourceCodeFile, fileEditor, successCallback);
             }
 
-        } catch (Exception ex) {
-            showErrorDialog(project, "Could not save changes to database.", ex);
+        } catch (Exception e) {
+            conditionallyLog(e);
+            showErrorDialog(project, "Could not save changes to database.", e);
             sourceCodeFile.set(SAVING, false);
         }
     }
@@ -283,6 +286,7 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
             SourceCodeDiffManager diffManager = SourceCodeDiffManager.getInstance(project);
             diffManager.openCodeMergeDialog(databaseContent, sourceCodeFile, fileEditor, MergeAction.SAVE);
         } catch (SQLException e) {
+            conditionallyLog(e);
             showErrorDialog(project, "Could not load database sources.", e);
         }
     }
@@ -549,6 +553,7 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
                                 (listener) -> listener.sourceCodeSaved(sourceCodeFile, fileEditor));
 
                     } catch (SQLException e) {
+                        conditionallyLog(e);
                         showErrorDialog(project, "Could not save changes to database.", e);
                     } finally {
                         sourceCodeFile.set(SAVING, false);

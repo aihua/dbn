@@ -57,6 +57,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import static com.dci.intellij.dbn.common.util.Commons.coalesce;
 import static com.dci.intellij.dbn.common.util.TimeUtil.isOlderThan;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 import static com.intellij.openapi.util.text.StringUtil.isEmpty;
 import static java.util.concurrent.TimeUnit.MINUTES;
 
@@ -360,6 +361,7 @@ public class ConnectionHandlerImpl extends StatefulDisposableBase implements Con
         try {
             return ConnectionContext.surround(createConnectionContext(), () -> getMetadataInterface().hasPendingTransactions(conn));
         } catch (SQLException e) {
+            conditionallyLog(e);
             sendErrorNotification(
                     NotificationGroup.TRANSACTION,
                     "Failed to check connection transactional status: {0}", e);

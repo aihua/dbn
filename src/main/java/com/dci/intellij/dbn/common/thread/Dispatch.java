@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.common.thread;
 import com.dci.intellij.dbn.common.routine.Consumer;
 import com.dci.intellij.dbn.common.routine.ThrowableCallable;
 import com.dci.intellij.dbn.common.util.Commons;
+import com.dci.intellij.dbn.diagnostics.Diagnostics;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.application.Application;
 import com.intellij.openapi.application.ApplicationManager;
@@ -72,6 +73,7 @@ public final class Dispatch {
                 result = callable.call();
                 resultRef.set(result);
             } catch (Throwable e) {
+                Diagnostics.conditionallyLog(e);
                 exceptionRef.set((E) e);
             }
 

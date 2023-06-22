@@ -14,6 +14,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
+
 @Slf4j
 @Getter
 public class DriverBundle implements Disposable {
@@ -32,8 +34,9 @@ public class DriverBundle implements Disposable {
     public void dispose() {
         try {
             classLoader.close();
-        } catch (Throwable t) {
-            log.warn("Failed to dispose class loader", t);
+        } catch (Throwable e) {
+            conditionallyLog(e);
+            log.warn("Failed to dispose class loader", e);
         }
     }
 
@@ -44,6 +47,16 @@ public class DriverBundle implements Disposable {
                 return instances.computeIfAbsent(driver, d -> createDriver(d));
                 // cached driver instances seem to work better (at least for oracle)
                 //return createDriver(driver);
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    public Driver createDriver(String className) {
+        for (Class<Driver> driver : getDrivers()) {
+            if (Objects.equals(driver.getName(), className)) {
+                return createDriver(driver);
             }
         }
         return null;

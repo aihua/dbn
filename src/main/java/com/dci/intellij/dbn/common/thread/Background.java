@@ -9,8 +9,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static com.dci.intellij.dbn.common.dispose.Failsafe.conditionallyLog;
 import static com.dci.intellij.dbn.common.thread.ThreadProperty.BACKGROUND;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 @Slf4j
 public final class Background {
@@ -33,10 +33,12 @@ public final class Background {
                 } catch (ProcessCanceledException | UnsupportedOperationException | InterruptedException e) {
                     conditionallyLog(e);
                 } catch (Throwable e) {
+                    conditionallyLog(e);
                     log.error("Error executing background task", e);
                 }
             });
         } catch (RejectedExecutionException e) {
+            conditionallyLog(e);
             log.warn("Background execution rejected: " + e.getMessage());
         }
     }
@@ -65,10 +67,12 @@ public final class Background {
                 } catch (ProcessCanceledException | UnsupportedOperationException | InterruptedException e) {
                     conditionallyLog(e);
                 } catch (Throwable e) {
+                    conditionallyLog(e);
                     log.error("Error executing background task", e);
                 }
             });
         } catch (RejectedExecutionException e) {
+            conditionallyLog(e);
             log.warn("Background execution rejected: " + e.getMessage());
         }
     }

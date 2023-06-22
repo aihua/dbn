@@ -26,6 +26,7 @@ import org.jetbrains.annotations.Nullable;
 import java.sql.SQLException;
 
 import static com.dci.intellij.dbn.common.dispose.Failsafe.nd;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.EXECUTING;
 
 public class StatementExecutionCursorResult extends StatementExecutionBasicResult {
@@ -89,6 +90,7 @@ public class StatementExecutionCursorResult extends StatementExecutionBasicResul
                                         loadResultSet(resultSet);
                                     }
                                 } catch (final SQLException e) {
+                                    conditionallyLog(e);
                                     Messages.showErrorDialog(getProject(), "Could not perform reload operation.", e);
                                 }
                             } finally {
@@ -140,6 +142,7 @@ public class StatementExecutionCursorResult extends StatementExecutionBasicResul
                             }
 
                         } catch (SQLException e) {
+                            conditionallyLog(e);
                             Messages.showErrorDialog(project, "Could not perform operation.", e);
                         } finally {
                             resultForm.highlightLoading(false);

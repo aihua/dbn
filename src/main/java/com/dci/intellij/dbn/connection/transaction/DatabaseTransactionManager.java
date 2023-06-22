@@ -36,6 +36,7 @@ import static com.dci.intellij.dbn.common.message.MessageCallback.when;
 import static com.dci.intellij.dbn.common.util.Commons.list;
 import static com.dci.intellij.dbn.common.util.Lists.isLast;
 import static com.dci.intellij.dbn.connection.transaction.TransactionAction.*;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 public class DatabaseTransactionManager extends ProjectComponentBase implements ProjectManagerListener {
 
@@ -151,13 +152,14 @@ public class DatabaseTransactionManager extends ProjectComponentBase implements 
                         action.getSuccessNotificationMessage(),
                         connectionName);
             }
-        } catch (SQLException ex) {
+        } catch (SQLException e) {
+            conditionallyLog(e);
             sendNotification(
                     action.getFailureNotificationType(),
                     action.getGroup(),
                     action.getFailureNotificationMessage(),
                     connectionName,
-                    ex);
+                    e);
             success.set(false);
         } finally {
             if (isValid(project)) {

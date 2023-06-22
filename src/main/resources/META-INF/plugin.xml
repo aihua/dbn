@@ -2,7 +2,7 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.3.9100.1</version>
+    <version>3.3.9310.1</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
@@ -30,6 +30,14 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
+            <li><b>3.3.9310</b>
+            <ul>
+                <li>Fixed H2 connectivity issues with latest IDEs
+                <li>Diagnostics - DeveloperMode timeouts
+                <li>Diagnostics - Additional failsafe exception logging
+                <li>Record viewers - column quick filters
+                <li>Bug fixes
+            </ul>
             <li><b>3.3.9100</b>
             <ul>
                 <li>SQL file associations restore on plugin uninstall
@@ -365,9 +373,7 @@
             </action>
             <action class="com.dci.intellij.dbn.menu.action.FileConnectionMappingsOpenAction" text="File Connection Mappings" id="DBNavigator.Actions.MainMenu.FileConnectionMappings"/>
             <action class="com.dci.intellij.dbn.menu.action.ResourceMonitorOpenAction" text="Resource Monitor" id="DBNavigator.Actions.MainMenu.ResourceMonitor"/>
-            <action class="com.dci.intellij.dbn.menu.action.PendingTransactionsOpenAction" text="Open Transactions" id="DBNavigator.Actions.MainMenu.PendingTransactions"/>
-            <separator/>
-            <action id="DBNavigator.Actions.MainMenu.OpenSettings" class="com.dci.intellij.dbn.menu.action.ProjectSettingsOpenAction" text="Settings"/>
+            <!--<action class="com.dci.intellij.dbn.menu.action.PendingTransactionsOpenAction" text="Open Transactions" id="DBNavigator.Actions.MainMenu.PendingTransactions"/>-->
             <group id="DBNavigator.ActionGroup.ImportExportSettings" text="Default Settings" popup="true">
                 <action id="DBNavigator.Actions.MainMenu.OpenDefaultSettings" class="com.dci.intellij.dbn.menu.action.ProjectDefaultSettingsOpenAction" text="Open Default Settings..."/>
                 <action id="DBNavigator.Actions.MainMenu.LoadDefaultSettings" class="com.dci.intellij.dbn.menu.action.ProjectDefaultSettingsImportAction" text="Import Settings..."/>
@@ -375,13 +381,15 @@
             </group>
             <separator/>
             <group id="DBNavigator.ActionGroup.Diagnostics" text="Diagnostics" popup="true">
+                <action id="DBNavigator.Actions.MainMenu.EnableDeveloperMode" class="com.dci.intellij.dbn.diagnostics.action.DeveloperModeAction" text="Developer Mode..."/>
                 <action id="DBNavigator.Actions.MainMenu.ParserDiagnostics" class="com.dci.intellij.dbn.diagnostics.action.ParserDiagnosticsOpenAction" text="Parser Diagnostics..."/>
                 <action id="DBNavigator.Actions.MainMenu.DiagnosticsMonitor" class="com.dci.intellij.dbn.menu.action.DiagnosticsMonitorOpenAction" text="Connection Diagnostics..."/>
                 <action id="DBNavigator.Actions.MainMenu.ReloadMetadataDefinitions" class="com.dci.intellij.dbn.menu.action.MetaDataDefinitionReloadAction" text="Reload Metadata Definitions"/>
                 <action id="DBNavigator.Actions.MainMenu.ExportScrambleProjectCode" class="com.dci.intellij.dbn.diagnostics.action.ExportScrambledSourcecodeAction" text="Scramble Project Code"/>
                 <separator/>
-                <action id="DBNavigator.Actions.MainMenu.Options" class="com.dci.intellij.dbn.menu.action.DiagnosticsSettingsOpenAction" text="Settings.."/>
+                <action id="DBNavigator.Actions.MainMenu.Options" class="com.dci.intellij.dbn.menu.action.DiagnosticsSettingsOpenAction" text="Settings..."/>
             </group>
+            <action id="DBNavigator.Actions.MainMenu.OpenSettings" class="com.dci.intellij.dbn.menu.action.ProjectSettingsOpenAction" text="Settings"/>
             <action id="DBNavigator.Actions.MainMenu.OpenAbout" class="com.dci.intellij.dbn.menu.action.AboutPageOpenAction" text="About"/>
             <add-to-group anchor="before" group-id="MainMenu" relative-to-action="HelpMenu"/>
         </group>

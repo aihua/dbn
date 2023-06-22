@@ -9,6 +9,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 
 import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 @Slf4j
 public final class Threads {
@@ -35,6 +36,7 @@ public final class Threads {
                     try {
                         guarded(runnable, r -> r.run());
                     } catch (Throwable t) {
+                        conditionallyLog(t);
                         log.error(name + " - Execution failed: " + t.getMessage(), t);
                     }
                 }, name);

@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Objects;
 
 import static com.dci.intellij.dbn.common.exception.Exceptions.toSqlException;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 import static java.sql.DatabaseMetaData.*;
 
 
@@ -608,9 +609,10 @@ public class GenericMetadataTranslators {
                 if (value != null) {
                     return value;
                 }
-            } catch (Throwable t) {
+            } catch (Throwable e) {
+                conditionallyLog(e);
                 if (i == resolvers.length -1) {
-                    throw toSqlException(t, "Operation failed");
+                    throw toSqlException(e, "Operation failed");
                 }
             }
         }

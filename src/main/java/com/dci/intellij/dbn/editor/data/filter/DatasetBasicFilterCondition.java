@@ -24,6 +24,7 @@ import java.util.StringTokenizer;
 import static com.dci.intellij.dbn.common.dispose.Checks.isValid;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.booleanAttribute;
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 @Getter
 @Setter
@@ -112,10 +113,12 @@ public class DatasetBasicFilterCondition extends BasicConfiguration<DatasetBasic
                         Date date = formatter.parseDateTime(value);
                         value = metadata.createDateString(date);
                     } catch (ParseException e) {
+                        conditionallyLog(e);
                         try {
                             Date date = formatter.parseDate(value);
                             value = metadata.createDateString(date);
                         } catch (ParseException e1) {
+                            conditionallyLog(e1);
                             // value can be something like "sysdate" => not parseable
                             //e1.printStackTrace();
                         }

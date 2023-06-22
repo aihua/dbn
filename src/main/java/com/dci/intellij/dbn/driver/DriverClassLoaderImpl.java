@@ -18,6 +18,7 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 import static com.dci.intellij.dbn.common.util.Unsafe.cast;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 @Slf4j
 @Getter
@@ -56,7 +57,7 @@ class DriverClassLoaderImpl extends URLClassLoader implements DriverClassLoader 
 
                 String name = entry.getName();
                 if (name.endsWith(".class")) {
-                    String className = name.replaceAll("/", "\\.");
+                    String className = name.replaceAll("/", ".");
                     className = className.substring(0, className.length() - 6);
                     try {
                         Class<?> clazz = loadClass(className);
@@ -64,21 +65,39 @@ class DriverClassLoaderImpl extends URLClassLoader implements DriverClassLoader 
                             Class<Driver> driver = cast(clazz);
                             drivers.add(driver);
                         }
-                    } catch (Throwable t) {
-                        log.debug("Failed to load driver " + className + " from library " + jar, t);
+                    } catch (Throwable e) {
+                        conditionallyLog(e);
+                        log.debug("Failed to load driver " + className + " from library " + jar, e);
                     }
                 }
             }
-        } catch (Throwable t) {
-            log.debug("Failed to load drivers from library " + jar, t);
+        } catch (Throwable e) {
+            conditionallyLog(e);
+            log.debug("Failed to load drivers from library " + jar, e);
         }
     }
+
+    @Override
+    protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException{
+        synchronized (getClassLoadingLock(name)) {
+            Class<?> c = null;
+            try {
+                c = findClass(name);
+                if (c != null && resolve) resolveClass(c);
+            } catch (Throwable e) {
+                conditionallyLog(e);
+            }
+
+            return c == null ? super.loadClass(name, resolve) : c;
+        }
+    }
+
 
     @SneakyThrows
     private static URL[] getUrls(File library) {
         if (library.isDirectory()) {
             File[] files = library.listFiles();
-            if (files == null || files.length == 0) throw new IOException("No fiels found at location");
+            if (files == null || files.length == 0) throw new IOException("No files found at location");
             return Arrays.
                     stream(files).
                     filter(file -> file.getName().endsWith(".jar")).

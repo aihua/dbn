@@ -58,8 +58,8 @@ import javax.swing.*;
 import java.sql.SQLException;
 import java.util.concurrent.TimeUnit;
 
-import static com.dci.intellij.dbn.common.dispose.Failsafe.conditionallyLog;
 import static com.dci.intellij.dbn.common.navigation.NavigationInstruction.*;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 import static com.dci.intellij.dbn.execution.ExecutionStatus.*;
 import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.COMPILABLE;
 
@@ -316,6 +316,7 @@ public class StatementExecutionBasicProcessor extends StatefulDisposableBase imp
                         notifySchemaSelectionChanges(context);
                     }
                 } catch (SQLException e) {
+                    conditionallyLog(e);
                     Resources.cancel(context.getStatement());
                     if (context.isNot(CANCEL_REQUESTED)) {
                         executionException = e;

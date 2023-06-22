@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.dci.intellij.dbn.common.exception.Exceptions.toSqlException;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
 public class ArrayValue extends ValueAdapter<List<String>>{
     private Array array;
@@ -68,6 +69,7 @@ public class ArrayValue extends ValueAdapter<List<String>>{
                 preparedStatement.setArray(parameterIndex, array);
             }
         } catch (Throwable e) {
+            conditionallyLog(e);
             throw toSqlException(e, "Could not write array value. Your JDBC driver may not support this feature");
         }
 
@@ -85,6 +87,7 @@ public class ArrayValue extends ValueAdapter<List<String>>{
                 resultSet.updateArray(columnIndex, array);
             }
         } catch (Throwable e) {
+            conditionallyLog(e);
             throw toSqlException(e, "Could not write array value. Your JDBC driver may not support this feature");
         }
     }

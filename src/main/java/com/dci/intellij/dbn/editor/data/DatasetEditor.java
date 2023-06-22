@@ -10,6 +10,7 @@ import com.dci.intellij.dbn.common.project.ProjectRef;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.ui.util.UserInterface;
+import com.dci.intellij.dbn.common.util.Editors;
 import com.dci.intellij.dbn.common.util.Messages;
 import com.dci.intellij.dbn.connection.*;
 import com.dci.intellij.dbn.connection.context.DatabaseContextBase;
@@ -19,6 +20,7 @@ import com.dci.intellij.dbn.connection.transaction.TransactionAction;
 import com.dci.intellij.dbn.connection.transaction.TransactionListener;
 import com.dci.intellij.dbn.data.grid.options.DataGridSettingsChangeListener;
 import com.dci.intellij.dbn.database.interfaces.DatabaseMessageParserInterface;
+import com.dci.intellij.dbn.diagnostics.Diagnostics;
 import com.dci.intellij.dbn.editor.data.filter.DatasetFilter;
 import com.dci.intellij.dbn.editor.data.filter.DatasetFilterManager;
 import com.dci.intellij.dbn.editor.data.filter.DatasetFilterType;
@@ -58,7 +60,8 @@ import java.beans.PropertyChangeListener;
 import java.sql.SQLException;
 import java.util.List;
 
-import static com.dci.intellij.dbn.common.dispose.Failsafe.*;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.nd;
 import static com.dci.intellij.dbn.editor.data.DatasetEditorStatus.*;
 import static com.dci.intellij.dbn.editor.data.DatasetLoadInstruction.*;
 import static com.dci.intellij.dbn.editor.data.model.RecordStatus.INSERTING;
@@ -270,6 +273,7 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
             model.fetchNextRecords(records, false);
             dataLoadError = null;
         } catch (SQLException e) {
+            Diagnostics.conditionallyLog(e);
             dataLoadError = e.getMessage();
 /*
             String message = "Error loading data for " + getDataset().getQualifiedNameWithType() + ".\nCause: " + e.getMessage();
@@ -311,11 +315,13 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
                                 }
                                 dataLoadError = null;
                             } catch (ProcessCanceledException e) {
-                                conditionallyLog(e);
+                                Diagnostics.conditionallyLog(e);
                             } catch (SQLException e) {
+                                Diagnostics.conditionallyLog(e);
                                 dataLoadError = e.getMessage();
                                 handleLoadError(e, instructions);
                             } catch (Exception e) {
+                                Diagnostics.conditionallyLog(e);
                                 log.error("Error loading table data", e);
                             } finally {
                                 status.set(LOADED, true);
@@ -396,8 +402,7 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
 
 
     private void focusEditor() {
-        FileEditorManager fileEditorManager = FileEditorManager.getInstance(getProject());
-        fileEditorManager.openFile(getDatabaseFile(), true);
+        Editors.openFile(getProject(), getDatabaseFile(), true);
     }
 
     protected void setLoading(boolean loading) {
@@ -572,6 +577,7 @@ public class DatasetEditor extends DisposableUserDataHolderBase implements
                     try {
                         model.postInsertRecord(true, false, true);
                     } catch (SQLException e1) {
+                        Diagnostics.conditionallyLog(e1);
                         Messages.showErrorDialog(getProject(), "Could not create row in " + getDataset().getQualifiedNameWithType() + '.', e1);
                         model.cancelInsert(true);
                     }

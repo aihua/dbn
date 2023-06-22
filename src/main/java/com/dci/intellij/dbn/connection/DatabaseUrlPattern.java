@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 import static com.dci.intellij.dbn.common.util.Commons.nvl;
 import static com.dci.intellij.dbn.connection.DatabaseUrlPattern.Elements.*;
 import static com.dci.intellij.dbn.connection.DatabaseUrlType.*;
+import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 import static com.intellij.openapi.util.text.StringUtil.isEmpty;
 import static java.util.regex.Pattern.CASE_INSENSITIVE;
 import static java.util.regex.Pattern.compile;
@@ -182,6 +183,7 @@ public enum DatabaseUrlPattern {
 
             return matcher.group(name).trim();
         } catch (Exception e) {
+            conditionallyLog(e);
             log.warn("Failed to get group {} from url \"{}\"", name, url);
             return "";
         }

@@ -2,60 +2,48 @@ package com.dci.intellij.dbn.diagnostics;
 
 import com.dci.intellij.dbn.common.state.PersistentStateElement;
 import com.dci.intellij.dbn.common.util.Unsafe;
+import com.dci.intellij.dbn.diagnostics.data.Activity;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.jdom.Element;
 
 import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.*;
+import static com.dci.intellij.dbn.common.util.Commons.nvl;
 
+@Slf4j
 public final class Diagnostics {
-    private static boolean developerMode = false;
+    private static final DeveloperMode developerMode = new DeveloperMode();
     private static final DebugLogging debugLogging = new DebugLogging();
     private static final DatabaseLag databaseLag = new DatabaseLag();
     private static final Miscellaneous miscellaneous = new Miscellaneous();
 
     public static boolean isDialogSizingReset() {
-        return developerMode && miscellaneous.dialogSizingReset;
+        return isDeveloperMode() && miscellaneous.dialogSizingReset;
     }
 
     public static boolean isBulkActionsEnabled() {
-        return developerMode && miscellaneous.bulkActionsEnabled;
-    }
-
-    public static boolean isFailsafeLoggingEnabled() {
-        return developerMode && miscellaneous.failsafeLoggingEnabled;
+        return isDeveloperMode() && miscellaneous.bulkActionsEnabled;
     }
 
     public static boolean isBackgroundDisposerDisabled() {
-        return developerMode && miscellaneous.backgroundDisposerDisabled;
+        return isDeveloperMode() && miscellaneous.backgroundDisposerDisabled;
     }
 
     public static boolean isDatabaseAccessDebug() {
-        return developerMode && debugLogging.databaseAccess;
+        return isDeveloperMode() && debugLogging.databaseAccess;
     }
 
     public static boolean isDatabaseResourceDebug() {
-        return developerMode && debugLogging.databaseResource;
-    }
-
-    public static int getConnectivityLag() {
-        return databaseLag.connectivity;
-    }
-
-    public static int getQueryingLag() {
-        return databaseLag.querying;
-    }
-
-    public static int getFetchingLag() {
-        return databaseLag.fetching;
+        return isDeveloperMode() && debugLogging.databaseResource;
     }
 
     public static boolean isDeveloperMode() {
-        return developerMode;
+        return developerMode.isEnabled();
     }
 
-    public static void setDeveloperMode(boolean developerMode) {
-        Diagnostics.developerMode = developerMode;
+    public static DeveloperMode getDeveloperMode() {
+        return developerMode;
     }
 
     public static DebugLogging getDebugLogging() {
@@ -70,6 +58,26 @@ public final class Diagnostics {
         return miscellaneous;
     }
 
+    public static boolean hasEnabledFeatures() {
+        return miscellaneous.hasEnabledFeatures() ||
+                debugLogging.hasEnabledFeatures() ||
+                databaseLag.enabled;
+    }
+
+    public static void readState(Element element) {
+        if (element == null) return;
+        developerMode.readState(element);
+        debugLogging.readState(element);
+        databaseLag.readState(element);
+        miscellaneous.readState(element);
+    }
+
+    public static void writeState(Element element) {
+        developerMode.writeState(element);
+        debugLogging.writeState(element);
+        databaseLag.writeState(element);
+        miscellaneous.writeState(element);
+    }
 
     @Getter
     @Setter
@@ -77,7 +85,7 @@ public final class Diagnostics {
         private boolean enabled = false;
         private int connectivity = 2000;
         private int querying = 2000;
-        private int fetching = 500;
+        private int loading = 500;
 
         public void readState(Element element) {
             Element databaseLag = element.getChild("database-lag");
@@ -85,7 +93,7 @@ public final class Diagnostics {
                 enabled = booleanAttribute(databaseLag, "enabled", enabled);
                 connectivity = integerAttribute(databaseLag, "connectivity", connectivity);
                 querying = integerAttribute(databaseLag, "querying", querying);
-                fetching = integerAttribute(databaseLag, "fetching", fetching);
+                loading = integerAttribute(databaseLag, "fetching", loading);
             }
 
         }
@@ -96,20 +104,26 @@ public final class Diagnostics {
             setBooleanAttribute(databaseLag, "enabled", enabled);
             setIntegerAttribute(databaseLag, "connectivity", connectivity);
             setIntegerAttribute(databaseLag, "querying", querying);
-            setIntegerAttribute(databaseLag, "fetching", fetching);
+            setIntegerAttribute(databaseLag, "fetching", loading);
         }
     }
 
     @Getter
     @Setter
     public static final class DebugLogging implements PersistentStateElement{
+        private boolean failsafeErrors = false;
         private boolean databaseAccess = false;
         private boolean databaseResource = false;
+
+        public boolean hasEnabledFeatures() {
+            return failsafeErrors || databaseAccess || databaseResource;
+        }
 
         @Override
         public void readState(Element element) {
             Element debugMode = element.getChild("debug-logging");
             if (debugMode != null) {
+                failsafeErrors = booleanAttribute(debugMode, "failsafe-errors", failsafeErrors);
                 databaseAccess = booleanAttribute(debugMode, "database-access", databaseAccess);
                 databaseResource = booleanAttribute(debugMode, "database-resource", databaseResource);
             }
@@ -119,6 +133,7 @@ public final class Diagnostics {
         public void writeState(Element element) {
             Element debugMode = new Element("debug-logging");
             element.addContent(debugMode);
+            setBooleanAttribute(debugMode, "failsafe-errors", failsafeErrors);
             setBooleanAttribute(debugMode, "database-access", databaseAccess);
             setBooleanAttribute(debugMode, "database-resource", databaseResource);
         }
@@ -129,8 +144,15 @@ public final class Diagnostics {
     public static final class Miscellaneous implements PersistentStateElement{
         private boolean dialogSizingReset = false;
         private boolean bulkActionsEnabled = false;
-        private boolean failsafeLoggingEnabled = false;
         private boolean backgroundDisposerDisabled = false;
+        private boolean timeoutHandlingDisabled = false;
+
+        public boolean hasEnabledFeatures() {
+            return dialogSizingReset ||
+                    bulkActionsEnabled ||
+                    backgroundDisposerDisabled ||
+                    timeoutHandlingDisabled;
+        }
 
         @Override
         public void readState(Element element) {
@@ -138,8 +160,8 @@ public final class Diagnostics {
             if (miscellaneous != null) {
                 dialogSizingReset = booleanAttribute(miscellaneous, "dialog-sizing-reset", dialogSizingReset);
                 bulkActionsEnabled = booleanAttribute(miscellaneous, "bulk-actions-enabled", bulkActionsEnabled);
-                failsafeLoggingEnabled = booleanAttribute(miscellaneous, "failsafe-logging-enabled", failsafeLoggingEnabled);
                 backgroundDisposerDisabled = booleanAttribute(miscellaneous, "background-disposer-disabled", backgroundDisposerDisabled);
+                timeoutHandlingDisabled = booleanAttribute(miscellaneous, "timeout-handling-disabled", timeoutHandlingDisabled);
             }
         }
 
@@ -149,15 +171,40 @@ public final class Diagnostics {
             element.addContent(miscellaneous);
             setBooleanAttribute(miscellaneous, "dialog-sizing-reset", dialogSizingReset);
             setBooleanAttribute(miscellaneous, "bulk-actions-enabled", bulkActionsEnabled);
-            setBooleanAttribute(miscellaneous, "failsafe-logging-enabled", failsafeLoggingEnabled);
             setBooleanAttribute(miscellaneous, "background-disposer-disabled", backgroundDisposerDisabled);
+            setBooleanAttribute(miscellaneous, "timeout-handling-disabled", timeoutHandlingDisabled);
         }
     }
 
+    public static int timeoutAdjustment(int timeout) {
+        if (!miscellaneous.timeoutHandlingDisabled) return timeout;
+        if (!isDeveloperMode()) return timeout;
 
-    public static void introduceDatabaseLag(int millis) {
-        if (Diagnostics.developerMode && Diagnostics.databaseLag.enabled) {
-            Unsafe.silent(() -> Thread.sleep(millis));
+        return timeout * 100;
+    }
+
+
+    public static void databaseLag(Activity activity) {
+        if (!databaseLag.enabled) return;
+        if (!isDeveloperMode()) return;
+
+        switch (activity) {
+            case CONNECT: lag(databaseLag.connectivity);
+            case QUERY: lag(databaseLag.querying);
+            case LOAD: lag(databaseLag.loading);
         }
+
+    }
+
+    public static void conditionallyLog(Throwable exception) {
+        if (!debugLogging.failsafeErrors) return;
+        if (!isDeveloperMode()) return;
+
+        String message = nvl(exception.getMessage(), exception.getClass().getSimpleName());
+        log.warn("[DIAGNOSTICS] " + message, exception);
+    }
+
+    private static void lag(int millis) {
+        Unsafe.silent(() -> Thread.sleep(millis));
     }
 }

@@ -2,7 +2,7 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.3.9310.2</version>
+    <version>3.3.9501.2</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
@@ -30,6 +30,11 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
+            <li><b>3.3.9501</b>
+            <ul>
+                <li>Data Export - custom quoting on csv outputs
+                <li>Bug fixes
+            </ul>
             <li><b>3.3.9310</b>
             <ul>
                 <li>Fixed H2 connectivity issues with latest IDEs
@@ -562,7 +567,7 @@
                 <lang.findUsagesProvider language="DBN-PSQL" implementationClass="com.dci.intellij.dbn.language.psql.PSQLFindUsagesProvider"/>
         -->
 
-        <projectConfigurable provider="com.dci.intellij.dbn.options.ProjectSettingsProvider" groupId="tools" dynamic="true" id="DBNavigator.Settings"/>
+        <projectConfigurable provider="com.dci.intellij.dbn.options.ProjectSettingsProvider" groupId="tools" dynamic="true" id="DBNavigator.Settings" displayName="Database Navigator"/>
 
         <toolWindow id="DB Browser" icon="/img/window/DatabaseBrowser.png" anchor="left" factoryClass="com.dci.intellij.dbn.browser.DatabaseBrowserToolWindowFactory"/>
         <toolWindow id="DB Diagnostics" icon="/img/window/DatabaseDiagnostics.png" anchor="bottom" factoryClass="com.dci.intellij.dbn.diagnostics.DiagnosticsToolWindowFactory" canCloseContents="true"/>

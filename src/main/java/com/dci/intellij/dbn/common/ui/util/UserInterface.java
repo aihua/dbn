@@ -18,6 +18,7 @@ import java.awt.*;
 import java.awt.event.InputEvent;
 import java.util.function.Predicate;
 
+import static com.dci.intellij.dbn.common.ui.util.Borderless.isBorderless;
 import static com.dci.intellij.dbn.common.ui.util.Borders.*;
 import static com.dci.intellij.dbn.common.util.Unsafe.cast;
 import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
@@ -88,7 +89,7 @@ public class UserInterface {
         if (border instanceof TitledBorder) {
             TitledBorder titledBorder = (TitledBorder) border;
             String title = titledBorder.getTitle();
-            int indent = Strings.isEmpty(title) ? 0 : 24;
+            int indent = Strings.isEmpty(title) ? 0 : 20;
             IdeaTitledBorder replacement = new IdeaTitledBorder(title, indent, Borders.EMPTY_INSETS);
 /*
             titledBorder.setTitleColor(Colors.HINT_COLOR);
@@ -141,7 +142,7 @@ public class UserInterface {
     }
 
     public static <T extends JComponent> void visitRecursively(JComponent component, Class<T> type, Visitor<T> visitor) {
-        if (type.isAssignableFrom(component.getClass())) visitor.visit((T) component);
+        if (type.isAssignableFrom(component.getClass())) visitor.visit(cast(component));
 
         Component[] childComponents = component.getComponents();
         for (Component childComponent : childComponents) {
@@ -157,11 +158,12 @@ public class UserInterface {
     }
 
     public static void updateScrollPaneBorders(JComponent component) {
-        visitRecursively(component, JScrollPane.class, sp -> sp.setBorder(getScrollPaneComponent(sp) instanceof JPanel ? null : COMPONENT_OUTLINE_BORDER));
+        visitRecursively(component, JScrollPane.class, sp -> sp.setBorder(isBorderlessPane(sp) ? null : COMPONENT_OUTLINE_BORDER));
     }
 
-    public static Component getScrollPaneComponent(JScrollPane scrollPane) {
-        return scrollPane.getViewport().getView();
+    private static boolean isBorderlessPane(JScrollPane scrollPane) {
+        Component component = scrollPane.getViewport().getView();
+        return isBorderless(component);
     }
 
     @Nullable
@@ -195,4 +197,10 @@ public class UserInterface {
         decorator.setPanelBorder(EMPTY_BORDER);
         return decorator;
     }
+
+
+    public static void updateSplitPanes(JComponent component) {
+        visitRecursively(component, JSplitPane.class, sp -> Splitters.replaceSplitPane(sp));
+    }
+
 }

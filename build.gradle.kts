@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
   id("java")
   id("org.jetbrains.kotlin.jvm") version "1.7.20"
@@ -5,7 +7,7 @@ plugins {
 }
 
 group = "com.dci"
-version = "3.3.8905.0"
+version = "3.3.9882.0"
 
 repositories {
   mavenCentral()
@@ -20,6 +22,7 @@ dependencies {
   implementation("org.apache.poi:poi-ooxml:5.2.3")
   implementation("org.apache.poi:poi-ooxml-schemas:4.1.2")
   implementation("com.jcraft:jsch:0.1.55")
+  //implementation("com.github.mwiede:jsch:0.2.11")
 }
 
 sourceSets{
@@ -33,22 +36,36 @@ sourceSets{
               "**/*.png",
               "**/*.jpg",
               "**/*.xml",
+              "**/*.svg",
               "**/*.css",
               "**/*.html",
               "**/*.template")
     }
   }
-
 }
 
 // Configure Gradle IntelliJ Plugin
 // Read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html
 intellij {
-  version.set("2023.1")
+  version.set("LATEST-EAP-SNAPSHOT")
   type.set("IC") // Target IDE Platform
 
   plugins.set(listOf("java"))
 
+}
+
+tasks.register<Zip>("packageDistribution") {
+  archiveFileName.set("DBN.zip")
+  destinationDirectory.set(layout.buildDirectory.dir("dist"))
+
+  from("lib/ext/") {
+    include("**/*.jar")
+    into("dbn/lib/ext")
+  }
+  from(layout.buildDirectory.dir("libs")) {
+    include("${project.name}-${project.version}.jar")
+    into("dbn/lib")
+  }
 }
 
 tasks {
@@ -57,8 +74,16 @@ tasks {
     sourceCompatibility = "11"
     targetCompatibility = "11"
   }
-  withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-    kotlinOptions.jvmTarget = "11"
+//  withType<KotlinCompile> {
+//    kotlinOptions.jvmTarget = "11"
+//  }
+
+  withType{
+    copy {
+      from("lib/ext")
+      include("**/*.jar")
+      into(layout.buildDirectory.dir("idea-sandbox/plugins/${project.name}/lib/ext"))
+    }
   }
 
   patchPluginXml {

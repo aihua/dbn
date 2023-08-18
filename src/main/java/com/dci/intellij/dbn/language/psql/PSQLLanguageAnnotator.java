@@ -8,7 +8,6 @@ import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.editor.code.SourceCodeManager;
 import com.dci.intellij.dbn.editor.code.options.CodeEditorGeneralSettings;
-import com.dci.intellij.dbn.execution.statement.StatementGutterRenderer;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.TokenTypeCategory;
 import com.dci.intellij.dbn.language.common.element.ElementType;
@@ -36,6 +35,8 @@ public class PSQLLanguageAnnotator implements Annotator {
 
     @Override
     public void annotate(@NotNull PsiElement psiElement, @NotNull AnnotationHolder holder) {
+        if (!isSupported(psiElement)) return;
+
         Project project = psiElement.getProject();
         ThreadMonitor.surround(project, null,
                 ThreadProperty.CODE_ANNOTATING,
@@ -74,6 +75,13 @@ public class PSQLLanguageAnnotator implements Annotator {
                         annotation.setTextAttributes(SQLTextAttributesKeys.CHAMELEON);
                     }
                 });
+    }
+
+    private boolean isSupported(PsiElement psiElement) {
+        return psiElement instanceof ChameleonPsiElement ||
+                psiElement instanceof TokenPsiElement ||
+                psiElement instanceof IdentifierPsiElement ||
+                psiElement instanceof NamedPsiElement;
     }
 
     private static void annotateToken(@NotNull TokenPsiElement tokenPsiElement, AnnotationHolder holder) {
@@ -226,6 +234,6 @@ public class PSQLLanguageAnnotator implements Annotator {
         if (isDebugConsole(file)) return;
 
         Annotation annotation = holder.createInfoAnnotation(executablePsiElement, null);
-                annotation.setGutterIconRenderer(new StatementGutterRenderer(executablePsiElement));
+                annotation.setGutterIconRenderer(executablePsiElement.getStatementGutterRenderer());
     }
 }

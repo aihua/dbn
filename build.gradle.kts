@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.dci"
-version = "3.3.9882.0"
+version = "3.3.9991.0"
 
 repositories {
   mavenCentral()
@@ -21,8 +21,8 @@ dependencies {
   implementation("org.apache.poi:poi:5.2.3")
   implementation("org.apache.poi:poi-ooxml:5.2.3")
   implementation("org.apache.poi:poi-ooxml-schemas:4.1.2")
-  implementation("com.jcraft:jsch:0.1.55")
-  //implementation("com.github.mwiede:jsch:0.2.11")
+  //implementation("com.jcraft:jsch:0.1.55")
+  implementation("com.github.mwiede:jsch:0.2.11")
 }
 
 sourceSets{

@@ -2,7 +2,7 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.3.9882.1</version>
+    <version>3.3.9991.1</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
@@ -30,9 +30,10 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
-            <li><b>3.3.9882</b>
+            <li><b>3.3.9991</b>
             <ul>
                 <li>New icons and UI improvements - WIP
+                <li>Fixed SSH connectivity problems
                 <li>Data Export - custom quoting on csv outputs
                 <li>Fixed parametric statement execution
                 <li>Bug fixes
@@ -571,9 +572,9 @@
 
         <projectConfigurable provider="com.dci.intellij.dbn.options.ProjectSettingsProvider" groupId="tools" dynamic="true" id="DBNavigator.Settings" displayName="Database Navigator"/>
 
-        <toolWindow id="DB Browser" icon="/img/window/DatabaseBrowser.png" anchor="left" factoryClass="com.dci.intellij.dbn.browser.DatabaseBrowserToolWindowFactory"/>
-        <toolWindow id="DB Diagnostics" icon="/img/window/DatabaseDiagnostics.png" anchor="bottom" factoryClass="com.dci.intellij.dbn.diagnostics.DiagnosticsToolWindowFactory" canCloseContents="true"/>
-        <toolWindow id="DB Execution Console" icon="/img/window/ExecutionConsole.png" anchor="bottom" factoryClass="com.dci.intellij.dbn.execution.ExecutionConsoleToolWindowFactory" />
+        <toolWindow id="DB Browser" icon="/img/window/DatabaseBrowser.svg" anchor="left" factoryClass="com.dci.intellij.dbn.browser.DatabaseBrowserToolWindowFactory"/>
+        <toolWindow id="DB Diagnostics" icon="/img/window/DatabaseDiagnostics.svg" anchor="bottom" factoryClass="com.dci.intellij.dbn.diagnostics.DiagnosticsToolWindowFactory" canCloseContents="true"/>
+        <toolWindow id="DB Execution Console" icon="/img/window/ExecutionConsole.svg" anchor="bottom" factoryClass="com.dci.intellij.dbn.execution.ExecutionConsoleToolWindowFactory" />
 
         <fileTypeFactory order="last" implementation="com.dci.intellij.dbn.language.sql.SQLFileTypeFactory"/>
         <fileTypeFactory order="last" implementation="com.dci.intellij.dbn.language.psql.PSQLFileTypeFactory"/>
@@ -681,7 +682,7 @@
         <additionalTextAttributes scheme="WarmNeon" file="textAttributes/DBNWarmNeonColors.xml" id="DBN-WarmNeon"/>
 
         <fileTemplateGroup implementation="com.dci.intellij.dbn.common.file.DBNFileTemplateGroupDescriptorFactory"/>
-        <!--<statusBarWidgetProvider implementation="com.dci.intellij.dbn.editor.data.statusbar.DatasetEditorStatusBarWidgetProvider"/>-->
+        <!--<statusBarWidgetProvider implementation="com.dci.intellij.dbn.editor.data.statusbar.DatasetEditorStatusBarWidgetProvider" id="DBNavigator.Project.DatasetEditorStatusBarWidgetFactory"/>-->
 
         <intentionAction>
             <className>com.dci.intellij.dbn.code.common.intention.ExecuteScriptIntentionAction</className>

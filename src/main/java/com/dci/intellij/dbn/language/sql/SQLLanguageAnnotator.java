@@ -5,7 +5,6 @@ import com.dci.intellij.dbn.common.thread.ThreadMonitor;
 import com.dci.intellij.dbn.common.thread.ThreadProperty;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionHandlerStatus;
-import com.dci.intellij.dbn.execution.statement.StatementGutterRenderer;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.TokenTypeCategory;
 import com.dci.intellij.dbn.language.common.psi.*;
@@ -22,10 +21,11 @@ import static com.dci.intellij.dbn.connection.mapping.FileConnectionContextManag
 import static com.dci.intellij.dbn.debugger.DatabaseDebuggerManager.isDebugConsole;
 
 public class SQLLanguageAnnotator implements Annotator {
-    public static final SQLLanguageAnnotator INSTANCE = new SQLLanguageAnnotator();
 
     @Override
     public void annotate(@NotNull PsiElement psiElement, @NotNull AnnotationHolder holder) {
+        if (!isSupported(psiElement)) return;
+
         Project project = psiElement.getProject();
         ThreadMonitor.surround(project, null,
                 ThreadProperty.CODE_ANNOTATING,
@@ -55,6 +55,13 @@ public class SQLLanguageAnnotator implements Annotator {
                         }
                     }
                 });
+    }
+
+    private boolean isSupported(PsiElement psiElement) {
+        return psiElement instanceof ChameleonPsiElement ||
+                psiElement instanceof TokenPsiElement ||
+                psiElement instanceof IdentifierPsiElement ||
+                psiElement instanceof NamedPsiElement;
     }
 
     private static void annotateToken(@NotNull TokenPsiElement tokenPsiElement, AnnotationHolder holder) {
@@ -140,7 +147,7 @@ public class SQLLanguageAnnotator implements Annotator {
         if (!hasConnectivityContext(file)) return;
 
         Annotation annotation = holder.createInfoAnnotation(executablePsiElement, null);
-                annotation.setGutterIconRenderer(new StatementGutterRenderer(executablePsiElement));
+                annotation.setGutterIconRenderer(executablePsiElement.getStatementGutterRenderer());
     }
 
     private static void annotateChameleon(PsiElement psiElement, AnnotationHolder holder) {

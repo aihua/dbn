@@ -2,7 +2,7 @@
     <name>Database Navigator</name>
     <id>DBN</id>
     <!--3050 -->
-    <version>3.3.9991.0</version>
+    <version>3.3.9995.0</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
@@ -30,7 +30,7 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
-            <li><b>3.3.9991</b>
+            <li><b>3.3.9995</b>
             <ul>
                 <li>New icons and UI improvements - WIP
                 <li>Fixed SSH connectivity problems
@@ -318,6 +318,7 @@
         <projectService serviceImplementation="com.dci.intellij.dbn.vfs.DatabaseFileManager"/>
         <projectService serviceImplementation="com.dci.intellij.dbn.connection.session.DatabaseSessionManager"/>
         <projectService serviceImplementation="com.dci.intellij.dbn.connection.console.DatabaseConsoleManager"/>
+        <fileIconPatcher implementation="com.dci.intellij.dbn.vfs.DBFileIconPatcher"/>
     </extensions>
 
     <actions>
@@ -558,6 +559,7 @@
         <listener topic="com.intellij.openapi.fileEditor.FileEditorManagerListener" class="com.dci.intellij.dbn.editor.code.SourceCodeEditorListener"/>
         <listener topic="com.intellij.openapi.fileEditor.FileEditorManagerListener" class="com.dci.intellij.dbn.editor.console.SQLConsoleEditorListener"/>
         <listener topic="com.intellij.openapi.fileEditor.FileEditorManagerListener" class="com.dci.intellij.dbn.language.editor.DBLanguageFileEditorListener"/>
+        <listener topic="com.intellij.openapi.actionSystem.ex.AnActionListener" class="com.dci.intellij.dbn.editor.code.action.SourceCodeSaveAction$ShortcutInterceptor"/>
     </projectListeners>
     <extensions defaultExtensionNs="com.intellij">
         <notificationGroup id="DBNavigator.NotificationGroup" displayType="BALLOON" key="DBNavigator"/>

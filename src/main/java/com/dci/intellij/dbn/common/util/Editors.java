@@ -1,5 +1,6 @@
 package com.dci.intellij.dbn.common.util;
 
+import com.dci.intellij.dbn.common.CompoundIcons;
 import com.dci.intellij.dbn.common.color.Colors;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.editor.BasicTextEditor;
@@ -34,6 +35,7 @@ import com.intellij.openapi.fileEditor.FileDocumentManager;
 import com.intellij.openapi.fileEditor.FileEditor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.fileEditor.TextEditor;
+import com.intellij.openapi.fileEditor.impl.EditorWindowHolder;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.fileTypes.SyntaxHighlighter;
 import com.intellij.openapi.fileTypes.SyntaxHighlighterFactory;
@@ -46,20 +48,24 @@ import com.intellij.ui.TabbedPaneWrapper;
 import com.intellij.ui.tabs.TabInfo;
 import com.intellij.ui.tabs.impl.JBTabsImpl;
 import com.intellij.util.ui.UIUtil;
+import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
+import java.util.*;
 
+import static com.dci.intellij.dbn.common.action.UserDataKeys.TEXT_EDITOR_KEY;
 import static com.dci.intellij.dbn.common.dispose.Checks.isValid;
+import static com.dci.intellij.dbn.common.util.Unsafe.cast;
 
 @Slf4j
+@UtilityClass
 public class Editors {
+
     public static FileEditor selectEditor(@NotNull Project project, @Nullable FileEditor fileEditor, @NotNull VirtualFile virtualFile, EditorProviderId editorProviderId, NavigationInstructions instructions) {
         FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
         if (fileEditor != null) {
@@ -127,14 +133,45 @@ public class Editors {
         return fileEditor;
     }
 
-    public static void setEditorIcon(@NotNull Project project, @NotNull VirtualFile virtualFile, @NotNull FileEditor fileEditor, Icon icon) {
-        JBTabsImpl tabs = getEditorTabComponent(project, virtualFile, fileEditor);
-        if (tabs != null) {
-            TabInfo tabInfo = getEditorTabInfo(tabs, fileEditor.getComponent());
-            if (tabInfo != null) {
-                tabInfo.setIcon(icon);
-            }
+    public static void markEditorsModified(@NotNull Project project, @NotNull DBObjectVirtualFile file, boolean modified) {
+        Collection<TabInfo> tabInfos = getEditorTabInfos(project, file);
+        for (TabInfo tabInfo : tabInfos) {
+            Icon icon = file.getIcon();
+            if (modified) icon = CompoundIcons.addModifiedOverlay(icon);
+            tabInfo.setIcon(icon);
         }
+    }
+
+    public static Collection<TabInfo> getEditorTabInfos(Project project, VirtualFile file) {
+        Set<TabInfo> tabInfos = new HashSet<>();
+
+        FileEditorManager editorManager = FileEditorManager.getInstance(project);
+        FileEditor[] allEditors = editorManager.getAllEditors(file);
+
+        for (FileEditor fileEditor : allEditors) {
+            EditorWindowHolder editorWindow = UIUtil.getParentOfType(EditorWindowHolder.class, fileEditor.getComponent());
+            if (editorWindow == null) continue;
+
+            JBTabsImpl editorTabs = UIUtil.getParentOfType(JBTabsImpl.class, (Component) editorWindow);
+            if (editorTabs == null) continue;
+
+            TabInfo tabInfo = editorTabs.getTabs().stream().filter(t -> t.getComponent() == editorWindow).findFirst().orElse(null);
+            if (tabInfo == null) continue;
+
+            tabInfos.add(tabInfo);
+        }
+        return tabInfos;
+    }
+
+
+    public static void setEditorProviderIcon(@NotNull Project project, @NotNull VirtualFile virtualFile, @NotNull FileEditor fileEditor, Icon icon) {
+        JBTabsImpl tabs = getEditorTabComponent(project, virtualFile, fileEditor);
+        if (tabs == null) return;
+
+        TabInfo tabInfo = getEditorTabInfo(tabs, fileEditor.getComponent());
+        if (tabInfo == null) return;
+
+        tabInfo.setIcon(icon);
     }
 
     @Nullable
@@ -481,5 +518,20 @@ public class Editors {
             FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
             return fileEditorManager.openFile(file, focus);
         });
+    }
+
+    public static void registerTextEditor(Editor editor, FileEditor fileEditor) {
+        if (fileEditor instanceof TextEditor) {
+            TextEditor thisTextEditor = (TextEditor) fileEditor;
+            editor.putUserData(TEXT_EDITOR_KEY, thisTextEditor);
+        }
+    }
+
+    public static EditorEx createEditor(Document document, Project project, @Nullable VirtualFile file, @NotNull FileType fileType) {
+        EditorFactory editorFactory = EditorFactory.getInstance();
+
+        return  file == null ?
+                cast(editorFactory.createEditor(document, project, fileType, false)) :
+                cast(editorFactory.createEditor(document, project, file, false));
     }
 }

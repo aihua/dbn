@@ -17,8 +17,7 @@ import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
+import static com.dci.intellij.dbn.vfs.file.status.DBFileStatus.SAVING;
 
 public class SourceCodeSaveAction extends AbstractCodeEditorAction {
     public SourceCodeSaveAction() {
@@ -31,14 +30,18 @@ public class SourceCodeSaveAction extends AbstractCodeEditorAction {
     }
 
     private static void performSave(@NotNull Project project, @NotNull SourceCodeEditor fileEditor, @NotNull DBSourceCodeVirtualFile sourceCodeFile) {
+        if (!sourceCodeFile.isModified()) return;
+
         CodeEditorSettings editorSettings = CodeEditorSettings.getInstance(project);
         CodeEditorConfirmationSettings confirmationSettings = editorSettings.getConfirmationSettings();
         ConfirmationOptionHandler optionHandler = confirmationSettings.getSaveChanges();
-        boolean canContinue = optionHandler.resolve(fileEditor.getObject().getQualifiedNameWithType());
-        if (canContinue) {
-            SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
-            sourceCodeManager.saveSourceCode(sourceCodeFile, fileEditor, null);
-        }
+
+        String objectName = fileEditor.getObject().getQualifiedNameWithType();
+        boolean canContinue = optionHandler.resolve(objectName);
+        if (!canContinue) return;
+
+        SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
+        sourceCodeManager.saveSourceCode(sourceCodeFile, fileEditor, null);
     }
 
     @Override
@@ -53,7 +56,7 @@ public class SourceCodeSaveAction extends AbstractCodeEditorAction {
                     contentType == DBContentType.CODE_SPEC ? "Save Spec" :
                     contentType == DBContentType.CODE_BODY ? "Save Body" : "Save";
 
-            presentation.setEnabled(sourceCodeFile.is(MODIFIED) && sourceCodeFile.isNot(SAVING));
+            presentation.setEnabled(sourceCodeFile.isModified() && sourceCodeFile.isNot(SAVING));
             presentation.setText(text);
         } else {
             presentation.setEnabled(false);

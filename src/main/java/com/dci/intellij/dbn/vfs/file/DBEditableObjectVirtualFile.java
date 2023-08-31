@@ -32,8 +32,7 @@ import java.util.List;
 
 import static com.dci.intellij.dbn.common.dispose.Failsafe.guarded;
 import static com.dci.intellij.dbn.common.dispose.Failsafe.nn;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
+import static com.dci.intellij.dbn.vfs.file.status.DBFileStatus.SAVING;
 
 @Getter
 @Setter
@@ -223,25 +222,24 @@ public class DBEditableObjectVirtualFile extends DBObjectVirtualFile<DBSchemaObj
 
 
     public boolean isModified() {
-        if (isContentLoaded()) {
-            for (DBContentVirtualFile contentVirtualFile : getContentFiles()) {
-                if (contentVirtualFile.is(MODIFIED)) {
-                    return true;
-                }
+        if (!isContentLoaded()) return false;
+
+        for (DBContentVirtualFile contentVirtualFile : getContentFiles()) {
+            if (contentVirtualFile.isModified()) {
+                return true;
             }
         }
         return false;
     }
 
     public boolean isSaving() {
-        if (isContentLoaded()) {
-            for (DBSourceCodeVirtualFile sourceCodeFile : getSourceCodeFiles()) {
-                if (sourceCodeFile.is(SAVING)) {
-                    return true;
-                }
+        if (!isContentLoaded()) return false;
+
+        for (DBSourceCodeVirtualFile sourceCodeFile : getSourceCodeFiles()) {
+            if (sourceCodeFile.is(SAVING)) {
+                return true;
             }
         }
-
         return false;
     }
 

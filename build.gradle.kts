@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "com.dci"
-version = "3.3.9991.0"
+version = "3.3.9995.0"
 
 repositories {
   mavenCentral()
@@ -78,7 +78,7 @@ tasks {
 //    kotlinOptions.jvmTarget = "11"
 //  }
 
-  withType{
+  withType<JavaCompile>{
     copy {
       from("lib/ext")
       include("**/*.jar")

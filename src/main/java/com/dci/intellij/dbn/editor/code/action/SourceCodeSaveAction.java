@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.dispose.Checks;
 import com.dci.intellij.dbn.common.environment.EnvironmentManager;
 import com.dci.intellij.dbn.common.option.ConfirmationOptionHandler;
+import com.dci.intellij.dbn.common.ui.shortcut.ComplementaryShortcutInterceptor;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.editor.code.SourceCodeEditor;
 import com.dci.intellij.dbn.editor.code.SourceCodeManager;
@@ -16,8 +17,8 @@ import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.SAVING;
+import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
+import static com.dci.intellij.dbn.vfs.file.status.DBFileStatus.SAVING;
 
 public class SourceCodeSaveAction extends AbstractCodeEditorAction {
     public SourceCodeSaveAction() {
@@ -26,14 +27,20 @@ public class SourceCodeSaveAction extends AbstractCodeEditorAction {
 
     @Override
     protected void actionPerformed(@NotNull AnActionEvent e, @NotNull Project project, @NotNull SourceCodeEditor fileEditor, @NotNull DBSourceCodeVirtualFile sourceCodeFile) {
+         performSave(project, fileEditor, sourceCodeFile);
+    }
+
+    private static void performSave(@NotNull Project project, @NotNull SourceCodeEditor fileEditor, @NotNull DBSourceCodeVirtualFile sourceCodeFile) {
         CodeEditorSettings editorSettings = CodeEditorSettings.getInstance(project);
         CodeEditorConfirmationSettings confirmationSettings = editorSettings.getConfirmationSettings();
         ConfirmationOptionHandler optionHandler = confirmationSettings.getSaveChanges();
-        boolean canContinue = optionHandler.resolve(fileEditor.getObject().getQualifiedNameWithType());
-        if (canContinue) {
-            SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
-            sourceCodeManager.saveSourceCode(sourceCodeFile, fileEditor, null);
-        }
+
+        String objectName = fileEditor.getObject().getQualifiedNameWithType();
+        boolean canContinue = optionHandler.resolve(objectName);
+        if (!canContinue) return;
+
+        SourceCodeManager sourceCodeManager = SourceCodeManager.getInstance(project);
+        sourceCodeManager.saveSourceCode(sourceCodeFile, fileEditor, null);
     }
 
     @Override
@@ -45,13 +52,30 @@ public class SourceCodeSaveAction extends AbstractCodeEditorAction {
             presentation.setVisible(!readonly);
             DBContentType contentType = sourceCodeFile.getContentType();
             String text =
-                    contentType == DBContentType.CODE_SPEC ? "Save spec" :
-                    contentType == DBContentType.CODE_BODY ? "Save body" : "Save";
+                    contentType == DBContentType.CODE_SPEC ? "Save Spec" :
+                    contentType == DBContentType.CODE_BODY ? "Save Body" : "Save";
 
-            presentation.setEnabled(sourceCodeFile.is(MODIFIED) && sourceCodeFile.isNot(SAVING));
+            presentation.setEnabled(sourceCodeFile.isModified() && sourceCodeFile.isNot(SAVING));
             presentation.setText(text);
         } else {
             presentation.setEnabled(false);
+        }
+    }
+
+    /**
+     * Ctrl-S override
+     */
+    public static class ShortcutInterceptor extends ComplementaryShortcutInterceptor {
+        public ShortcutInterceptor() {
+            super("DBNavigator.Actions.SourceEditor.Save");
+        }
+
+        @Override
+        protected boolean canDelegateExecute(AnActionEvent e) {
+            DBSourceCodeVirtualFile sourcecodeFile = getSourcecodeFile(e);
+            if (isNotValid(sourcecodeFile)) return false;
+            if (!sourcecodeFile.isModified()) return false;
+            return true;
         }
     }
 }

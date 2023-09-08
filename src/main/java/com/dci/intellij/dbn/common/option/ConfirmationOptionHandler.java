@@ -3,7 +3,7 @@ package com.dci.intellij.dbn.common.option;
 
 import com.dci.intellij.dbn.common.Icons;
 import com.dci.intellij.dbn.common.options.PersistentConfiguration;
-import com.dci.intellij.dbn.common.options.setting.SettingsSupport;
+import com.dci.intellij.dbn.common.options.setting.Settings;
 import com.dci.intellij.dbn.common.util.Titles;
 import com.intellij.openapi.ui.Messages;
 import lombok.EqualsAndHashCode;
@@ -57,14 +57,13 @@ public class ConfirmationOptionHandler implements DoNotAskOption, PersistentConf
     }
 
     public boolean resolve(Object ... messageArgs) {
-        if (confirm) {
-            int optionIndex = Messages.showDialog(
-                    MessageFormat.format(message, messageArgs),
-                    Titles.signed(title),
-                    new String[]{"Yes", "No"}, 0, Icons.DIALOG_QUESTION, this);
-            return optionIndex == 0;
-        }
-        return true;
+        if (!confirm) return true;
+
+        int optionIndex = Messages.showDialog(
+                MessageFormat.format(message, messageArgs),
+                Titles.signed(title),
+                new String[]{"Yes", "No"}, 0, Icons.DIALOG_QUESTION, this);
+        return optionIndex == 0;
     }
 
     /*******************************************************
@@ -72,11 +71,11 @@ public class ConfirmationOptionHandler implements DoNotAskOption, PersistentConf
      *******************************************************/
     @Override
     public void readConfiguration(Element element) {
-        confirm = SettingsSupport.getBoolean(element, configName, confirm);
+        confirm = Settings.getBoolean(element, configName, confirm);
     }
 
     @Override
     public void writeConfiguration(Element element) {
-        SettingsSupport.setBoolean(element, configName, confirm);
+        Settings.setBoolean(element, configName, confirm);
     }
 }

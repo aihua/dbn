@@ -1,13 +1,15 @@
 package com.dci.intellij.dbn.common.util;
 
-import com.dci.intellij.dbn.common.action.Lookups;
 import com.intellij.openapi.actionSystem.*;
+import lombok.experimental.UtilityClass;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
+import java.awt.event.InputEvent;
 import java.util.UUID;
 
-public class Actions extends Lookups {
+@UtilityClass
+public class Actions {
     public static final AnAction SEPARATOR = Separator.getInstance();
 
     public static ActionToolbar createActionToolbar(@NotNull JComponent component, String place, boolean horizontal, String actionGroupName){
@@ -57,6 +59,16 @@ public class Actions extends Lookups {
         return place;
     }
 
+    public static boolean isConsumed(AnActionEvent event) {
+        InputEvent inputEvent = event.getInputEvent();
+        if (inputEvent == null) return false;
+        return inputEvent.isConsumed();
+    }
 
+    public static void consume(AnActionEvent event) {
+        InputEvent inputEvent = event.getInputEvent();
+        if (inputEvent == null) return;
+        inputEvent.consume();
+    }
 
 }

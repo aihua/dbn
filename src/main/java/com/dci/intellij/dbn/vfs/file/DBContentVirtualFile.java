@@ -14,13 +14,12 @@ import com.dci.intellij.dbn.language.psql.PSQLLanguage;
 import com.dci.intellij.dbn.language.sql.SQLLanguage;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.DBView;
-import com.dci.intellij.dbn.object.common.DBObject;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
 import com.dci.intellij.dbn.object.lookup.DBObjectRef;
 import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.vfs.DBVirtualFileBase;
-import com.dci.intellij.dbn.vfs.VirtualFileStatus;
-import com.dci.intellij.dbn.vfs.VirtualFileStatusHolder;
+import com.dci.intellij.dbn.vfs.file.status.DBFileStatus;
+import com.dci.intellij.dbn.vfs.file.status.DBFileStatusHolder;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
@@ -31,12 +30,14 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import java.io.File;
 
+import static com.dci.intellij.dbn.vfs.file.status.DBFileStatus.MODIFIED;
+
 @Getter
-public abstract class DBContentVirtualFile extends DBVirtualFileBase implements PropertyHolder<VirtualFileStatus>  {
+public abstract class DBContentVirtualFile extends DBVirtualFileBase implements PropertyHolder<DBFileStatus>  {
     private final WeakRef<DBEditableObjectVirtualFile> mainDatabaseFile;
     private final FileType fileType;
 
-    private final VirtualFileStatusHolder status = new VirtualFileStatusHolder();
+    private final DBFileStatusHolder status = new DBFileStatusHolder(this);
 
     protected DBContentType contentType;
 
@@ -54,12 +55,12 @@ public abstract class DBContentVirtualFile extends DBVirtualFileBase implements 
     }
 
     @Override
-    public boolean set(VirtualFileStatus status, boolean value) {
+    public boolean set(DBFileStatus status, boolean value) {
         return this.status.set(status, value);
     }
 
     @Override
-    public boolean is(VirtualFileStatus status) {
+    public boolean is(DBFileStatus status) {
         return this.status.is(status);
     }
     @Override
@@ -83,6 +84,11 @@ public abstract class DBContentVirtualFile extends DBVirtualFileBase implements 
     @NotNull
     public DBSchemaObject getObject() {
         return getMainDatabaseFile().getObject();
+    }
+
+    @NotNull
+    public DBObjectRef<DBSchemaObject> getObjectRef() {
+        return getMainDatabaseFile().getObjectRef();
     }
 
 
@@ -134,13 +140,12 @@ public abstract class DBContentVirtualFile extends DBVirtualFileBase implements 
     @Override
     @Nullable
     public VirtualFile getParent() {
-        if (isValid()) {
-            DBObject parentObject = getObject().getParentObject();
-            if (parentObject != null) {
-                return parentObject.getVirtualFile();
-            }
-        }
-        return null;
+        if (!isValid()) return null;
+
+        DBObjectRef parentObject = getObjectRef().getParentRef();
+        if (parentObject == null) return null;
+
+        return DBObjectVirtualFile.of(parentObject);
     }
 
     @Override
@@ -153,5 +158,13 @@ public abstract class DBContentVirtualFile extends DBVirtualFileBase implements 
     @Override
     public void refresh(boolean b, boolean b1, Runnable runnable) {
 
+    }
+
+    public void setModified(boolean modified) {
+        set(MODIFIED, modified);
+    }
+
+    public boolean isModified() {
+        return is(MODIFIED);
     }
 }

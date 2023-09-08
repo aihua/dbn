@@ -14,14 +14,14 @@ import com.dci.intellij.dbn.language.common.element.util.ElementTypeDefinitionEx
 import com.dci.intellij.dbn.language.common.psi.SequencePsiElement;
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.PsiElement;
-import gnu.trove.THashSet;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.stringAttribute;
+import static com.dci.intellij.dbn.common.options.setting.Settings.stringAttribute;
 import static com.dci.intellij.dbn.common.util.Unsafe.cast;
 
 public class SequenceElementType extends ElementTypeBase {
@@ -142,7 +142,7 @@ public class SequenceElementType extends ElementTypeBase {
 
     public Set<TokenType> getFirstPossibleTokensFromIndex(ElementLookupContext context, int index) {
         if (children[index].isOptional()) {
-            Set<TokenType> tokenTypes = new THashSet<>();
+            Set<TokenType> tokenTypes = new HashSet<>();
             for (int i=index; i< children.length; i++) {
                 ElementTypeLookupCache lookupCache = children[i].getLookupCache();
                 lookupCache.captureFirstPossibleTokens(context.reset(), tokenTypes);

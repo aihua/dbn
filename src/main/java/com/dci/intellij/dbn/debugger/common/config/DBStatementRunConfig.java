@@ -3,6 +3,7 @@ package com.dci.intellij.dbn.debugger.common.config;
 import com.dci.intellij.dbn.common.thread.Read;
 import com.dci.intellij.dbn.debugger.DBDebuggerType;
 import com.dci.intellij.dbn.execution.statement.StatementExecutionInput;
+import com.dci.intellij.dbn.execution.statement.processor.StatementExecutionProcessor;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.psi.ExecutablePsiElement;
 import com.dci.intellij.dbn.object.DBMethod;
@@ -10,12 +11,17 @@ import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.intellij.execution.configurations.RuntimeConfigurationException;
 import com.intellij.openapi.project.Project;
+import lombok.Getter;
+import lombok.Setter;
 import org.jetbrains.annotations.Nullable;
 
+import javax.swing.*;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+@Getter
+@Setter
 public abstract class DBStatementRunConfig extends DBRunConfig<StatementExecutionInput> {
     private StatementExecutionInput executionInput;
 
@@ -23,47 +29,39 @@ public abstract class DBStatementRunConfig extends DBRunConfig<StatementExecutio
         super(project, factory, name, category);
     }
 
+    @Override
+    public boolean canRun() {
+        return super.canRun() && getExecutionInput() != null;
+    }
+
     @Nullable
     @Override
     public DBLanguagePsiFile getSource() {
-        if (executionInput != null) {
-            return executionInput.getExecutionProcessor().getPsiFile();
-        }
-        return null;
+        if (executionInput == null) return null;
+        return executionInput.getExecutionProcessor().getPsiFile();
     }
 
     @Override
     public List<DBMethod> getMethods() {
-        if (executionInput != null) {
-            ExecutablePsiElement executablePsiElement = executionInput.getExecutionProcessor().getCachedExecutable();
-            if (executablePsiElement == null) return Collections.emptyList();
+        if (executionInput == null) return Collections.emptyList();
 
-            return Read.call(executablePsiElement, e -> {
-                List<DBMethod> methods = new ArrayList<>();
-                e.collectObjectReferences(DBObjectType.METHOD, object -> {
-                    if (object instanceof DBMethod) {
-                        DBMethod method = (DBMethod) object;
-                        DBSchema schema = method.getSchema();
-                        if (!schema.isSystemSchema() && !schema.isPublicSchema()) {
-                            methods.add(method);
-                        }
+        ExecutablePsiElement executablePsiElement = executionInput.getExecutionProcessor().getCachedExecutable();
+        if (executablePsiElement == null) return Collections.emptyList();
+
+        return Read.call(executablePsiElement, e -> {
+            List<DBMethod> methods = new ArrayList<>();
+            e.collectObjectReferences(DBObjectType.METHOD, object -> {
+                if (object instanceof DBMethod) {
+                    DBMethod method = (DBMethod) object;
+                    DBSchema schema = method.getSchema();
+                    if (!schema.isSystemSchema() && !schema.isPublicSchema()) {
+                        methods.add(method);
                     }
-                });
-                return methods;
+                }
             });
+            return methods;
+        });
 
-        }
-        return Collections.emptyList();
-    }
-
-    @Override
-    public StatementExecutionInput getExecutionInput() {
-        return executionInput;
-    }
-
-    @Override
-    public void setExecutionInput(StatementExecutionInput executionInput) {
-        this.executionInput = executionInput;
     }
 
     @Override
@@ -82,5 +80,19 @@ public abstract class DBStatementRunConfig extends DBRunConfig<StatementExecutio
     @Override
     public void checkConfiguration() throws RuntimeConfigurationException {
 
+    }
+
+    @Override
+    public @Nullable Icon getIcon() {
+        Icon defaultIcon = super.getIcon();
+        if (getCategory() != DBRunConfigCategory.CUSTOM) return defaultIcon;
+
+        StatementExecutionInput executionInput = getExecutionInput();
+        if (executionInput == null) return defaultIcon;
+
+        StatementExecutionProcessor executionProcessor = executionInput.getExecutionProcessor();
+        if (executionProcessor == null) return defaultIcon;
+
+        return executionProcessor.getIcon();
     }
 }

@@ -74,7 +74,8 @@ import static com.dci.intellij.dbn.common.util.Messages.*;
 import static com.dci.intellij.dbn.common.util.Naming.unquote;
 import static com.dci.intellij.dbn.database.DatabaseFeature.OBJECT_CHANGE_MONITORING;
 import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.*;
+import static com.dci.intellij.dbn.vfs.file.status.DBFileStatus.LOADING;
+import static com.dci.intellij.dbn.vfs.file.status.DBFileStatus.SAVING;
 import static com.intellij.openapi.fileEditor.FileEditorManagerListener.FILE_EDITOR_MANAGER;
 
 @State(
@@ -133,7 +134,7 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
             public void editModeChanged(Project project, DBContentVirtualFile databaseContentFile) {
                 if (databaseContentFile instanceof DBSourceCodeVirtualFile) {
                     DBSourceCodeVirtualFile sourceCodeFile = (DBSourceCodeVirtualFile) databaseContentFile;
-                    if (sourceCodeFile.is(MODIFIED)) {
+                    if (sourceCodeFile.isModified()) {
                         loadSourceCode(sourceCodeFile, true);
                     }
                 }
@@ -209,7 +210,7 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
             } catch (SQLException e) {
                 conditionallyLog(e);
                 sourceCodeFile.setSourceLoadError(e.getMessage());
-                sourceCodeFile.set(MODIFIED, false);
+                sourceCodeFile.setModified(false);
                 if (notifyError) {
                     String objectDesc = object.getQualifiedNameWithType();
                     sendErrorNotification(
@@ -622,7 +623,7 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
                                         case SHOW: {
                                             List<DBSourceCodeVirtualFile> sourceCodeFiles = databaseFile.getSourceCodeFiles();
                                             for (DBSourceCodeVirtualFile sourceCodeFile : sourceCodeFiles) {
-                                                if (sourceCodeFile.is(MODIFIED)) {
+                                                if (sourceCodeFile.isModified()) {
                                                     SourceCodeDiffManager diffManager = SourceCodeDiffManager.getInstance(objectProject);
                                                     diffManager.opedDatabaseDiffWindow(sourceCodeFile);
                                                 }
@@ -693,7 +694,7 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
                         progress -> {
                             List<DBSourceCodeVirtualFile> sourceCodeFiles = databaseFile.getSourceCodeFiles();
                             for (DBSourceCodeVirtualFile sourceCodeFile : sourceCodeFiles) {
-                                if (sourceCodeFile.is(MODIFIED)) {
+                                if (sourceCodeFile.isModified()) {
                                     saveSourceToDatabase(sourceCodeFile, null, successCallback);
                                 }
                             }

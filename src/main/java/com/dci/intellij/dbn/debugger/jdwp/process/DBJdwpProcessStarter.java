@@ -3,7 +3,6 @@ package com.dci.intellij.dbn.debugger.jdwp.process;
 import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
-import com.dci.intellij.dbn.debugger.common.config.DBRunConfig;
 import com.dci.intellij.dbn.debugger.common.process.DBDebugProcessStarter;
 import com.dci.intellij.dbn.debugger.jdwp.config.DBJdwpRunConfig;
 import com.intellij.debugger.DebugEnvironment;
@@ -42,15 +41,22 @@ public abstract class DBJdwpProcessStarter extends DBDebugProcessStarter {
         super(connection);
     }
 
-    private static int findFreePort(int minPortNumber, int maxPortNumber) throws ExecutionException {
+    private static int findFreePort(String host, int minPortNumber, int maxPortNumber) throws ExecutionException {
+        InetAddress inetAddress;
+        try {
+            inetAddress = InetAddress.getByName(host);
+        } catch (UnknownHostException e) {
+            throw new ExecutionException("Failed to resolve host '" + host + "'", e);
+        }
+
         for (int portNumber = minPortNumber; portNumber < maxPortNumber; portNumber++) {
-            try (ServerSocket ignored = new ServerSocket(portNumber)) {
+            try (ServerSocket ignored = new ServerSocket(portNumber, 50, inetAddress)) {
                 return portNumber;
             } catch (Exception e) {
                 conditionallyLog(e);
             }
         }
-        throw new ExecutionException("Could not find free port in the range " + minPortNumber + " - " + maxPortNumber);
+        throw new ExecutionException("Could not find any free port on host '" + host + "' in the range " + minPortNumber + " - " + maxPortNumber);
     }
 
     @NotNull
@@ -59,16 +65,12 @@ public abstract class DBJdwpProcessStarter extends DBDebugProcessStarter {
         Executor executor = DefaultDebugExecutor.getDebugExecutorInstance();
         RunProfile runProfile = session.getRunProfile();
         assertNotNull(runProfile, "Invalid run profile");
-        if (runProfile instanceof DBRunConfig) {
-            DBRunConfig runConfig = (DBRunConfig) runProfile;
-            runConfig.setCanRun(true);
-        }
 
         ExecutionEnvironment environment = ExecutionEnvironmentBuilder.create(session.getProject(), executor, runProfile).build();
         DBJdwpRunConfig jdwpRunConfig = (DBJdwpRunConfig) runProfile;
         Range<Integer> portRange = jdwpRunConfig.getTcpPortRange();
-        int tcpPort = findFreePort(portRange.getFrom(), portRange.getTo());
         String tcpHost = resolveTcpHost(jdwpRunConfig);
+        int tcpPort = findFreePort(tcpHost, portRange.getFrom(), portRange.getTo());
 
 
         RemoteConnection remoteConnection = new RemoteConnection(true, tcpHost, Integer.toString(tcpPort), true);

@@ -10,12 +10,17 @@ import com.dci.intellij.dbn.editor.console.SQLConsoleEditorListener;
 import com.dci.intellij.dbn.language.editor.DBLanguageFileEditorListener;
 import com.dci.intellij.dbn.plugin.DBNPluginStateListener;
 import com.dci.intellij.dbn.plugin.PluginConflictManager;
+import com.intellij.execution.Executor;
+import com.intellij.execution.executors.DefaultDebugExecutor;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManager;
 import com.intellij.ide.plugins.PluginInstaller;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
+import com.intellij.openapi.extensions.ExtensionsArea;
 import com.intellij.openapi.extensions.PluginId;
+import lombok.extern.slf4j.Slf4j;
 import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -23,10 +28,11 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Objects;
 
 import static com.dci.intellij.dbn.common.component.Components.applicationService;
-import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.getBoolean;
-import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.setBoolean;
+import static com.dci.intellij.dbn.common.options.setting.Settings.getBoolean;
+import static com.dci.intellij.dbn.common.options.setting.Settings.setBoolean;
 import static com.intellij.openapi.fileEditor.FileEditorManagerListener.FILE_EDITOR_MANAGER;
 
+@Slf4j
 @State(
     name = DatabaseNavigator.COMPONENT_NAME,
     storages = @Storage(DatabaseNavigator.STORAGE_FILE)
@@ -57,6 +63,18 @@ public class DatabaseNavigator extends ApplicationComponentBase implements Persi
         ApplicationEvents.subscribe(this, FILE_EDITOR_MANAGER, new SQLConsoleEditorListener());
         ApplicationEvents.subscribe(this, FILE_EDITOR_MANAGER, new SourceCodeEditorListener());
 
+        registerExecutorExtension();
+
+    }
+
+    private static void registerExecutorExtension() {
+        try {
+            ExtensionsArea extensionArea = ApplicationManager.getApplication().getExtensionArea();
+            boolean available = extensionArea.hasExtensionPoint(Executor.EXECUTOR_EXTENSION_NAME);
+            if (!available) extensionArea.getExtensionPoint(Executor.EXECUTOR_EXTENSION_NAME).registerExtension(new DefaultDebugExecutor());
+        } catch (Throwable e) {
+            log.error("Failed to register debug executor extension", e);
+        }
     }
 
 /*

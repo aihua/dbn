@@ -31,6 +31,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -38,10 +39,13 @@ import org.jetbrains.annotations.Nullable;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 
+import static com.dci.intellij.dbn.common.util.GuardedBlocks.createGuardedBlocks;
+import static com.dci.intellij.dbn.common.util.GuardedBlocks.removeGuardedBlocks;
 import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.*;
+import static com.dci.intellij.dbn.vfs.file.status.DBFileStatus.*;
 
 @Slf4j
+@Getter
 public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBParseableVirtualFile, DocumentListener {
 
     private SourceCodeContent originalContent = new SourceCodeContent();
@@ -193,7 +197,7 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
         databaseContent = null;
         sourceLoadError = null;
         set(LATEST, true);
-        set(MODIFIED, false);
+        setModified(false);
     }
 
     public void saveSourceToDatabase() throws SQLException {
@@ -211,7 +215,7 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
         databaseContent = null;
         sourceLoadError = null;
         set(LATEST, true);
-        set(MODIFIED, false);
+        setModified(false);
     }
 
     public void revertLocalChanges() {
@@ -219,27 +223,27 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
         databaseContent = null;
         sourceLoadError = null;
         set(LATEST, true);
-        set(MODIFIED, false);
+        setModified(false);
     }
 
     private void updateFileContent(@Nullable SourceCodeContent newContent, @Nullable CharSequence newText) {
-        Write.run(() -> {
-            if (newContent != null) {
-                localContent = newContent;
-            } else {
-                localContent.setText(newText);
-            }
+        if (newContent != null) {
+            localContent = newContent;
+        } else {
+            localContent.setText(newText);
+        }
+        Document document = Documents.getDocument(DBSourceCodeVirtualFile.this);
+        if (document == null) return;
 
-            Document document = Documents.getDocument(DBSourceCodeVirtualFile.this);
-            if (document != null) {
-                Documents.setText(document, localContent.getText());
-                SourceCodeOffsets offsets = localContent.getOffsets();
-                GuardedBlockMarkers guardedBlocks = offsets.getGuardedBlocks();
-                if (!guardedBlocks.isEmpty()) {
-                    Documents.removeGuardedBlocks(document, GuardedBlockType.READONLY_DOCUMENT_SECTION);
-                    Documents.createGuardedBlocks(document, GuardedBlockType.READONLY_DOCUMENT_SECTION, guardedBlocks, null);
-                }
-            }
+        Documents.setText(document, localContent.getText());
+
+        SourceCodeOffsets offsets = localContent.getOffsets();
+        GuardedBlockMarkers guardedBlocks = offsets.getGuardedBlocks();
+        if (guardedBlocks.isEmpty()) return;
+
+        Write.run(getProject(), () -> {
+            removeGuardedBlocks(document, GuardedBlockType.READONLY_DOCUMENT_SECTION);
+            createGuardedBlocks(document, GuardedBlockType.READONLY_DOCUMENT_SECTION, guardedBlocks, null);
         });
     }
 
@@ -256,10 +260,6 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
     @Override
     public long getLength() {
         return localContent.length();
-    }
-
-    public String getSourceLoadError() {
-        return sourceLoadError;
     }
 
     public void setSourceLoadError(String sourceLoadError) {
@@ -281,10 +281,10 @@ public class DBSourceCodeVirtualFile extends DBContentVirtualFile implements DBP
 
     @Override
     public void documentChanged(@NotNull DocumentEvent event) {
+        CharSequence oldContent = originalContent.getText();
         CharSequence newContent = event.getDocument().getCharsSequence();
-        if (isNot(MODIFIED) && !Strings.equals(originalContent.getText(), newContent)) {
-            set(MODIFIED, true);
-        }
+
+        setModified(!Strings.equals(oldContent, newContent));
         localContent.setText(newContent);
     }
 

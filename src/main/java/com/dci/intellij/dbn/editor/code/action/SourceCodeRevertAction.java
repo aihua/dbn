@@ -15,8 +15,7 @@ import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.LOADING;
-import static com.dci.intellij.dbn.vfs.VirtualFileStatus.MODIFIED;
+import static com.dci.intellij.dbn.vfs.file.status.DBFileStatus.LOADING;
 
 public class SourceCodeRevertAction extends AbstractCodeEditorAction {
     public SourceCodeRevertAction() {
@@ -43,7 +42,7 @@ public class SourceCodeRevertAction extends AbstractCodeEditorAction {
             EnvironmentManager environmentManager = EnvironmentManager.getInstance(project);
             boolean readonly = environmentManager.isReadonly(sourceCodeFile);
             presentation.setVisible(!readonly);
-            presentation.setEnabled(sourceCodeFile.isNot(LOADING) && sourceCodeFile.is(MODIFIED));
+            presentation.setEnabled(sourceCodeFile.isNot(LOADING) && sourceCodeFile.isModified());
         } else {
             presentation.setEnabled(false);
         }

@@ -5,18 +5,20 @@ import com.dci.intellij.dbn.common.util.Unsafe;
 import com.dci.intellij.dbn.diagnostics.data.Activity;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 import org.jdom.Element;
 
-import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.*;
+import static com.dci.intellij.dbn.common.options.setting.Settings.*;
 import static com.dci.intellij.dbn.common.util.Commons.nvl;
 
 @Slf4j
+@UtilityClass
 public final class Diagnostics {
-    private static final DeveloperMode developerMode = new DeveloperMode();
-    private static final DebugLogging debugLogging = new DebugLogging();
-    private static final DatabaseLag databaseLag = new DatabaseLag();
-    private static final Miscellaneous miscellaneous = new Miscellaneous();
+    private static final @Getter DeveloperMode developerMode = new DeveloperMode();
+    private static final @Getter DebugLogging debugLogging = new DebugLogging();
+    private static final @Getter DatabaseLag databaseLag = new DatabaseLag();
+    private static final @Getter Miscellaneous miscellaneous = new Miscellaneous();
 
     public static boolean isDialogSizingReset() {
         return isDeveloperMode() && miscellaneous.dialogSizingReset;
@@ -40,22 +42,6 @@ public final class Diagnostics {
 
     public static boolean isDeveloperMode() {
         return developerMode.isEnabled();
-    }
-
-    public static DeveloperMode getDeveloperMode() {
-        return developerMode;
-    }
-
-    public static DebugLogging getDebugLogging() {
-        return debugLogging;
-    }
-
-    public static DatabaseLag getDatabaseLag() {
-        return databaseLag;
-    }
-
-    public static Miscellaneous getMiscellaneous() {
-        return miscellaneous;
     }
 
     public static boolean hasEnabledFeatures() {

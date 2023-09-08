@@ -9,6 +9,7 @@ import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.connection.*;
 import com.dci.intellij.dbn.connection.config.file.DatabaseFileBundle;
 import com.dci.intellij.dbn.connection.config.ui.ConnectionDatabaseSettingsForm;
+import com.dci.intellij.dbn.driver.DatabaseDriverManager;
 import com.dci.intellij.dbn.driver.DriverSource;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
@@ -24,7 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import static com.dci.intellij.dbn.common.options.setting.SettingsSupport.*;
+import static com.dci.intellij.dbn.common.options.setting.Settings.*;
 
 @Slf4j
 @Getter
@@ -220,6 +221,19 @@ public class ConnectionDatabaseSettings extends BasicConfiguration<ConnectionSet
     @NotNull
     public ConnectionId getConnectionId() {
         return getParent().getConnectionId();
+    }
+
+    public boolean driversLoaded() {
+        DatabaseDriverManager driverManager = DatabaseDriverManager.getInstance();
+        if (driverSource == DriverSource.EXTERNAL) {
+            return driverManager.driversLoaded(getDriverLibraryFile());
+        }
+
+        if (driverSource == DriverSource.BUNDLED) {
+            return driverManager.driversLoaded(databaseType);
+        }
+
+        throw new UnsupportedOperationException("Driver source " + driverSource + " is not supported");
     }
 
     /*********************************************************

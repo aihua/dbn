@@ -17,8 +17,6 @@ import com.intellij.execution.configurations.RunProfileState;
 import com.intellij.execution.executors.DefaultDebugExecutor;
 import com.intellij.execution.runners.ExecutionEnvironment;
 import com.intellij.execution.runners.ExecutionEnvironmentBuilder;
-import com.intellij.execution.ui.ConsoleView;
-import com.intellij.execution.ui.ConsoleViewContentType;
 import com.intellij.openapi.util.Key;
 import com.intellij.util.Range;
 import com.intellij.xdebugger.XDebugProcess;

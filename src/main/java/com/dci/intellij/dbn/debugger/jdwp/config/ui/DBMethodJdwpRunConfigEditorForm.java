@@ -27,8 +27,6 @@ import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 
 import javax.swing.*;
 import java.awt.*;

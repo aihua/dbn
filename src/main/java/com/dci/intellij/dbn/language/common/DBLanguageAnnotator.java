@@ -6,7 +6,7 @@ import com.dci.intellij.dbn.common.thread.ThreadMonitor;
 import com.dci.intellij.dbn.common.thread.ThreadProperty;
 import com.dci.intellij.dbn.language.common.psi.ExecutablePsiElement;
 import com.dci.intellij.dbn.language.common.psi.TokenPsiElement;
-import com.intellij.lang.annotation.AnnotationBuilder;
+import com.intellij.lang.annotation.Annotation;
 import com.intellij.lang.annotation.AnnotationHolder;
 import com.intellij.lang.annotation.Annotator;
 import com.intellij.lang.annotation.HighlightSeverity;
@@ -21,6 +21,7 @@ import org.jetbrains.annotations.Nullable;
 import static com.dci.intellij.dbn.connection.mapping.FileConnectionContextManager.hasConnectivityContext;
 import static com.dci.intellij.dbn.debugger.DatabaseDebuggerManager.isDebugConsole;
 import static com.intellij.lang.annotation.HighlightSeverity.INFORMATION;
+import static com.intellij.lang.annotation.HighlightSeverity.WARNING;
 
 public abstract class DBLanguageAnnotator implements Annotator {
 
@@ -71,24 +72,27 @@ public abstract class DBLanguageAnnotator implements Annotator {
 
 
     protected static void createGutterAnnotation(AnnotationHolder holder, @Compatibility PsiElement element, GutterIconRenderer gutterRenderer) {
-        holder.newSilentAnnotation(INFORMATION)
-                .gutterIconRenderer(gutterRenderer)
-                .create();
+        Annotation annotation = holder.createInfoAnnotation(element.getNode(), null);
+        annotation.setGutterIconRenderer(gutterRenderer);
     }
 
     protected static void createSilentAnnotation(AnnotationHolder holder, @Compatibility PsiElement element, @Nullable TextAttributesKey attributes) {
-        AnnotationBuilder builder = holder.newSilentAnnotation(INFORMATION);
-        withTextAttributes(builder, attributes);
-        builder.create();
+        Annotation annotation = holder.createInfoAnnotation(element.getNode(), null);
+        withTextAttributes(annotation, attributes);
     }
 
     protected static void createAnnotation(AnnotationHolder holder, @Compatibility PsiElement element, @NotNull HighlightSeverity severity, @Nullable TextAttributesKey attributes, String message) {
-        AnnotationBuilder builder = holder.newAnnotation(severity, message).needsUpdateOnTyping(true);
-        withTextAttributes(builder, attributes);
-        builder.create();
+        if (severity == WARNING) {
+            Annotation annotation = holder.createWarningAnnotation(element.getNode(), message);
+            withTextAttributes(annotation, attributes);
+        } else if (severity == INFORMATION) {
+            Annotation annotation = holder.createInfoAnnotation(element.getNode(), message);
+            withTextAttributes(annotation, attributes);
+
+        }
     }
 
-    private static void withTextAttributes(AnnotationBuilder builder, @Nullable TextAttributesKey attributes) {
-        if (attributes != null) builder.textAttributes(attributes);
+    private static void withTextAttributes(Annotation annotation, @Nullable TextAttributesKey attributes) {
+        if (attributes != null) annotation.setTextAttributes(attributes);
     }
 }

@@ -13,11 +13,11 @@ import com.dci.intellij.dbn.plugin.PluginConflictManager;
 import com.intellij.execution.Executor;
 import com.intellij.execution.executors.DefaultDebugExecutor;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
-import com.intellij.ide.plugins.PluginManager;
 import com.intellij.ide.plugins.PluginInstaller;
-import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.ide.plugins.PluginManager;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
+import com.intellij.openapi.extensions.Extensions;
 import com.intellij.openapi.extensions.ExtensionsArea;
 import com.intellij.openapi.extensions.PluginId;
 import lombok.extern.slf4j.Slf4j;
@@ -69,7 +69,7 @@ public class DatabaseNavigator extends ApplicationComponentBase implements Persi
 
     private static void registerExecutorExtension() {
         try {
-            ExtensionsArea extensionArea = ApplicationManager.getApplication().getExtensionArea();
+            ExtensionsArea extensionArea = Extensions.getRootArea();
             boolean available = extensionArea.hasExtensionPoint(Executor.EXECUTOR_EXTENSION_NAME);
             if (!available) extensionArea.getExtensionPoint(Executor.EXECUTOR_EXTENSION_NAME).registerExtension(new DefaultDebugExecutor());
         } catch (Throwable e) {

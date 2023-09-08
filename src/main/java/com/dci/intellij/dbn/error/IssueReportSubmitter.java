@@ -59,12 +59,12 @@ public abstract class IssueReportSubmitter extends ErrorReportSubmitter {
         return reportInfo[0];
     }
 
-    @Override
+    //@Override
     @Compatibility
     public boolean submit(@NotNull IdeaLoggingEvent[] events,
                           @Nullable String additionalInfo,
                           @NotNull Component parentComponent,
-                          @NotNull Consumer<? super SubmittedReportInfo> consumer){
+                          @NotNull Consumer<SubmittedReportInfo> consumer){
 
         Project project = Lookups.getProject(parentComponent);
         IdeaPluginDescriptor plugin = getPluginDescriptor();

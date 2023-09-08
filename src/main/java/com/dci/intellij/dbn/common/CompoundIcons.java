@@ -2,7 +2,6 @@ package com.dci.intellij.dbn.common;
 
 import com.intellij.icons.AllIcons;
 import com.intellij.ui.LayeredIcon;
-import com.intellij.ui.scale.JBUIScale;
 import com.intellij.util.IconUtil;
 import com.intellij.util.ui.JBRectangle;
 import lombok.experimental.UtilityClass;
@@ -25,7 +24,8 @@ public class CompoundIcons {
             layeredIcon.setIcon(i, 0);
             layeredIcon.setIcon(watermark, 1, -(watermark.getIconWidth() / 2) - 3, 0);
 
-            return JBUIScale.scaleIcon(layeredIcon);
+            //return JBUIScale.scaleIcon(layeredIcon);
+            return layeredIcon;
         });
     }
 }

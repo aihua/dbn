@@ -3,9 +3,11 @@ package com.dci.intellij.dbn.common.ui.tab;
 import com.dci.intellij.dbn.common.dispose.Disposer;
 import com.dci.intellij.dbn.common.dispose.StatefulDisposable;
 import com.dci.intellij.dbn.common.ui.form.DBNForm;
+import com.intellij.openapi.actionSystem.ActionManager;
 import com.intellij.openapi.util.ActionCallback;
+import com.intellij.openapi.wm.IdeFocusManager;
 import com.intellij.ui.tabs.TabInfo;
-import com.intellij.ui.tabs.impl.JBTabsImpl;
+import com.intellij.ui.tabs.impl.JBEditorTabs;
 import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
 
@@ -13,12 +15,12 @@ import javax.swing.*;
 import java.util.Map;
 import java.util.Objects;
 
-public class TabbedPane extends JBTabsImpl implements StatefulDisposable {
+public class TabbedPane extends JBEditorTabs implements StatefulDisposable {
     private boolean disposed;
     private final Map<TabInfo, String> tabInfos = ContainerUtil.createConcurrentWeakMap();
 
     public TabbedPane(@NotNull DBNForm form) {
-        super(form.ensureProject());
+        super(form.ensureProject(), ActionManager.getInstance(), IdeFocusManager.findInstance(), form);
         setTabDraggingEnabled(true);
         Disposer.register(form, () -> customDispose());
     }

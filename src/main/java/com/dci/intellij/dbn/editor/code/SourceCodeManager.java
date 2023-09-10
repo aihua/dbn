@@ -1,6 +1,7 @@
 package com.dci.intellij.dbn.editor.code;
 
 import com.dci.intellij.dbn.DatabaseNavigator;
+import com.dci.intellij.dbn.common.compatibility.Compatibility;
 import com.dci.intellij.dbn.common.component.PersistentState;
 import com.dci.intellij.dbn.common.component.ProjectComponentBase;
 import com.dci.intellij.dbn.common.component.ProjectManagerListener;
@@ -25,12 +26,14 @@ import com.dci.intellij.dbn.database.interfaces.DatabaseMetadataInterface;
 import com.dci.intellij.dbn.debugger.DatabaseDebuggerManager;
 import com.dci.intellij.dbn.editor.DBContentType;
 import com.dci.intellij.dbn.editor.EditorProviderId;
+import com.dci.intellij.dbn.editor.code.action.SourceCodeSaveAction;
 import com.dci.intellij.dbn.editor.code.content.SourceCodeContent;
 import com.dci.intellij.dbn.editor.code.diff.MergeAction;
 import com.dci.intellij.dbn.editor.code.diff.SourceCodeDiffManager;
 import com.dci.intellij.dbn.editor.code.options.CodeEditorConfirmationSettings;
 import com.dci.intellij.dbn.editor.code.options.CodeEditorSettings;
 import com.dci.intellij.dbn.execution.statement.DataDefinitionChangeListener;
+import com.dci.intellij.dbn.execution.statement.action.ExecuteStatementEditorAction;
 import com.dci.intellij.dbn.language.common.DBLanguagePsiFile;
 import com.dci.intellij.dbn.language.common.psi.BasePsiElement;
 import com.dci.intellij.dbn.language.common.psi.PsiUtil;
@@ -42,6 +45,7 @@ import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.vfs.file.DBContentVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
 import com.dci.intellij.dbn.vfs.file.DBSourceCodeVirtualFile;
+import com.intellij.openapi.actionSystem.ex.AnActionListener;
 import com.intellij.openapi.components.State;
 import com.intellij.openapi.components.Storage;
 import com.intellij.openapi.editor.Document;
@@ -96,6 +100,17 @@ public class SourceCodeManager extends ProjectComponentBase implements Persisten
         ProjectEvents.subscribe(project, this, DataDefinitionChangeListener.TOPIC, dataDefinitionChangeListener());
         ProjectEvents.subscribe(project, this, EnvironmentManagerListener.TOPIC, environmentManagerListener());
         ProjectEvents.subscribe(project, this, FILE_EDITOR_MANAGER, fileEditorManagerListener());
+
+        registerShortcutInterceptors(project);
+    }
+
+    @Compatibility
+    private void registerShortcutInterceptors(@NotNull Project project) {
+        // silent action listener registration (only available since 18.3.x)
+        Unsafe.silent(() -> {
+            ProjectEvents.subscribe(project, this, AnActionListener.TOPIC, new ExecuteStatementEditorAction.ShortcutInterceptor());
+            ProjectEvents.subscribe(project, this, AnActionListener.TOPIC, new SourceCodeSaveAction.ShortcutInterceptor());
+        });
     }
 
 

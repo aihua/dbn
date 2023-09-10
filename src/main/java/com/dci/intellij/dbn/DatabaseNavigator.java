@@ -4,6 +4,7 @@ import com.dci.intellij.dbn.common.component.ApplicationComponentBase;
 import com.dci.intellij.dbn.common.component.PersistentState;
 import com.dci.intellij.dbn.common.event.ApplicationEvents;
 import com.dci.intellij.dbn.common.file.FileTypeService;
+import com.dci.intellij.dbn.common.util.Unsafe;
 import com.dci.intellij.dbn.diagnostics.Diagnostics;
 import com.dci.intellij.dbn.editor.code.SourceCodeEditorListener;
 import com.dci.intellij.dbn.editor.console.SQLConsoleEditorListener;
@@ -68,13 +69,11 @@ public class DatabaseNavigator extends ApplicationComponentBase implements Persi
     }
 
     private static void registerExecutorExtension() {
-        try {
+        Unsafe.silent(() -> {
             ExtensionsArea extensionArea = Extensions.getRootArea();
             boolean available = extensionArea.hasExtensionPoint(Executor.EXECUTOR_EXTENSION_NAME);
             if (!available) extensionArea.getExtensionPoint(Executor.EXECUTOR_EXTENSION_NAME).registerExtension(new DefaultDebugExecutor());
-        } catch (Throwable e) {
-            log.error("Failed to register debug executor extension", e);
-        }
+        });
     }
 
 /*

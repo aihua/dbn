@@ -4,6 +4,7 @@ import com.intellij.icons.AllIcons;
 import com.intellij.ui.LayeredIcon;
 import com.intellij.util.IconUtil;
 import com.intellij.util.ui.JBRectangle;
+import com.intellij.util.ui.JBUI;
 import lombok.experimental.UtilityClass;
 
 import javax.swing.*;
@@ -22,10 +23,9 @@ public class CompoundIcons {
             LayeredIcon layeredIcon = new LayeredIcon(2);
 
             layeredIcon.setIcon(i, 0);
-            layeredIcon.setIcon(watermark, 1, -(watermark.getIconWidth() / 2) - 3, 0);
+            layeredIcon.setIcon(watermark, 1, -(watermark.getIconWidth() / 2) - 16, -4);
 
-            //return JBUIScale.scaleIcon(layeredIcon);
-            return layeredIcon;
+            return JBUI.scale(layeredIcon);
         });
     }
 }

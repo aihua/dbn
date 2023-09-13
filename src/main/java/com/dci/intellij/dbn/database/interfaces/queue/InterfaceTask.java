@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.LockSupport;
 
+import static com.dci.intellij.dbn.common.thread.ThreadMonitor.*;
 import static com.dci.intellij.dbn.database.interfaces.queue.InterfaceTaskStatus.*;
 import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 
@@ -64,22 +65,15 @@ class InterfaceTask<R> implements TimeAware {
             return;
         }
 
-        boolean dispatchThread = ThreadMonitor.isDispatchThread();
-        boolean modalProcess = ThreadMonitor.isModalProcess();
+        boolean validCallingThread = verifyCallingTread();
         while (status.isBefore(FINISHED)) {
-            LockSupport.parkNanos(this, dispatchThread ? ONE_SECOND : TEN_SECONDS);
+            LockSupport.parkNanos(this, validCallingThread ? TEN_SECONDS : ONE_SECOND);
 
             if (is(InterfaceTaskStatus.CANCELLED)) {
                 break;
             }
 
-            if (dispatchThread) {
-                log.error("Interface loads not allowed from event dispatch thread: ThreadInfo {}",
-                        ThreadMonitor.current(),
-                        new RuntimeException("Illegal database interface invocation"));
-
-                break;
-            }
+            if (!validCallingThread) break;
 
             if (isOlderThan(5, TimeUnit.MINUTES)) {
                 exception = new TimeoutException();
@@ -90,6 +84,20 @@ class InterfaceTask<R> implements TimeAware {
         if (exception == null) return;
 
         throw Exceptions.toSqlException(exception);
+    }
+
+    private static boolean verifyCallingTread() {
+        if (isDispatchThread()) return handleIllegalCallingThread("event dispatch thread");
+        if (isWriteActionThread()) return handleIllegalCallingThread("write action threads");
+        if (isReadActionThread()) return handleIllegalCallingThread("read action threads");
+        return true;
+    }
+
+    private static boolean handleIllegalCallingThread(String identifier) {
+        log.error("Database interface access is not allowed from {}: ThreadInfo {}", identifier,
+                ThreadMonitor.current(),
+                new RuntimeException("Illegal database interface invocation"));
+        return false;
     }
 
     public boolean is(InterfaceTaskStatus status) {

@@ -5,6 +5,7 @@ import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.editor.BasicTextEditor;
 import com.dci.intellij.dbn.common.navigation.NavigationInstructions;
 import com.dci.intellij.dbn.common.thread.Dispatch;
+import com.dci.intellij.dbn.common.thread.Read;
 import com.dci.intellij.dbn.common.thread.ThreadMonitor;
 import com.dci.intellij.dbn.common.thread.ThreadProperty;
 import com.dci.intellij.dbn.common.ui.form.DBNToolbarForm;
@@ -55,6 +56,8 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.List;
 import java.util.*;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import static com.dci.intellij.dbn.common.dispose.Checks.isValid;
 import static com.dci.intellij.dbn.common.util.Unsafe.cast;
@@ -232,14 +235,7 @@ public class Editors {
         Project project = editor.getProject();
         if (project == null) return null;
 
-        FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
-        FileEditor[] allEditors = fileEditorManager.getAllEditors();
-        for (FileEditor fileEditor : allEditors) {
-            if (editor == getEditor(fileEditor)) {
-                return fileEditor;
-            }
-        }
-        return null;
+        return getFileEditor(project, e -> editor == getEditor(e));
     }
 
     public static void initEditorHighlighter(
@@ -309,31 +305,48 @@ public class Editors {
 
         if (contentFile instanceof DBSourceCodeVirtualFile) {
             DBSourceCodeVirtualFile sourceCodeFile = (DBSourceCodeVirtualFile) contentFile;
-            FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
-            FileEditor[] allEditors = fileEditorManager.getAllEditors();
-            for (FileEditor fileEditor : allEditors) {
-                if (fileEditor instanceof SourceCodeEditor) {
-                    SourceCodeEditor sourceCodeEditor = (SourceCodeEditor) fileEditor;
-                    DBSourceCodeVirtualFile virtualFile = sourceCodeEditor.getVirtualFile();
-                    if (virtualFile.equals(sourceCodeFile)) {
-                        setEditorReadonly(sourceCodeEditor.getEditor(), readonly);
-                    }
+            for (SourceCodeEditor sourceCodeEditor: getFileEditors(project, SourceCodeEditor.class)) {
+                DBSourceCodeVirtualFile virtualFile = sourceCodeEditor.getVirtualFile();
+                if (virtualFile.equals(sourceCodeFile)) {
+                    setEditorReadonly(sourceCodeEditor.getEditor(), readonly);
                 }
             }
         } else if (contentFile instanceof DBDatasetVirtualFile) {
             DBDatasetVirtualFile datasetFile = (DBDatasetVirtualFile) contentFile;
-            FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
-            FileEditor[] allEditors = fileEditorManager.getAllEditors();
-            for (FileEditor fileEditor : allEditors) {
-                if (fileEditor instanceof DatasetEditor) {
-                    DatasetEditor datasetEditor = (DatasetEditor) fileEditor;
-                    if (datasetEditor.getDatabaseFile().equals(datasetFile.getMainDatabaseFile())) {
-                        datasetEditor.getEditorTable().cancelEditing();
-                        datasetEditor.setEnvironmentReadonly(readonly);
-                    }
+            DBEditableObjectVirtualFile objectFile = datasetFile.getMainDatabaseFile();
+            for (DatasetEditor datasetEditor : getFileEditors(project, DatasetEditor.class)) {
+                if (Objects.equals(datasetEditor.getDatabaseFile(), objectFile)) {
+                    datasetEditor.getEditorTable().cancelEditing();
+                    datasetEditor.setEnvironmentReadonly(readonly);
                 }
             }
         }
+    }
+
+    public static <T extends FileEditor> List<T> getFileEditors(Project project, Class<T> type) {
+        return getFileEditors(project, e -> type.isAssignableFrom(e.getClass()));
+    }
+
+    public static <T extends FileEditor> List<T> getFileEditors(Project project, Predicate<FileEditor> filter) {
+        FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
+        FileEditor[] allEditors = Read.call(fileEditorManager, m -> m.getAllEditors());
+        return Arrays
+                .stream(allEditors)
+                .filter(filter)
+                .map(e -> (T) e)
+                .collect(Collectors.toList());
+    }
+
+    @Nullable
+    public static <T extends FileEditor> T getFileEditor(Project project, Predicate<FileEditor> filter) {
+        FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
+        FileEditor[] allEditors = Read.call(fileEditorManager, m -> m.getAllEditors());
+        return Arrays
+                .stream(allEditors)
+                .filter(filter)
+                .map(e -> (T) e)
+                .findFirst()
+                .orElse(null);
     }
 
     @Nullable

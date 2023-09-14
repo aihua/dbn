@@ -5,9 +5,10 @@ import com.dci.intellij.dbn.common.util.Actions;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.actionSystem.DataContext;
-import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
+
+import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
 
 public abstract class ComplementaryShortcutInterceptor extends ShortcutInterceptor {
 
@@ -26,12 +27,20 @@ public abstract class ComplementaryShortcutInterceptor extends ShortcutIntercept
 
     @Override
     @Compatibility
-    public void afterActionPerformed(@NotNull AnAction action, @NotNull DataContext dataContext, @NotNull AnActionEvent event) {
+    public void afterActionPerformed(AnAction action, DataContext dataContext, AnActionEvent event) {
         attemptDelegation(action, event);
     }
 
+    @Override
+    @Compatibility
+    public void beforeActionPerformed(AnAction anAction, DataContext dataContext, AnActionEvent anActionEvent) {
 
-    private void attemptDelegation(@NotNull AnAction action, @NotNull AnActionEvent event) {
+    }
+
+
+    private void attemptDelegation(AnAction action, AnActionEvent event) {
+        if (isNotValid(action)) return;
+        if (isNotValid(event)) return;
         if (Objects.equals(delegateActionClass, action.getClass())) return; // action invoked already
         if (!Actions.isConsumed(event)) return; // event not consumed, there is still hope
         if (!matchesDelegateShortcuts(event)) return; // event not matching delegate shortcut

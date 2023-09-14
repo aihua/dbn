@@ -58,7 +58,7 @@ public abstract class DynamicContentBase<T extends DynamicContentElement>
 
         this.parent = parent;
         this.dependencyAdapter = dependencyAdapter;
-        if (properties != null && properties.length > 0) {
+        if (properties != null) {
             for (DynamicContentProperty status : properties) {
                 set(status, true);
             }
@@ -190,9 +190,7 @@ public abstract class DynamicContentBase<T extends DynamicContentElement>
 
     @Override
     public void load() {
-        if (shouldLoad()) {
-            ensureLoaded(false);
-        }
+        ensureLoaded(false);
     }
 
     @Override
@@ -241,17 +239,15 @@ public abstract class DynamicContentBase<T extends DynamicContentElement>
      * Synchronised block making sure the content is loaded before the thread is released
      */
     private void ensureLoaded(boolean force) {
-        Synchronized.on(this,
-                o -> o.shouldLoad(),
-                o -> {
-                    o.set(LOADING, true);
-                    try {
-                        o.performLoad(force);
-                    } finally {
-                        o.set(LOADING, false);
-                        o.changeSignature();
-                    }
-                });
+        Synchronized.on(this, o -> {
+            o.set(LOADING, true);
+            try {
+                o.performLoad(force);
+            } finally {
+                o.set(LOADING, false);
+                o.changeSignature();
+            }
+        });
 
     }
 
@@ -325,7 +321,7 @@ public abstract class DynamicContentBase<T extends DynamicContentElement>
 
     private void replaceElements(List<T> elements) {
         beforeUpdate();
-        if (isDisposed() || elements == null || elements.size() == 0) {
+        if (isDisposed() || elements == null || elements.isEmpty()) {
             elements = cast(EMPTY_CONTENT);
         } else {
             sortElements(elements);
@@ -339,7 +335,7 @@ public abstract class DynamicContentBase<T extends DynamicContentElement>
         this.elements = elements;
 
         afterUpdate();
-        if (oldElements.size() != 0 || elements.size() != 0 ){
+        if (!oldElements.isEmpty() || !elements.isEmpty()){
             notifyChangeListeners();
         }
         if (isMaster()) {
@@ -364,8 +360,8 @@ public abstract class DynamicContentBase<T extends DynamicContentElement>
 
         if (canLoadFast() ||
                 ThreadMonitor.isBackgroundProcess() ||
-                ThreadMonitor.isProgressProcess()) {
-
+                ThreadMonitor.isProgressProcess() ||
+                ThreadMonitor.isModalProcess()) {
             load();
         } else{
             loadInBackground();

@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
   id("java")
   id("org.jetbrains.kotlin.jvm") version "1.7.20"
-  id("org.jetbrains.intellij") version "1.13.3"
+  id("org.jetbrains.intellij") version "1.15.0"
 }
 
 group = "com.dci"
@@ -21,8 +21,8 @@ dependencies {
   implementation("org.apache.poi:poi:5.2.3")
   implementation("org.apache.poi:poi-ooxml:5.2.3")
   implementation("org.apache.poi:poi-ooxml-schemas:4.1.2")
-  //implementation("com.jcraft:jsch:0.1.55")
   implementation("com.github.mwiede:jsch:0.2.11")
+  compileOnly("com.oracle.database.jdbc:ojdbc8:21.9.0.0")
 }
 
 sourceSets{

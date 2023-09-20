@@ -138,12 +138,12 @@ public class PluginConflictManager extends ApplicationComponentBase implements P
 
 
     private void disablePlugin() {
+        // prompt again if needed on reinstall
+        conflictPrompted = false;
+
         String pluginId = DatabaseNavigator.DBN_PLUGIN_ID.getIdString();
         PluginManager.disablePlugin(pluginId);
         ApplicationManagerEx.getApplicationEx().restart(true);
-
-        // prompt again if needed on reinstall
-        conflictPrompted = false;
     }
 
     public DBPluginStatus evaluateDbnPluginStatus() {
@@ -208,8 +208,8 @@ public class PluginConflictManager extends ApplicationComponentBase implements P
         Element element = new Element("state");
         setBoolean(element, "plugin-conflict-prompted", conflictPrompted);
         setBoolean(element, "file-types-claimed", fileTypesClaimed);
-        getEnum(element, "sql-plugin-status", sqlPluginStatus);
-        getEnum(element, "sbn-plugin-status", dbnPluginStatus);
+        setEnum(element, "sql-plugin-status", sqlPluginStatus);
+        setEnum(element, "sbn-plugin-status", dbnPluginStatus);
 
         return element;
     }

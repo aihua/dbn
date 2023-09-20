@@ -5,8 +5,8 @@ import com.dci.intellij.dbn.common.component.EagerService;
 import com.dci.intellij.dbn.common.component.PersistentState;
 import com.dci.intellij.dbn.common.event.ApplicationEvents;
 import com.dci.intellij.dbn.common.file.FileTypeService;
-import com.dci.intellij.dbn.common.util.Unsafe;
 import com.dci.intellij.dbn.common.options.setting.Settings;
+import com.dci.intellij.dbn.common.util.Unsafe;
 import com.dci.intellij.dbn.diagnostics.Diagnostics;
 import com.dci.intellij.dbn.editor.code.SourceCodeEditorListener;
 import com.dci.intellij.dbn.editor.console.SQLConsoleEditorListener;
@@ -31,8 +31,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Objects;
 
 import static com.dci.intellij.dbn.common.component.Components.applicationService;
-import static com.dci.intellij.dbn.common.options.setting.Settings.getBoolean;
-import static com.dci.intellij.dbn.common.options.setting.Settings.setBoolean;
 import static com.intellij.openapi.fileEditor.FileEditorManagerListener.FILE_EDITOR_MANAGER;
 
 @Slf4j
@@ -71,7 +69,7 @@ public class DatabaseNavigator extends ApplicationComponentBase implements Persi
     private static void registerExecutorExtension() {
         Unsafe.silent(() -> {
             ExtensionsArea extensionArea = Extensions.getRootArea();
-            boolean available = extensionArea.hasExtensionPoint(Executor.EXECUTOR_EXTENSION_NAME);
+            boolean available = extensionArea.hasExtensionPoint(Executor.EXECUTOR_EXTENSION_NAME.getName());
             if (!available) extensionArea.getExtensionPoint(Executor.EXECUTOR_EXTENSION_NAME).registerExtension(new DefaultDebugExecutor());
         });
     }

@@ -56,6 +56,11 @@ public class ProjectComponentsInitializer extends ProjectComponentBase implement
                 ProjectComponentsInitializer initializer = getInstance(project);
                 if (initializer.shouldInitialize(file)) initializer.initializeComponents();
             }
+
+            @Override
+            public void beforeFileClosed(@NotNull FileEditorManager source, @NotNull VirtualFile file) {
+
+            }
         };
     }
 

@@ -87,7 +87,7 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements DatabaseC
         VirtualFile virtualFile = viewProvider.getVirtualFile();
         if (virtualFile instanceof DBSourceCodeVirtualFile) {
             DBSourceCodeVirtualFile sourceCodeFile = (DBSourceCodeVirtualFile) virtualFile;
-            this.underlyingObject = DBObjectRef.of(sourceCodeFile.getObject());
+            this.underlyingObject = sourceCodeFile.getObjectRef();
         }
 
         IFileElementType nodeType = parserDefinition.getFileNodeType();
@@ -341,8 +341,11 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements DatabaseC
         if (underlyingObject != null) {
             DBObject parentObject = underlyingObject.getParentObject();
             return DBObjectPsiCache.asPsiDirectory(parentObject);
-
         }
+        return Read.call(this, f -> f.getSuperParent());
+    }
+
+    private PsiDirectory getSuperParent() {
         return super.getParent();
     }
 
@@ -352,8 +355,12 @@ public abstract class DBLanguagePsiFile extends PsiFileImpl implements DatabaseC
         if (virtualFile.getFileSystem() instanceof DatabaseFileSystem) {
             return Checks.isValid(virtualFile);
         } else {
-            return super.isValid();
+            return Read.call(() -> isSuperValid());
         }
+    }
+
+    private boolean isSuperValid() {
+        return super.isValid();
     }
 
     public String getParseRootId() {

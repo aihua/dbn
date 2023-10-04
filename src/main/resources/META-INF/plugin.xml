@@ -1,8 +1,7 @@
 <idea-plugin url="https://plugins.jetbrains.com/plugin/1800-database-navigator">
     <name>Database Navigator</name>
     <id>DBN</id>
-    <!--3050 -->
-    <version>3.4.1220.1</version>
+    <version>3.4.1570.1</version>
     <category>Database</category>
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.lang</depends>
@@ -30,6 +29,11 @@
     ]]></description>
     <change-notes><![CDATA[
         <ul>
+            <li><b>3.4.1570</b>
+            <ul>
+                <li>Addressed IDE freezing issues
+                <li>Bug fixes and performance improvements
+            </ul>
             <li><b>3.4.1220</b>
             <ul>
                 <li>Discontinued support for IntelliJ 17 and earlier versions
@@ -330,6 +334,7 @@
         <projectService serviceImplementation="com.dci.intellij.dbn.object.filter.name.ObjectNameFilterManager"/>
         <projectService serviceImplementation="com.dci.intellij.dbn.object.filter.quick.ObjectQuickFilterManager"/>
         <projectService serviceImplementation="com.dci.intellij.dbn.object.dependency.ObjectDependencyManager"/>
+        <projectService serviceImplementation="com.dci.intellij.dbn.object.status.ObjectStatusManager"/>
         <projectService serviceImplementation="com.dci.intellij.dbn.options.ProjectSettingsManager"/>
         <projectService serviceImplementation="com.dci.intellij.dbn.vfs.DatabaseFileManager"/>
         <projectService serviceImplementation="com.dci.intellij.dbn.connection.session.DatabaseSessionManager"/>
@@ -384,7 +389,7 @@
             <action id="DBNavigator.Actions.EditorOptions" class="com.dci.intellij.dbn.language.editor.action.EditorOptionsAction" text="Script Editor - Local Settings" icon="/img/action/Options.png" />
             <action id="DBNavigator.Actions.EditorSettings" class="com.dci.intellij.dbn.language.editor.action.EditorSettingsOpenAction" text="Script Editor - Settings"/>
         </group>
-        <group id="DBNavigator.Actions.MainMenu" text="_DB Navigator">
+        <group id="DBNavigator.Actions.MainMenu" text="_DB Navigator" popup="true">
             <action class="com.dci.intellij.dbn.menu.action.DatabaseBrowserOpenAction" text="Database Browser" id="DBNavigator.Actions.MainMenu.DatabaseBrowser"/>
             <separator/>
             <action class="com.dci.intellij.dbn.menu.action.SQLConsoleOpenAction" text="Open SQL Console..." id="DBNavigator.Actions.MainMenu.OpenSQLConsole" icon="/img/file/SQLConsole.png">

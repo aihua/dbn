@@ -25,17 +25,13 @@ public final class Progress {
         if (isNotValid(project)) return;
         title = Titles.suffixed(title, context);
 
-        ThreadInfo invoker = ThreadMonitor.current();
-        Task task = new Backgroundable(project, title, cancellable, ALWAYS_BACKGROUND) {
+        ThreadInfo invoker = ThreadInfo.copy();
+        schedule(new Backgroundable(project, title, cancellable, ALWAYS_BACKGROUND) {
             @Override
             public void run(@NotNull ProgressIndicator indicator) {
-                ThreadMonitor.surround(project, invoker, PROGRESS, () -> guarded(() -> {
-                    indicator.setText(text);
-                    runnable.run(indicator);
-                }));
+                execute(indicator, PROGRESS, project, invoker, text, runnable);
             }
-        };
-        schedule(task);
+        });
     }
 
 
@@ -43,14 +39,11 @@ public final class Progress {
         if (isNotValid(project)) return;
         title = Titles.suffixed(title, context);
 
-        ThreadInfo invoker = ThreadMonitor.current();
-        Task task = new Task.Backgroundable(project, title, cancellable, DEAF) {
+        ThreadInfo invoker = ThreadInfo.copy();
+        schedule(new Task.Backgroundable(project, title, cancellable, DEAF) {
             @Override
             public void run(@NotNull ProgressIndicator indicator) {
-                ThreadMonitor.surround(project, invoker, PROGRESS, () -> guarded(() -> {
-                    indicator.setText(text);
-                    runnable.run(indicator);
-                }));
+                execute(indicator, PROGRESS, project, invoker, text, runnable);
             }
 
             @Override
@@ -63,8 +56,7 @@ public final class Progress {
                 // TODO return true;
                 return false;
             }
-        };
-        schedule(task);
+        });
     }
 
 
@@ -72,25 +64,27 @@ public final class Progress {
         if (isNotValid(project)) return;
         title = Titles.suffixed(title, context);
 
-        ThreadInfo invoker = ThreadMonitor.current();
-        Task task = new Task.Modal(project, title, cancellable) {
+        ThreadInfo invoker = ThreadInfo.copy();
+        schedule(new Task.Modal(project, title, cancellable) {
             @Override
             public void run(@NotNull ProgressIndicator indicator) {
-                ThreadMonitor.surround(project, invoker, MODAL, () -> guarded(() -> {
-                    indicator.setText(text);
-                    runnable.run(indicator);
-                }));
-
+                execute(indicator, MODAL, project, invoker, text, runnable);
             }
-        };
-        schedule(task);
+        });
+    }
+
+    private static void execute(ProgressIndicator indicator, ThreadProperty threadProperty, Project project, ThreadInfo invoker, String text, ProgressRunnable runnable) {
+        ThreadMonitor.surround(project, invoker, threadProperty, () -> guarded(() -> {
+            indicator.setText(text);
+            runnable.run(indicator);
+        }));
     }
 
     private static void schedule(Task task) {
         if (!allValid(task, task.getProject())) return;
 
         ProgressManager progressManager = ProgressManager.getInstance();
-        progressManager.run(task);
+        Dispatch.run(() -> progressManager.run(task));
     }
 
     public static double progressOf(int is, int should) {

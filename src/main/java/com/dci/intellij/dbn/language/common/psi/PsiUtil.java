@@ -25,6 +25,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Iterator;
 
 import static com.dci.intellij.dbn.common.dispose.Checks.isNotValid;
+import static com.dci.intellij.dbn.common.util.Unsafe.cast;
 
 public class PsiUtil {
 
@@ -299,9 +300,10 @@ public class PsiUtil {
 
     @Nullable
     public static PsiFile getPsiFile(Project project, Document document) {
-        PsiDocumentManager psiDocumentManager = PsiDocumentManager.getInstance(project);
-        return psiDocumentManager == null ? null : psiDocumentManager.getPsiFile(document);
+        PsiDocumentManager documentManager = PsiDocumentManager.getInstance(project);
+        return Read.call(documentManager, m -> m.getPsiFile(document));
     }
+
 
     @Nullable
     public static <T extends PsiFile> T getPsiFile(@NotNull Project project, @NotNull VirtualFile virtualFile) {
@@ -309,7 +311,7 @@ public class PsiUtil {
         if (isNotValid(virtualFile)) return null;
 
         PsiManager psiManager = PsiManager.getInstance(project);
-        return (T) Read.call(() -> psiManager.findFile(virtualFile));
+        return Read.call(() -> cast(psiManager.findFile(virtualFile)));
     }
 
 

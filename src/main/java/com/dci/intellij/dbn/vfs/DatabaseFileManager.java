@@ -9,7 +9,8 @@ import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.exception.ProcessDeferredException;
 import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.thread.Progress;
-import com.dci.intellij.dbn.common.util.Lists;
+import com.dci.intellij.dbn.common.thread.ThreadMonitor;
+import com.dci.intellij.dbn.common.thread.ThreadProperty;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.ConnectionId;
@@ -46,6 +47,7 @@ import java.util.*;
 
 import static com.dci.intellij.dbn.common.options.setting.Settings.newElement;
 import static com.dci.intellij.dbn.common.util.Commons.list;
+import static com.dci.intellij.dbn.common.util.Lists.anyMatch;
 
 @State(
     name = DatabaseFileManager.COMPONENT_NAME,
@@ -153,7 +155,11 @@ public class DatabaseFileManager extends ProjectComponentBase implements Persist
     }
 
     public boolean isFileOpened(@NotNull DBObject object) {
-        return Lists.anyMatch(openFiles, file -> file.getObjectRef().is(object));
+        return anyMatch(openFiles, file -> file.getObjectRef().is(object));
+    }
+
+    public boolean isFileOpened(@NotNull DBObjectRef object) {
+        return anyMatch(openFiles, file -> Objects.equals(file.getObjectRef(), object));
     }
 
     private void closeFiles(ConnectionId connectionId) {
@@ -243,28 +249,29 @@ public class DatabaseFileManager extends ProjectComponentBase implements Persist
     private static void reopenDatabaseEditors(@NotNull List<DBObjectRef<DBSchemaObject>> objectRefs, @NotNull ConnectionHandler connection) {
         Project project = connection.getProject();
         ConnectionAction.invoke("opening database editors", false, connection, action ->
-                Progress.background(project, connection, true,
-                        "Restoring database workspace",
-                        "Opening database editors for connection " + connection.getName(),
-                        progress -> {
-                            progress.setIndeterminate(true);
-                            DatabaseFileEditorManager editorManager = DatabaseFileEditorManager.getInstance(project);
+                ThreadMonitor.surround(project, ThreadProperty.WORKSPACE_RESTORE, () ->
+                        Progress.background(project, connection, true,
+                                "Restoring database workspace",
+                                "Opening database editors for connection " + connection.getName(),
+                                progress -> {
+                                    progress.setIndeterminate(true);
+                                    DatabaseFileEditorManager editorManager = DatabaseFileEditorManager.getInstance(project);
 
-                            for (DBObjectRef<DBSchemaObject> objectRef : objectRefs) {
-                                if (progress.isCanceled()) continue;
-                                if (!connection.canConnect()) continue;
+                                    for (DBObjectRef<DBSchemaObject> objectRef : objectRefs) {
+                                        if (progress.isCanceled()) continue;
+                                        if (!connection.canConnect()) continue;
 
-                                DBObject object = objectRef.get();
-                                if (object == null) continue;
+                                        DBObject object = objectRef.get();
+                                        if (object == null) continue;
 
-                                progress.setText2(connection.getName() + " - " + objectRef.getQualifiedNameWithType());
-                                if (object instanceof DBConsole) {
-                                    DBConsole console = (DBConsole) object;
-                                    editorManager.openDatabaseConsole(console, false, false);
-                                } else {
-                                    editorManager.openEditor(object, null, false, false);
-                                }
-                            }
-                        }));
+                                        progress.setText2(connection.getName() + " - " + objectRef.getQualifiedNameWithType());
+                                        if (object instanceof DBConsole) {
+                                            DBConsole console = (DBConsole) object;
+                                            editorManager.openDatabaseConsole(console, false, false);
+                                        } else {
+                                            editorManager.openEditor(object, null, false, false);
+                                        }
+                                    }
+                                })));
     }
 }

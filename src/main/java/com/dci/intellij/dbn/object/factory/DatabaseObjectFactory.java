@@ -2,10 +2,10 @@ package com.dci.intellij.dbn.object.factory;
 
 import com.dci.intellij.dbn.common.component.Components;
 import com.dci.intellij.dbn.common.component.ProjectComponentBase;
-import com.dci.intellij.dbn.common.dispose.Failsafe;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.thread.Callback;
 import com.dci.intellij.dbn.common.thread.Progress;
+import com.dci.intellij.dbn.common.util.Dialogs;
 import com.dci.intellij.dbn.common.util.Messages;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.database.interfaces.DatabaseDataDefinitionInterface;
@@ -22,7 +22,6 @@ import com.dci.intellij.dbn.object.factory.ui.common.ObjectFactoryInputDialog;
 import com.dci.intellij.dbn.object.type.DBObjectType;
 import com.dci.intellij.dbn.vfs.DatabaseFileManager;
 import com.intellij.openapi.project.Project;
-import lombok.val;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.SQLException;
@@ -30,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.dci.intellij.dbn.common.Priority.HIGHEST;
+import static com.dci.intellij.dbn.common.dispose.Failsafe.nn;
 import static com.dci.intellij.dbn.common.message.MessageCallback.when;
 import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
 import static com.dci.intellij.dbn.object.type.DBObjectType.*;
@@ -66,8 +66,7 @@ public class DatabaseObjectFactory extends ProjectComponentBase {
     public void openFactoryInputDialog(DBSchema schema, DBObjectType objectType) {
         Project project = getProject();
         if (objectType.isOneOf(FUNCTION, PROCEDURE)) {
-            ObjectFactoryInputDialog dialog = new ObjectFactoryInputDialog(project, schema, objectType);
-            dialog.show();
+            Dialogs.show(() -> new ObjectFactoryInputDialog(project, schema, objectType));
         } else {
             Messages.showErrorDialog(project, "Operation not supported", "Creation of " + objectType.getListName() + " is not supported yet.");
         }
@@ -110,12 +109,10 @@ public class DatabaseObjectFactory extends ProjectComponentBase {
                         dataDefinition.createMethod(factoryInput, conn);
                     });
 
-            val methodList = schema.getChildObjectList(objectType);
-            Failsafe.nn(methodList).reload();
+            nn(schema.getChildObjectList(objectType)).reload();
 
             DBMethod method = schema.getChildObject(objectType, objectName, false);
-            val argumentList = method.getChildObjectList(ARGUMENT);
-            Failsafe.nn(argumentList).reload();
+            nn(method.getChildObjectList(ARGUMENT)).reload();
 
             DatabaseFileEditorManager editorManager = DatabaseFileEditorManager.getInstance(getProject());
             editorManager.connectAndOpenEditor(method, null, false, true);

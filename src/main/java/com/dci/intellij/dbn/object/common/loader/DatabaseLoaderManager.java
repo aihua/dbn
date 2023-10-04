@@ -2,7 +2,6 @@ package com.dci.intellij.dbn.object.common.loader;
 
 import com.dci.intellij.dbn.common.component.ProjectComponentBase;
 import com.dci.intellij.dbn.common.event.ProjectEvents;
-import com.dci.intellij.dbn.common.thread.Dispatch;
 import com.dci.intellij.dbn.common.util.Documents;
 import com.dci.intellij.dbn.common.util.Editors;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
@@ -31,7 +30,7 @@ public class DatabaseLoaderManager extends ProjectComponentBase {
 
     @NotNull
     private ConnectionLoadListener connectionLoadListener(Project project) {
-        return connection -> Dispatch.run(() -> {
+        return connection -> {
             checkDisposed();
             FileEditorManager fileEditorManager = FileEditorManager.getInstance(project);
             FileConnectionContextManager contextManager = FileConnectionContextManager.getInstance(project);
@@ -39,16 +38,16 @@ public class DatabaseLoaderManager extends ProjectComponentBase {
             for (VirtualFile openFile : openFiles) {
                 checkDisposed();
                 ConnectionHandler activeConnection = contextManager.getConnection(openFile);
-                if (activeConnection == connection) {
-                    FileEditor[] fileEditors = fileEditorManager.getEditors(openFile);
-                    for (FileEditor fileEditor : fileEditors) {
-                        checkDisposed();
-                        Editor editor = Editors.getEditor(fileEditor);
-                        Documents.refreshEditorAnnotations(editor);
-                    }
+                if (activeConnection != connection) continue;
+
+                FileEditor[] fileEditors = fileEditorManager.getEditors(openFile);
+                for (FileEditor fileEditor : fileEditors) {
+                    checkDisposed();
+                    Editor editor = Editors.getEditor(fileEditor);
+                    Documents.refreshEditorAnnotations(editor);
                 }
             }
-        });
+        };
     }
 
     @Override

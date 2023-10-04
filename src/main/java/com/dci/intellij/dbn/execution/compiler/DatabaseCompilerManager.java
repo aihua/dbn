@@ -5,6 +5,7 @@ import com.dci.intellij.dbn.common.event.ProjectEvents;
 import com.dci.intellij.dbn.common.routine.Consumer;
 import com.dci.intellij.dbn.common.thread.Background;
 import com.dci.intellij.dbn.common.thread.Progress;
+import com.dci.intellij.dbn.common.util.Dialogs;
 import com.dci.intellij.dbn.connection.ConnectionAction;
 import com.dci.intellij.dbn.connection.ConnectionHandler;
 import com.dci.intellij.dbn.connection.jdbc.DBNConnection;
@@ -20,7 +21,6 @@ import com.dci.intellij.dbn.execution.ExecutionManager;
 import com.dci.intellij.dbn.execution.compiler.ui.CompilerTypeSelectionDialog;
 import com.dci.intellij.dbn.object.DBSchema;
 import com.dci.intellij.dbn.object.common.DBSchemaObject;
-import com.dci.intellij.dbn.object.common.property.DBObjectProperty;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatus;
 import com.dci.intellij.dbn.object.common.status.DBObjectStatusHolder;
 import com.dci.intellij.dbn.vfs.file.DBEditableObjectVirtualFile;
@@ -35,8 +35,11 @@ import java.sql.SQLException;
 import java.util.List;
 
 import static com.dci.intellij.dbn.common.Priority.HIGH;
+import static com.dci.intellij.dbn.common.Priority.LOW;
 import static com.dci.intellij.dbn.common.component.Components.projectService;
 import static com.dci.intellij.dbn.diagnostics.Diagnostics.conditionallyLog;
+import static com.dci.intellij.dbn.execution.compiler.CompilerActionSource.BULK_COMPILE;
+import static com.dci.intellij.dbn.object.common.property.DBObjectProperty.COMPILABLE;
 import static com.dci.intellij.dbn.object.common.status.DBObjectStatus.COMPILING;
 
 public class DatabaseCompilerManager extends ProjectComponentBase {
@@ -57,42 +60,36 @@ public class DatabaseCompilerManager extends ProjectComponentBase {
             public void sourceCodeSaved(@NotNull DBSourceCodeVirtualFile sourceCodeFile, @Nullable SourceCodeEditor fileEditor) {
                 Project project = getProject();
                 DBSchemaObject object = sourceCodeFile.getObject();
+
+                if (!DatabaseFeature.OBJECT_INVALIDATION.isSupported(object)) return;
+                if (object.isNot(COMPILABLE)) return;
+
                 DBContentType contentType = sourceCodeFile.getContentType();
+                CompileType compileType = getCompileType(object, contentType);
 
-                if (DatabaseFeature.OBJECT_INVALIDATION.isSupported(object)) {
-                    boolean isCompilable = object.is(DBObjectProperty.COMPILABLE);
-
-                    if (isCompilable) {
-                        CompileType compileType = getCompileType(object, contentType);
-
-                        CompilerAction compilerAction = new CompilerAction(CompilerActionSource.SAVE, contentType, sourceCodeFile, fileEditor);
-                        if (compileType == CompileType.DEBUG) {
-                            compileObject(object, compileType, compilerAction);
-                        }
-                        ConnectionHandler connection = object.getConnection();
-                        ProjectEvents.notify(project,
-                                CompileManagerListener.TOPIC,
-                                (listener) -> listener.compileFinished(connection, object));
-
-                        createCompilerResult(object, compilerAction);
-                    }
+                CompilerAction compilerAction = new CompilerAction(CompilerActionSource.SAVE, contentType, sourceCodeFile, fileEditor);
+                if (compileType == CompileType.DEBUG) {
+                    compileObject(object, compileType, compilerAction);
+                } else {
+                    CompilerResult compilerResult = createCompilerResult(object, compilerAction, null);
+                    ExecutionManager executionManager = ExecutionManager.getInstance(project);
+                    executionManager.addCompilerResult(compilerResult);
                 }
+                ConnectionHandler connection = object.getConnection();
+                ProjectEvents.notify(project,
+                        CompileManagerListener.TOPIC,
+                        (listener) -> listener.compileFinished(connection, object));
+
             }
         };
     }
 
-    private void createCompilerResult(DBSchemaObject object, CompilerAction compilerAction) {
-        Project project = object.getProject();
-        CompilerResult compilerResult = new CompilerResult(compilerAction, object);
-        ExecutionManager executionManager = ExecutionManager.getInstance(project);
-        executionManager.addCompilerResult(compilerResult);
+    private static CompilerResult createCompilerResult(DBSchemaObject object, CompilerAction compilerAction, @Nullable DBNConnection conn) {
+        return new CompilerResult(compilerAction, object, conn);
     }
 
-    private void createErrorCompilerResult(CompilerAction compilerAction, DBSchemaObject object, DBContentType contentType, Exception e) {
-        Project project = object.getProject();
-        CompilerResult compilerResult = new CompilerResult(compilerAction, object, contentType, "Could not perform compile operation. \nCause: " + e.getMessage());
-        ExecutionManager executionManager = ExecutionManager.getInstance(project);
-        executionManager.addCompilerResult(compilerResult);
+    private static CompilerResult createErrorCompilerResult(CompilerAction compilerAction, DBSchemaObject object, DBContentType contentType, Exception e) {
+        return new CompilerResult(compilerAction, object, contentType, "Could not perform compile operation. \nCause: " + e.getMessage());
     }
 
     public CompileType getCompileType(@Nullable DBSchemaObject object, DBContentType contentType) {
@@ -110,11 +107,10 @@ public class DatabaseCompilerManager extends ProjectComponentBase {
         Project project = object.getProject();
         DatabaseDebuggerManager debuggerManager = DatabaseDebuggerManager.getInstance(project);
         boolean allowed = debuggerManager.checkForbiddenOperation(object.getConnection());
-        if (allowed) {
-            doCompileObject(object, compileType, compilerAction);
-            DBContentType contentType = compilerAction.getContentType();
-            updateFilesContentState(object, contentType);
-        }
+        if (!allowed) return;
+
+        doCompileObject(object, compileType, compilerAction);
+        updateFilesContentState(object, compilerAction.getContentType());
     }
 
     private void updateFilesContentState(DBSchemaObject object, DBContentType contentType) {
@@ -143,6 +139,7 @@ public class DatabaseCompilerManager extends ProjectComponentBase {
         ConnectionAction.invoke("compiling the object", false, object,
                 action -> promptCompileTypeSelection(compileType, object, type -> Background.run(project, () -> {
                     doCompileObject(object, type, compilerAction);
+
                     ConnectionHandler connection = object.getConnection();
                     ProjectEvents.notify(project,
                             CompileManagerListener.TOPIC,
@@ -164,23 +161,28 @@ public class DatabaseCompilerManager extends ProjectComponentBase {
         DBObjectStatusHolder objectStatus = object.getStatus();
         if (objectStatus.is(contentType, COMPILING)) return;
 
+        CompilerResult compilerResult = null;
+
         try {
             objectStatus.set(contentType, COMPILING, true);
-            DatabaseInterfaceInvoker.execute(HIGH,
+            compilerResult = DatabaseInterfaceInvoker.load(compilerAction.isBulkCompile() ? LOW : HIGH,
                     object.getProject(),
                     object.getConnectionId(),
-                    conn -> doCompileObject(object, compileType, contentType, objectStatus, conn));
-
-            createCompilerResult(object, compilerAction);
-        } catch (SQLException e) {
+                    conn -> doCompileObject(object, compileType, compilerAction, objectStatus, conn));
+        } catch (Exception e) {
             conditionallyLog(e);
-            createErrorCompilerResult(compilerAction, object, contentType, e);
+            compilerResult = createErrorCompilerResult(compilerAction, object, contentType, e);
         }  finally{
             objectStatus.set(contentType, COMPILING, false);
+            if (compilerResult != null) {
+                ExecutionManager executionManager = ExecutionManager.getInstance(getProject());
+                executionManager.addCompilerResult(compilerResult);
+            }
         }
     }
 
-    private static void doCompileObject(DBSchemaObject object, CompileType compileType, DBContentType contentType, DBObjectStatusHolder objectStatus, DBNConnection conn) throws SQLException {
+    private static CompilerResult doCompileObject(DBSchemaObject object, CompileType compileType, CompilerAction compilerAction, DBObjectStatusHolder objectStatus, DBNConnection conn) throws SQLException {
+        DBContentType contentType = compilerAction.getContentType();
         ConnectionHandler connection = object.getConnection();
         DatabaseMetadataInterface metadata = connection.getMetadataInterface();
 
@@ -219,6 +221,8 @@ public class DatabaseCompilerManager extends ProjectComponentBase {
                     debug,
                     conn);
         }
+
+        return createCompilerResult(object, compilerAction, conn);
     }
 
     public void compileInvalidObjects(@NotNull DBSchema schema, CompileType compileType) {
@@ -264,14 +268,14 @@ public class DatabaseCompilerManager extends ProjectComponentBase {
                 if (objectContentType.isBundle()) {
                     for (DBContentType contentType : objectContentType.getSubContentTypes()) {
                         if (objectStatus.isNot(contentType, DBObjectStatus.VALID)) {
-                            CompilerAction compilerAction = new CompilerAction(CompilerActionSource.BULK_COMPILE, contentType);
+                            CompilerAction compilerAction = new CompilerAction(BULK_COMPILE, contentType);
                             doCompileObject(object, compileType, compilerAction);
                             progress.setText("Compiling " + object.getQualifiedNameWithType());
                         }
                     }
                 } else {
                     if (objectStatus.isNot(DBObjectStatus.VALID)) {
-                        CompilerAction compilerAction = new CompilerAction(CompilerActionSource.BULK_COMPILE, objectContentType);
+                        CompilerAction compilerAction = new CompilerAction(BULK_COMPILE, objectContentType);
                         doCompileObject(object, compileType, compilerAction);
                         progress.setText("Compiling " + object.getQualifiedNameWithType());
                     }
@@ -285,8 +289,8 @@ public class DatabaseCompilerManager extends ProjectComponentBase {
             DBObjectStatusHolder objectStatus = object.getStatus();
             if (objectStatus.is(DBObjectStatus.VALID)) continue;
 
-            CompilerAction compilerAction = new CompilerAction(CompilerActionSource.BULK_COMPILE, object.getContentType());
-            CompilerResult compilerResult = new CompilerResult(compilerAction, object);
+            CompilerAction compilerAction = new CompilerAction(BULK_COMPILE, object.getContentType());
+            CompilerResult compilerResult = new CompilerResult(compilerAction, object, null);
             if (compilerResult.isError()) {
                 compilerErrors.add(compilerResult);
             }
@@ -299,16 +303,16 @@ public class DatabaseCompilerManager extends ProjectComponentBase {
             @NotNull Consumer<CompileType> callback) {
 
         if (compileType == CompileType.ASK) {
-            CompilerTypeSelectionDialog dialog = new CompilerTypeSelectionDialog(getProject(), program);
-            dialog.show();
-            if (dialog.getExitCode() == DialogWrapper.OK_EXIT_CODE) {
-                compileType = dialog.getSelection();
+            Dialogs.show(() -> new CompilerTypeSelectionDialog(getProject(), program), (dialog, exitCode) -> {
+                if (exitCode != DialogWrapper.OK_EXIT_CODE) return;
+
+                CompileType selectedCompileType = dialog.getSelection();
                 if (dialog.isRememberSelection()) {
                     OperationSettings operationSettings = OperationSettings.getInstance(getProject());
-                    operationSettings.getCompilerSettings().setCompileType(compileType);
+                    operationSettings.getCompilerSettings().setCompileType(selectedCompileType);
                 }
-                callback.accept(compileType);
-            }
+                callback.accept(selectedCompileType);
+            });
         } else {
             callback.accept(compileType);
         }

@@ -239,8 +239,20 @@ public class DatabaseFileSystem extends VirtualFileSystem implements /*NonPhysic
         return filesCache.computeIfAbsent(objectRef, ref -> new DBEditableObjectVirtualFile(ref.getProject(), ref));
     }
 
-    public DBEditableObjectVirtualFile findOrCreateDatabaseFile(@NotNull Project project, @NotNull DBObjectRef<?> objectRef) {
-        return filesCache.computeIfAbsent(objectRef, ref -> new DBEditableObjectVirtualFile(project, ref));
+    public DBEditableObjectVirtualFile findOrCreateDatabaseFile(@NotNull Project project, @NotNull DBObjectRef<?> ref) {
+        return filesCache.computeIfAbsent(ref, r -> new DBEditableObjectVirtualFile(project, r));
+    }
+
+    public void invalidateDatabaseFile(DBObjectRef objectRef) {
+        filesCache.remove(objectRef);
+    }
+
+    public static boolean isFileOpened(DBObjectRef object) {
+        Project project = object.getProject();
+        if (project == null) return false;
+
+        DatabaseFileManager fileManager = DatabaseFileManager.getInstance(project);
+        return fileManager.isFileOpened(object);
     }
 
     public static boolean isFileOpened(DBObject object) {

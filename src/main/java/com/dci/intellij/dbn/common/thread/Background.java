@@ -7,6 +7,7 @@ import lombok.experimental.UtilityClass;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -22,9 +23,12 @@ public final class Background {
     public static void run(Project project, ThrowableRunnable<Throwable> runnable) {
         try {
             Threads.delay(lock);
-            ThreadInfo threadInfo = ThreadMonitor.current();
+            ThreadInfo threadInfo = ThreadInfo.copy();
             ExecutorService executorService = Threads.backgroundExecutor();
-            executorService.submit(() -> {
+            AtomicReference<Future<?>> future = new AtomicReference<>();
+
+            future.set(executorService.submit(() -> {
+                String taskId = PooledThread.enter(future.get());
                 try {
                     ThreadMonitor.surround(
                             project,
@@ -36,27 +40,32 @@ public final class Background {
                 } catch (Throwable e) {
                     conditionallyLog(e);
                     log.error("Error executing background task", e);
+                } finally {
+                    PooledThread.exit(taskId);
                 }
-            });
+            }));
         } catch (RejectedExecutionException e) {
             conditionallyLog(e);
             log.warn("Background execution rejected: " + e.getMessage());
         }
     }
 
-    public static void run(Project project, AtomicReference<Thread> handle, ThrowableRunnable<Throwable> runnable) {
+    public static void run(Project project, AtomicReference<PooledThread> handle, ThrowableRunnable<Throwable> runnable) {
         try {
             Threads.delay(lock);
-            Thread current = handle.get();
-            if (current != null) {
-                current.interrupt();
-            }
-            ThreadInfo threadInfo = ThreadMonitor.current();
+            PooledThread current = handle.get();
+            if (current != null) current.cancel();
+
+            ThreadInfo threadInfo = ThreadInfo.copy();
             ExecutorService executorService = Threads.backgroundExecutor();
-            executorService.submit(() -> {
+
+            AtomicReference<Future<?>> future = new AtomicReference<>();
+
+            future.set(executorService.submit(() -> {
+                String taskId = PooledThread.enter(future.get());
                 try {
                     try {
-                        handle.set(Thread.currentThread());
+                        handle.set(PooledThread.current());
                         ThreadMonitor.surround(
                                 project,
                                 threadInfo,
@@ -70,8 +79,10 @@ public final class Background {
                 } catch (Throwable e) {
                     conditionallyLog(e);
                     log.error("Error executing background task", e);
+                } finally {
+                    PooledThread.exit(taskId);
                 }
-            });
+            }));
         } catch (RejectedExecutionException e) {
             conditionallyLog(e);
             log.warn("Background execution rejected: " + e.getMessage());

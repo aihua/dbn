@@ -34,7 +34,6 @@ public class InterfaceQueue extends StatefulDisposableBase implements DatabaseIn
     private final ConnectionRef connection;
     private volatile Thread monitor;
 
-
     public InterfaceQueue(ConnectionHandler connection) {
         this(connection, null);
     }
@@ -123,11 +122,12 @@ public class InterfaceQueue extends StatefulDisposableBase implements DatabaseIn
 
             InterfaceTask<?> task = queue.take();
 
+            // increment "running" as early as possible (decision whether to park or unpark the monitor depends on the running counter)
+            counters.running().increment();
             counters.queued().decrement();
             task.changeStatus(DEQUEUED);
 
             consumer.accept(task);
-            counters.running().increment();
             task.changeStatus(SCHEDULED);
         }
     }

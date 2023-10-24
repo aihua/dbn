@@ -21,7 +21,11 @@ import org.jdom.Element;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.dci.intellij.dbn.common.component.Components.applicationService;
 import static com.dci.intellij.dbn.common.file.FileTypeService.COMPONENT_NAME;
@@ -38,8 +42,8 @@ import static com.dci.intellij.dbn.common.options.setting.Settings.stringAttribu
 public class FileTypeService extends ApplicationComponentBase implements PersistentState {
     public static final String COMPONENT_NAME = "DBNavigator.Application.FileTypeService";
 
-    private final Map<String, String> originalFileAssociations = new HashMap<>();
-    private boolean silentFileChangeContext = false;
+    private final Map<String, String> originalFileAssociations = new ConcurrentHashMap<>();
+    private boolean silentFileTypeChange = false;
 
     private FileTypeService() {
         super(COMPONENT_NAME);
@@ -49,6 +53,16 @@ public class FileTypeService extends ApplicationComponentBase implements Persist
 
     public static FileTypeService getInstance() {
         return applicationService(FileTypeService.class);
+    }
+
+    private void withSilentContext(Runnable runnable) {
+        boolean silent = silentFileTypeChange;
+        try {
+            silentFileTypeChange = true;
+            runnable.run();
+        } finally {
+            silentFileTypeChange = silent;
+        }
     }
 
     public final void associateExtension(@NotNull DBLanguageFileType fileType, @NotNull String extension) {
@@ -107,37 +121,41 @@ public class FileTypeService extends ApplicationComponentBase implements Persist
     }
 
     public void claimFileAssociations(DBLanguageFileType fileType) {
-        String[] extensions = fileType.getSupportedExtensions();
-        for (String extension : extensions) {
-            associateExtension(fileType, extension);
-        }
+        withSilentContext(() -> {
+            String[] extensions = fileType.getSupportedExtensions();
+            for (String extension : extensions) {
+                associateExtension(fileType, extension);
+            }
+        });
     }
 
     public void restoreFileAssociations() {
-        for (String fileExtension : originalFileAssociations.keySet()) {
-            String fileTypeName = originalFileAssociations.get(fileExtension);
-            FileType fileType = getFileType(fileTypeName);
-            if (fileType == null) continue;
+        withSilentContext(() -> {
+            for (String fileExtension : originalFileAssociations.keySet()) {
+                String fileTypeName = originalFileAssociations.get(fileExtension);
+                FileType fileType = getFileType(fileTypeName);
+                if (fileType == null) continue;
 
-            associate(fileType, fileExtension);
-        }
+                associate(fileType, fileExtension);
+            }
 
-        FileType originalSqlFileType = getFileType("SQL");
-        if (originalSqlFileType != null) {
-            if (getCurrentFileType("sql") instanceof DBLanguageFileType) associate(originalSqlFileType, "sql");
-            if (getCurrentFileType("ddl") instanceof DBLanguageFileType) associate(originalSqlFileType, "ddl");
-        }
+            FileType originalSqlFileType = getFileType("SQL");
+            if (originalSqlFileType != null) {
+                if (getCurrentFileType("sql") instanceof DBLanguageFileType) associate(originalSqlFileType, "sql");
+                if (getCurrentFileType("ddl") instanceof DBLanguageFileType) associate(originalSqlFileType, "ddl");
+            }
+        });
     }
 
     private void associate(FileType fileType, String extension) {
         FileType currentFileType = getCurrentFileType(extension);
         if (currentFileType == fileType) return;
 
-        Write.run(() -> FileTypeManager.getInstance().associateExtension(fileType, extension));
+        Write.run(() -> withSilentContext(() -> FileTypeManager.getInstance().associateExtension(fileType, extension)));
     }
 
-    private static void dissociate(FileType fileType, String fileExtension) {
-        Write.run(() -> FileTypeManager.getInstance().removeAssociatedExtension(fileType, fileExtension));
+    private void dissociate(FileType fileType, String fileExtension) {
+        Write.run(() -> withSilentContext(() -> FileTypeManager.getInstance().removeAssociatedExtension(fileType, fileExtension)));
     }
 
     @NotNull

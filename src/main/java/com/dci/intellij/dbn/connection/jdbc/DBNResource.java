@@ -3,7 +3,6 @@ package com.dci.intellij.dbn.connection.jdbc;
 import com.dci.intellij.dbn.common.ui.util.Listeners;
 import com.dci.intellij.dbn.common.util.Strings;
 import com.dci.intellij.dbn.common.util.TimeUtil;
-import com.dci.intellij.dbn.common.util.Traceable;
 import com.dci.intellij.dbn.common.util.UUIDs;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +25,6 @@ public abstract class DBNResource<T> extends ResourceStatusHolder implements Res
     private ResourceStatusAdapter<CancellableResource> cancelled;
     private final Listeners<DBNResourceListener> listeners = Listeners.create();
 
-    protected Traceable traceable = new Traceable();
     private final Map<String, Long> errorLogs = new ConcurrentHashMap<>();
 
     DBNResource(T inner, ResourceType type) {
@@ -39,7 +37,7 @@ public abstract class DBNResource<T> extends ResourceStatusHolder implements Res
 
         if (this instanceof CloseableResource) {
             CloseableResource closeable = (CloseableResource) this;
-            closed = new ResourceStatusAdapterImpl<CloseableResource>(closeable,
+            closed = new ResourceStatusAdapterImpl<>(closeable,
                     ResourceStatus.CLOSED,
                     ResourceStatus.CHANGING_CLOSED,
                     ResourceStatus.EVALUATING_CLOSED,
@@ -61,7 +59,7 @@ public abstract class DBNResource<T> extends ResourceStatusHolder implements Res
 
         if (this instanceof CancellableResource) {
             CancellableResource cancellable = (CancellableResource) this;
-            cancelled = new ResourceStatusAdapterImpl<CancellableResource>(cancellable,
+            cancelled = new ResourceStatusAdapterImpl<>(cancellable,
                     ResourceStatus.CANCELLED,
                     ResourceStatus.CHANGING_CANCELLED,
                     ResourceStatus.EVALUATING_CANCELLED,
@@ -94,6 +92,11 @@ public abstract class DBNResource<T> extends ResourceStatusHolder implements Res
 
     @Override
     public void statusChanged(ResourceStatus status) {
+    }
+
+    @Override
+    public boolean isObsolete() {
+        return isClosed();
     }
 
     public boolean isClosed() {
